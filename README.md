@@ -1,6 +1,6 @@
-# electron-vite-react-tailwind
+# Tabst.app
 
-对桌面端软件的探索。
+Write guitar tabs like markdown.
 
 ## 技术栈
 
@@ -57,4 +57,4 @@ pnpm run make  # Electron Forge: 打包 + 创建安装程序
 
 ## 许可证
 
-此项目采用 [待定 许可证](LICENSE)。
+此项目采用 [MPL 2.0 license](LICENSE)。
