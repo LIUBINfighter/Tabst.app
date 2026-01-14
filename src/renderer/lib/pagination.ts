@@ -1,6 +1,6 @@
 /**
  * 打印分页工具
- * 
+ *
  * 用于将 alphaTab 渲染的内容分割成多个页面
  */
 
@@ -24,14 +24,14 @@ export interface PaginationResult {
 
 /**
  * 将 SVG 内容分割成多个页面
- * 
+ *
  * alphaTab 使用绝对定位渲染，每个元素都有 top/left 样式
- * 
+ *
  * 核心逻辑：
  * - 每个元素（通常是一行乐谱 staff system）必须完整地放在某一页中
  * - 如果元素无法完整放入当前页，则将其放到下一页
  * - 这样可以避免元素被截断
- * 
+ *
  * @param container 包含 alphaTab 渲染内容的容器
  * @param pageHeightPx 每页的高度（像素）
  * @param contentWidthPx 内容宽度（像素）
@@ -45,7 +45,9 @@ export function paginateContent(
 	console.log("[Pagination] Starting pagination...");
 
 	// 获取 alphaTab 渲染的内容容器
-	const svgWrapper = container.querySelector(".at-surface") as HTMLElement | null;
+	const svgWrapper = container.querySelector(
+		".at-surface",
+	) as HTMLElement | null;
 
 	if (!svgWrapper) {
 		console.warn("[Pagination] No .at-surface found");
@@ -151,9 +153,7 @@ export function paginateContent(
 
 	// 保存最后一页
 	if (currentPageElements.length > 0) {
-		const pageActualMinTop = Math.min(
-			...currentPageElements.map((e) => e.top),
-		);
+		const pageActualMinTop = Math.min(...currentPageElements.map((e) => e.top));
 
 		const pageDiv = document.createElement("div");
 		pageDiv.className = "at-surface";
@@ -180,15 +180,10 @@ export function paginateContent(
 		pagesList.push(wrapper.outerHTML);
 	}
 
-	console.log(
-		"[Pagination] Pagination complete:",
-		pagesList.length,
-		"pages",
-	);
+	console.log("[Pagination] Pagination complete:", pagesList.length, "pages");
 
 	return {
 		pages: pagesList,
 		totalPages: pagesList.length,
 	};
 }
-

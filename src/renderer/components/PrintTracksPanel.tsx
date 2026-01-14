@@ -43,8 +43,8 @@ export interface PrintTracksPanelProps {
 	zoom?: number;
 	/** 缩放变化回调 */
 	onZoomChange?: (zoom: number) => void;
-	/** 应用 staff 选项回调 - 在 render 之前调用 */
-	onApplyStaffOptionsReady?: (applyFn: () => void) => void;
+	/** 应用配置回调 - 在 render 之前调用，返回选中的音轨列表 */
+	onApplyStaffOptionsReady?: (applyFn: () => AlphaTab.model.Track[]) => void;
 }
 
 /**
@@ -90,11 +90,13 @@ export function PrintTracksPanel({
 	}, [api, api?.score, isInitialized]);
 
 	// 应用配置到 AlphaTab 对象（单向：Config -> Object）
-	const applyConfigsToAlphaTab = useCallback(() => {
-		if (!api?.score) return;
+	// 返回选中的音轨列表，供渲染使用
+	const applyConfigsToAlphaTab = useCallback((): AlphaTab.model.Track[] => {
+		if (!api?.score) return [];
 
 		console.log("[PrintTracksPanel] 应用配置到 AlphaTab");
 
+		// 1. 先应用所有 staff 配置
 		trackConfigs.forEach((config) => {
 			const track = api.score.tracks.find((t) => t.index === config.index);
 			if (!track) return;
@@ -109,6 +111,15 @@ export function PrintTracksPanel({
 				}
 			});
 		});
+
+		// 2. 返回选中的音轨列表
+		const selectedTracks = trackConfigs
+			.filter((c) => c.isSelected)
+			.map((c) => api.score.tracks.find((t) => t.index === c.index))
+			.filter((t): t is AlphaTab.model.Track => t !== undefined)
+			.sort((a, b) => a.index - b.index);
+
+		return selectedTracks;
 	}, [api, trackConfigs]);
 
 	// 暴露应用函数给父组件（用于 zoom 变化前调用）

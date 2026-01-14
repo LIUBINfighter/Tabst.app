@@ -1,6 +1,6 @@
 /**
  * AlphaTab 配置创建工具
- * 
+ *
  * 用于创建预览和打印场景下的 AlphaTab API 配置
  */
 
@@ -53,7 +53,7 @@ export const DEFAULT_PRINT_COLORS: PrintColors = {
 
 /**
  * 创建预览场景的 AlphaTab 配置
- * 
+ *
  * @param urls 资源 URL 配置
  * @param options 预览配置选项
  * @returns AlphaTab 设置对象
@@ -62,12 +62,7 @@ export function createPreviewSettings(
 	urls: ResourceUrls,
 	options: PreviewConfigOptions = {},
 ): Record<string, unknown> {
-	const {
-		scale = 0.6,
-		scrollElement,
-		enablePlayer = true,
-		colors,
-	} = options;
+	const { scale = 0.6, scrollElement, enablePlayer = true, colors } = options;
 
 	return {
 		core: {
@@ -104,7 +99,7 @@ export function createPreviewSettings(
 
 /**
  * 创建打印场景的 AlphaTab 配置
- * 
+ *
  * @param urls 资源 URL 配置
  * @param options 打印配置选项
  * @returns AlphaTab 设置对象
@@ -113,11 +108,7 @@ export function createPrintSettings(
 	urls: ResourceUrls,
 	options: PrintConfigOptions = {},
 ): Record<string, unknown> {
-	const {
-		scale = 1.0,
-		colors = DEFAULT_PRINT_COLORS,
-		zoom = 1.0,
-	} = options;
+	const { scale = 1.0, colors = DEFAULT_PRINT_COLORS, zoom = 1.0 } = options;
 
 	// 使用 smuflFontSources 明确指定字体 URL
 	const printSmuflFontSources = new Map([
@@ -148,4 +139,3 @@ export function createPrintSettings(
 		},
 	} as Record<string, unknown>;
 }
-

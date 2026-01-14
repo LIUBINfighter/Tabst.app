@@ -1,6 +1,6 @@
 /**
  * AlphaTab 错误处理工具
- * 
+ *
  * 用于处理和格式化 AlphaTab 产生的错误信息
  */
 
@@ -44,8 +44,7 @@ export function formatDiagnosticsArray(
 			arr
 				.map((d) => {
 					// Common diagnostic shapes may include 'message' and 'range' / 'line' fields
-					const msg =
-						(d as { message?: string })?.message ?? JSON.stringify(d);
+					const msg = (d as { message?: string })?.message ?? JSON.stringify(d);
 					// range may be an object with start.line/character
 					const start = (
 						d as {
@@ -64,14 +63,10 @@ export function formatDiagnosticsArray(
 						const ch = (start.character ?? start.col ?? 0) + 1;
 						return `  - [${line}:${ch}] ${msg}`;
 					}
-					if (
-						d &&
-						typeof (d as { line?: number }).line === "number"
-					) {
+					if (d && typeof (d as { line?: number }).line === "number") {
 						const ln = ((d as { line?: number }).line ?? 0) + 1;
 						const ch =
-							((d as { character?: number; col?: number })
-								.character ??
+							((d as { character?: number; col?: number }).character ??
 								(d as { character?: number; col?: number }).col ??
 								0) + 1;
 						return `  - [${ln}:${ch}] ${msg}`;
@@ -87,7 +82,7 @@ export function formatDiagnosticsArray(
 
 /**
  * 格式化 AlphaTab 错误为可读的错误消息
- * 
+ *
  * @param err 错误对象
  * @returns 格式化后的错误消息字符串
  */
@@ -143,4 +138,3 @@ export function formatFullError(err: unknown): string {
 	const errorMessage = formatAlphaTabError(err);
 	return `${errorType}: ${errorMessage}`;
 }
-

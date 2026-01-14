@@ -1,10 +1,10 @@
 /**
  * Staff 配置管理工具
- * 
+ *
  * 用于管理 alphaTab Staff 的显示选项（Tablature, StandardNotation, Slash, Numbered）
  */
 
-import * as alphaTab from "@coderline/alphatab";
+import type * as alphaTab from "@coderline/alphatab";
 
 /**
  * Staff 显示选项配置
@@ -57,7 +57,7 @@ export function getFirstStaffOptions(
 
 /**
  * 检查是否可以切换指定的 Staff 选项
- * 
+ *
  * 如果切换后会导致所有选项都被禁用，则不允许切换
  */
 export function canToggleStaffOption(
@@ -101,7 +101,7 @@ export function canToggleStaffOption(
 
 /**
  * 切换第一个音轨的 Staff 显示选项
- * 
+ *
  * @param api AlphaTab API 实例
  * @param key 要切换的选项键
  * @returns 新的选项值，如果切换失败则返回 null
@@ -167,7 +167,7 @@ export function toggleFirstStaffOption(
 
 /**
  * 应用 Staff 显示配置到第一个音轨
- * 
+ *
  * @param api AlphaTab API 实例
  * @param config 要应用的配置（如果不提供则使用默认值）
  */
@@ -202,4 +202,3 @@ export function applyStaffConfig(
 
 	return appliedConfig;
 }
-

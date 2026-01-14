@@ -1,6 +1,6 @@
 /**
  * 打印相关工具函数
- * 
+ *
  * 包含页面尺寸定义、单位转换等打印相关的工具函数
  */
 
@@ -58,6 +58,5 @@ export function calculateContentDimensions(
 		contentWidthPx,
 		contentHeightPx,
 		marginMm,
-	}
+	};
 }
-
