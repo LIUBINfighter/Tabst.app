@@ -8,6 +8,14 @@ import {
 	X,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPrintSettings } from "../lib/alphatab-config";
+import type { ResourceUrls } from "../lib/resourceLoaderService";
+import { paginateContent } from "../lib/pagination";
+import {
+	calculateContentDimensions,
+	PAGE_SIZES,
+	type PageSize,
+} from "../lib/print-utils";
 import { getResourceUrls } from "../lib/resourceLoaderService";
 import { PrintTracksPanel } from "./PrintTracksPanel";
 import { Button } from "./ui/button";
@@ -21,55 +29,7 @@ export interface PrintPreviewProps {
 	onClose: () => void;
 }
 
-// 页面尺寸配置（毫米）
-interface PageSize {
-	name: string;
-	width: number; // mm
-	height: number; // mm
-}
-
-const PAGE_SIZES: PageSize[] = [
-	{ name: "A4", width: 210, height: 297 },
-	{ name: "Letter", width: 215.9, height: 279.4 },
-	{ name: "A3", width: 297, height: 420 },
-];
-
-// 将毫米转换为像素（假设 96 DPI）
-const mmToPx = (mm: number): number => Math.round((mm * 96) / 25.4);
-
-/**
- * alphaTab 打印配置
- * 集中管理打印时的 alphaTab 设置，便于深度定制
- */
-interface AlphaTabPrintConfig {
-	/** 显示缩放，打印时固定为 1.0 */
-	scale: number;
-	/** 布局模式 */
-	layoutMode: alphaTab.LayoutMode;
-	/** 颜色配置（打印用黑白） */
-	colors: {
-		mainGlyphColor: string;
-		secondaryGlyphColor: string;
-		staffLineColor: string;
-		barSeparatorColor: string;
-		barNumberColor: string;
-		scoreInfoColor: string;
-	};
-}
-
-/** 默认打印配置 */
-const DEFAULT_PRINT_CONFIG: AlphaTabPrintConfig = {
-	scale: 1.0, // 打印时使用 1:1 缩放
-	layoutMode: alphaTab.LayoutMode.Page,
-	colors: {
-		mainGlyphColor: "#000000",
-		secondaryGlyphColor: "#333333",
-		staffLineColor: "#666666",
-		barSeparatorColor: "#666666",
-		barNumberColor: "#444444",
-		scoreInfoColor: "#000000",
-	},
-};
+// 页面尺寸和相关常量已在 print-utils.ts 中定义
 
 /**
  * PrintPreview 组件
@@ -119,184 +79,31 @@ export default function PrintPreview({
 
 	// 计算打印区域尺寸
 	const marginMm = 15;
-	const contentWidthMm = pageSize.width - marginMm * 2;
-	const contentHeightMm = pageSize.height - marginMm * 2;
-	const contentWidthPx = mmToPx(contentWidthMm);
-	const contentHeightPx = mmToPx(contentHeightMm);
+	const {
+		contentWidthMm,
+		contentHeightMm,
+		contentWidthPx,
+		contentHeightPx,
+	} = calculateContentDimensions(pageSize, marginMm);
 
 	/**
 	 * 将 SVG 内容分割成多个页面
-	 * alphaTab 使用绝对定位渲染，每个元素都有 top/left 样式
-	 *
-	 * 核心逻辑：
-	 * - 每个元素（通常是一行乐谱 staff system）必须完整地放在某一页中
-	 * - 如果元素无法完整放入当前页，则将其放到下一页
-	 * - 这样可以避免元素被截断
 	 */
-	const paginateContent = useCallback(() => {
-		if (!alphaTabContainerRef.current) return;
-
-		console.log("[PrintPreview] Starting pagination...");
-
-		// 获取 alphaTab 渲染的内容容器
-		const svgWrapper = alphaTabContainerRef.current.querySelector(
-			".at-surface",
-		) as HTMLElement | null;
-
-		if (!svgWrapper) {
-			console.warn("[PrintPreview] No .at-surface found");
+	const handlePaginate = useCallback(() => {
+		if (!alphaTabContainerRef.current) {
 			setIsLoading(false);
 			return;
 		}
 
-		// 获取所有子元素并解析它们的位置
-		const children = Array.from(svgWrapper.children) as HTMLElement[];
-		console.log("[PrintPreview] Total children:", children.length);
-
-		if (children.length === 0) {
-			setPages([svgWrapper.innerHTML]);
-			setTotalPages(1);
-			setCurrentPage(1);
-			setIsLoading(false);
-			return;
-		}
-
-		// 解析每个元素的位置信息
-		interface ElementInfo {
-			element: HTMLElement;
-			top: number;
-			height: number;
-			bottom: number;
-		}
-
-		const elementsInfo: ElementInfo[] = children.map((child) => {
-			const style = child.style;
-			const top = Number.parseFloat(style.top) || 0;
-			const rect = child.getBoundingClientRect();
-			const height = rect.height;
-			return {
-				element: child,
-				top,
-				height,
-				bottom: top + height,
-			};
-		});
-
-		// 按 top 值排序
-		elementsInfo.sort((a, b) => a.top - b.top);
-
-		console.log(
-			"[PrintPreview] Elements info (first 10):",
-			elementsInfo.slice(0, 10).map((e) => ({
-				tagName: e.element.tagName,
-				className: e.element.className,
-				top: e.top,
-				height: e.height,
-				bottom: e.bottom,
-			})),
+		// 使用工具函数进行分页
+		const result = paginateContent(
+			alphaTabContainerRef.current,
+			contentHeightPx,
+			contentWidthPx,
 		);
 
-		// 检查是否有负的 top 值
-		const minTop = Math.min(...elementsInfo.map((e) => e.top));
-		const maxBottom = Math.max(...elementsInfo.map((e) => e.bottom));
-		console.log("[PrintPreview] Y-axis range:", {
-			minTop,
-			maxBottom,
-			totalHeight: maxBottom - minTop,
-		});
-
-		// 计算页面高度（像素）
-		const pageHeightPx = contentHeightPx;
-		const pagesList: string[] = [];
-
-		// 🔧 改进的分页逻辑：保持元素的绝对位置关系，从最小 top 值开始分页
-		let currentPageElements: ElementInfo[] = [];
-		let _currentPageStartY = minTop; // 从最小 top 值开始，包含所有装饰元素
-		let currentPageEndY = minTop + pageHeightPx;
-
-		for (let i = 0; i < elementsInfo.length; i++) {
-			const info = elementsInfo[i];
-
-			// 判断元素是否能完整放入当前页
-			// 元素的底部必须在当前页的范围内
-			const elementFitsInPage = info.bottom <= currentPageEndY;
-
-			if (elementFitsInPage) {
-				// 元素可以完整放入当前页
-				currentPageElements.push(info);
-			} else {
-				// 元素无法放入当前页，先保存当前页，然后开始新页
-				if (currentPageElements.length > 0) {
-					// 🔧 计算当前页内所有元素的实际范围
-					const pageActualMinTop = Math.min(
-						...currentPageElements.map((e) => e.top),
-					);
-
-					// 创建当前页
-					const pageDiv = document.createElement("div");
-					pageDiv.className = "at-surface";
-					pageDiv.style.position = "relative";
-					pageDiv.style.width = `${contentWidthPx}px`;
-					pageDiv.style.height = `${pageHeightPx}px`;
-
-					for (const el of currentPageElements) {
-						const clonedElement = el.element.cloneNode(true) as HTMLElement;
-						// 🔧 相对于页面实际最小 top 值定位，保持元素间的相对位置
-						const newTop = el.top - pageActualMinTop;
-						clonedElement.style.top = `${newTop}px`;
-						pageDiv.appendChild(clonedElement);
-					}
-
-					pagesList.push(pageDiv.outerHTML);
-				}
-
-				// 🔧 开始新页面：设置新的页面范围
-				// 新页面从当前元素开始，但要考虑可能存在的装饰元素
-				_currentPageStartY = info.top;
-				currentPageEndY = info.top + pageHeightPx;
-				currentPageElements = [info];
-			}
-		}
-
-		// 保存最后一页
-		if (currentPageElements.length > 0) {
-			const pageActualMinTop = Math.min(
-				...currentPageElements.map((e) => e.top),
-			);
-
-			const pageDiv = document.createElement("div");
-			pageDiv.className = "at-surface";
-			pageDiv.style.position = "relative";
-			pageDiv.style.width = `${contentWidthPx}px`;
-			pageDiv.style.height = `${pageHeightPx}px`;
-
-			for (const el of currentPageElements) {
-				const clonedElement = el.element.cloneNode(true) as HTMLElement;
-				const newTop = el.top - pageActualMinTop;
-				clonedElement.style.top = `${newTop}px`;
-				pageDiv.appendChild(clonedElement);
-			}
-
-			pagesList.push(pageDiv.outerHTML);
-		}
-
-		// 如果分页失败，使用整个内容作为一页
-		if (pagesList.length === 0) {
-			const wrapper = document.createElement("div");
-			wrapper.className = "at-surface";
-			wrapper.style.position = "relative";
-			wrapper.innerHTML = svgWrapper.innerHTML;
-			pagesList.push(wrapper.outerHTML);
-		}
-
-		console.log(
-			"[PrintPreview] Pagination complete:",
-			pagesList.length,
-			"pages",
-		);
-
-		setPages(pagesList);
-		setTotalPages(pagesList.length);
+		setPages(result.pages);
+		setTotalPages(result.totalPages);
 		setCurrentPage(1);
 		setIsLoading(false);
 	}, [contentHeightPx, contentWidthPx]);
@@ -304,50 +111,6 @@ export default function PrintPreview({
 	/**
 	 * 初始化 alphaTab 并渲染曲谱
 	 */
-	/**
-	 * 创建 alphaTab 打印配置
-	 * @param config 自定义配置，会与默认配置合并
-	 */
-	const createPrintSettings = useCallback(
-		(
-			urls: Awaited<ReturnType<typeof getResourceUrls>>,
-			config: Partial<AlphaTabPrintConfig> = {},
-		) => {
-			const finalConfig = { ...DEFAULT_PRINT_CONFIG, ...config };
-
-			// 使用 smuflFontSources 明确指定字体 URL（不再使用时间戳隔离）
-			const printSmuflFontSources = new Map([
-				[alphaTab.FontFileFormat.Woff2, urls.bravuraFontUrl],
-			]);
-
-			return {
-				core: {
-					tex: true,
-					// 使用默认 worker URL（不再附加时间戳）
-					scriptFile: urls.workerUrl,
-					// 使用 smuflFontSources 明确控制字体 URL
-					smuflFontSources: printSmuflFontSources,
-					enableLazyLoading: false, // 禁用懒加载以确保完整渲染
-				},
-				display: {
-					layoutMode: finalConfig.layoutMode,
-					scale: finalConfig.scale * zoom, // 🔧 使用用户设置的 zoom 缩放
-					resources: {
-						mainGlyphColor: finalConfig.colors.mainGlyphColor,
-						secondaryGlyphColor: finalConfig.colors.secondaryGlyphColor,
-						staffLineColor: finalConfig.colors.staffLineColor,
-						barSeparatorColor: finalConfig.colors.barSeparatorColor,
-						barNumberColor: finalConfig.colors.barNumberColor,
-						scoreInfoColor: finalConfig.colors.scoreInfoColor,
-					},
-				},
-				player: {
-					enablePlayer: false,
-				},
-			} as Record<string, unknown>;
-		},
-		[zoom],
-	);
 
 	const initAlphaTab = useCallback(async () => {
 		if (!alphaTabContainerRef.current) return;
@@ -402,8 +165,11 @@ export default function PrintPreview({
 				console.warn("[PrintPreview] Failed to inject print font style:", e);
 			}
 
-			// 创建打印配置
-			const settings = createPrintSettings(urls);
+			// 使用工具函数创建打印配置
+			const settings = createPrintSettings(urls as ResourceUrls, {
+				scale: 1.0,
+				zoom,
+			});
 
 			console.log("[PrintPreview] Initialization params:", {
 				containerWidth: contentWidthPx,
@@ -443,7 +209,7 @@ export default function PrintPreview({
 
 				// 渲染完成后进行分页
 				setTimeout(() => {
-					paginateContent();
+					handlePaginate();
 				}, 200);
 			});
 
@@ -468,12 +234,12 @@ export default function PrintPreview({
 	}, [
 		content,
 		contentWidthPx,
-		paginateContent,
-		createPrintSettings,
+		handlePaginate,
 		contentWidthMm,
 		contentHeightMm,
 		contentHeightPx,
 		pageSize,
+		zoom,
 	]);
 
 	/**
@@ -757,7 +523,10 @@ export default function PrintPreview({
 			alphaTabContainerRef.current
 		) {
 			// 重新计算宽度并渲染
-			const newWidthPx = mmToPx(pageSize.width - 15 * 2);
+			const { contentWidthPx: newWidthPx } = calculateContentDimensions(
+				pageSize,
+				15,
+			);
 			alphaTabContainerRef.current.style.width = `${newWidthPx}px`;
 
 			setIsLoading(true);

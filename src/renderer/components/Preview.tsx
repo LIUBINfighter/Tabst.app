@@ -14,7 +14,19 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { loadBravuraFont, loadSoundFontFromUrl } from "../lib/assets";
+import { createPreviewSettings } from "../lib/alphatab-config";
+import type { ResourceUrls } from "../lib/resourceLoaderService";
+import {
+	formatFullError,
+	type AlphaTabErrorLike,
+} from "../lib/alphatab-error";
 import { getResourceUrls } from "../lib/resourceLoaderService";
+import {
+	applyStaffConfig,
+	getFirstStaffOptions,
+	toggleFirstStaffOption,
+	type StaffDisplayOptions,
+} from "../lib/staff-config";
 import {
 	getAlphaTabColorsForTheme,
 	setupThemeObserver,
@@ -79,26 +91,6 @@ export default function Preview({
 		latestContentRef.current = content ?? "";
 	}, [content]);
 
-	// AlphaTab error shape helpers
-	type AlphaTabDiagnostic = {
-		message?: string;
-		range?: { start?: { line?: number; character?: number } };
-		line?: number;
-		character?: number;
-		col?: number;
-	};
-	type AlphaTabErrorLike = {
-		message?: string;
-		error?: string;
-		type?: string | number;
-		errorType?: string;
-		lexerDiagnostics?: string;
-		parserDiagnostics?: AlphaTabDiagnostic[];
-		semanticDiagnostics?: AlphaTabDiagnostic[];
-		diagnostics?: AlphaTabDiagnostic[] | unknown;
-		toString?: () => string;
-	};
-
 	const toggleFirstStaffOpt = (
 		key:
 			| "showTablature"
@@ -107,57 +99,10 @@ export default function Preview({
 			| "showNumbered",
 	) => {
 		const api = apiRef.current;
-		if (!api || !api.score) return;
-		const firstTrack = api.score.tracks?.[0];
-		if (!firstTrack || !firstTrack.staves || firstTrack.staves.length === 0)
-			return;
+		if (!api) return;
 
-		const s0 = firstTrack.staves[0] as alphaTab.model.Staff;
-		let current = false;
-		switch (key) {
-			case "showTablature":
-				current = !!s0.showTablature;
-				break;
-			case "showStandardNotation":
-				current = !!s0.showStandardNotation;
-				break;
-			case "showSlash":
-				current = !!s0.showSlash;
-				break;
-			case "showNumbered":
-				current = !!s0.showNumbered;
-				break;
-		}
-
-		// If toggling off would disable all options for this staff, prevent it
-		const totalSelected =
-			Number(!!s0.showTablature) +
-			Number(!!s0.showStandardNotation) +
-			Number(!!s0.showSlash) +
-			Number(!!s0.showNumbered);
-		// Only block when we're turning off the *only* active option (current === true)
-		if (totalSelected === 1 && current) {
-			// toggling on is always okay, toggling off when only one is selected should be blocked
-			return;
-		}
-
-		const newValue = !current;
-		firstTrack.staves.forEach((st: alphaTab.model.Staff) => {
-			switch (key) {
-				case "showTablature":
-					st.showTablature = newValue;
-					break;
-				case "showStandardNotation":
-					st.showStandardNotation = newValue;
-					break;
-				case "showSlash":
-					st.showSlash = newValue;
-					break;
-				case "showNumbered":
-					st.showNumbered = newValue;
-					break;
-			}
-		});
+		const newValue = toggleFirstStaffOption(api, key);
+		if (newValue === null) return; // 切换失败或不允许
 
 		// Update UI state for compact display
 		setFirstStaffOptions((prev) => ({
@@ -170,9 +115,6 @@ export default function Preview({
 			...trackConfigRef.current,
 			[key]: newValue,
 		};
-
-		// Re-render only the first track
-		api.renderTracks([firstTrack]);
 	};
 
 	// Apply zoom to alphaTab API
@@ -198,38 +140,20 @@ export default function Preview({
 	 * 从 trackConfigRef 读取保存的配置，如果没有则使用默认值
 	 */
 	const applyTracksConfig = useCallback((api: alphaTab.AlphaTabApi) => {
-		if (!api.score?.tracks?.length) return;
-
-		const firstTrack = api.score.tracks[0];
-		if (!firstTrack.staves?.length) return;
-
 		// 从 ref 获取保存的配置，如果没有则使用默认值
-		const config = trackConfigRef.current || {
+		const config: StaffDisplayOptions = trackConfigRef.current || {
 			showTablature: true,
 			showStandardNotation: false,
 			showSlash: false,
 			showNumbered: false,
 		};
 
-		// 应用配置到所有 staff
-		firstTrack.staves.forEach((st: alphaTab.model.Staff) => {
-			st.showTablature = config.showTablature ?? true;
-			st.showStandardNotation = config.showStandardNotation ?? false;
-			st.showSlash = config.showSlash ?? false;
-			st.showNumbered = config.showNumbered ?? false;
-		});
-
-		// 更新 UI state
-		const s0 = firstTrack.staves[0];
-		setFirstStaffOptions({
-			showTablature: s0.showTablature,
-			showStandardNotation: s0.showStandardNotation,
-			showSlash: s0.showSlash,
-			showNumbered: s0.showNumbered,
-		});
-
-		// 重新渲染
-		api.renderTracks([firstTrack]);
+		// 应用配置
+		const appliedConfig = applyStaffConfig(api, config);
+		if (appliedConfig) {
+			// 更新 UI state
+			setFirstStaffOptions(appliedConfig);
+		}
 	}, []);
 
 	useEffect(() => {
@@ -296,92 +220,8 @@ export default function Preview({
 				console.error("[Preview] Error type:", typeof err, err);
 				console.error("[Preview] Error keys:", err ? Object.keys(err) : "null");
 
-				// 设置错误消息 - 兼容多种错误格式
-				let errorMessage = "未知错误";
-				let errorType = "解析错误";
-
-				if (err) {
-					// Narrow unknown to our custom type
-					const e = err as AlphaTabErrorLike;
-					errorMessage = e.message || e.error || e.toString?.() || "未知错误";
-					errorType = String(e.type ?? e.errorType ?? "AlphaTex");
-
-					// dev: append diagnostics if available (AlphaTab reports lexer/parser/semantic diagnostics)
-					if (e.lexerDiagnostics) {
-						errorMessage += `\n\nLexer diagnostics:\n${e.lexerDiagnostics}`;
-					}
-
-					const fmtDiagArray = (
-						arr: unknown[] | undefined,
-						name = "Diagnostics",
-					) => {
-						if (!arr || !Array.isArray(arr) || arr.length === 0) return "";
-						try {
-							return (
-								`${name}:\n` +
-								arr
-									.map((d) => {
-										// Common diagnostic shapes may include 'message' and 'range' / 'line' fields
-										const msg =
-											(d as { message?: string })?.message ?? JSON.stringify(d);
-										// range may be an object with start.line/character
-										const start = (
-											d as {
-												range?: {
-													start?: {
-														line?: number;
-														character?: number;
-														row?: number;
-														col?: number;
-													};
-												};
-											}
-										)?.range?.start;
-										if (start) {
-											const line = (start.line ?? start.row ?? 0) + 1;
-											const ch = (start.character ?? start.col ?? 0) + 1;
-											return `  - [${line}:${ch}] ${msg}`;
-										}
-										if (
-											d &&
-											typeof (d as { line?: number }).line === "number"
-										) {
-											const ln = ((d as { line?: number }).line ?? 0) + 1;
-											const ch =
-												((d as { character?: number; col?: number })
-													.character ??
-													(d as { character?: number; col?: number }).col ??
-													0) + 1;
-											return `  - [${ln}:${ch}] ${msg}`;
-										}
-										return `  - ${msg}`;
-									})
-									.join("\n")
-							);
-						} catch {
-							return `${name}: ${JSON.stringify(arr)}`;
-						}
-					};
-
-					if (Array.isArray(e.parserDiagnostics)) {
-						errorMessage += `\n\n${fmtDiagArray(e.parserDiagnostics, "Parser diagnostics")}`;
-					}
-					if (Array.isArray(e.semanticDiagnostics)) {
-						errorMessage += `\n\n${fmtDiagArray(e.semanticDiagnostics, "Semantic diagnostics")}`;
-					}
-					// Fallback: some versions include a 'diagnostics' key
-					if (Array.isArray(e.diagnostics as unknown[])) {
-						errorMessage += `\n\n${fmtDiagArray(e.diagnostics as unknown[], "Diagnostics")}`;
-					} else if (e.diagnostics) {
-						try {
-							errorMessage += `\n\nDiagnostics:\n${JSON.stringify(e.diagnostics, null, 2)}`;
-						} catch {
-							// ignore stringify errors
-						}
-					}
-				}
-
-				const fullError = `${errorType}: ${errorMessage}`;
+				// 使用工具函数格式化错误
+				const fullError = formatFullError(err);
 				console.error("[Preview] Setting error state:", fullError);
 				setParseError(fullError);
 
@@ -471,35 +311,16 @@ export default function Preview({
 					// 获取当前主题的颜色
 					const colors = getAlphaTabColorsForTheme();
 
-					// 使用 ResourceLoaderService 提供的 worker URL
-					const settings: Record<string, unknown> = {
-						core: {
-							tex: true,
-							scriptFile: urls.workerUrl, // ← 关键：明确配置 worker 脚本路径
-							fontDirectory: urls.bravuraFontDirectory, // ← 直接使用资源服务提供的字体目录
-						},
-						display: {
-							layoutMode: alphaTab.LayoutMode.Page,
+					// 使用工具函数创建预览配置
+					const settings = createPreviewSettings(
+						urls as ResourceUrls,
+						{
 							scale: zoomRef.current / 100,
-							// 在初始化时直接应用颜色配置
-							resources: {
-								mainGlyphColor: colors.mainGlyphColor,
-								secondaryGlyphColor: colors.secondaryGlyphColor,
-								staffLineColor: colors.staffLineColor,
-								barSeparatorColor: colors.barSeparatorColor,
-								barNumberColor: colors.barNumberColor,
-								scoreInfoColor: colors.scoreInfoColor,
-							},
-						},
-						player: {
-							playerMode: alphaTab.PlayerMode.EnabledAutomatic,
-							enablePlayer: true,
-							soundFont: urls.soundFontUrl, // ← 使用 URL 而不是硬编码路径
-							scrollMode: alphaTab.ScrollMode.OffScreen,
 							scrollElement: scrollEl,
-							scrollSpeed: 300,
+							enablePlayer: true,
+							colors,
 						},
-					};
+					);
 
 					console.log("[Preview] AlphaTab initialization:", {
 						containerWidth: el.offsetWidth,
@@ -550,35 +371,16 @@ export default function Preview({
 									// 获取新的颜色配置
 									const newColors = getAlphaTabColorsForTheme();
 
-									// 重新创建 API 配置，使用新的颜色
-									const newSettings: Record<string, unknown> = {
-										core: {
-											tex: true,
-											scriptFile: urls.workerUrl,
-											fontDirectory: urls.bravuraFontDirectory,
-										},
-										display: {
-											layoutMode: alphaTab.LayoutMode.Page,
+									// 使用工具函数重新创建 API 配置
+									const newSettings = createPreviewSettings(
+										urls as ResourceUrls,
+										{
 											scale: zoomRef.current / 100,
-											// 使用新的颜色配置
-											resources: {
-												mainGlyphColor: newColors.mainGlyphColor,
-												secondaryGlyphColor: newColors.secondaryGlyphColor,
-												staffLineColor: newColors.staffLineColor,
-												barSeparatorColor: newColors.barSeparatorColor,
-												barNumberColor: newColors.barNumberColor,
-												scoreInfoColor: newColors.scoreInfoColor,
-											},
-										},
-										player: {
-											playerMode: alphaTab.PlayerMode.EnabledAutomatic,
-											enablePlayer: true,
-											soundFont: urls.soundFontUrl,
-											scrollMode: alphaTab.ScrollMode.OffScreen,
 											scrollElement: scrollEl,
-											scrollSpeed: 300,
+											enablePlayer: true,
+											colors: newColors,
 										},
-									};
+									);
 
 									// 创建新的 API
 									apiRef.current = new alphaTab.AlphaTabApi(el, newSettings);
