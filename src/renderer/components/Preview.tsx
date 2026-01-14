@@ -235,6 +235,15 @@ export default function Preview({
 	useEffect(() => {
 		if (!containerRef.current) return;
 
+		// 使用 reinitTrigger 触发重新初始化（例如从打印预览返回时）
+		if (reinitTrigger > 0) {
+			console.log(
+				"[Preview] Reinitializing alphaTab API (trigger:",
+				reinitTrigger,
+				")",
+			);
+		}
+
 		/**
 		 * 🆕 统一附加所有 alphaTab 事件监听器
 		 * 确保在初始化和主题重建时都能正确绑定所有功能
@@ -355,18 +364,14 @@ export default function Preview({
 					};
 
 					if (Array.isArray(e.parserDiagnostics)) {
-						errorMessage +=
-							`\n\n` + fmtDiagArray(e.parserDiagnostics, "Parser diagnostics");
+						errorMessage += `\n\n${fmtDiagArray(e.parserDiagnostics, "Parser diagnostics")}`;
 					}
 					if (Array.isArray(e.semanticDiagnostics)) {
-						errorMessage +=
-							`\n\n` +
-							fmtDiagArray(e.semanticDiagnostics, "Semantic diagnostics");
+						errorMessage += `\n\n${fmtDiagArray(e.semanticDiagnostics, "Semantic diagnostics")}`;
 					}
 					// Fallback: some versions include a 'diagnostics' key
 					if (Array.isArray(e.diagnostics as unknown[])) {
-						errorMessage +=
-							`\n\n` + fmtDiagArray(e.diagnostics as unknown[], "Diagnostics");
+						errorMessage += `\n\n${fmtDiagArray(e.diagnostics as unknown[], "Diagnostics")}`;
 					} else if (e.diagnostics) {
 						try {
 							errorMessage += `\n\nDiagnostics:\n${JSON.stringify(e.diagnostics, null, 2)}`;
@@ -735,7 +740,7 @@ export default function Preview({
 			}
 			pendingTexRef.current = null;
 		};
-	}, [applyTracksConfig, reinitTrigger]); // 监听 reinitTrigger 以重新初始化
+	}, [applyTracksConfig, reinitTrigger]);
 
 	// 内容更新：仅调用 tex，不销毁 API，避免闪烁
 	useEffect(() => {

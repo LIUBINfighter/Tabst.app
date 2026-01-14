@@ -1,7 +1,6 @@
 import * as alphaTab from "@coderline/alphatab";
 import { ChevronLeft, ChevronRight, Loader2, Printer, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { loadBravuraFont } from "../lib/assets";
 import { getResourceUrls } from "../lib/resourceLoaderService";
 import { Button } from "./ui/button";
 
@@ -83,7 +82,7 @@ export default function PrintPreview({
 	const [pageSize, setPageSize] = useState<PageSize>(PAGE_SIZES[0]);
 	const [pages, setPages] = useState<string[]>([]);
 	const [bravuraFontUrl, setBravuraFontUrl] = useState<string>("");
-	const [fontLoaded, setFontLoaded] = useState(false);
+	const [_fontLoaded, setFontLoaded] = useState(false);
 	const [fontError, setFontError] = useState(false);
 
 	// 打印时使用的专用字体名与 URL（动态，带时间戳）
@@ -194,7 +193,7 @@ export default function PrintPreview({
 
 		// 🔧 改进的分页逻辑：保持元素的绝对位置关系，从最小 top 值开始分页
 		let currentPageElements: ElementInfo[] = [];
-		let currentPageStartY = minTop; // 从最小 top 值开始，包含所有装饰元素
+		let _currentPageStartY = minTop; // 从最小 top 值开始，包含所有装饰元素
 		let currentPageEndY = minTop + pageHeightPx;
 
 		for (let i = 0; i < elementsInfo.length; i++) {
@@ -235,7 +234,7 @@ export default function PrintPreview({
 
 				// 🔧 开始新页面：设置新的页面范围
 				// 新页面从当前元素开始，但要考虑可能存在的装饰元素
-				currentPageStartY = info.top;
+				_currentPageStartY = info.top;
 				currentPageEndY = info.top + pageHeightPx;
 				currentPageElements = [info];
 			}
@@ -353,7 +352,7 @@ export default function PrintPreview({
 
 			// 注入打印专用 @font-face 及字体覆盖，确保 AlphaTab 在测量时使用该字体名
 			try {
-				if (printStyleRef.current && printStyleRef.current.parentElement) {
+				if (printStyleRef.current?.parentElement) {
 					printStyleRef.current.parentElement.removeChild(
 						printStyleRef.current,
 					);
@@ -448,7 +447,16 @@ export default function PrintPreview({
 			setError(err instanceof Error ? err.message : "初始化失败");
 			setIsLoading(false);
 		}
-	}, [content, contentWidthPx, paginateContent, createPrintSettings]);
+	}, [
+		content,
+		contentWidthPx,
+		paginateContent,
+		createPrintSettings,
+		contentWidthMm,
+		contentHeightMm,
+		contentHeightPx,
+		pageSize,
+	]);
 
 	/**
 	 * 处理打印/导出 PDF
@@ -576,7 +584,7 @@ export default function PrintPreview({
 			console.log("[PrintPreview] Checking font load status:", fontName);
 
 			// 使用 document.fonts API 检查字体加载状态
-			if (printWindow.document.fonts && printWindow.document.fonts.check) {
+			if (printWindow.document.fonts?.check) {
 				const checkFontAndPrint = () => {
 					const fontLoaded = printWindow.document.fonts.check(
 						`34px "${fontName}"`,
@@ -767,7 +775,7 @@ export default function PrintPreview({
 					apiRef.current.destroy();
 					apiRef.current = null;
 				}
-				if (printStyleRef.current && printStyleRef.current.parentElement) {
+				if (printStyleRef.current?.parentElement) {
 					printStyleRef.current.parentElement.removeChild(
 						printStyleRef.current,
 					);

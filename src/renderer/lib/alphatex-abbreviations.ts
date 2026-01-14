@@ -1,6 +1,7 @@
+import type { Completion } from "@codemirror/autocomplete";
 import { snippet } from "@codemirror/autocomplete";
 import { syntaxTree } from "@codemirror/language";
-import { EditorView, ViewPlugin, type ViewUpdate } from "@codemirror/view";
+import { ViewPlugin, type ViewUpdate } from "@codemirror/view";
 import commandsJSON from "../data/alphatex-commands.json";
 
 /**
@@ -11,7 +12,9 @@ import commandsJSON from "../data/alphatex-commands.json";
  * without requiring the autocomplete menu or Enter key.
  */
 
-const abbreviations = (commandsJSON as any).abbreviations || {};
+const abbreviations =
+	(commandsJSON as { abbreviations?: Record<string, string> }).abbreviations ||
+	{};
 
 export const alphatexAbbreviations = ViewPlugin.fromClass(
 	class {
@@ -64,14 +67,9 @@ export const alphatexAbbreviations = ViewPlugin.fromClass(
 							return;
 
 						// Create a dummy completion object for the snippet function
-						const dummyCompletion = { label: abbr };
+						const dummyCompletion: Completion = { label: abbr };
 						// Apply the snippet
-						snippet(expansion as string)(
-							view,
-							dummyCompletion as any,
-							start,
-							pos,
-						);
+						snippet(expansion as string)(view, dummyCompletion, start, pos);
 					});
 
 					break;
