@@ -17,6 +17,24 @@ module.exports = {
 			// no platforms specified: zip maker will be available for all supported platforms
 		},
 		{
+			name: "@electron-forge/maker-dmg",
+			config: {
+				background: "./assets/dmg-background.png",
+				contents: [
+					{
+						x: 130,
+						y: 220,
+					},
+					{
+						x: 410,
+						y: 220,
+						type: "link",
+						path: "/Applications",
+					},
+				],
+			},
+		},
+		{
 			name: "@electron-forge/maker-deb",
 			config: {},
 		},
