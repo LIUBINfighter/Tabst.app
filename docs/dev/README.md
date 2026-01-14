@@ -254,7 +254,7 @@ Tailwind CSS 通过添加/移除 `.dark` class 来实现主题切换。MutationO
 ## 📝 版本信息
 
 - **更新日期**：2025 年 12 月
-- **项目**：electron-vite-react-tailwind (minimal 分支)
+- **项目**：Tabst (minimal 分支)
 - **alphaTab 版本**：@coderline/alphatab
 - **关键特性**：暗黑模式、Worker 线程管理、动态颜色配置
 

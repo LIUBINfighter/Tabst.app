@@ -1,5 +1,6 @@
 {
-	"name": "electron-vite-react-tailwind",
+	"name": "tabst",
+	"productName": "Tabst",
 	"version": "1.0.0",
 	"description": "A minimal Guitar Tabs typewriter.",
 	"type": "module",
