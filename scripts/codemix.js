@@ -189,8 +189,8 @@ async function build(keys, outPath) {
 async function main() {
 	const argv = process.argv.slice(2);
 	// Parse args: subcommand is first non-flag arg; flags are --out, --omit
-	let sub = undefined;
-	let outArg = undefined;
+	let sub;
+	let outArg;
 	const omitList = [];
 	for (let i = 0; i < argv.length; i++) {
 		const a = argv[i];

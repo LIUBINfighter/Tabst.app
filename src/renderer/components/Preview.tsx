@@ -14,13 +14,12 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPreviewSettings } from "../lib/alphatab-config";
-import { type AlphaTabErrorLike, formatFullError } from "../lib/alphatab-error";
+import { formatFullError } from "../lib/alphatab-error";
 import { loadBravuraFont, loadSoundFontFromUrl } from "../lib/assets";
 import type { ResourceUrls } from "../lib/resourceLoaderService";
 import { getResourceUrls } from "../lib/resourceLoaderService";
 import {
 	applyStaffConfig,
-	getFirstStaffOptions,
 	type StaffDisplayOptions,
 	toggleFirstStaffOption,
 } from "../lib/staff-config";

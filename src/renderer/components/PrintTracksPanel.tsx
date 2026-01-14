@@ -14,11 +14,14 @@ import { Button } from "./ui/button";
  * 谱表配置（纯数据，不依赖 AlphaTab 对象）
  */
 interface StaffConfig {
+	staffIndex: number; // stable staff identifier
 	showStandardNotation: boolean;
 	showTablature: boolean;
 	showSlash: boolean;
 	showNumbered: boolean;
 }
+
+type StaffDisplayOption = keyof Omit<StaffConfig, "staffIndex">;
 
 /**
  * 音轨配置（纯数据，Source of Truth）
@@ -89,7 +92,11 @@ export function PrintTracksPanel({
 			index: track.index,
 			name: track.name || `Track ${track.index + 1}`,
 			isSelected: selectedIndices.has(track.index),
-			staves: track.staves.map((staff) => ({
+			staves: track.staves.map((staff, staffIdx) => ({
+				staffIndex:
+					typeof (staff as AlphaTab.model.Staff).index === "number"
+						? (staff as AlphaTab.model.Staff).index
+						: staffIdx,
 				showStandardNotation: staff.showStandardNotation,
 				showTablature: staff.showTablature,
 				showSlash: staff.showSlash,
@@ -104,17 +111,21 @@ export function PrintTracksPanel({
 	// 应用配置到 AlphaTab 对象（单向：Config -> Object）
 	// 返回选中的音轨列表，供渲染使用
 	const applyConfigsToAlphaTab = useCallback((): AlphaTab.model.Track[] => {
-		if (!api?.score) return [];
+		const score = api?.score;
+		if (!score) return [];
 
 		console.log("[PrintTracksPanel] 应用配置到 AlphaTab");
 
 		// 1. 先应用所有 staff 配置
 		trackConfigs.forEach((config) => {
-			const track = api.score.tracks.find((t) => t.index === config.index);
+			const track = score.tracks.find((t) => t.index === config.index);
 			if (!track) return;
 
-			config.staves.forEach((staffConfig, staffIdx) => {
-				const staff = track.staves[staffIdx];
+			config.staves.forEach((staffConfig) => {
+				const staff =
+					track.staves.find(
+						(s) => (s as AlphaTab.model.Staff).index === staffConfig.staffIndex,
+					) || track.staves[0];
 				if (staff) {
 					staff.showStandardNotation = staffConfig.showStandardNotation;
 					staff.showTablature = staffConfig.showTablature;
@@ -127,7 +138,7 @@ export function PrintTracksPanel({
 		// 2. 返回选中的音轨列表
 		const selectedTracks = trackConfigs
 			.filter((c) => c.isSelected)
-			.map((c) => api.score.tracks.find((t) => t.index === c.index))
+			.map((c) => score.tracks.find((t) => t.index === c.index))
 			.filter((t): t is AlphaTab.model.Track => t !== undefined)
 			.sort((a, b) => a.index - b.index);
 
@@ -145,7 +156,8 @@ export function PrintTracksPanel({
 	// 切换音轨选择（更新配置 + 应用到 AlphaTab + 触发渲染）
 	const toggleTrackSelection = useCallback(
 		(trackIndex: number) => {
-			if (!api?.score) return;
+			const score = api?.score;
+			if (!score) return;
 
 			setTrackConfigs((prev) => {
 				const newConfigs = prev.map((cfg) =>
@@ -163,17 +175,21 @@ export function PrintTracksPanel({
 				// 获取选中的音轨
 				const selectedTracks = newConfigs
 					.filter((c) => c.isSelected)
-					.map((c) => api.score.tracks.find((t) => t.index === c.index))
+					.map((c) => score.tracks.find((t) => t.index === c.index))
 					.filter((t): t is AlphaTab.model.Track => t !== undefined)
 					.sort((a, b) => a.index - b.index);
 
 				// 应用配置到 AlphaTab
 				newConfigs.forEach((config) => {
-					const track = api.score.tracks.find((t) => t.index === config.index);
+					const track = score.tracks.find((t) => t.index === config.index);
 					if (!track) return;
 
-					config.staves.forEach((staffConfig, staffIdx) => {
-						const staff = track.staves[staffIdx];
+					config.staves.forEach((staffConfig) => {
+						const staff =
+							track.staves.find(
+								(s) =>
+									(s as AlphaTab.model.Staff).index === staffConfig.staffIndex,
+							) || track.staves[0];
 						if (staff) {
 							staff.showStandardNotation = staffConfig.showStandardNotation;
 							staff.showTablature = staffConfig.showTablature;
@@ -197,22 +213,25 @@ export function PrintTracksPanel({
 
 	// 全选音轨
 	const selectAllTracks = useCallback(() => {
-		if (!api?.score) return;
+		const score = api?.score;
+		if (!score) return;
 
 		setTrackConfigs((prev) => {
 			const newConfigs = prev.map((cfg) => ({ ...cfg, isSelected: true }));
 
-			const allTracks = api.score.tracks
-				.slice()
-				.sort((a, b) => a.index - b.index);
+			const allTracks = score.tracks.slice().sort((a, b) => a.index - b.index);
 
 			// 应用配置
 			newConfigs.forEach((config) => {
-				const track = api.score.tracks.find((t) => t.index === config.index);
+				const track = score.tracks.find((t) => t.index === config.index);
 				if (!track) return;
 
-				config.staves.forEach((staffConfig, staffIdx) => {
-					const staff = track.staves[staffIdx];
+				config.staves.forEach((staffConfig) => {
+					const staff =
+						track.staves.find(
+							(s) =>
+								(s as AlphaTab.model.Staff).index === staffConfig.staffIndex,
+						) || track.staves[0];
 					if (staff) {
 						staff.showStandardNotation = staffConfig.showStandardNotation;
 						staff.showTablature = staffConfig.showTablature;
@@ -231,7 +250,8 @@ export function PrintTracksPanel({
 
 	// 取消全选（保留第一个）
 	const deselectAllTracks = useCallback(() => {
-		if (!api?.score || api.score.tracks.length === 0) return;
+		const score = api?.score;
+		if (!score || score.tracks.length === 0) return;
 
 		setTrackConfigs((prev) => {
 			const newConfigs = prev.map((cfg, idx) => ({
@@ -239,13 +259,17 @@ export function PrintTracksPanel({
 				isSelected: idx === 0,
 			}));
 
-			const firstTrack = api.score.tracks[0];
+			const firstTrack = score.tracks[0];
 
 			// 应用配置
 			const firstConfig = newConfigs[0];
 			if (firstConfig) {
-				firstConfig.staves.forEach((staffConfig, staffIdx) => {
-					const staff = firstTrack.staves[staffIdx];
+				firstConfig.staves.forEach((staffConfig) => {
+					const staff =
+						firstTrack.staves.find(
+							(s) =>
+								(s as AlphaTab.model.Staff).index === staffConfig.staffIndex,
+						) || firstTrack.staves[0];
 					if (staff) {
 						staff.showStandardNotation = staffConfig.showStandardNotation;
 						staff.showTablature = staffConfig.showTablature;
@@ -264,14 +288,17 @@ export function PrintTracksPanel({
 
 	// 切换谱表显示选项（只更新配置，立即应用并渲染）
 	const toggleStaffOption = useCallback(
-		(trackIndex: number, staffIndex: number, option: keyof StaffConfig) => {
-			if (!api?.score) return;
+		(trackIndex: number, staffIndex: number, option: StaffDisplayOption) => {
+			const score = api?.score;
+			if (!score) return;
 
 			setTrackConfigs((prev) => {
 				const newConfigs = prev.map((cfg) => {
 					if (cfg.index !== trackIndex) return cfg;
 
-					const currentStaff = cfg.staves[staffIndex];
+					const currentStaff = cfg.staves.find(
+						(s) => s.staffIndex === staffIndex,
+					);
 					if (!currentStaff) return cfg;
 
 					// 计算新值
@@ -287,19 +314,20 @@ export function PrintTracksPanel({
 
 					if (!hasAnyOption) return cfg; // 至少保留一个选项
 
-					// 更新配置
-					const newStaves = [...cfg.staves];
-					newStaves[staffIndex] = {
-						...currentStaff,
-						[option]: newValue,
-					};
+					// 更新配置（基于 staffIndex 而不是数组位置）
+					const newStaves = cfg.staves.map((s) =>
+						s.staffIndex === staffIndex ? { ...s, [option]: newValue } : s,
+					);
 
 					// 立即应用到 AlphaTab 对象
-					const track = api.score.tracks.find((t) => t.index === trackIndex);
+					const track = score.tracks.find((t) => t.index === trackIndex);
 					if (track) {
-						const staff = track.staves[staffIndex];
+						const staff =
+							track.staves.find(
+								(s) => (s as AlphaTab.model.Staff).index === staffIndex,
+							) || track.staves[0];
 						if (staff) {
-							staff[option] = newValue;
+							(staff as AlphaTab.model.Staff)[option] = newValue;
 						}
 					}
 
@@ -307,7 +335,7 @@ export function PrintTracksPanel({
 				});
 
 				// 触发重新渲染
-				api.render();
+				score && api.render();
 
 				return newConfigs;
 			});
@@ -521,7 +549,7 @@ interface TrackItemProps {
 	onToggleStaffOption: (
 		trackIndex: number,
 		staffIndex: number,
-		option: keyof StaffConfig,
+		option: StaffDisplayOption,
 	) => void;
 }
 
@@ -541,8 +569,10 @@ function TrackItem({
 			}`}
 		>
 			{/* 音轨标题行 */}
-			<div
-				className="flex items-center gap-2 p-2 cursor-pointer hover:bg-muted/50 rounded-md"
+			<button
+				type="button"
+				aria-pressed={isSelected}
+				className="w-full text-left flex items-center gap-2 p-2 hover:bg-muted/50 rounded-md"
 				onClick={() => onToggleSelection(index)}
 			>
 				{/* 选择指示器 */}
@@ -572,14 +602,13 @@ function TrackItem({
 				>
 					{name}
 				</span>
-			</div>
-
+			</button>
 			{/* 谱表显示选项（从配置读取） */}
 			{isSelected && staves.length > 0 && (
 				<div className="px-2 pb-2 pt-1 space-y-1">
 					{staves.map((staffConfig, staffIdx) => (
 						<div
-							key={`staff-${index}-${staffIdx}`}
+							key={`staff-${index}-${staffConfig.staffIndex}`}
 							className="flex items-center gap-1 pl-7 text-xs"
 						>
 							<span className="text-muted-foreground w-12 shrink-0">
@@ -591,7 +620,11 @@ function TrackItem({
 									icon="𝅘𝅥"
 									isActive={staffConfig.showStandardNotation}
 									onClick={() =>
-										onToggleStaffOption(index, staffIdx, "showStandardNotation")
+										onToggleStaffOption(
+											index,
+											staffConfig.staffIndex,
+											"showStandardNotation",
+										)
 									}
 									title="标准记谱法"
 								/>
@@ -599,7 +632,11 @@ function TrackItem({
 									label="TAB"
 									isActive={staffConfig.showTablature}
 									onClick={() =>
-										onToggleStaffOption(index, staffIdx, "showTablature")
+										onToggleStaffOption(
+											index,
+											staffConfig.staffIndex,
+											"showTablature",
+										)
 									}
 									title="六线谱"
 								/>
@@ -608,7 +645,11 @@ function TrackItem({
 									icon="𝄍"
 									isActive={staffConfig.showSlash}
 									onClick={() =>
-										onToggleStaffOption(index, staffIdx, "showSlash")
+										onToggleStaffOption(
+											index,
+											staffConfig.staffIndex,
+											"showSlash",
+										)
 									}
 									title="斜线记谱法"
 								/>
@@ -616,7 +657,11 @@ function TrackItem({
 									label="123"
 									isActive={staffConfig.showNumbered}
 									onClick={() =>
-										onToggleStaffOption(index, staffIdx, "showNumbered")
+										onToggleStaffOption(
+											index,
+											staffConfig.staffIndex,
+											"showNumbered",
+										)
 									}
 									title="简谱"
 								/>
