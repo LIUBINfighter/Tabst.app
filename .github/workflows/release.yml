@@ -1,4 +1,4 @@
-name: Release electron app (package & create release)
+name: Release Win app
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
 
 jobs:
   build-and-release:
-    name: Build, package and create release (Windows)
+    name: Build, package Win app
     runs-on: windows-latest
     steps:
       - name: Checkout

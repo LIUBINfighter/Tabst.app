@@ -19,7 +19,6 @@ module.exports = {
 		{
 			name: "@electron-forge/maker-dmg",
 			config: {
-				background: "./assets/dmg-background.png",
 				contents: [
 					{
 						x: 130,
@@ -32,6 +31,8 @@ module.exports = {
 						path: "/Applications",
 					},
 				],
+				// 强制跳过原生依赖检查
+				skipNativeDeps: true,
 			},
 		},
 		{

@@ -23,6 +23,11 @@ jobs:
           cache: "pnpm"
           cache-dependency-path: pnpm-lock.yaml
 
+      - name: Install build tools
+        run: |
+          brew install python-setuptools
+          npm config set python python3
+
       - name: Check pnpm version
         run: pnpm -v
 
@@ -34,6 +39,9 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Rebuild native modules
+        run: npm rebuild
 
       - name: Build (frontend & main)
         run: pnpm build
