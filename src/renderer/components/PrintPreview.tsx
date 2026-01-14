@@ -31,6 +31,40 @@ const PAGE_SIZES: PageSize[] = [
 const mmToPx = (mm: number): number => Math.round((mm * 96) / 25.4);
 
 /**
+ * alphaTab 打印配置
+ * 集中管理打印时的 alphaTab 设置，便于深度定制
+ */
+interface AlphaTabPrintConfig {
+	/** 显示缩放，打印时固定为 1.0 */
+	scale: number;
+	/** 布局模式 */
+	layoutMode: alphaTab.LayoutMode;
+	/** 颜色配置（打印用黑白） */
+	colors: {
+		mainGlyphColor: string;
+		secondaryGlyphColor: string;
+		staffLineColor: string;
+		barSeparatorColor: string;
+		barNumberColor: string;
+		scoreInfoColor: string;
+	};
+}
+
+/** 默认打印配置 */
+const DEFAULT_PRINT_CONFIG: AlphaTabPrintConfig = {
+	scale: 1.0, // 打印时使用 1:1 缩放
+	layoutMode: alphaTab.LayoutMode.Page,
+	colors: {
+		mainGlyphColor: "#000000",
+		secondaryGlyphColor: "#333333",
+		staffLineColor: "#666666",
+		barSeparatorColor: "#666666",
+		barNumberColor: "#444444",
+		scoreInfoColor: "#000000",
+	},
+};
+
+/**
  * PrintPreview 组件
  *
  * 在一个模态窗口中渲染 alphaTab 曲谱，并提供打印预览和 PDF 导出功能。
@@ -51,6 +85,12 @@ export default function PrintPreview({
 	const [bravuraFontUrl, setBravuraFontUrl] = useState<string>("");
 	const [fontLoaded, setFontLoaded] = useState(false);
 	const [fontError, setFontError] = useState(false);
+
+	// 打印时使用的专用字体名与 URL（动态，带时间戳）
+	const [printFontName, setPrintFontName] = useState<string>("");
+	const [printFontUrl, setPrintFontUrl] = useState<string>("");
+	const printStyleRef = useRef<HTMLStyleElement | null>(null);
+	const printFontFaceRef = useRef<FontFace | null>(null);
 
 	// Refs
 	const containerRef = useRef<HTMLDivElement>(null);
@@ -129,38 +169,52 @@ export default function PrintPreview({
 		elementsInfo.sort((a, b) => a.top - b.top);
 
 		console.log(
-			"[PrintPreview] Elements info (first 5):",
-			elementsInfo
-				.slice(0, 5)
-				.map((e) => ({ top: e.top, height: e.height, bottom: e.bottom })),
+			"[PrintPreview] Elements info (first 10):",
+			elementsInfo.slice(0, 10).map((e) => ({
+				tagName: e.element.tagName,
+				className: e.element.className,
+				top: e.top,
+				height: e.height,
+				bottom: e.bottom,
+			})),
 		);
+
+		// 检查是否有负的 top 值
+		const minTop = Math.min(...elementsInfo.map((e) => e.top));
+		const maxBottom = Math.max(...elementsInfo.map((e) => e.bottom));
+		console.log("[PrintPreview] Y-axis range:", {
+			minTop,
+			maxBottom,
+			totalHeight: maxBottom - minTop,
+		});
 
 		// 计算页面高度（像素）
 		const pageHeightPx = contentHeightPx;
 		const pagesList: string[] = [];
 
-		// 分页逻辑：逐个处理元素，确保每个元素完整地放在某一页中
+		// 🔧 改进的分页逻辑：保持元素的绝对位置关系，从最小 top 值开始分页
 		let currentPageElements: ElementInfo[] = [];
-		let currentPageStartY = 0;
-		let currentPageUsedHeight = 0;
+		let currentPageStartY = minTop; // 从最小 top 值开始，包含所有装饰元素
+		let currentPageEndY = minTop + pageHeightPx;
 
 		for (let i = 0; i < elementsInfo.length; i++) {
 			const info = elementsInfo[i];
 
-			// 计算元素相对于当前页面起始位置的位置
-			const relativeTop = info.top - currentPageStartY;
-			const elementFitsInPage = relativeTop + info.height <= pageHeightPx;
+			// 判断元素是否能完整放入当前页
+			// 元素的底部必须在当前页的范围内
+			const elementFitsInPage = info.bottom <= currentPageEndY;
 
 			if (elementFitsInPage) {
 				// 元素可以完整放入当前页
 				currentPageElements.push(info);
-				currentPageUsedHeight = Math.max(
-					currentPageUsedHeight,
-					relativeTop + info.height,
-				);
 			} else {
 				// 元素无法放入当前页，先保存当前页，然后开始新页
 				if (currentPageElements.length > 0) {
+					// 🔧 计算当前页内所有元素的实际范围
+					const pageActualMinTop = Math.min(
+						...currentPageElements.map((e) => e.top),
+					);
+
 					// 创建当前页
 					const pageDiv = document.createElement("div");
 					pageDiv.className = "at-surface";
@@ -170,7 +224,8 @@ export default function PrintPreview({
 
 					for (const el of currentPageElements) {
 						const clonedElement = el.element.cloneNode(true) as HTMLElement;
-						const newTop = el.top - currentPageStartY;
+						// 🔧 相对于页面实际最小 top 值定位，保持元素间的相对位置
+						const newTop = el.top - pageActualMinTop;
 						clonedElement.style.top = `${newTop}px`;
 						pageDiv.appendChild(clonedElement);
 					}
@@ -178,15 +233,20 @@ export default function PrintPreview({
 					pagesList.push(pageDiv.outerHTML);
 				}
 
-				// 开始新页面，新页面从当前元素的 top 位置开始
+				// 🔧 开始新页面：设置新的页面范围
+				// 新页面从当前元素开始，但要考虑可能存在的装饰元素
 				currentPageStartY = info.top;
+				currentPageEndY = info.top + pageHeightPx;
 				currentPageElements = [info];
-				currentPageUsedHeight = info.height;
 			}
 		}
 
 		// 保存最后一页
 		if (currentPageElements.length > 0) {
+			const pageActualMinTop = Math.min(
+				...currentPageElements.map((e) => e.top),
+			);
+
 			const pageDiv = document.createElement("div");
 			pageDiv.className = "at-surface";
 			pageDiv.style.position = "relative";
@@ -195,7 +255,7 @@ export default function PrintPreview({
 
 			for (const el of currentPageElements) {
 				const clonedElement = el.element.cloneNode(true) as HTMLElement;
-				const newTop = el.top - currentPageStartY;
+				const newTop = el.top - pageActualMinTop;
 				clonedElement.style.top = `${newTop}px`;
 				pageDiv.appendChild(clonedElement);
 			}
@@ -227,6 +287,51 @@ export default function PrintPreview({
 	/**
 	 * 初始化 alphaTab 并渲染曲谱
 	 */
+	/**
+	 * 创建 alphaTab 打印配置
+	 * @param config 自定义配置，会与默认配置合并
+	 */
+	const createPrintSettings = useCallback(
+		(
+			urls: Awaited<ReturnType<typeof getResourceUrls>>,
+			config: Partial<AlphaTabPrintConfig> = {},
+		) => {
+			const finalConfig = { ...DEFAULT_PRINT_CONFIG, ...config };
+
+			// 使用 smuflFontSources 明确指定字体 URL（不再使用时间戳隔离）
+			const printSmuflFontSources = new Map([
+				[alphaTab.FontFileFormat.Woff2, urls.bravuraFontUrl],
+			]);
+
+			return {
+				core: {
+					tex: true,
+					// 使用默认 worker URL（不再附加时间戳）
+					scriptFile: urls.workerUrl,
+					// 使用 smuflFontSources 明确控制字体 URL
+					smuflFontSources: printSmuflFontSources,
+					enableLazyLoading: false, // 禁用懒加载以确保完整渲染
+				},
+				display: {
+					layoutMode: finalConfig.layoutMode,
+					scale: finalConfig.scale, // 🔧 关键：打印时使用 1.0 scale
+					resources: {
+						mainGlyphColor: finalConfig.colors.mainGlyphColor,
+						secondaryGlyphColor: finalConfig.colors.secondaryGlyphColor,
+						staffLineColor: finalConfig.colors.staffLineColor,
+						barSeparatorColor: finalConfig.colors.barSeparatorColor,
+						barNumberColor: finalConfig.colors.barNumberColor,
+						scoreInfoColor: finalConfig.colors.scoreInfoColor,
+					},
+				},
+				player: {
+					enablePlayer: false,
+				},
+			} as Record<string, unknown>;
+		},
+		[],
+	);
+
 	const initAlphaTab = useCallback(async () => {
 		if (!alphaTabContainerRef.current) return;
 
@@ -234,72 +339,91 @@ export default function PrintPreview({
 			setIsLoading(true);
 			setError(null);
 
-			// 获取资源 URL
 			const urls = await getResourceUrls();
 
-			// 保存字体 URL 以便打印时使用
-			setBravuraFontUrl(urls.bravuraFontUrl);
-
-			// 加载字体
-			try {
-				await loadBravuraFont(urls.bravuraFontUrl);
-			} catch (e) {
-				console.warn("[PrintPreview] Bravura font load failed:", e);
-			}
+			// 使用稳定的字体 URL（不再使用时间戳），并使用简洁的打印字体名
+			const fontUrl = urls.bravuraFontUrl;
+			const fontName = `Bravura-Print`;
+			setBravuraFontUrl(fontUrl);
+			setPrintFontName(fontName);
+			setPrintFontUrl(fontUrl);
 
 			// 设置容器宽度
 			alphaTabContainerRef.current.style.width = `${contentWidthPx}px`;
 
-			// 打印时使用黑白色配置
-			const colors = {
-				mainGlyphColor: "#000000",
-				secondaryGlyphColor: "#333333",
-				staffLineColor: "#666666",
-				barSeparatorColor: "#666666",
-				barNumberColor: "#444444",
-				scoreInfoColor: "#000000",
-			};
+			// 注入打印专用 @font-face 及字体覆盖，确保 AlphaTab 在测量时使用该字体名
+			try {
+				if (printStyleRef.current && printStyleRef.current.parentElement) {
+					printStyleRef.current.parentElement.removeChild(
+						printStyleRef.current,
+					);
+					printStyleRef.current = null;
+				}
+				const styleEl = document.createElement("style");
+				// 必须设置 .at 的 font-size: 34px，这是 alphaTab 的 MusicFontSize 常量
+				styleEl.textContent = `
+					@font-face {
+						font-family: '${fontName}';
+						src: url('${fontUrl}') format('woff2');
+						font-weight: normal;
+						font-style: normal;
+						font-display: block;
+					}
+					.at-surface, .at-surface text, .at-surface tspan {
+						font-family: '${fontName}', 'Bravura', sans-serif !important;
+					}
+					.at-surface .at, .at-surface-svg .at {
+						font-family: '${fontName}', 'Bravura', sans-serif !important;
+						font-size: 34px; /* alphaTab MusicFontSize */
+						font-style: normal;
+						font-weight: normal;
+					}
+				`;
+				document.head.appendChild(styleEl);
+				printStyleRef.current = styleEl;
+			} catch (e) {
+				console.warn("[PrintPreview] Failed to inject print font style:", e);
+			}
 
-			// 创建 alphaTab 设置
-			// 注意：必须禁用懒加载，否则只有可见区域的内容会被渲染
-			const settings: Record<string, unknown> = {
-				core: {
-					tex: true,
-					scriptFile: urls.workerUrl,
-					fontDirectory: urls.bravuraFontDirectory,
-					enableLazyLoading: false, // 禁用懒加载，确保所有内容都被渲染
-				},
-				display: {
-					layoutMode: alphaTab.LayoutMode.Page,
-					scale: 1.0,
-					resources: {
-						mainGlyphColor: colors.mainGlyphColor,
-						secondaryGlyphColor: colors.secondaryGlyphColor,
-						staffLineColor: colors.staffLineColor,
-						barSeparatorColor: colors.barSeparatorColor,
-						barNumberColor: colors.barNumberColor,
-						scoreInfoColor: colors.scoreInfoColor,
-					},
-				},
-				player: {
-					enablePlayer: false,
-				},
-			};
+			// 创建打印配置
+			const settings = createPrintSettings(urls);
+
+			console.log("[PrintPreview] Initialization params:", {
+				containerWidth: contentWidthPx,
+				pageSize: pageSize.name,
+				pageSizeMm: `${pageSize.width}×${pageSize.height}`,
+				contentSizeMm: `${contentWidthMm}×${contentHeightMm}`,
+				contentSizePx: `${contentWidthPx}×${contentHeightPx}`,
+				scale: (settings.display as { scale: number }).scale,
+				layoutMode:
+					alphaTab.LayoutMode[
+						(settings.display as { layoutMode: alphaTab.LayoutMode }).layoutMode
+					],
+			});
+
+			console.log("[PrintPreview] AlphaTab settings:", {
+				scale: (settings.display as { scale: number }).scale,
+				layoutMode: (settings.display as { layoutMode: alphaTab.LayoutMode })
+					.layoutMode,
+			});
 
 			// 销毁旧的 API
 			if (apiRef.current) {
 				apiRef.current.destroy();
+				apiRef.current = null;
 			}
 
-			// 创建 API
+			// 创建新的 AlphaTab API（使用隔离的设置）
 			apiRef.current = new alphaTab.AlphaTabApi(
 				alphaTabContainerRef.current,
 				settings,
 			);
+			console.log("[PrintPreview] AlphaTab API created");
 
 			// 监听渲染完成事件
 			apiRef.current.renderFinished.on(() => {
 				console.log("[PrintPreview] AlphaTab render finished");
+
 				// 渲染完成后进行分页
 				setTimeout(() => {
 					paginateContent();
@@ -324,7 +448,7 @@ export default function PrintPreview({
 			setError(err instanceof Error ? err.message : "初始化失败");
 			setIsLoading(false);
 		}
-	}, [content, contentWidthPx, paginateContent]);
+	}, [content, contentWidthPx, paginateContent, createPrintSettings]);
 
 	/**
 	 * 处理打印/导出 PDF
@@ -338,6 +462,15 @@ export default function PrintPreview({
 			alert("无法打开打印窗口，请检查浏览器设置");
 			return;
 		}
+
+		// 🔧 确保字体 URL 是绝对路径（对于新窗口很重要）
+		const fontUrl = printFontUrl || bravuraFontUrl;
+		const absoluteFontUrl =
+			fontUrl.startsWith("http") || fontUrl.startsWith("file:")
+				? fontUrl
+				: new URL(fontUrl, window.location.href).toString();
+
+		console.log("[PrintPreview] Print window font URL:", absoluteFontUrl);
 
 		// 生成所有页面的 HTML - pages 已经是完整的 outerHTML
 		const pagesHtml = pages
@@ -358,12 +491,13 @@ export default function PrintPreview({
 				<meta charset="utf-8">
 				<title>${fileName} - 打印</title>
 				<style>
-					/* 加载 Bravura 音乐字体 */
+					/* 加载打印专用 Bravura 音乐字体 */
 					@font-face {
-						font-family: 'Bravura';
-						src: url('${bravuraFontUrl}') format('woff2');
+						font-family: '${printFontName || "Bravura"}';
+						src: url('${absoluteFontUrl}') format('woff2');
 						font-weight: normal;
 						font-style: normal;
+						font-display: block;
 					}
 					
 					@page {
@@ -378,7 +512,7 @@ export default function PrintPreview({
 					}
 					
 					body {
-						font-family: 'Bravura', system-ui, -apple-system, sans-serif;
+						font-family: '${printFontName || "Bravura"}', system-ui, -apple-system, sans-serif;
 						background: white;
 						color: black;
 					}
@@ -404,6 +538,18 @@ export default function PrintPreview({
 						display: block;
 					}
 					
+					/* 🔧 音乐符号字体样式 - alphaTab 需要这个来正确渲染 Bravura 字体 */
+					.at-surface .at,
+					.at-surface-svg .at {
+						font-family: '${printFontName || "Bravura"}', 'Bravura', 'alphaTab', sans-serif !important;
+						font-size: 34px; /* Fc.MusicFontSize = 34 */
+						font-style: normal;
+						font-weight: normal;
+						speak: none;
+						-webkit-font-smoothing: antialiased;
+						-moz-osx-font-smoothing: grayscale;
+					}
+					
 					@media print {
 						body {
 							-webkit-print-color-adjust: exact;
@@ -423,13 +569,69 @@ export default function PrintPreview({
 		`);
 		printWindow.document.close();
 
-		// 等待内容加载后打印
+		// 🔧 等待字体和内容加载完成后再打印
 		printWindow.onload = () => {
-			printWindow.focus();
-			printWindow.print();
-			printWindow.onafterprint = () => {
-				printWindow.close();
-			};
+			// 检查字体是否已加载
+			const fontName = printFontName || "Bravura";
+			console.log("[PrintPreview] Checking font load status:", fontName);
+
+			// 使用 document.fonts API 检查字体加载状态
+			if (printWindow.document.fonts && printWindow.document.fonts.check) {
+				const checkFontAndPrint = () => {
+					const fontLoaded = printWindow.document.fonts.check(
+						`34px "${fontName}"`,
+					);
+					console.log("[PrintPreview] Font loaded:", fontLoaded);
+
+					if (fontLoaded) {
+						// 字体已加载，延迟一点以确保渲染完成
+						setTimeout(() => {
+							printWindow.focus();
+							printWindow.print();
+							printWindow.onafterprint = () => {
+								printWindow.close();
+							};
+						}, 100);
+					} else {
+						// 等待字体加载
+						printWindow.document.fonts.ready
+							.then(() => {
+								console.log("[PrintPreview] All fonts ready");
+								setTimeout(() => {
+									printWindow.focus();
+									printWindow.print();
+									printWindow.onafterprint = () => {
+										printWindow.close();
+									};
+								}, 100);
+							})
+							.catch((err: unknown) => {
+								console.warn("[PrintPreview] Font loading failed:", err);
+								// 即使字体加载失败也尝试打印
+								printWindow.focus();
+								printWindow.print();
+								printWindow.onafterprint = () => {
+									printWindow.close();
+								};
+							});
+					}
+				};
+
+				// 立即检查，如果未加载则等待
+				checkFontAndPrint();
+			} else {
+				// 不支持 document.fonts API，使用简单延迟
+				console.warn(
+					"[PrintPreview] document.fonts API not available, using delay",
+				);
+				setTimeout(() => {
+					printWindow.focus();
+					printWindow.print();
+					printWindow.onafterprint = () => {
+						printWindow.close();
+					};
+				}, 500);
+			}
 		};
 	}, [
 		pages,
@@ -438,6 +640,8 @@ export default function PrintPreview({
 		contentWidthPx,
 		contentHeightPx,
 		bravuraFontUrl,
+		printFontName,
+		printFontUrl,
 	]);
 
 	/**
@@ -451,30 +655,42 @@ export default function PrintPreview({
 		[totalPages],
 	);
 
-	// 初始化
+	// 延迟初始化：确保 Preview 的 API 已完全销毁和资源释放
 	useEffect(() => {
-		initAlphaTab();
+		console.log("[PrintPreview] Scheduling delayed initialization");
+		const delayedInit = setTimeout(() => {
+			console.log("[PrintPreview] Starting delayed initialization");
+			initAlphaTab();
+		}, 200); // 延迟 200ms 确保 Preview API 完全销毁
 
 		return () => {
+			clearTimeout(delayedInit);
 			if (apiRef.current) {
+				console.log("[PrintPreview] Cleanup: destroying API");
 				apiRef.current.destroy();
 				apiRef.current = null;
 			}
 		};
 	}, [initAlphaTab]);
 
-	// 字体加载监测和回退机制
+	// 字体加载监测和回退机制（使用打印专用字体名）
 	useEffect(() => {
-		if (!bravuraFontUrl) return;
+		if (!printFontUrl || !printFontName) return;
+
+		let cancelled = false;
 
 		const loadFont = async () => {
 			try {
-				console.log("[PrintPreview] Loading Bravura font:", bravuraFontUrl);
+				console.log(
+					"[PrintPreview] Loading print font:",
+					printFontUrl,
+					printFontName,
+				);
 
-				// 使用 FontFace API 加载字体
+				// 使用 FontFace API 加载打印字体
 				const font = new FontFace(
-					"Bravura",
-					`url(${bravuraFontUrl}) format('woff2')`,
+					printFontName,
+					`url(${printFontUrl}) format('woff2')`,
 				);
 
 				// 设置超时
@@ -482,21 +698,26 @@ export default function PrintPreview({
 					setTimeout(() => reject(new Error("Font loading timeout")), 5000),
 				);
 
-				// 尝试加载字体
 				await Promise.race([font.load(), timeoutPromise]);
 				document.fonts.add(font);
-
-				setFontLoaded(true);
-				console.log("[PrintPreview] Bravura font loaded successfully");
+				printFontFaceRef.current = font;
+				if (!cancelled) {
+					setFontLoaded(true);
+					console.log("[PrintPreview] Print Bravura font loaded successfully");
+				}
 			} catch (err) {
-				console.warn("[PrintPreview] Failed to load Bravura font:", err);
-				setFontError(true);
-				// 即使字体加载失败，也继续显示（使用回退字体）
+				console.warn("[PrintPreview] Failed to load print Bravura font:", err);
+				if (!cancelled) setFontError(true);
 			}
 		};
 
 		loadFont();
-	}, [bravuraFontUrl]);
+
+		return () => {
+			cancelled = true;
+			// 不立即删除 font，因为可能会被其他页面重用，但如果我们确实要移除，请手动删除
+		};
+	}, [printFontUrl, printFontName]);
 
 	// 使用 ref 追踪 isLoading 状态
 	const isLoadingRef = useRef(isLoading);
@@ -537,6 +758,33 @@ export default function PrintPreview({
 		return () => window.removeEventListener("keydown", handleKeyDown);
 	}, [onClose, currentPage, navigateToPage, handlePrint]);
 
+	// 组件卸载时清理 injected style/FontFace 以及 API
+	useEffect(() => {
+		return () => {
+			console.log("[PrintPreview] Unmount cleanup");
+			try {
+				if (apiRef.current) {
+					apiRef.current.destroy();
+					apiRef.current = null;
+				}
+				if (printStyleRef.current && printStyleRef.current.parentElement) {
+					printStyleRef.current.parentElement.removeChild(
+						printStyleRef.current,
+					);
+					printStyleRef.current = null;
+				}
+				if (printFontFaceRef.current && document.fonts) {
+					try {
+						document.fonts.delete(printFontFaceRef.current);
+					} catch {}
+					printFontFaceRef.current = null;
+				}
+			} catch (e) {
+				console.warn("[PrintPreview] Unmount cleanup failed:", e);
+			}
+		};
+	}, []);
+
 	// 当前页面的 HTML
 	const currentPageHtml = pages[currentPage - 1] || "";
 
@@ -545,22 +793,19 @@ export default function PrintPreview({
 			ref={containerRef}
 			className="fixed inset-0 z-50 flex flex-col bg-background/95 backdrop-blur-sm"
 		>
-			{/* 动态加载 Bravura 字体，带回退机制 */}
-			{bravuraFontUrl && (
+			{/* 注入打印专用字体样式（备份） */}
+			{printFontUrl && printFontName && (
 				<style>
 					{`
 						@font-face {
-							font-family: 'Bravura';
-							src: url('${bravuraFontUrl}') format('woff2');
+							font-family: '${printFontName}';
+							src: url('${printFontUrl}') format('woff2');
 							font-weight: normal;
 							font-style: normal;
-							font-display: swap;
+							font-display: block;
 						}
-						
-						/* 为 alphaTab 渲染的元素设置字体栈 */
-						.at-surface,
-						.at-surface * {
-							font-family: 'Bravura', 'Arial Unicode MS', sans-serif !important;
+						.at-surface, .at-surface text, .at-surface tspan {
+							font-family: '${printFontName}', 'Bravura', sans-serif !important;
 						}
 					`}
 				</style>
@@ -661,16 +906,20 @@ export default function PrintPreview({
 					</div>
 				)}
 
-				{/* 隐藏的 alphaTab 渲染容器 - 需要在 DOM 中可见才能获取正确尺寸 */}
+				{/* 隐藏的 alphaTab 渲染容器 - 保持在可视区域内以获取正确的字体度量 */}
 				<div
 					ref={alphaTabContainerRef}
 					className="fixed bg-white"
 					style={{
-						left: "-9999px",
-						top: "0",
+						position: "fixed",
+						top: 0,
+						left: 0,
 						width: `${contentWidthPx}px`,
-						opacity: 0,
-						pointerEvents: "none",
+						zIndex: -100, // 放在最底层
+						opacity: 0, // 完全透明
+						pointerEvents: "none", // 不响应鼠标事件
+						fontSize: "16px", // 强制设置基础字号
+						lineHeight: "normal", // 防止继承异常行高
 					}}
 				/>
 

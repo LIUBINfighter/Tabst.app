@@ -71,6 +71,9 @@ export default function Preview({
 	const [restorePerformed, setRestorePerformed] = useState(false);
 	// 记录最新内容，供异步回调和主题重建使用
 	const latestContentRef = useRef<string>(content ?? "");
+	// 打印预览状态和重新初始化触发器
+	const [showPrintPreview, setShowPrintPreview] = useState(false);
+	const [reinitTrigger, setReinitTrigger] = useState(0);
 
 	useEffect(() => {
 		latestContentRef.current = content ?? "";
@@ -493,6 +496,13 @@ export default function Preview({
 						},
 					};
 
+					console.log("[Preview] AlphaTab initialization:", {
+						containerWidth: el.offsetWidth,
+						containerHeight: el.offsetHeight,
+						scale: zoomRef.current / 100,
+						layoutMode: alphaTab.LayoutMode[alphaTab.LayoutMode.Page],
+					});
+
 					apiRef.current = new alphaTab.AlphaTabApi(el, settings);
 
 					// 4. 附加监听器
@@ -725,7 +735,7 @@ export default function Preview({
 			}
 			pendingTexRef.current = null;
 		};
-	}, [applyTracksConfig]);
+	}, [applyTracksConfig, reinitTrigger]); // 监听 reinitTrigger 以重新初始化
 
 	// 内容更新：仅调用 tex，不销毁 API，避免闪烁
 	useEffect(() => {
@@ -791,8 +801,33 @@ export default function Preview({
 		alphaTab.ScrollMode.OffScreen,
 	);
 
-	// 打印预览状态
-	const [showPrintPreview, setShowPrintPreview] = useState(false);
+	// 管理打印预览的生命周期：销毁和重建 alphaTab API 以避免设置污染
+	useEffect(() => {
+		if (showPrintPreview) {
+			// 打开打印预览：销毁当前 API 释放资源（特别是字体缓存）
+			console.log("[Preview] Destroying API for print preview");
+			if (apiRef.current) {
+				// 清理主题观察者
+				const unsubscribeTheme = (
+					apiRef.current as unknown as Record<string, unknown>
+				).__unsubscribeTheme;
+				if (typeof unsubscribeTheme === "function") {
+					unsubscribeTheme();
+				}
+				apiRef.current.destroy();
+				apiRef.current = null;
+			}
+		} else if (!showPrintPreview && !apiRef.current) {
+			// 关闭打印预览：延迟重新初始化 API，确保 PrintPreview 完全卸载
+			console.log(
+				"[Preview] Scheduling API reinitialization after print preview",
+			);
+			const timer = setTimeout(() => {
+				setReinitTrigger((prev) => prev + 1);
+			}, 150);
+			return () => clearTimeout(timer);
+		}
+	}, [showPrintPreview]);
 
 	return (
 		<div
