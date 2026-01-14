@@ -25,6 +25,8 @@ export interface PrintConfigOptions {
 	scale?: number;
 	colors?: AlphaTabColors;
 	zoom?: number;
+	barsPerRow?: number;
+	stretchForce?: number;
 }
 
 /**
@@ -108,7 +110,13 @@ export function createPrintSettings(
 	urls: ResourceUrls,
 	options: PrintConfigOptions = {},
 ): Record<string, unknown> {
-	const { scale = 1.0, colors = DEFAULT_PRINT_COLORS, zoom = 1.0 } = options;
+	const {
+		scale = 1.0,
+		colors = DEFAULT_PRINT_COLORS,
+		zoom = 1.0,
+		barsPerRow = -1,
+		stretchForce = 1.0,
+	} = options;
 
 	// 使用 smuflFontSources 明确指定字体 URL
 	const printSmuflFontSources = new Map([
@@ -125,6 +133,8 @@ export function createPrintSettings(
 		display: {
 			layoutMode: alphaTab.LayoutMode.Page,
 			scale: scale * zoom,
+			barsPerRow,
+			stretchForce,
 			resources: {
 				mainGlyphColor: colors.mainGlyphColor,
 				secondaryGlyphColor: colors.secondaryGlyphColor,

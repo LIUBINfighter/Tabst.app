@@ -9,13 +9,13 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPrintSettings } from "../lib/alphatab-config";
-import type { ResourceUrls } from "../lib/resourceLoaderService";
 import { paginateContent } from "../lib/pagination";
 import {
 	calculateContentDimensions,
 	PAGE_SIZES,
 	type PageSize,
 } from "../lib/print-utils";
+import type { ResourceUrls } from "../lib/resourceLoaderService";
 import { getResourceUrls } from "../lib/resourceLoaderService";
 import { PrintTracksPanel } from "./PrintTracksPanel";
 import { Button } from "./ui/button";
@@ -63,6 +63,10 @@ export default function PrintPreview({
 	// 缩放比例状态
 	const [zoom, setZoom] = useState(1.0);
 
+	// 布局配置状态
+	const [barsPerRow, setBarsPerRow] = useState(-1); // -1 表示自动模式
+	const [stretchForce, setStretchForce] = useState(1.0); // 音符间距拉伸力度
+
 	// 保存 applyStaffOptions 的引用，供 zoom 变化时使用
 	const applyStaffOptionsRef = useRef<(() => void) | null>(null);
 
@@ -79,12 +83,8 @@ export default function PrintPreview({
 
 	// 计算打印区域尺寸
 	const marginMm = 15;
-	const {
-		contentWidthMm,
-		contentHeightMm,
-		contentWidthPx,
-		contentHeightPx,
-	} = calculateContentDimensions(pageSize, marginMm);
+	const { contentWidthMm, contentHeightMm, contentWidthPx, contentHeightPx } =
+		calculateContentDimensions(pageSize, marginMm);
 
 	/**
 	 * 将 SVG 内容分割成多个页面
@@ -169,6 +169,8 @@ export default function PrintPreview({
 			const settings = createPrintSettings(urls as ResourceUrls, {
 				scale: 1.0,
 				zoom,
+				barsPerRow,
+				stretchForce,
 			});
 
 			console.log("[PrintPreview] Initialization params:", {
@@ -178,6 +180,8 @@ export default function PrintPreview({
 				contentSizeMm: `${contentWidthMm}×${contentHeightMm}`,
 				contentSizePx: `${contentWidthPx}×${contentHeightPx}`,
 				scale: (settings.display as { scale: number }).scale,
+				barsPerRow,
+				stretchForce,
 				layoutMode:
 					alphaTab.LayoutMode[
 						(settings.display as { layoutMode: alphaTab.LayoutMode }).layoutMode
@@ -240,6 +244,8 @@ export default function PrintPreview({
 		contentHeightPx,
 		pageSize,
 		zoom,
+		barsPerRow,
+		stretchForce,
 	]);
 
 	/**
@@ -555,6 +561,34 @@ export default function PrintPreview({
 		}
 	}, [zoom]);
 
+	// barsPerRow 和 stretchForce 变化时更新设置并重新渲染
+	useEffect(() => {
+		if (apiRef.current && !isLoadingRef.current) {
+			console.log("[PrintPreview] Layout settings changed:", {
+				barsPerRow,
+				stretchForce,
+			});
+
+			// 更新布局设置
+			if (apiRef.current.settings.display) {
+				(apiRef.current.settings.display as { barsPerRow: number }).barsPerRow =
+					barsPerRow;
+				(
+					apiRef.current.settings.display as { stretchForce: number }
+				).stretchForce = stretchForce;
+				apiRef.current.updateSettings();
+
+				// 在渲染之前应用 staff 显示选项
+				if (applyStaffOptionsRef.current) {
+					applyStaffOptionsRef.current();
+				}
+
+				setIsLoading(true);
+				apiRef.current.render();
+			}
+		}
+	}, [barsPerRow, stretchForce]);
+
 	// 键盘快捷键
 	useEffect(() => {
 		const handleKeyDown = (e: KeyboardEvent) => {
@@ -781,6 +815,10 @@ export default function PrintPreview({
 					onClose={() => setIsTracksPanelOpen(false)}
 					zoom={zoom}
 					onZoomChange={setZoom}
+					barsPerRow={barsPerRow}
+					onBarsPerRowChange={setBarsPerRow}
+					stretchForce={stretchForce}
+					onStretchForceChange={setStretchForce}
 					onTracksChange={() => {
 						// 音轨变化后需要等待重新渲染，然后重新分页
 						// renderFinished 事件会自动触发 paginateContent

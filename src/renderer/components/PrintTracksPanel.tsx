@@ -42,8 +42,16 @@ export interface PrintTracksPanelProps {
 	/** 当前缩放值 */
 	zoom?: number;
 	/** 缩放变化回调 */
-	onZoomChange?: (zoom: number) => void;
-	/** 应用配置回调 - 在 render 之前调用，返回选中的音轨列表 */
+	onZoomChange?: (zoom: number) => void /** 每行小节数 */;
+	barsPerRow?: number;
+	/** 每行小节数变化回调 */
+	onBarsPerRowChange?: (barsPerRow: number) => void;
+	/** 音符间距拉伸力度 */
+	stretchForce?: number;
+	/** 音符间距拉伸力度变化回调 */
+	onStretchForceChange?: (
+		stretchForce: number,
+	) => void /** 应用配置回调 - 在 render 之前调用，返回选中的音轨列表 */;
 	onApplyStaffOptionsReady?: (applyFn: () => AlphaTab.model.Track[]) => void;
 }
 
@@ -57,6 +65,10 @@ export function PrintTracksPanel({
 	onTracksChange,
 	zoom = 0.8,
 	onZoomChange,
+	barsPerRow = -1,
+	onBarsPerRowChange,
+	stretchForce = 1.0,
+	onStretchForceChange,
 	onApplyStaffOptionsReady,
 }: PrintTracksPanelProps) {
 	// 音轨配置（Source of Truth，纯数据）
@@ -336,7 +348,7 @@ export function PrintTracksPanel({
 							type="range"
 							className="flex-1 h-2 bg-muted rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-primary [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-primary [&::-moz-range-thumb]:border-0"
 							min="0.5"
-							max="1.2"
+							max="1.0"
 							step="0.1"
 							value={zoom}
 							onChange={(e) =>
@@ -357,10 +369,86 @@ export function PrintTracksPanel({
 					<div className="flex justify-between text-xs text-muted-foreground">
 						<span>50%</span>
 						<span>100%</span>
-						<span>120%</span>
+					</div>
+				</div>
+				{/* 每行小节数控制 */}
+				<div className="mb-3 p-3 bg-muted/30 rounded-md space-y-2">
+					<div className="flex items-center justify-between">
+						<span className="text-xs font-medium text-muted-foreground">
+							每行小节数
+						</span>
+						<span className="text-xs font-mono text-primary">
+							{barsPerRow === -1 ? "自动" : barsPerRow}
+						</span>
+					</div>
+					<div className="flex items-center gap-2">
+						<input
+							type="range"
+							className="flex-1 h-2 bg-muted rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-primary [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-primary [&::-moz-range-thumb]:border-0"
+							min="-1"
+							max="8"
+							step="1"
+							value={barsPerRow}
+							onChange={(e) =>
+								onBarsPerRowChange?.(Number.parseInt(e.target.value, 10))
+							}
+							title="设置每行显示的小节数，-1为自动模式"
+						/>
+						<Button
+							variant="ghost"
+							size="sm"
+							className="h-6 px-2 text-xs"
+							onClick={() => onBarsPerRowChange?.(-1)}
+							title="重置为自动"
+						>
+							自动
+						</Button>
+					</div>
+					<div className="flex justify-between text-xs text-muted-foreground">
+						<span>自动</span>
+						<span>8</span>
 					</div>
 				</div>
 
+				{/* 音符间距拉伸控制 */}
+				<div className="mb-3 p-3 bg-muted/30 rounded-md space-y-2">
+					<div className="flex items-center justify-between">
+						<span className="text-xs font-medium text-muted-foreground">
+							音符间距
+						</span>
+						<span className="text-xs font-mono text-primary">
+							{stretchForce.toFixed(1)}×
+						</span>
+					</div>
+					<div className="flex items-center gap-2">
+						<input
+							type="range"
+							className="flex-1 h-2 bg-muted rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-primary [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-primary [&::-moz-range-thumb]:border-0"
+							min="0.5"
+							max="2.0"
+							step="0.1"
+							value={stretchForce}
+							onChange={(e) =>
+								onStretchForceChange?.(Number.parseFloat(e.target.value))
+							}
+							title="调整音符之间的间距，值越大间距越宽"
+						/>
+						<Button
+							variant="ghost"
+							size="sm"
+							className="h-6 px-2 text-xs"
+							onClick={() => onStretchForceChange?.(1.0)}
+							title="重置为标准"
+						>
+							重置
+						</Button>
+					</div>
+					<div className="flex justify-between text-xs text-muted-foreground">
+						<span>紧凑</span>
+						<span>标准</span>
+						<span>宽松</span>
+					</div>
+				</div>
 				{/* 音轨列表标题 */}
 				<div className="flex items-center justify-between mb-2 px-1">
 					<span className="text-xs font-medium text-muted-foreground">

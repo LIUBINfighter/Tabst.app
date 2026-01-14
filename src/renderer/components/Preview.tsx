@@ -13,19 +13,16 @@ import {
 	Waves,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { loadBravuraFont, loadSoundFontFromUrl } from "../lib/assets";
 import { createPreviewSettings } from "../lib/alphatab-config";
+import { type AlphaTabErrorLike, formatFullError } from "../lib/alphatab-error";
+import { loadBravuraFont, loadSoundFontFromUrl } from "../lib/assets";
 import type { ResourceUrls } from "../lib/resourceLoaderService";
-import {
-	formatFullError,
-	type AlphaTabErrorLike,
-} from "../lib/alphatab-error";
 import { getResourceUrls } from "../lib/resourceLoaderService";
 import {
 	applyStaffConfig,
 	getFirstStaffOptions,
-	toggleFirstStaffOption,
 	type StaffDisplayOptions,
+	toggleFirstStaffOption,
 } from "../lib/staff-config";
 import {
 	getAlphaTabColorsForTheme,
@@ -312,15 +309,12 @@ export default function Preview({
 					const colors = getAlphaTabColorsForTheme();
 
 					// 使用工具函数创建预览配置
-					const settings = createPreviewSettings(
-						urls as ResourceUrls,
-						{
-							scale: zoomRef.current / 100,
-							scrollElement: scrollEl,
-							enablePlayer: true,
-							colors,
-						},
-					);
+					const settings = createPreviewSettings(urls as ResourceUrls, {
+						scale: zoomRef.current / 100,
+						scrollElement: scrollEl,
+						enablePlayer: true,
+						colors,
+					});
 
 					console.log("[Preview] AlphaTab initialization:", {
 						containerWidth: el.offsetWidth,
