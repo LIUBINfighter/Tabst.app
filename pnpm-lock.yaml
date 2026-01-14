@@ -15,8 +15,8 @@ importers:
         specifier: ^0.19.9
         version: 0.19.9
       '@coderline/alphatab':
-        specifier: ^1.7.1
-        version: 1.7.1
+        specifier: ^1.8.0
+        version: 1.8.0
       '@coderline/alphatab-language-server':
         specifier: ^1.7.1
         version: 1.7.1
@@ -448,8 +448,8 @@ packages:
     resolution: {integrity: sha512-xJ+ft0tfGTHCsiVMzCmWeZPXLk0N/DOor/XBUCSFu5fH6xo9VyREbXIEu/6pURdkp+VhOLRiZCLK+s1E36yoqA==}
     hasBin: true
 
-  '@coderline/alphatab@1.7.1':
-    resolution: {integrity: sha512-Rsh+HEWJxcn2ahMR/5bzPkmeadL3ZSXFboZ46t1Y71tdsysJqlrrKtjx/yaOhULDWL4q1kq0EVcbqlYngcFRyQ==}
+  '@coderline/alphatab@1.8.0':
+    resolution: {integrity: sha512-8CvGX3jnVFGwvHUEHJrX4/RkGJiNeEJ8kjIqvcXNhYFlU0zZNhw6LMJ06cESX+fe2swT6dvfKz4dHvX+Rh+17A==}
     engines: {node: '>=6.0.0'}
 
   '@dotenvx/dotenvx@1.51.1':
@@ -5517,11 +5517,11 @@ snapshots:
 
   '@coderline/alphatab-language-server@1.7.1':
     dependencies:
-      '@coderline/alphatab': 1.7.1
+      '@coderline/alphatab': 1.8.0
       vscode-languageserver: 9.0.1
       vscode-languageserver-textdocument: 1.0.12
 
-  '@coderline/alphatab@1.7.1': {}
+  '@coderline/alphatab@1.8.0': {}
 
   '@dotenvx/dotenvx@1.51.1':
     dependencies:
