@@ -99,6 +99,13 @@ export default function PrintPreview({
 
 	// 音轨选择侧边栏状态
 	const [isTracksPanelOpen, setIsTracksPanelOpen] = useState(false);
+
+	// 缩放比例状态
+	const [zoom, setZoom] = useState(1.0);
+
+	// 保存 applyStaffOptions 的引用，供 zoom 变化时使用
+	const applyStaffOptionsRef = useRef<(() => void) | null>(null);
+
 	const printStyleRef = useRef<HTMLStyleElement | null>(null);
 	const printFontFaceRef = useRef<FontFace | null>(null);
 
@@ -324,7 +331,7 @@ export default function PrintPreview({
 				},
 				display: {
 					layoutMode: finalConfig.layoutMode,
-					scale: finalConfig.scale, // 🔧 关键：打印时使用 1.0 scale
+					scale: finalConfig.scale * zoom, // 🔧 使用用户设置的 zoom 缩放
 					resources: {
 						mainGlyphColor: finalConfig.colors.mainGlyphColor,
 						secondaryGlyphColor: finalConfig.colors.secondaryGlyphColor,
@@ -339,7 +346,7 @@ export default function PrintPreview({
 				},
 			} as Record<string, unknown>;
 		},
-		[],
+		[zoom],
 	);
 
 	const initAlphaTab = useCallback(async () => {
@@ -758,6 +765,27 @@ export default function PrintPreview({
 		}
 	}, [pageSize]);
 
+	// zoom 缩放变化时更新设置并重新渲染
+	useEffect(() => {
+		if (apiRef.current && !isLoadingRef.current) {
+			console.log("[PrintPreview] Zoom changed to:", zoom);
+
+			// 更新 scale 设置
+			if (apiRef.current.settings.display) {
+				(apiRef.current.settings.display as { scale: number }).scale = zoom;
+				apiRef.current.updateSettings();
+
+				// 在渲染之前应用 staff 显示选项
+				if (applyStaffOptionsRef.current) {
+					applyStaffOptionsRef.current();
+				}
+
+				setIsLoading(true);
+				apiRef.current.render();
+			}
+		}
+	}, [zoom]);
+
 	// 键盘快捷键
 	useEffect(() => {
 		const handleKeyDown = (e: KeyboardEvent) => {
@@ -982,9 +1010,14 @@ export default function PrintPreview({
 					api={apiRef.current}
 					isOpen={isTracksPanelOpen}
 					onClose={() => setIsTracksPanelOpen(false)}
+					zoom={zoom}
+					onZoomChange={setZoom}
 					onTracksChange={() => {
 						// 音轨变化后需要等待重新渲染，然后重新分页
 						// renderFinished 事件会自动触发 paginateContent
+					}}
+					onApplyStaffOptionsReady={(applyFn) => {
+						applyStaffOptionsRef.current = applyFn;
 					}}
 				/>
 			</div>

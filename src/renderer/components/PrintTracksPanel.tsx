@@ -11,9 +11,9 @@ import { useCallback, useEffect, useState } from "react";
 import { Button } from "./ui/button";
 
 /**
- * 五线谱显示选项
+ * 谱表配置（纯数据，不依赖 AlphaTab 对象）
  */
-interface StaffDisplayOptions {
+interface StaffConfig {
 	showStandardNotation: boolean;
 	showTablature: boolean;
 	showSlash: boolean;
@@ -21,12 +21,13 @@ interface StaffDisplayOptions {
 }
 
 /**
- * 音轨选择状态
+ * 音轨配置（纯数据，Source of Truth）
  */
-interface TrackSelection {
-	track: AlphaTab.model.Track;
-	isSelected: boolean;
-	staffOptions: StaffDisplayOptions[];
+interface TrackConfig {
+	index: number; // 音轨索引（稳定 ID）
+	name: string; // 音轨名称
+	isSelected: boolean; // 是否选中
+	staves: StaffConfig[]; // 谱表配置
 }
 
 export interface PrintTracksPanelProps {
@@ -38,6 +39,12 @@ export interface PrintTracksPanelProps {
 	onClose: () => void;
 	/** 音轨选择变化回调 */
 	onTracksChange?: (tracks: AlphaTab.model.Track[]) => void;
+	/** 当前缩放值 */
+	zoom?: number;
+	/** 缩放变化回调 */
+	onZoomChange?: (zoom: number) => void;
+	/** 应用 staff 选项回调 - 在 render 之前调用 */
+	onApplyStaffOptionsReady?: (applyFn: () => void) => void;
 }
 
 /**
@@ -48,27 +55,29 @@ export function PrintTracksPanel({
 	isOpen,
 	onClose,
 	onTracksChange,
+	zoom = 0.8,
+	onZoomChange,
+	onApplyStaffOptionsReady,
 }: PrintTracksPanelProps) {
-	// 当前曲谱
-	const [score, setScore] = useState<AlphaTab.model.Score | null>(null);
+	// 音轨配置（Source of Truth，纯数据）
+	const [trackConfigs, setTrackConfigs] = useState<TrackConfig[]>([]);
 
-	// 音轨选择状态
-	const [trackSelections, setTrackSelections] = useState<TrackSelection[]>([]);
+	// 标记是否已初始化
+	const [isInitialized, setIsInitialized] = useState(false);
 
-	// 初始化：从 API 获取曲谱和当前选中的音轨
+	// 初始化：从 API 读取初始状态（仅一次）
 	useEffect(() => {
-		if (!api?.score) return;
+		if (!api?.score || isInitialized) return;
 
-		const currentScore = api.score;
-		setScore(currentScore);
+		console.log("[PrintTracksPanel] 初始化配置");
 
-		// 构建音轨选择状态
-		const selectedTrackIndices = new Set(api.tracks.map((t) => t.index));
+		const selectedIndices = new Set(api.tracks.map((t) => t.index));
 
-		const selections: TrackSelection[] = currentScore.tracks.map((track) => ({
-			track,
-			isSelected: selectedTrackIndices.has(track.index),
-			staffOptions: track.staves.map((staff) => ({
+		const configs: TrackConfig[] = api.score.tracks.map((track) => ({
+			index: track.index,
+			name: track.name || `Track ${track.index + 1}`,
+			isSelected: selectedIndices.has(track.index),
+			staves: track.staves.map((staff) => ({
 				showStandardNotation: staff.showStandardNotation,
 				showTablature: staff.showTablature,
 				showSlash: staff.showSlash,
@@ -76,32 +85,80 @@ export function PrintTracksPanel({
 			})),
 		}));
 
-		setTrackSelections(selections);
-	}, [api, api?.score]);
+		setTrackConfigs(configs);
+		setIsInitialized(true);
+	}, [api, api?.score, isInitialized]);
 
-	// 切换音轨选择
+	// 应用配置到 AlphaTab 对象（单向：Config -> Object）
+	const applyConfigsToAlphaTab = useCallback(() => {
+		if (!api?.score) return;
+
+		console.log("[PrintTracksPanel] 应用配置到 AlphaTab");
+
+		trackConfigs.forEach((config) => {
+			const track = api.score.tracks.find((t) => t.index === config.index);
+			if (!track) return;
+
+			config.staves.forEach((staffConfig, staffIdx) => {
+				const staff = track.staves[staffIdx];
+				if (staff) {
+					staff.showStandardNotation = staffConfig.showStandardNotation;
+					staff.showTablature = staffConfig.showTablature;
+					staff.showSlash = staffConfig.showSlash;
+					staff.showNumbered = staffConfig.showNumbered;
+				}
+			});
+		});
+	}, [api, trackConfigs]);
+
+	// 暴露应用函数给父组件（用于 zoom 变化前调用）
+	// 暴露应用函数给父组件（用于 zoom 变化前调用）
+	useEffect(() => {
+		if (onApplyStaffOptionsReady) {
+			onApplyStaffOptionsReady(applyConfigsToAlphaTab);
+		}
+	}, [applyConfigsToAlphaTab, onApplyStaffOptionsReady]);
+
+	// 切换音轨选择（更新配置 + 应用到 AlphaTab + 触发渲染）
 	const toggleTrackSelection = useCallback(
 		(trackIndex: number) => {
-			if (!api || !score) return;
+			if (!api?.score) return;
 
-			setTrackSelections((prev) => {
-				const newSelections = prev.map((sel) =>
-					sel.track.index === trackIndex
-						? { ...sel, isSelected: !sel.isSelected }
-						: sel,
+			setTrackConfigs((prev) => {
+				const newConfigs = prev.map((cfg) =>
+					cfg.index === trackIndex
+						? { ...cfg, isSelected: !cfg.isSelected }
+						: cfg,
 				);
 
 				// 确保至少有一个音轨被选中
-				const hasSelected = newSelections.some((s) => s.isSelected);
+				const hasSelected = newConfigs.some((c) => c.isSelected);
 				if (!hasSelected) {
 					return prev; // 保持原状态
 				}
 
-				// 获取选中的音轨并排序
-				const selectedTracks = newSelections
-					.filter((s) => s.isSelected)
-					.map((s) => s.track)
+				// 获取选中的音轨
+				const selectedTracks = newConfigs
+					.filter((c) => c.isSelected)
+					.map((c) => api.score.tracks.find((t) => t.index === c.index))
+					.filter((t): t is AlphaTab.model.Track => t !== undefined)
 					.sort((a, b) => a.index - b.index);
+
+				// 应用配置到 AlphaTab
+				newConfigs.forEach((config) => {
+					const track = api.score.tracks.find((t) => t.index === config.index);
+					if (!track) return;
+
+					config.staves.forEach((staffConfig, staffIdx) => {
+						const staff = track.staves[staffIdx];
+						if (staff) {
+							staff.showStandardNotation = staffConfig.showStandardNotation;
+							staff.showTablature = staffConfig.showTablature;
+							staff.showSlash = staffConfig.showSlash;
+							staff.showNumbered = staffConfig.showNumbered;
+						}
+					});
+				});
 
 				// 更新 alphaTab 渲染
 				api.renderTracks(selectedTracks);
@@ -109,90 +166,135 @@ export function PrintTracksPanel({
 				// 通知父组件
 				onTracksChange?.(selectedTracks);
 
-				return newSelections;
+				return newConfigs;
 			});
 		},
-		[api, score, onTracksChange],
+		[api, onTracksChange],
 	);
 
 	// 全选音轨
 	const selectAllTracks = useCallback(() => {
-		if (!api || !score) return;
+		if (!api?.score) return;
 
-		const allTracks = score.tracks.slice().sort((a, b) => a.index - b.index);
-		api.renderTracks(allTracks);
+		setTrackConfigs((prev) => {
+			const newConfigs = prev.map((cfg) => ({ ...cfg, isSelected: true }));
 
-		setTrackSelections((prev) =>
-			prev.map((sel) => ({ ...sel, isSelected: true })),
-		);
+			const allTracks = api.score.tracks
+				.slice()
+				.sort((a, b) => a.index - b.index);
 
-		onTracksChange?.(allTracks);
-	}, [api, score, onTracksChange]);
+			// 应用配置
+			newConfigs.forEach((config) => {
+				const track = api.score.tracks.find((t) => t.index === config.index);
+				if (!track) return;
+
+				config.staves.forEach((staffConfig, staffIdx) => {
+					const staff = track.staves[staffIdx];
+					if (staff) {
+						staff.showStandardNotation = staffConfig.showStandardNotation;
+						staff.showTablature = staffConfig.showTablature;
+						staff.showSlash = staffConfig.showSlash;
+						staff.showNumbered = staffConfig.showNumbered;
+					}
+				});
+			});
+
+			api.renderTracks(allTracks);
+			onTracksChange?.(allTracks);
+
+			return newConfigs;
+		});
+	}, [api, onTracksChange]);
 
 	// 取消全选（保留第一个）
 	const deselectAllTracks = useCallback(() => {
-		if (!api || !score || score.tracks.length === 0) return;
+		if (!api?.score || api.score.tracks.length === 0) return;
 
-		const firstTrack = score.tracks[0];
-		api.renderTracks([firstTrack]);
+		setTrackConfigs((prev) => {
+			const newConfigs = prev.map((cfg, idx) => ({
+				...cfg,
+				isSelected: idx === 0,
+			}));
 
-		setTrackSelections((prev) =>
-			prev.map((sel, idx) => ({ ...sel, isSelected: idx === 0 })),
-		);
+			const firstTrack = api.score.tracks[0];
 
-		onTracksChange?.([firstTrack]);
-	}, [api, score, onTracksChange]);
+			// 应用配置
+			const firstConfig = newConfigs[0];
+			if (firstConfig) {
+				firstConfig.staves.forEach((staffConfig, staffIdx) => {
+					const staff = firstTrack.staves[staffIdx];
+					if (staff) {
+						staff.showStandardNotation = staffConfig.showStandardNotation;
+						staff.showTablature = staffConfig.showTablature;
+						staff.showSlash = staffConfig.showSlash;
+						staff.showNumbered = staffConfig.showNumbered;
+					}
+				});
+			}
 
-	// 切换五线谱显示选项
+			api.renderTracks([firstTrack]);
+			onTracksChange?.([firstTrack]);
+
+			return newConfigs;
+		});
+	}, [api, onTracksChange]);
+
+	// 切换谱表显示选项（只更新配置，立即应用并渲染）
 	const toggleStaffOption = useCallback(
-		(
-			trackIndex: number,
-			staffIndex: number,
-			option: keyof StaffDisplayOptions,
-		) => {
-			if (!api) return;
+		(trackIndex: number, staffIndex: number, option: keyof StaffConfig) => {
+			if (!api?.score) return;
 
-			setTrackSelections((prev) => {
-				const newSelections = prev.map((sel) => {
-					if (sel.track.index !== trackIndex) return sel;
+			setTrackConfigs((prev) => {
+				const newConfigs = prev.map((cfg) => {
+					if (cfg.index !== trackIndex) return cfg;
 
-					const newStaffOptions = [...sel.staffOptions];
-					const currentOptions = newStaffOptions[staffIndex];
+					const currentStaff = cfg.staves[staffIndex];
+					if (!currentStaff) return cfg;
 
-					// 切换选项
-					const newValue = !currentOptions[option];
+					// 计算新值
+					const newValue = !currentStaff[option];
 
 					// 确保至少有一个显示选项被选中
-					const testOptions = { ...currentOptions, [option]: newValue };
-					const hasAnyOption = Object.values(testOptions).some((v) => v);
-					if (!hasAnyOption) return sel;
+					const testStaff = { ...currentStaff, [option]: newValue };
+					const hasAnyOption =
+						testStaff.showStandardNotation ||
+						testStaff.showTablature ||
+						testStaff.showSlash ||
+						testStaff.showNumbered;
 
-					newStaffOptions[staffIndex] = {
-						...currentOptions,
+					if (!hasAnyOption) return cfg; // 至少保留一个选项
+
+					// 更新配置
+					const newStaves = [...cfg.staves];
+					newStaves[staffIndex] = {
+						...currentStaff,
 						[option]: newValue,
 					};
 
-					// 应用到 staff 对象
-					const staff = sel.track.staves[staffIndex];
-					if (staff) {
-						staff[option] = newValue;
+					// 立即应用到 AlphaTab 对象
+					const track = api.score.tracks.find((t) => t.index === trackIndex);
+					if (track) {
+						const staff = track.staves[staffIndex];
+						if (staff) {
+							staff[option] = newValue;
+						}
 					}
 
-					return { ...sel, staffOptions: newStaffOptions };
+					return { ...cfg, staves: newStaves };
 				});
 
 				// 触发重新渲染
 				api.render();
 
-				return newSelections;
+				return newConfigs;
 			});
 		},
 		[api],
 	);
 
 	// 计算选中数量
-	const selectedCount = trackSelections.filter((s) => s.isSelected).length;
-	const totalCount = trackSelections.length;
+	const selectedCount = trackConfigs.filter((c) => c.isSelected).length;
+	const totalCount = trackConfigs.length;
 
 	if (!isOpen) return null;
 
@@ -202,42 +304,89 @@ export function PrintTracksPanel({
 			<div className="h-12 border-b border-border flex items-center justify-between px-3 shrink-0">
 				<div className="flex items-center gap-2">
 					<Layers className="h-4 w-4" />
-					<span className="text-sm font-medium">音轨选择</span>
-				</div>
-				<div className="flex items-center gap-1">
-					<Button
-						variant="ghost"
-						size="sm"
-						className="h-7 px-2 text-xs"
-						onClick={selectAllTracks}
-						title="全选"
-					>
-						全选
-					</Button>
-					<Button
-						variant="ghost"
-						size="sm"
-						className="h-7 px-2 text-xs"
-						onClick={deselectAllTracks}
-						title="仅第一个"
-					>
-						清除
-					</Button>
+					<span className="text-sm font-medium">打印设置</span>
 				</div>
 			</div>
 
 			{/* Content */}
 			<div className="flex-1 overflow-y-auto p-2">
-				{!score || trackSelections.length === 0 ? (
+				{/* 缩放控制 */}
+				<div className="mb-3 p-3 bg-muted/30 rounded-md space-y-2">
+					<div className="flex items-center justify-between">
+						<span className="text-xs font-medium text-muted-foreground">
+							缩放比例
+						</span>
+						<span className="text-xs font-mono text-primary">
+							{Math.round(zoom * 100)}%
+						</span>
+					</div>
+					<div className="flex items-center gap-2">
+						<input
+							type="range"
+							className="flex-1 h-2 bg-muted rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-primary [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-primary [&::-moz-range-thumb]:border-0"
+							min="0.5"
+							max="1.2"
+							step="0.1"
+							value={zoom}
+							onChange={(e) =>
+								onZoomChange?.(Number.parseFloat(e.target.value))
+							}
+							title="调整曲谱缩放比例"
+						/>
+						<Button
+							variant="ghost"
+							size="sm"
+							className="h-6 px-2 text-xs"
+							onClick={() => onZoomChange?.(1.0)}
+							title="重置为100%"
+						>
+							重置
+						</Button>
+					</div>
+					<div className="flex justify-between text-xs text-muted-foreground">
+						<span>50%</span>
+						<span>100%</span>
+						<span>120%</span>
+					</div>
+				</div>
+
+				{/* 音轨列表标题 */}
+				<div className="flex items-center justify-between mb-2 px-1">
+					<span className="text-xs font-medium text-muted-foreground">
+						音轨选择
+					</span>
+					<div className="flex items-center gap-1">
+						<Button
+							variant="ghost"
+							size="sm"
+							className="h-6 px-2 text-xs"
+							onClick={selectAllTracks}
+							title="全选"
+						>
+							全选
+						</Button>
+						<Button
+							variant="ghost"
+							size="sm"
+							className="h-6 px-2 text-xs"
+							onClick={deselectAllTracks}
+							title="仅第一个"
+						>
+							清除
+						</Button>
+					</div>
+				</div>
+
+				{trackConfigs.length === 0 ? (
 					<div className="flex items-center justify-center h-32 text-sm text-muted-foreground">
 						暂无音轨
 					</div>
 				) : (
 					<div className="space-y-1">
-						{trackSelections.map((sel) => (
+						{trackConfigs.map((config) => (
 							<TrackItem
-								key={sel.track.index}
-								selection={sel}
+								key={config.index}
+								config={config}
 								onToggleSelection={toggleTrackSelection}
 								onToggleStaffOption={toggleStaffOption}
 							/>
@@ -268,22 +417,21 @@ export function PrintTracksPanel({
  * 单个音轨项
  */
 interface TrackItemProps {
-	selection: TrackSelection;
+	config: TrackConfig;
 	onToggleSelection: (trackIndex: number) => void;
 	onToggleStaffOption: (
 		trackIndex: number,
 		staffIndex: number,
-		option: keyof StaffDisplayOptions,
+		option: keyof StaffConfig,
 	) => void;
 }
 
 function TrackItem({
-	selection,
+	config,
 	onToggleSelection,
 	onToggleStaffOption,
 }: TrackItemProps) {
-	const { track, isSelected, staffOptions } = selection;
-	const [isExpanded, setIsExpanded] = useState(false);
+	const { index, name, isSelected, staves } = config;
 
 	return (
 		<div
@@ -294,10 +442,9 @@ function TrackItem({
 			}`}
 		>
 			{/* 音轨标题行 */}
-			<button
-				type="button"
-				className="flex items-center gap-2 p-2 cursor-pointer hover:bg-muted/50 rounded-md w-full text-left"
-				onClick={() => onToggleSelection(track.index)}
+			<div
+				className="flex items-center gap-2 p-2 cursor-pointer hover:bg-muted/50 rounded-md"
+				onClick={() => onToggleSelection(index)}
 			>
 				{/* 选择指示器 */}
 				<div
@@ -322,38 +469,18 @@ function TrackItem({
 					className={`flex-1 text-sm truncate ${
 						isSelected ? "font-medium" : "text-muted-foreground"
 					}`}
-					title={track.name}
+					title={name}
 				>
-					{track.name || `Track ${track.index + 1}`}
+					{name}
 				</span>
+			</div>
 
-				{/* 展开/收起五线谱选项 */}
-				{staffOptions.length > 0 && (
-					<Button
-						variant="ghost"
-						size="sm"
-						className="h-6 w-6 p-0"
-						onClick={(e) => {
-							e.stopPropagation();
-							setIsExpanded(!isExpanded);
-						}}
-						title={isExpanded ? "收起选项" : "展开选项"}
-					>
-						<span
-							className={`text-xs transition-transform ${isExpanded ? "rotate-90" : ""}`}
-						>
-							▶
-						</span>
-					</Button>
-				)}
-			</button>
-
-			{/* 五线谱显示选项（展开时显示） */}
-			{isExpanded && isSelected && (
+			{/* 谱表显示选项（从配置读取） */}
+			{isSelected && staves.length > 0 && (
 				<div className="px-2 pb-2 pt-1 space-y-1">
-					{staffOptions.map((options, staffIdx) => (
+					{staves.map((staffConfig, staffIdx) => (
 						<div
-							key={`staff-${track.index}-${staffIdx}`}
+							key={`staff-${index}-${staffIdx}`}
 							className="flex items-center gap-1 pl-7 text-xs"
 						>
 							<span className="text-muted-foreground w-12 shrink-0">
@@ -363,38 +490,34 @@ function TrackItem({
 								<StaffOptionButton
 									label="五线"
 									icon="𝅘𝅥"
-									isActive={options.showStandardNotation}
+									isActive={staffConfig.showStandardNotation}
 									onClick={() =>
-										onToggleStaffOption(
-											track.index,
-											staffIdx,
-											"showStandardNotation",
-										)
+										onToggleStaffOption(index, staffIdx, "showStandardNotation")
 									}
 									title="标准记谱法"
 								/>
 								<StaffOptionButton
 									label="TAB"
-									isActive={options.showTablature}
+									isActive={staffConfig.showTablature}
 									onClick={() =>
-										onToggleStaffOption(track.index, staffIdx, "showTablature")
+										onToggleStaffOption(index, staffIdx, "showTablature")
 									}
 									title="六线谱"
 								/>
 								<StaffOptionButton
 									label="/"
 									icon="𝄍"
-									isActive={options.showSlash}
+									isActive={staffConfig.showSlash}
 									onClick={() =>
-										onToggleStaffOption(track.index, staffIdx, "showSlash")
+										onToggleStaffOption(index, staffIdx, "showSlash")
 									}
 									title="斜线记谱法"
 								/>
 								<StaffOptionButton
 									label="123"
-									isActive={options.showNumbered}
+									isActive={staffConfig.showNumbered}
 									onClick={() =>
-										onToggleStaffOption(track.index, staffIdx, "showNumbered")
+										onToggleStaffOption(index, staffIdx, "showNumbered")
 									}
 									title="简谱"
 								/>
