@@ -1,7 +1,15 @@
 import * as alphaTab from "@coderline/alphatab";
-import { ChevronLeft, ChevronRight, Loader2, Printer, X } from "lucide-react";
+import {
+	ChevronLeft,
+	ChevronRight,
+	Layers,
+	Loader2,
+	Printer,
+	X,
+} from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getResourceUrls } from "../lib/resourceLoaderService";
+import { PrintTracksPanel } from "./PrintTracksPanel";
 import { Button } from "./ui/button";
 
 export interface PrintPreviewProps {
@@ -88,6 +96,9 @@ export default function PrintPreview({
 	// 打印时使用的专用字体名与 URL（动态，带时间戳）
 	const [printFontName, setPrintFontName] = useState<string>("");
 	const [printFontUrl, setPrintFontUrl] = useState<string>("");
+
+	// 音轨选择侧边栏状态
+	const [isTracksPanelOpen, setIsTracksPanelOpen] = useState(false);
 	const printStyleRef = useRef<HTMLStyleElement | null>(null);
 	const printFontFaceRef = useRef<FontFace | null>(null);
 
@@ -828,6 +839,17 @@ export default function PrintPreview({
 				</div>
 
 				<div className="flex items-center gap-4">
+					{/* 音轨选择按钮 */}
+					<Button
+						variant={isTracksPanelOpen ? "secondary" : "ghost"}
+						size="icon"
+						onClick={() => setIsTracksPanelOpen(!isTracksPanelOpen)}
+						title="音轨选择"
+						disabled={isLoading || !apiRef.current?.score}
+					>
+						<Layers className="h-5 w-5" />
+					</Button>
+
 					{/* 页面尺寸选择 */}
 					<select
 						className="h-8 px-2 text-sm border border-border rounded bg-background"
@@ -890,67 +912,81 @@ export default function PrintPreview({
 				</div>
 			</div>
 
-			{/* 内容区域 */}
-			<div className="flex-1 overflow-auto bg-muted/30 p-6">
-				{/* 加载状态 */}
-				{isLoading && (
-					<div className="flex items-center justify-center h-full">
-						<div className="flex flex-col items-center gap-4">
-							<Loader2 className="h-8 w-8 animate-spin text-primary" />
-							<span className="text-sm text-muted-foreground">
-								正在生成打印预览...
-							</span>
+			{/* 主内容区域（包含侧边栏和预览） */}
+			<div className="flex-1 flex overflow-hidden">
+				{/* 内容区域 */}
+				<div className="flex-1 overflow-auto bg-muted/30 p-6">
+					{/* 加载状态 */}
+					{isLoading && (
+						<div className="flex items-center justify-center h-full">
+							<div className="flex flex-col items-center gap-4">
+								<Loader2 className="h-8 w-8 animate-spin text-primary" />
+								<span className="text-sm text-muted-foreground">
+									正在生成打印预览...
+								</span>
+							</div>
 						</div>
-					</div>
-				)}
+					)}
 
-				{/* 错误状态 */}
-				{error && (
-					<div className="flex items-center justify-center h-full">
-						<div className="bg-destructive/10 text-destructive p-6 rounded-lg max-w-md">
-							<h3 className="font-medium mb-2">生成预览失败</h3>
-							<p className="text-sm">{error}</p>
+					{/* 错误状态 */}
+					{error && (
+						<div className="flex items-center justify-center h-full">
+							<div className="bg-destructive/10 text-destructive p-6 rounded-lg max-w-md">
+								<h3 className="font-medium mb-2">生成预览失败</h3>
+								<p className="text-sm">{error}</p>
+							</div>
 						</div>
-					</div>
-				)}
+					)}
 
-				{/* 隐藏的 alphaTab 渲染容器 - 保持在可视区域内以获取正确的字体度量 */}
-				<div
-					ref={alphaTabContainerRef}
-					className="fixed bg-white"
-					style={{
-						position: "fixed",
-						top: 0,
-						left: 0,
-						width: `${contentWidthPx}px`,
-						zIndex: -100, // 放在最底层
-						opacity: 0, // 完全透明
-						pointerEvents: "none", // 不响应鼠标事件
-						fontSize: "16px", // 强制设置基础字号
-						lineHeight: "normal", // 防止继承异常行高
+					{/* 隐藏的 alphaTab 渲染容器 - 保持在可视区域内以获取正确的字体度量 */}
+					<div
+						ref={alphaTabContainerRef}
+						className="fixed bg-white"
+						style={{
+							position: "fixed",
+							top: 0,
+							left: 0,
+							width: `${contentWidthPx}px`,
+							zIndex: -100, // 放在最底层
+							opacity: 0, // 完全透明
+							pointerEvents: "none", // 不响应鼠标事件
+							fontSize: "16px", // 强制设置基础字号
+							lineHeight: "normal", // 防止继承异常行高
+						}}
+					/>
+
+					{/* 页面预览 */}
+					{!isLoading && !error && pages.length > 0 && (
+						<div className="flex justify-center">
+							<div
+								ref={previewContainerRef}
+								className="bg-white shadow-lg rounded-sm overflow-hidden relative"
+								style={{
+									width: `${contentWidthPx}px`,
+									height: `${contentHeightPx}px`,
+								}}
+							>
+								{/* 渲染当前页面的 SVG 内容 - pages 已经包含完整的 at-surface div */}
+								<div
+									// biome-ignore lint/security/noDangerouslySetInnerHtml: alphaTab SVG content from internal rendering
+									dangerouslySetInnerHTML={{ __html: currentPageHtml }}
+									style={{ width: "100%", height: "100%" }}
+								/>
+							</div>
+						</div>
+					)}
+				</div>
+
+				{/* 音轨选择侧边栏 */}
+				<PrintTracksPanel
+					api={apiRef.current}
+					isOpen={isTracksPanelOpen}
+					onClose={() => setIsTracksPanelOpen(false)}
+					onTracksChange={() => {
+						// 音轨变化后需要等待重新渲染，然后重新分页
+						// renderFinished 事件会自动触发 paginateContent
 					}}
 				/>
-
-				{/* 页面预览 */}
-				{!isLoading && !error && pages.length > 0 && (
-					<div className="flex justify-center">
-						<div
-							ref={previewContainerRef}
-							className="bg-white shadow-lg rounded-sm overflow-hidden relative"
-							style={{
-								width: `${contentWidthPx}px`,
-								height: `${contentHeightPx}px`,
-							}}
-						>
-							{/* 渲染当前页面的 SVG 内容 - pages 已经包含完整的 at-surface div */}
-							<div
-								// biome-ignore lint/security/noDangerouslySetInnerHtml: alphaTab SVG content from internal rendering
-								dangerouslySetInnerHTML={{ __html: currentPageHtml }}
-								style={{ width: "100%", height: "100%" }}
-							/>
-						</div>
-					</div>
-				)}
 			</div>
 
 			{/* 底部快捷键提示 */}
