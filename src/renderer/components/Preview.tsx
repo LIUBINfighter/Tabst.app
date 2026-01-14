@@ -7,6 +7,7 @@ import {
 	Pause,
 	Play,
 	Plus,
+	Printer,
 	Slash,
 	Square,
 	Waves,
@@ -18,6 +19,7 @@ import {
 	getAlphaTabColorsForTheme,
 	setupThemeObserver,
 } from "../lib/themeManager";
+import PrintPreview from "./PrintPreview";
 
 export interface PreviewProps {
 	fileName?: string;
@@ -789,234 +791,265 @@ export default function Preview({
 		alphaTab.ScrollMode.OffScreen,
 	);
 
+	// 打印预览状态
+	const [showPrintPreview, setShowPrintPreview] = useState(false);
+
 	return (
 		<div
 			className={`flex-1 flex flex-col h-full overflow-hidden ${className ?? ""}`}
 		>
-			{/* 错误提示已移到底部 */}
-			<div className="h-9 border-b border-border flex items-center px-3 text-xs text-muted-foreground shrink-0 gap-2 bg-card">
-				<FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-				<span className="sr-only">{fileName ?? "预览"}</span>
+			{/* 当打印预览显示时，隐藏主预览区域以避免资源冲突 */}
+			{!showPrintPreview && (
+				<>
+					{/* 错误提示已移到底部 */}
+					<div className="h-9 border-b border-border flex items-center px-3 text-xs text-muted-foreground shrink-0 gap-2 bg-card">
+						<FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+						<span className="sr-only">{fileName ?? "预览"}</span>
 
-				{/* First track staff options (TAB / Standard / Slash / Numbered) */}
-				{firstStaffOptions && (
-					<div className="ml-auto flex items-center gap-1">
-						<button
-							type="button"
-							className={`h-6 w-6 p-0.5 rounded ${
-								firstStaffOptions?.showStandardNotation
-									? "bg-blue-500/20 text-blue-600"
-									: "hover:bg-blue-500/20 hover:text-blue-600"
-							}`}
-							onClick={() => toggleFirstStaffOpt("showStandardNotation")}
-							title="标准记谱法（五线谱）"
-						>
-							<Music className="h-4 w-4" />
-						</button>
+						{/* First track staff options (TAB / Standard / Slash / Numbered) */}
+						{firstStaffOptions && (
+							<div className="ml-auto flex items-center gap-1">
+								<button
+									type="button"
+									className={`h-6 w-6 p-0.5 rounded ${
+										firstStaffOptions?.showStandardNotation
+											? "bg-blue-500/20 text-blue-600"
+											: "hover:bg-blue-500/20 hover:text-blue-600"
+									}`}
+									onClick={() => toggleFirstStaffOpt("showStandardNotation")}
+									title="标准记谱法（五线谱）"
+								>
+									<Music className="h-4 w-4" />
+								</button>
 
-						<button
-							type="button"
-							className={`h-6 w-6 p-0.5 rounded ${
-								firstStaffOptions?.showTablature
-									? "bg-blue-500/20 text-blue-600"
-									: "hover:bg-blue-500/20 hover:text-blue-600"
-							}`}
-							onClick={() => toggleFirstStaffOpt("showTablature")}
-							title="六线谱（TAB）"
-						>
-							<Hash className="h-4 w-4" />
-						</button>
+								<button
+									type="button"
+									className={`h-6 w-6 p-0.5 rounded ${
+										firstStaffOptions?.showTablature
+											? "bg-blue-500/20 text-blue-600"
+											: "hover:bg-blue-500/20 hover:text-blue-600"
+									}`}
+									onClick={() => toggleFirstStaffOpt("showTablature")}
+									title="六线谱（TAB）"
+								>
+									<Hash className="h-4 w-4" />
+								</button>
 
-						<button
-							type="button"
-							className={`h-6 w-6 p-0.5 rounded ${
-								firstStaffOptions?.showSlash
-									? "bg-blue-500/20 text-blue-600"
-									: "hover:bg-blue-500/20 hover:text-blue-600"
-							}`}
-							onClick={() => toggleFirstStaffOpt("showSlash")}
-							title="斜线记谱法（节拍）"
-						>
-							<Slash className="h-4 w-4" />
-						</button>
+								<button
+									type="button"
+									className={`h-6 w-6 p-0.5 rounded ${
+										firstStaffOptions?.showSlash
+											? "bg-blue-500/20 text-blue-600"
+											: "hover:bg-blue-500/20 hover:text-blue-600"
+									}`}
+									onClick={() => toggleFirstStaffOpt("showSlash")}
+									title="斜线记谱法（节拍）"
+								>
+									<Slash className="h-4 w-4" />
+								</button>
 
-						<button
-							type="button"
-							className={`h-6 w-6 p-0.5 rounded ${
-								firstStaffOptions?.showNumbered
-									? "bg-blue-500/20 text-blue-600"
-									: "hover:bg-blue-500/20 hover:text-blue-600"
-							}`}
-							onClick={() => toggleFirstStaffOpt("showNumbered")}
-							title="简谱（数字谱）"
-						>
-							<FileText className="h-3.5 w-3.5" />
-						</button>
-					</div>
-				)}
-
-				{/* Player controls: inline buttons (Play-Pause / Stop / Scroll) */}
-				<div className="ml-2 flex items-center gap-1">
-					{/* Player enable toggle removed: controls are always enabled */}
-
-					<button
-						type="button"
-						className={`h-6 w-6 p-0.5 rounded ${isPlaying ? "bg-blue-500/20 text-blue-600" : "hover:bg-blue-500/20 hover:text-blue-600"}`}
-						onClick={() => {
-							const api = apiRef.current;
-							if (!api) return;
-							try {
-								if (!isPlaying) {
-									api.play?.();
-									setIsPlaying(true);
-								} else {
-									api.pause?.();
-									setIsPlaying(false);
-								}
-							} catch (e) {
-								console.error("Failed play/pause:", e);
-							}
-						}}
-						title={isPlaying ? "暂停" : "播放"}
-					>
-						{isPlaying ? (
-							<Pause className="h-4 w-4" />
-						) : (
-							<Play className="h-4 w-4" />
-						)}
-					</button>
-
-					<button
-						type="button"
-						className={`h-6 w-6 p-0.5 rounded hover:bg-blue-500/20 hover:text-blue-600`}
-						onClick={() => {
-							const api = apiRef.current;
-							if (!api) return;
-							try {
-								api.stop?.();
-								setIsPlaying(false);
-							} catch (e) {
-								console.error("Failed stop:", e);
-							}
-						}}
-						title="停止"
-					>
-						<Square className="h-4 w-4" />
-					</button>
-
-					<button
-						type="button"
-						className={`h-6 w-6 p-0.5 rounded ${
-							scrollMode === alphaTab.ScrollMode.Continuous
-								? "bg-blue-500/20 text-blue-600"
-								: "hover:bg-blue-500/20 hover:text-blue-600"
-						}`}
-						onClick={() => {
-							const api = apiRef.current;
-							if (!api || !api.settings) return;
-							try {
-								const newMode =
-									scrollMode === alphaTab.ScrollMode.Continuous
-										? alphaTab.ScrollMode.OffScreen
-										: alphaTab.ScrollMode.Continuous;
-								setScrollMode(newMode);
-								(api.settings.player as alphaTab.PlayerSettings).scrollMode =
-									newMode;
-								api.updateSettings?.();
-							} catch (error) {
-								console.error("Failed to toggle scroll mode:", error);
-							}
-						}}
-						title={`滚动模式：${
-							scrollMode === alphaTab.ScrollMode.Continuous
-								? "连续滚动"
-								: "超出页面后滚动"
-						}`}
-					>
-						<Waves className="h-4 w-4" />
-					</button>
-				</div>
-				{/* Zoom controls: - button, percentage input, + button */}
-				<div className="ml-2 flex items-center gap-1">
-					<button
-						type="button"
-						className={`h-6 w-6 p-0.5 rounded hover:bg-blue-500/20 hover:text-blue-600`}
-						onClick={() => applyZoom(zoomPercent - 10)}
-						title="缩小"
-					>
-						<Minus className="h-4 w-4" />
-					</button>
-
-					<input
-						aria-label="缩放百分比"
-						value={zoomPercent}
-						onChange={(e) => {
-							const v = parseInt(e.target.value ?? "60", 10);
-							if (Number.isNaN(v)) return;
-							applyZoom(v);
-						}}
-						onBlur={(e) => {
-							const v = parseInt(e.target.value ?? "60", 10);
-							if (Number.isNaN(v)) return;
-							applyZoom(v);
-						}}
-						className="w-16 h-6 text-xs text-center rounded bg-transparent border border-border px-1 input-no-spinner"
-						step={1}
-						min={10}
-						max={400}
-						onKeyDown={(e) => {
-							if (e.key === "ArrowUp" || e.key === "ArrowDown") {
-								e.preventDefault();
-							}
-						}}
-						onWheel={(e) => {
-							e.preventDefault();
-						}}
-						type="number"
-					/>
-					<span className="text-xs">%</span>
-
-					<button
-						type="button"
-						className={`h-6 w-6 p-0.5 rounded hover:bg-blue-500/20 hover:text-blue-600`}
-						onClick={() => applyZoom(zoomPercent + 10)}
-						title="放大"
-					>
-						<Plus className="h-4 w-4" />
-					</button>
-				</div>
-			</div>
-			<div className="flex-1 overflow-auto relative h-full">
-				<div ref={containerRef} className="w-full h-full" />
-				<div
-					ref={cursorRef}
-					className="pointer-events-none absolute z-20 bg-amber-300/40 rounded-sm"
-					style={{ display: "none" }}
-				/>
-			</div>
-			{parseError && (
-				<div className="bg-destructive/10 text-destructive px-3 py-2 text-xs border-t border-destructive/20 flex items-start gap-2">
-					<span className="font-semibold shrink-0">⚠️</span>
-					<div className="flex-1 min-w-0">
-						<div className="font-medium">AlphaTex 解析错误</div>
-						<div className="mt-0.5 text-destructive/80 break-words">
-							{parseError}
-						</div>
-						{restorePerformed && lastValidScoreRef.current && (
-							<div className="mt-1 text-destructive/60 text-[11px]">
-								已恢复到上一次成功的乐谱
+								<button
+									type="button"
+									className={`h-6 w-6 p-0.5 rounded ${
+										firstStaffOptions?.showNumbered
+											? "bg-blue-500/20 text-blue-600"
+											: "hover:bg-blue-500/20 hover:text-blue-600"
+									}`}
+									onClick={() => toggleFirstStaffOpt("showNumbered")}
+									title="简谱（数字谱）"
+								>
+									<FileText className="h-3.5 w-3.5" />
+								</button>
 							</div>
 						)}
+
+						{/* Player controls: inline buttons (Play-Pause / Stop / Scroll) */}
+						<div className="ml-2 flex items-center gap-1">
+							{/* Player enable toggle removed: controls are always enabled */}
+
+							<button
+								type="button"
+								className={`h-6 w-6 p-0.5 rounded ${isPlaying ? "bg-blue-500/20 text-blue-600" : "hover:bg-blue-500/20 hover:text-blue-600"}`}
+								onClick={() => {
+									const api = apiRef.current;
+									if (!api) return;
+									try {
+										if (!isPlaying) {
+											api.play?.();
+											setIsPlaying(true);
+										} else {
+											api.pause?.();
+											setIsPlaying(false);
+										}
+									} catch (e) {
+										console.error("Failed play/pause:", e);
+									}
+								}}
+								title={isPlaying ? "暂停" : "播放"}
+							>
+								{isPlaying ? (
+									<Pause className="h-4 w-4" />
+								) : (
+									<Play className="h-4 w-4" />
+								)}
+							</button>
+
+							<button
+								type="button"
+								className={`h-6 w-6 p-0.5 rounded hover:bg-blue-500/20 hover:text-blue-600`}
+								onClick={() => {
+									const api = apiRef.current;
+									if (!api) return;
+									try {
+										api.stop?.();
+										setIsPlaying(false);
+									} catch (e) {
+										console.error("Failed stop:", e);
+									}
+								}}
+								title="停止"
+							>
+								<Square className="h-4 w-4" />
+							</button>
+
+							<button
+								type="button"
+								className={`h-6 w-6 p-0.5 rounded ${
+									scrollMode === alphaTab.ScrollMode.Continuous
+										? "bg-blue-500/20 text-blue-600"
+										: "hover:bg-blue-500/20 hover:text-blue-600"
+								}`}
+								onClick={() => {
+									const api = apiRef.current;
+									if (!api || !api.settings) return;
+									try {
+										const newMode =
+											scrollMode === alphaTab.ScrollMode.Continuous
+												? alphaTab.ScrollMode.OffScreen
+												: alphaTab.ScrollMode.Continuous;
+										setScrollMode(newMode);
+										(
+											api.settings.player as alphaTab.PlayerSettings
+										).scrollMode = newMode;
+										api.updateSettings?.();
+									} catch (error) {
+										console.error("Failed to toggle scroll mode:", error);
+									}
+								}}
+								title={`滚动模式：${
+									scrollMode === alphaTab.ScrollMode.Continuous
+										? "连续滚动"
+										: "超出页面后滚动"
+								}`}
+							>
+								<Waves className="h-4 w-4" />
+							</button>
+						</div>
+						{/* Zoom controls: - button, percentage input, + button */}
+						<div className="ml-2 flex items-center gap-1">
+							<button
+								type="button"
+								className={`h-6 w-6 p-0.5 rounded hover:bg-blue-500/20 hover:text-blue-600`}
+								onClick={() => applyZoom(zoomPercent - 10)}
+								title="缩小"
+							>
+								<Minus className="h-4 w-4" />
+							</button>
+
+							<input
+								aria-label="缩放百分比"
+								value={zoomPercent}
+								onChange={(e) => {
+									const v = parseInt(e.target.value ?? "60", 10);
+									if (Number.isNaN(v)) return;
+									applyZoom(v);
+								}}
+								onBlur={(e) => {
+									const v = parseInt(e.target.value ?? "60", 10);
+									if (Number.isNaN(v)) return;
+									applyZoom(v);
+								}}
+								className="w-16 h-6 text-xs text-center rounded bg-transparent border border-border px-1 input-no-spinner"
+								step={1}
+								min={10}
+								max={400}
+								onKeyDown={(e) => {
+									if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+										e.preventDefault();
+									}
+								}}
+								onWheel={(e) => {
+									e.preventDefault();
+								}}
+								type="number"
+							/>
+							<span className="text-xs">%</span>
+
+							<button
+								type="button"
+								className={`h-6 w-6 p-0.5 rounded hover:bg-blue-500/20 hover:text-blue-600`}
+								onClick={() => applyZoom(zoomPercent + 10)}
+								title="放大"
+							>
+								<Plus className="h-4 w-4" />
+							</button>
+						</div>
+
+						{/* 打印按钮 */}
+						<div className="ml-2 flex items-center gap-1">
+							<button
+								type="button"
+								className="h-6 w-6 p-0.5 rounded hover:bg-blue-500/20 hover:text-blue-600"
+								onClick={() => setShowPrintPreview(true)}
+								title="打印预览"
+								disabled={!content}
+							>
+								<Printer className="h-4 w-4" />
+							</button>
+						</div>
 					</div>
-					<button
-						type="button"
-						onClick={() => setParseError(null)}
-						className="shrink-0 text-destructive/60 hover:text-destructive text-lg leading-none"
-						title="关闭错误提示"
-					>
-						×
-					</button>
-				</div>
+					<div className="flex-1 overflow-auto relative h-full">
+						<div ref={containerRef} className="w-full h-full" />
+						<div
+							ref={cursorRef}
+							className="pointer-events-none absolute z-20 bg-amber-300/40 rounded-sm"
+							style={{ display: "none" }}
+						/>
+					</div>
+					{parseError && (
+						<div className="bg-destructive/10 text-destructive px-3 py-2 text-xs border-t border-destructive/20 flex items-start gap-2">
+							<span className="font-semibold shrink-0">⚠️</span>
+							<div className="flex-1 min-w-0">
+								<div className="font-medium">AlphaTex 解析错误</div>
+								<div className="mt-0.5 text-destructive/80 break-words">
+									{parseError}
+								</div>
+								{restorePerformed && lastValidScoreRef.current && (
+									<div className="mt-1 text-destructive/60 text-[11px]">
+										已恢复到上一次成功的乐谱
+									</div>
+								)}
+							</div>
+							<button
+								type="button"
+								onClick={() => setParseError(null)}
+								className="shrink-0 text-destructive/60 hover:text-destructive text-lg leading-none"
+								title="关闭错误提示"
+							>
+								×
+							</button>
+						</div>
+					)}
+				</>
+			)}
+
+			{/* 打印预览模态窗口 */}
+			{showPrintPreview && content && (
+				<PrintPreview
+					content={content}
+					fileName={fileName}
+					onClose={() => setShowPrintPreview(false)}
+				/>
 			)}
 		</div>
 	);
