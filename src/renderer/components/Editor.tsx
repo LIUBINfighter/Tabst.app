@@ -11,6 +11,10 @@ import { createAlphaTexAutocomplete } from "../lib/alphatex-completion";
 import { getAlphaTexHighlight } from "../lib/alphatex-highlight";
 import type { AlphaTexLSPClient } from "../lib/alphatex-lsp";
 import { createAlphaTexLSPClient } from "../lib/alphatex-lsp";
+import {
+	createSelectionSyncExtension,
+	updateEditorSelectionHighlight,
+} from "../lib/alphatex-selection-sync";
 import { whitespaceDecoration } from "../lib/whitespace-decoration";
 import { useAppStore } from "../store/appStore";
 import Preview from "./Preview";
@@ -37,6 +41,9 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 	const activeFileId = useAppStore((s) => s.activeFileId);
 	const files = useAppStore((s) => s.files);
 	const activeFile = files.find((f) => f.id === activeFileId);
+
+	// 🆕 订阅乐谱选区状态
+	const scoreSelection = useAppStore((s) => s.scoreSelection);
 
 	// Observe <html> to detect dark mode toggles (class 'dark')
 	const [isDark, setIsDark] = useState<boolean>(() => {
@@ -169,6 +176,10 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 
 					// Add immediate abbreviation expansion
 					extensions.push(alphatexAbbreviations);
+
+					// 🆕 Add selection sync extension (乐谱选区 → 代码高亮)
+					const selectionSyncExt = createSelectionSyncExtension();
+					extensions.push(...selectionSyncExt);
 
 					// Enable soft-wrapping
 					extensions.push(EditorView.lineWrapping);
@@ -358,6 +369,19 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 			effects: themeCompartmentRef.current.reconfigure(themeExtension),
 		});
 	}, [isDark, createThemeExtension]);
+
+	// 🆕 监听乐谱选区变化，更新编辑器高亮
+	useEffect(() => {
+		const view = viewRef.current;
+		if (!view) return;
+
+		// 只有 AlphaTex 文件才需要选区同步
+		const language = activeFile ? getLanguageForFile(activeFile.path) : "";
+		if (language !== "alphatex") return;
+
+		const content = activeFile?.content ?? "";
+		updateEditorSelectionHighlight(view, content, scoreSelection);
+	}, [scoreSelection, activeFile, getLanguageForFile]);
 
 	// Cleanup on unmount
 	useEffect(() => {

@@ -7,11 +7,29 @@ export interface FileItem {
 	content: string;
 }
 
+/**
+ * 乐谱选区信息 - 用于 Preview 和 Editor 之间同步选区
+ * 使用 alphaTab 1.8.0 Selection API
+ */
+export interface ScoreSelectionInfo {
+	/** 起始 Beat 的小节索引 (0-based) */
+	startBarIndex: number;
+	/** 起始 Beat 在小节内的索引 (0-based) */
+	startBeatIndex: number;
+	/** 结束 Beat 的小节索引 (0-based) */
+	endBarIndex: number;
+	/** 结束 Beat 在小节内的索引 (0-based) */
+	endBeatIndex: number;
+}
+
 interface AppState {
 	// 文件列表
 	files: FileItem[];
 	// 当前选中的文件
 	activeFileId: string | null;
+
+	// 🆕 乐谱选区状态 - 用于 Preview ↔ Editor 双向同步
+	scoreSelection: ScoreSelectionInfo | null;
 
 	// Actions
 	addFile: (file: FileItem) => void;
@@ -21,6 +39,10 @@ interface AppState {
 	updateFileContent: (id: string, content: string) => void;
 	getActiveFile: () => FileItem | undefined;
 
+	// 🆕 选区操作
+	setScoreSelection: (selection: ScoreSelectionInfo | null) => void;
+	clearScoreSelection: () => void;
+
 	// 初始化，从主进程读取持久化状态
 	initialize: () => Promise<void>;
 }
@@ -28,6 +50,7 @@ interface AppState {
 export const useAppStore = create<AppState>((set, get) => ({
 	files: [],
 	activeFileId: null,
+	scoreSelection: null,
 
 	addFile: (file) => {
 		set((state) => {
@@ -157,6 +180,16 @@ export const useAppStore = create<AppState>((set, get) => ({
 	getActiveFile: () => {
 		const state = get();
 		return state.files.find((f) => f.id === state.activeFileId);
+	},
+
+	// 🆕 设置乐谱选区
+	setScoreSelection: (selection) => {
+		set({ scoreSelection: selection });
+	},
+
+	// 🆕 清除乐谱选区
+	clearScoreSelection: () => {
+		set({ scoreSelection: null });
 	},
 
 	initialize: async () => {

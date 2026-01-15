@@ -27,6 +27,7 @@ import {
 	getAlphaTabColorsForTheme,
 	setupThemeObserver,
 } from "../lib/themeManager";
+import { useAppStore } from "../store/appStore";
 import PrintPreview from "./PrintPreview";
 
 export interface PreviewProps {
@@ -209,6 +210,50 @@ export default function Preview({
 				cursor.style.width = `${visual.w}px`;
 				cursor.style.height = `${visual.h}px`;
 			});
+
+			// 🆕 3.5. Selection API (alphaTab 1.8.0+): 监听选区变化，同步到编辑器
+			try {
+				api.playbackRangeHighlightChanged?.on((e) => {
+					const { setScoreSelection, clearScoreSelection } =
+						useAppStore.getState();
+
+					// 如果没有选区，清除编辑器高亮
+					if (!e.startBeat || !e.endBeat) {
+						clearScoreSelection();
+						return;
+					}
+
+					// 从 Beat 对象中提取小节和 Beat 索引
+					const startBeat = e.startBeat;
+					const endBeat = e.endBeat;
+
+					// 获取小节索引
+					const startBarIndex = startBeat.voice?.bar?.index ?? 0;
+					const endBarIndex = endBeat.voice?.bar?.index ?? startBarIndex;
+
+					// 获取 Beat 在小节内的索引
+					const startBeatIndex = startBeat.index ?? 0;
+					const endBeatIndex = endBeat.index ?? 0;
+
+					console.info(
+						"[Preview] Selection changed:",
+						`Bar ${startBarIndex}:${startBeatIndex} -> Bar ${endBarIndex}:${endBeatIndex}`,
+					);
+
+					// 更新 store，触发 Editor 高亮
+					setScoreSelection({
+						startBarIndex,
+						startBeatIndex,
+						endBarIndex,
+						endBeatIndex,
+					});
+				});
+			} catch (e) {
+				console.debug(
+					"[Preview] playbackRangeHighlightChanged not available (requires alphaTab 1.8.0+):",
+					e,
+				);
+			}
 
 			// 4. 改进的错误处理：保留上一次成功的渲染
 			api.error.on((err: unknown) => {
