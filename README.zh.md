@@ -1,5 +1,10 @@
 # Tabst
 
+![CI](https://img.shields.io/github/actions/workflow/status/LIUBINfighter/Tabst.app/ci.yml?branch=main)
+![Release](https://img.shields.io/github/v/release/LIUBINfighter/Tabst.app)
+![下载量 (总)](https://img.shields.io/github/downloads/LIUBINfighter/Tabst.app/total)
+![下载量 (最新)](https://img.shields.io/github/downloads/LIUBINfighter/Tabst.app/latest/total)
+
 Write guitar tabs like markdown.
 
 ## Feature 功能
@@ -14,7 +19,7 @@ Write. Play. Share.
 
 既然文档写作已经有开箱即用的广大 Markdown 编辑器，追求精确排版的LaTeX和创新的Typst，为什么在吉他谱领域，还要像 word 一样在曲谱上点点点把音符连接起来？
 
-MusiXTeX, Lilypond 在乐谱标记语言上做出了出版级的表率，而 alphaTab.js 让可交互可播放的乐谱成为可能。
+MusiXTeX, Lilypond 在乐谱标记语言上做出了出版级的表率，而 alphaTab.js 让可交互可播放的乐谱成为可能。在 Tabst 中，我们以简单直观的语法书写 alphaTex，并轻松与朋友分享。
 
 这只是一个开始，我的愿景是将散落为pdf/图片的曲谱们都转化为 Tabst 中存储的alphaTex. 视觉大模型（OMR光学音符识别）正在路上。
 
@@ -30,13 +35,16 @@ MusiXTeX, Lilypond 在乐谱标记语言上做出了出版级的表率，而 alp
 - [biome](https://biomejs.dev/guides/getting-started/)
 - [Zustand](https://github.com/pmndrs/zustand)
 - [Lucide Icon](https://lucide.dev/guide/packages/lucide-react)
+- [alphaTex](https://www.alphatab.net/docs/alphatex/introduction)
+- [alphaTab.js](https://www.alphatab.net/)
+- [CodeMirror](https://codemirror.net/)
 
 ## 开发环境
 
 MCP服务器
 
-- context7
-- shadcn/ui
+- [context7](https://context7.com/)
+- [shadcn/ui](https://ui.shadcn.com/)
 
 ## 安装
 

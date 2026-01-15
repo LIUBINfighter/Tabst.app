@@ -1,5 +1,10 @@
 # Tabst
 
+![CI](https://img.shields.io/github/actions/workflow/status/LIUBINfighter/Tabst.app/ci.yml?branch=main)
+![Release](https://img.shields.io/github/v/release/LIUBINfighter/Tabst.app)
+![Downloads (Total)](https://img.shields.io/github/downloads/LIUBINfighter/Tabst.app/total)
+![Downloads (Latest)](https://img.shields.io/github/downloads/LIUBINfighter/Tabst.app/latest/total)
+
 Write guitar tabs like markdown.
 
 ## Features
@@ -14,12 +19,15 @@ Say no to bulky binaries and XML; the world belongs to plain text.
 
 While document writing already has a plethora of out-of-the-box Markdown editors, precise typesetting tools like LaTeX, and innovative tools like Typst, why in the realm of guitar tabs are we still connecting notes on scores like in Word?
 
-MusiXTeX and Lilypond have set a publishing-grade example in music notation languages, while alphaTab.js has made interactive and playable scores possible.
+[MusiXTeX](https://ctan.org/pkg/musixtex) and [Lilypond](https://lilypond.org/) have set a publishing-grade example in music notation languages, while [alphaTab.js](https://www.alphatab.net/) has made interactive and playable scores possible. In Tabst, we write alphaTex in a simple, intuitive syntax, and easily share with your friends.
 
 This is just the beginning. My vision is to transform scattered PDFs and images of scores into alphaTex stored in Tabst. Visual language models (OMR Optical Music Recognition) are on the way.
 
 ## Tech Stack
 
+- [alphaTex](https://www.alphatab.net/docs/alphatex/introduction)
+- [alphaTab.js](https://www.alphatab.net/)
+- [CodeMirror](https://codemirror.net/)
 - pnpm
 - TypeScript
 - Vite
@@ -35,8 +43,8 @@ This is just the beginning. My vision is to transform scattered PDFs and images 
 
 MCP Server
 
-- context7
-- shadcn/ui
+- [context7](https://context7.com/)
+- [shadcn/ui](https://ui.shadcn.com/)
 
 ## Installation
 
