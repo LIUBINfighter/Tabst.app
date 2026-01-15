@@ -4,6 +4,9 @@
  * 实现乐谱选区与代码编辑器之间的双向同步。
  * 支持 Beat 级别的精确定位。
  *
+ * 🆕 使用 alphaTab 内置的 AlphaTexParser 解析 AST，
+ * 获取精确的源码位置信息，避免手写解析器的边界情况。
+ *
  * @see docs/dev/SelectionAPI.md
  */
 
@@ -14,11 +17,16 @@ import {
 	StateField,
 } from "@codemirror/state";
 import { Decoration, type DecorationSet, EditorView } from "@codemirror/view";
+import * as alphaTab from "@coderline/alphatab";
 import type {
 	EditorCursorInfo,
 	PlaybackBeatInfo,
 	ScoreSelectionInfo,
 } from "../store/appStore";
+
+// alphaTab 内部类型别名
+type AlphaTexBarNode = alphaTab.importer.alphaTex.AlphaTexBarNode;
+type AlphaTexBeatNode = alphaTab.importer.alphaTex.AlphaTexBeatNode;
 
 /**
  * 代码中的位置范围
@@ -70,6 +78,169 @@ export interface ParseResult {
 	contentStart: number;
 }
 
+// ============================================================================
+// 🆕 基于 alphaTab AST 的解析器 (优先使用)
+// ============================================================================
+
+/**
+ * 使用 alphaTab 内置的 AlphaTexParser 解析 AST
+ * 获取精确的源码位置信息
+ *
+ * @param text AlphaTex 源代码
+ * @returns 解析结果，包含所有 Beat 的位置信息
+ */
+export function parseBeatPositionsAST(text: string): ParseResult {
+	const beats: BeatCodePosition[] = [];
+	let contentStart = 0;
+
+	try {
+		// 使用 alphaTab 的完整 AST 解析模式
+		const parser = new alphaTab.importer.alphaTex.AlphaTexParser(text);
+		parser.mode = alphaTab.importer.alphaTex.AlphaTexParseMode.Full;
+		const scoreNode = parser.read();
+
+		if (!scoreNode || !scoreNode.bars) {
+			console.debug("[parseBeatPositionsAST] No bars found in AST");
+			return { beats, contentStart };
+		}
+
+		// 追踪当前小节索引（跳过纯元数据的 bar）
+		let barIndex = 0;
+
+		for (const barNode of scoreNode.bars) {
+			// 检查是否有实际的 beat 内容
+			if (!barNode.beats || barNode.beats.length === 0) {
+				// 没有 beat，可能是纯元数据的 bar，继续但不增加 barIndex
+				continue;
+			}
+
+			// 第一个有 beat 的 bar 确定 contentStart
+			if (contentStart === 0 && barNode.beats.length > 0) {
+				const firstBeat = barNode.beats[0];
+				if (firstBeat.start) {
+					contentStart = firstBeat.start.offset;
+				}
+			}
+
+			// 遍历 bar 中的每个 beat
+			let beatIndex = 0;
+			for (const beatNode of barNode.beats) {
+				// 只处理有实际内容的 beat（有 notes 或 rest）
+				if (!beatNode.notes && !beatNode.rest) {
+					// 这可能是一个纯时值修饰符，跳过
+					continue;
+				}
+
+				// 获取 beat 的源码位置
+				// 优先使用 notes 或 rest 的位置（更精确）
+				let startOffset: number;
+				let endOffset: number;
+
+				if (beatNode.notes) {
+					// 有音符列表
+					const notesNode = beatNode.notes;
+					startOffset = notesNode.start?.offset ?? beatNode.start?.offset ?? 0;
+					endOffset =
+						notesNode.end?.offset ?? beatNode.end?.offset ?? startOffset;
+				} else if (beatNode.rest) {
+					// 休止符
+					startOffset =
+						beatNode.rest.start?.offset ?? beatNode.start?.offset ?? 0;
+					endOffset =
+						beatNode.rest.end?.offset ?? beatNode.end?.offset ?? startOffset;
+				} else {
+					continue;
+				}
+
+				// 如果有时值后缀（如 .4），扩展范围到包含它
+				if (beatNode.durationDot?.end && beatNode.durationValue?.end) {
+					endOffset = beatNode.durationValue.end.offset;
+				}
+
+				// 🆕 关键修复：验证 offset 不超出文本长度
+				const textLength = text.length;
+				if (startOffset >= textLength) {
+					console.debug(
+						`[parseBeatPositionsAST] Skip beat: startOffset ${startOffset} >= textLength ${textLength}`,
+					);
+					continue;
+				}
+				if (endOffset > textLength) {
+					// 截断到文本末尾
+					endOffset = textLength;
+				}
+
+				// 验证位置有效性
+				if (startOffset < 0 || endOffset <= startOffset) {
+					continue;
+				}
+
+				// 计算行列位置（AST 的 line/col 是 1-based，我们需要 0-based）
+				const startLine =
+					(beatNode.notes?.start?.line ?? beatNode.start?.line ?? 1) - 1;
+				const startCol =
+					(beatNode.notes?.start?.col ?? beatNode.start?.col ?? 1) - 1;
+				const endLine = (beatNode.end?.line ?? startLine + 1) - 1;
+				const endCol = (beatNode.end?.col ?? startCol + 1) - 1;
+
+				beats.push({
+					barIndex,
+					beatIndex,
+					startOffset,
+					endOffset,
+					startLine,
+					startColumn: startCol,
+					endLine,
+					endColumn: endCol,
+				});
+
+				beatIndex++;
+			}
+
+			// 只有当这个 bar 有实际的 beat 时才增加 barIndex
+			if (beatIndex > 0) {
+				barIndex++;
+			}
+		}
+
+		console.debug(
+			`[parseBeatPositionsAST] Parsed ${beats.length} beats from AST`,
+		);
+		return { beats, contentStart };
+	} catch (err) {
+		console.warn(
+			"[parseBeatPositionsAST] Failed to parse AST, falling back:",
+			err,
+		);
+		// AST 解析失败，返回空结果，让调用者使用后备解析器
+		return { beats: [], contentStart: 0 };
+	}
+}
+
+/**
+ * 解析 AlphaTex 代码，建立 Beat 到代码位置的精确映射
+ *
+ * 优先使用 alphaTab 内置 AST 解析器，如果失败则使用自定义解析器作为后备
+ *
+ * @param text AlphaTex 源代码
+ * @returns 解析结果，包含所有 Beat 的位置信息
+ */
+export function parseBeatPositions(text: string): ParseResult {
+	// 优先使用 AST 解析器
+	const astResult = parseBeatPositionsAST(text);
+	if (astResult.beats.length > 0) {
+		return astResult;
+	}
+
+	// 使用后备的自定义解析器
+	console.debug("[parseBeatPositions] Using legacy parser");
+	return parseBeatPositionsLegacy(text);
+}
+
+// ============================================================================
+// 后备的自定义解析器 (当 AST 解析失败时使用)
+// ============================================================================
+
 // 元数据命令列表
 const METADATA_COMMANDS = [
 	"\\title",
@@ -90,61 +261,34 @@ const METADATA_COMMANDS = [
 ];
 
 /**
- * 🆕 判断一个 token 是否是非 beat 的修饰符
- * 这些 token 不应该被计入 beat 索引
- *
- * 包括：
- * - 时值修饰符：:1, :2, :4, :8, :16, :32, :64 等
- * - 附点：:4. :8. 等（带附点的时值）
- * - 三连音等：:4{tu 3} 等
- * - 力度标记：{dy ppp}, {dy fff} 等（以 { 开头）
- * - 效果标记：{g}, {h}, {p} 等
- *
- * 注意：如果时值修饰符后面紧跟音符（如 :8(3.2 0.3)），则不是非 beat token
+ * 判断一个 token 是否是非 beat 的修饰符
  */
 function isNonBeatToken(token: string): boolean {
 	const trimmed = token.trim();
 
-	// 空字符串不是 beat
 	if (!trimmed) return true;
 
-	// 时值修饰符：以 : 开头，后面是数字
-	// 但如果后面还有音符内容（数字、括号等），则不是纯时值修饰符
-	if (/^:\d+/.test(trimmed)) {
-		// 提取时值部分后检查是否还有其他内容
-		// :8 → 纯时值，跳过
-		// :8. → 带附点的时值，跳过
-		// :8{tu 3} → 三连音修饰，跳过
-		// :8(3.2 0.3) → 时值+和弦，不跳过！
-		// :83.2 → 时值+音符，不跳过！
+	if (/^\.(\d+\.?|\d*\{[^}]*\})$/.test(trimmed)) {
+		return true;
+	}
 
-		// 匹配纯时值修饰符的完整模式
-		// :数字 + 可选的附点 + 可选的花括号修饰
+	if (/^:\d+/.test(trimmed)) {
 		const pureModifierPattern = /^:\d+\.?(\{[^}]*\})?$/;
 		if (pureModifierPattern.test(trimmed)) {
 			return true;
 		}
-		// 否则，这个 token 包含实际音符，不跳过
 		return false;
 	}
 
-	// 单独的修饰符（以 { 开头的效果/力度等）
-	// 例如：{dy fff}, {g}, {h}
 	if (/^\{[^}]*\}$/.test(trimmed)) {
 		return true;
 	}
-
-	// 休止符标记 r 后面跟时值不算（r.4 是休止符，应该计入）
-	// 但单独的 r 也是一个 beat
 
 	return false;
 }
 
 /**
- * 🆕 从 token 中提取实际的 beat 内容（去除时值前缀）
- * 例如：:8(3.2 0.3) → (3.2 0.3)
- *       :83.2 → 3.2
- *       3.2 → 3.2
+ * 从 token 中提取实际的 beat 内容（去除时值前缀）
  */
 function extractBeatContent(token: string): {
 	content: string;
@@ -152,12 +296,10 @@ function extractBeatContent(token: string): {
 } {
 	const trimmed = token.trim();
 
-	// 检查是否以时值修饰符开头
 	const match = trimmed.match(/^(:\d+\.?(?:\{[^}]*\})?)/);
 	if (match) {
 		const prefix = match[1];
 		const rest = trimmed.slice(prefix.length);
-		// 如果时值后面还有内容，返回去除前缀后的内容
 		if (rest.length > 0) {
 			return {
 				content: rest,
@@ -208,12 +350,9 @@ function lineColToOffset(text: string, line: number, column: number): number {
 }
 
 /**
- * 解析 AlphaTex 代码，建立 Beat 到代码位置的精确映射
- *
- * @param text AlphaTex 源代码
- * @returns 解析结果，包含所有 Beat 的位置信息
+ * 后备解析器：自定义的 AlphaTex 解析逻辑
  */
-export function parseBeatPositions(text: string): ParseResult {
+function parseBeatPositionsLegacy(text: string): ParseResult {
 	const beats: BeatCodePosition[] = [];
 
 	// 🆕 查找音符内容的起始位置：从 "." 开始
@@ -404,6 +543,33 @@ export function parseBeatPositions(text: string): ParseResult {
 			if (chordDepth <= 0) {
 				inChord = false;
 				chordDepth = 0;
+				// 🆕 检查后面是否紧跟时值后缀（如 .4, .8）
+				// 格式：)后紧跟 "." + 数字
+				let lookAhead = i + 1;
+				if (lookAhead < text.length && text[lookAhead] === ".") {
+					// 检查是否是时值后缀（.数字）
+					lookAhead++;
+					while (lookAhead < text.length && /\d/.test(text[lookAhead])) {
+						lookAhead++;
+					}
+					// 如果读取到了数字，跳过这些字符（它们属于当前和弦）
+					if (lookAhead > i + 2) {
+						// 还可能有附点 .4. 或修饰符 .4{...}
+						if (lookAhead < text.length && text[lookAhead] === ".") {
+							lookAhead++; // 附点
+						}
+						if (lookAhead < text.length && text[lookAhead] === "{") {
+							// 跳过花括号修饰符
+							while (lookAhead < text.length && text[lookAhead] !== "}") {
+								lookAhead++;
+							}
+							if (lookAhead < text.length) {
+								lookAhead++; // 跳过 }
+							}
+						}
+						i = lookAhead - 1; // -1 因为循环会 i++
+					}
+				}
 			}
 			continue;
 		}
@@ -761,41 +927,50 @@ export const selectionHighlightField = StateField.define<DecorationSet>({
 		return Decoration.none;
 	},
 	update(highlights, tr) {
-		try {
-			highlights = highlights.map(tr.changes);
+		// 🆕 先处理 effect，如果有新的高亮设置，直接返回新值
+		for (const e of tr.effects) {
+			if (e.is(setSelectionHighlightEffect)) {
+				if (!e.value) {
+					return Decoration.none;
+				}
 
-			for (const e of tr.effects) {
-				if (e.is(setSelectionHighlightEffect)) {
-					if (!e.value) {
-						return Decoration.none;
-					}
-
+				try {
 					const range = e.value;
 					const docLength = tr.state.doc.length;
 
-					// 🆕 加强范围验证
+					// 加强范围验证
 					const from = Math.max(0, Math.min(range.from, docLength));
 					const to = Math.max(0, Math.min(range.to, docLength));
 
-					if (from >= to || from < 0 || to > docLength) {
-						console.debug("[SelectionSync] Invalid selection range, skipping");
+					if (from >= to || from < 0) {
 						return Decoration.none;
 					}
 
 					const builder = new RangeSetBuilder<Decoration>();
 					builder.add(from, to, selectionHighlightMark);
 					return builder.finish();
+				} catch (err) {
+					console.error(
+						"[SelectionSync] Error building selection highlight:",
+						err,
+					);
+					return Decoration.none;
 				}
 			}
-
-			return highlights;
-		} catch (err) {
-			console.error(
-				"[SelectionSync] Error in selectionHighlightField update:",
-				err,
-			);
-			return Decoration.none;
 		}
+
+		// 如果文档发生变化，尝试映射旧的高亮位置
+		if (tr.docChanged) {
+			try {
+				return highlights.map(tr.changes);
+			} catch (err) {
+				// 映射失败（文档变化太大），清除高亮
+				console.debug("[SelectionSync] Failed to map highlights, clearing");
+				return Decoration.none;
+			}
+		}
+
+		return highlights;
 	},
 	provide: (f) => EditorView.decorations.from(f),
 });
@@ -832,8 +1007,10 @@ function safeDispatch(
 		return;
 	}
 
-	// 使用 requestAnimationFrame 避免在滚动等操作期间直接 dispatch
-	requestAnimationFrame(() => {
+	// 🆕 使用 setTimeout(0) 代替 requestAnimationFrame
+	// requestAnimationFrame 会在下一帧绘制前执行，可能与滚动事件冲突
+	// setTimeout(0) 会在当前事件循环结束后执行，更安全
+	setTimeout(() => {
 		// 再次检查
 		if (!view || !view.dom || !document.contains(view.dom)) {
 			return;
@@ -843,7 +1020,7 @@ function safeDispatch(
 		} catch (err) {
 			console.error("[SelectionSync] Failed to dispatch:", err);
 		}
-	});
+	}, 0);
 }
 
 /**
@@ -927,41 +1104,52 @@ export const playbackHighlightField = StateField.define<DecorationSet>({
 		return Decoration.none;
 	},
 	update(highlights, tr) {
-		try {
-			highlights = highlights.map(tr.changes);
+		// 🆕 先处理 effect，如果有新的高亮设置，直接返回新值
+		for (const e of tr.effects) {
+			if (e.is(setPlaybackHighlightEffect)) {
+				if (!e.value) {
+					return Decoration.none;
+				}
 
-			for (const e of tr.effects) {
-				if (e.is(setPlaybackHighlightEffect)) {
-					if (!e.value) {
-						return Decoration.none;
-					}
-
+				try {
 					const range = e.value;
 					const docLength = tr.state.doc.length;
 
-					// 🆕 加强范围验证
+					// 加强范围验证
 					const from = Math.max(0, Math.min(range.from, docLength));
 					const to = Math.max(0, Math.min(range.to, docLength));
 
-					if (from >= to || from < 0 || to > docLength) {
-						console.debug("[SelectionSync] Invalid playback range, skipping");
+					if (from >= to || from < 0) {
 						return Decoration.none;
 					}
 
 					const builder = new RangeSetBuilder<Decoration>();
 					builder.add(from, to, playbackHighlightMark);
 					return builder.finish();
+				} catch (err) {
+					console.error(
+						"[SelectionSync] Error building playback highlight:",
+						err,
+					);
+					return Decoration.none;
 				}
 			}
-
-			return highlights;
-		} catch (err) {
-			console.error(
-				"[SelectionSync] Error in playbackHighlightField update:",
-				err,
-			);
-			return Decoration.none;
 		}
+
+		// 如果文档发生变化，尝试映射旧的高亮位置
+		if (tr.docChanged) {
+			try {
+				return highlights.map(tr.changes);
+			} catch (err) {
+				// 映射失败（文档变化太大），清除高亮
+				console.debug(
+					"[SelectionSync] Failed to map playback highlights, clearing",
+				);
+				return Decoration.none;
+			}
+		}
+
+		return highlights;
 	},
 	provide: (f) => EditorView.decorations.from(f),
 });
@@ -1073,7 +1261,8 @@ function scrollToPlaybackHighlight(
 		return;
 	}
 
-	requestAnimationFrame(() => {
+	// 🆕 使用 setTimeout(0) 代替 requestAnimationFrame 避免与滚动事件冲突
+	setTimeout(() => {
 		if (!view || !view.dom || !document.contains(view.dom)) {
 			return;
 		}

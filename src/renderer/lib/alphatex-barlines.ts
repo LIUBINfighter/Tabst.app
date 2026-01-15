@@ -72,10 +72,10 @@ const barlinesField = StateField.define<DecorationSet>({
 		return Decoration.none;
 	},
 	update(barlines, tr) {
-		try {
-			barlines = barlines.map(tr.changes);
-			for (const e of tr.effects) {
-				if (e.is(setBarlinesEffect)) {
+		// 🆕 先处理 effect，如果有新的 barlines 设置，直接返回新值
+		for (const e of tr.effects) {
+			if (e.is(setBarlinesEffect)) {
+				try {
 					const builder = new RangeSetBuilder<Decoration>();
 					const sortedBarlines = [...e.value].sort((a, b) => {
 						if (a.line !== b.line) return a.line - b.line;
@@ -112,19 +112,26 @@ const barlinesField = StateField.define<DecorationSet>({
 							void err; // Ignore errors during rapid edits
 						}
 					}
-					try {
-						return builder.finish();
-					} catch (err) {
-						console.error("Failed to finish barline decorations:", err);
-						return Decoration.none;
-					}
+					return builder.finish();
+				} catch (err) {
+					console.error("Failed to build barline decorations:", err);
+					return Decoration.none;
 				}
 			}
-			return barlines;
-		} catch (err) {
-			console.error("Error in barlinesField update:", err);
-			return Decoration.none;
 		}
+
+		// 如果文档发生变化，尝试映射旧的 barlines 位置
+		if (tr.docChanged) {
+			try {
+				return barlines.map(tr.changes);
+			} catch (err) {
+				// 映射失败（文档变化太大），清除 barlines
+				console.debug("[Barlines] Failed to map barlines, clearing");
+				return Decoration.none;
+			}
+		}
+
+		return barlines;
 	},
 	provide: (f) => EditorView.decorations.from(f),
 });
@@ -148,12 +155,9 @@ export function createAlphaTexBarlinesExtension(
 			}
 
 			update(update: ViewUpdate) {
-				// Trigger when document changes or when first empty document
-				if (
-					update.docChanged ||
-					update.startState.doc.length === 0 ||
-					update.viewportChanged
-				) {
+				// 🆕 只在文档内容变化时触发更新
+				// 移除 viewportChanged 触发，因为滚动时频繁更新会导致冲突
+				if (update.docChanged || update.startState.doc.length === 0) {
 					this.schedule();
 				}
 			}
@@ -194,8 +198,9 @@ export function createAlphaTexBarlinesExtension(
 							// avoid dispatching to prevent internal view errors.
 							if (!view || !view.dom || !document.contains(view.dom)) return;
 
-							// 🆕 使用 requestAnimationFrame 避免在滚动期间直接 dispatch
-							requestAnimationFrame(() => {
+							// 🆕 使用 setTimeout(0) 代替 requestAnimationFrame
+							// requestAnimationFrame 可能在滚动事件处理期间执行导致冲突
+							setTimeout(() => {
 								// 再次检查 view 状态
 								if (!view || !view.dom || !document.contains(view.dom)) return;
 								if (sentId !== this.requestId) return;
@@ -204,7 +209,7 @@ export function createAlphaTexBarlinesExtension(
 								} catch (err) {
 									console.error("Failed to apply barlines:", err);
 								}
-							});
+							}, 0);
 						})
 						.catch((err) => console.error("Failed to fetch barlines:", err));
 				}, 500);
