@@ -986,6 +986,117 @@ export const selectionHighlightTheme = EditorView.baseTheme({
 	},
 });
 
+// ============================================================================
+// 播放所在小节高亮部分
+// ============================================================================
+
+/**
+ * Effect to update playback bar highlight in the editor
+ */
+export const setPlaybackBarHighlightEffect = StateEffect.define<{
+	ranges: CodeRange[];
+} | null>();
+
+/**
+ * 播放所在小节高亮装饰样式 - 使用黄色调
+ */
+const playbackBarHighlightMark = Decoration.mark({
+	class: "cm-playback-bar-highlight",
+});
+
+/**
+ * State field to manage playback bar highlight decorations
+ */
+export const playbackBarHighlightField = StateField.define<DecorationSet>({
+	create() {
+		return Decoration.none;
+	},
+	update(highlights, tr) {
+		// 处理 effect
+		for (const e of tr.effects) {
+			if (e.is(setPlaybackBarHighlightEffect)) {
+				if (!e.value || e.value.ranges.length === 0) {
+					return Decoration.none;
+				}
+
+				try {
+					const docLength = tr.state.doc.length;
+					const builder = new RangeSetBuilder<Decoration>();
+
+					// 添加所有范围（按位置排序）
+					const sortedRanges = [...e.value.ranges].sort(
+						(a, b) => a.from - b.from,
+					);
+
+					for (const range of sortedRanges) {
+						const from = Math.max(0, Math.min(range.from, docLength));
+						const to = Math.max(0, Math.min(range.to, docLength));
+
+						if (from < to) {
+							builder.add(from, to, playbackBarHighlightMark);
+						}
+					}
+
+					return builder.finish();
+				} catch (err) {
+					console.error(
+						"[SelectionSync] Error building playback bar highlight:",
+						err,
+					);
+					return Decoration.none;
+				}
+			}
+		}
+
+		// 如果文档发生变化，尝试映射旧的高亮位置
+		if (tr.docChanged) {
+			try {
+				return highlights.map(tr.changes);
+			} catch (err) {
+				console.debug(
+					"[SelectionSync] Failed to map playback bar highlights, clearing",
+				);
+				return Decoration.none;
+			}
+		}
+
+		return highlights;
+	},
+	provide: (f) => EditorView.decorations.from(f),
+});
+
+/**
+ * 播放所在小节高亮的主题样式 - 黄色背景
+ */
+export const playbackBarHighlightTheme = EditorView.baseTheme({
+	".cm-playback-bar-highlight": {
+		backgroundColor: "hsl(45 100% 60% / 0.25)", // 黄色
+		borderRadius: "2px",
+	},
+});
+
+/**
+ * 获取指定小节的所有 beat 范围
+ */
+function getBarRanges(text: string, barIndex: number): CodeRange[] {
+	const { beats } = parseBeatPositions(text);
+	const barBeats = beats.filter((b) => b.barIndex === barIndex);
+
+	if (barBeats.length === 0) {
+		return [];
+	}
+
+	// 返回每个 beat 作为独立的范围
+	return barBeats.map((beat) => ({
+		from: beat.startOffset,
+		to: beat.endOffset,
+		startLine: beat.startLine,
+		startColumn: beat.startColumn,
+		endLine: beat.endLine,
+		endColumn: beat.endColumn,
+	}));
+}
+
 /**
  * 创建选区同步扩展
  *
@@ -1169,11 +1280,17 @@ export const playbackHighlightTheme = EditorView.baseTheme({
 
 /**
  * 创建播放进度同步扩展
+ * 包含：当前 beat 高亮（绿色）+ 当前小节高亮（黄色）
  *
  * @returns CodeMirror 扩展数组
  */
 export function createPlaybackSyncExtension(): Extension[] {
-	return [playbackHighlightField, playbackHighlightTheme];
+	return [
+		playbackHighlightField,
+		playbackHighlightTheme,
+		playbackBarHighlightField,
+		playbackBarHighlightTheme,
+	];
 }
 
 /**
@@ -1221,29 +1338,70 @@ export function mapPlaybackToCodeRange(
 /**
  * 更新编辑器中的播放进度高亮
  *
+ * 播放中：显示绿色高亮（当前音符）
+ * 未播放：显示黄色高亮（播放器光标所在小节）
+ *
  * @param view CodeMirror EditorView
  * @param text AlphaTex 源代码
- * @param playback 播放位置信息
+ * @param playback 正在播放的位置信息（播放时有值）
+ * @param cursorPosition 播放器光标位置（暂停时也保留）
+ * @param isPlaying 是否正在播放
  * @param autoScroll 是否自动滚动到高亮位置（默认 true）
  */
 export function updateEditorPlaybackHighlight(
 	view: EditorView,
 	text: string,
 	playback: PlaybackBeatInfo | null,
+	cursorPosition: PlaybackBeatInfo | null,
+	isPlaying: boolean,
 	autoScroll = true,
 ): void {
-	if (!playback) {
+	if (isPlaying && playback) {
+		// 🎵 正在播放：显示绿色高亮（当前音符），清除黄色小节高亮
+		const codeRange = mapPlaybackToCodeRange(text, playback);
+		safeDispatch(view, setPlaybackHighlightEffect.of(codeRange));
+		safeDispatchBarHighlight(view, null); // 播放时不显示黄色小节高亮
+
+		// 自动滚动
+		if (autoScroll && codeRange) {
+			scrollToPlaybackHighlight(view, codeRange);
+		}
+	} else if (!isPlaying && cursorPosition) {
+		// ⏸️ 未播放但有光标位置：显示黄色小节高亮，清除绿色高亮
 		safeDispatch(view, setPlaybackHighlightEffect.of(null));
+		const barRanges = getBarRanges(text, cursorPosition.barIndex);
+		safeDispatchBarHighlight(
+			view,
+			barRanges.length > 0 ? { ranges: barRanges } : null,
+		);
+	} else {
+		// 没有任何位置信息：清除所有高亮
+		safeDispatch(view, setPlaybackHighlightEffect.of(null));
+		safeDispatchBarHighlight(view, null);
+	}
+}
+
+/**
+ * 安全地 dispatch 小节高亮 effect
+ */
+function safeDispatchBarHighlight(
+	view: EditorView,
+	value: { ranges: CodeRange[] } | null,
+): void {
+	if (!view || !view.dom || !document.contains(view.dom)) {
 		return;
 	}
 
-	const codeRange = mapPlaybackToCodeRange(text, playback);
-	safeDispatch(view, setPlaybackHighlightEffect.of(codeRange));
-
-	// 自动滚动：当高亮位置超出可视区域时，滚动到顶部
-	if (autoScroll && codeRange) {
-		scrollToPlaybackHighlight(view, codeRange);
-	}
+	setTimeout(() => {
+		if (!view || !view.dom || !document.contains(view.dom)) {
+			return;
+		}
+		try {
+			view.dispatch({ effects: setPlaybackBarHighlightEffect.of(value) });
+		} catch (err) {
+			// ignore
+		}
+	}, 0);
 }
 
 /**

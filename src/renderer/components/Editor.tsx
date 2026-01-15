@@ -52,6 +52,9 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 	// 🆕 订阅播放位置状态
 	const playbackBeat = useAppStore((s) => s.playbackBeat);
 
+	// 🆕 订阅播放器光标位置（暂停时也保留）
+	const playerCursorPosition = useAppStore((s) => s.playerCursorPosition);
+
 	// Observe <html> to detect dark mode toggles (class 'dark')
 	const [isDark, setIsDark] = useState<boolean>(() => {
 		if (typeof document === "undefined") return false;
@@ -403,6 +406,8 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 	}, [scoreSelection, activeFile, getLanguageForFile]);
 
 	// 🆕 监听播放位置变化，更新编辑器播放高亮
+	// 播放中：显示绿色高亮（当前音符）
+	// 未播放：显示黄色高亮（播放器光标所在小节）
 	useEffect(() => {
 		const view = viewRef.current;
 		if (!view) return;
@@ -412,8 +417,15 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 		if (language !== "alphatex") return;
 
 		const content = activeFile?.content ?? "";
-		updateEditorPlaybackHighlight(view, content, playbackBeat);
-	}, [playbackBeat, activeFile, getLanguageForFile]);
+		const isPlaying = playbackBeat !== null;
+		updateEditorPlaybackHighlight(
+			view,
+			content,
+			playbackBeat,
+			playerCursorPosition,
+			isPlaying,
+		);
+	}, [playbackBeat, playerCursorPosition, activeFile, getLanguageForFile]);
 
 	// Cleanup on unmount
 	useEffect(() => {

@@ -302,7 +302,7 @@ export default function Preview({
 			// 3. 播放进度（更新光标位置）
 			api.playedBeatChanged?.on((beat: alphaTab.model.Beat | null) => {
 				if (!beat) {
-					// 播放停止时清除播放高亮
+					// 播放停止时清除播放高亮（但保留 playerCursorPosition）
 					useAppStore.getState().clearPlaybackBeat();
 					return;
 				}
@@ -312,6 +312,8 @@ export default function Preview({
 				const barIndex = beat.voice?.bar?.index ?? 0;
 				const beatIndex = beat.index ?? 0;
 				useAppStore.getState().setPlaybackBeat({ barIndex, beatIndex });
+				// 🆕 同时更新播放器光标位置（暂停后保留）
+				useAppStore.getState().setPlayerCursorPosition({ barIndex, beatIndex });
 
 				const cursor = cursorRef.current;
 				if (!cursor) return;
@@ -326,6 +328,18 @@ export default function Preview({
 				cursor.style.top = `${visual.y}px`;
 				cursor.style.width = `${visual.w}px`;
 				cursor.style.height = `${visual.h}px`;
+			});
+
+			// 🆕 3.6. 点击曲谱时更新播放器光标位置（不播放也能设置）
+			api.beatMouseDown?.on((beat: alphaTab.model.Beat) => {
+				if (!beat) return;
+				const barIndex = beat.voice?.bar?.index ?? 0;
+				const beatIndex = beat.index ?? 0;
+				console.info("[Preview] Beat clicked:", `Bar ${barIndex}:${beatIndex}`);
+				// 🆕 清除播放高亮（绿色），让黄色小节高亮能够显示
+				useAppStore.getState().clearPlaybackBeat();
+				// 更新播放器光标位置，触发编辑器黄色高亮
+				useAppStore.getState().setPlayerCursorPosition({ barIndex, beatIndex });
 			});
 
 			// 🆕 3.5. Selection API (alphaTab 1.8.0+): 监听选区变化，同步到编辑器

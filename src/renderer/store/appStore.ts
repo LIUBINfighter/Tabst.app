@@ -61,6 +61,9 @@ interface AppState {
 	// 🆕 播放位置 - 用于播放时编辑器跟随高亮
 	playbackBeat: PlaybackBeatInfo | null;
 
+	// 🆕 播放器光标位置 - 暂停时也保留，用于显示黄色小节高亮
+	playerCursorPosition: PlaybackBeatInfo | null;
+
 	// Actions
 	addFile: (file: FileItem) => void;
 	removeFile: (id: string) => void;
@@ -80,6 +83,9 @@ interface AppState {
 	setPlaybackBeat: (beat: PlaybackBeatInfo | null) => void;
 	clearPlaybackBeat: () => void;
 
+	// 🆕 播放器光标位置操作（暂停时也保留）
+	setPlayerCursorPosition: (position: PlaybackBeatInfo | null) => void;
+
 	// 初始化，从主进程读取持久化状态
 	initialize: () => Promise<void>;
 }
@@ -90,6 +96,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 	scoreSelection: null,
 	editorCursor: null,
 	playbackBeat: null,
+	playerCursorPosition: null,
 
 	addFile: (file) => {
 		set((state) => {
@@ -244,6 +251,11 @@ export const useAppStore = create<AppState>((set, get) => ({
 	// 🆕 清除播放位置
 	clearPlaybackBeat: () => {
 		set({ playbackBeat: null });
+	},
+
+	// 🆕 设置播放器光标位置（暂停时也保留）
+	setPlayerCursorPosition: (position) => {
+		set({ playerCursorPosition: position });
 	},
 
 	initialize: async () => {
