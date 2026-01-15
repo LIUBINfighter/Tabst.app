@@ -30,6 +30,39 @@ import {
 import { useAppStore } from "../store/appStore";
 import PrintPreview from "./PrintPreview";
 
+/**
+ * 根据 barIndex 和 beatIndex 从乐谱中查找对应的 Beat 对象
+ */
+function findBeatInScore(
+	score: alphaTab.model.Score | undefined,
+	barIndex: number,
+	beatIndex: number,
+): alphaTab.model.Beat | null {
+	if (!score?.tracks?.length) return null;
+
+	// 遍历第一个音轨的所有 staff
+	const track = score.tracks[0];
+	for (const staff of track.staves) {
+		for (const bar of staff.bars) {
+			if (bar.index === barIndex) {
+				// 找到对应小节，查找 beat
+				for (const voice of bar.voices) {
+					for (const beat of voice.beats) {
+						if (beat.index === beatIndex) {
+							return beat;
+						}
+					}
+				}
+				// 如果找不到精确的 beatIndex，返回该小节的第一个 beat
+				if (bar.voices[0]?.beats?.length > 0) {
+					return bar.voices[0].beats[0];
+				}
+			}
+		}
+	}
+	return null;
+}
+
 export interface PreviewProps {
 	fileName?: string;
 	content?: string;
@@ -83,6 +116,11 @@ export default function Preview({
 	// 打印预览状态和重新初始化触发器
 	const [showPrintPreview, setShowPrintPreview] = useState(false);
 	const [reinitTrigger, setReinitTrigger] = useState(0);
+
+	// 🆕 订阅编辑器光标位置，用于反向同步（编辑器 → 乐谱）
+	const editorCursor = useAppStore((s) => s.editorCursor);
+	// 防止因乐谱选择触发的光标更新导致循环
+	const isEditorCursorFromScoreRef = useRef(false);
 
 	useEffect(() => {
 		latestContentRef.current = content ?? "";
@@ -153,6 +191,73 @@ export default function Preview({
 		}
 	}, []);
 
+	/**
+	 * 🆕 监听编辑器光标变化，反向同步到乐谱选区
+	 * 实现点击编辑器代码定位到乐谱对应位置
+	 */
+	useEffect(() => {
+		const api = apiRef.current;
+		if (!api || !editorCursor) return;
+
+		// 检查是否是无效的位置（在元数据区域）
+		if (editorCursor.barIndex < 0 || editorCursor.beatIndex < 0) {
+			return;
+		}
+
+		// 防止循环：如果当前光标是由乐谱选择触发的，跳过
+		if (isEditorCursorFromScoreRef.current) {
+			isEditorCursorFromScoreRef.current = false;
+			return;
+		}
+
+		// 从当前乐谱中查找对应的 Beat
+		const score = api.score;
+		const beat = findBeatInScore(
+			score,
+			editorCursor.barIndex,
+			editorCursor.beatIndex,
+		);
+
+		if (beat) {
+			console.debug(
+				"[Preview] Editor cursor → Score sync:",
+				`Bar ${editorCursor.barIndex}, Beat ${editorCursor.beatIndex}`,
+			);
+
+			try {
+				// 使用 Selection API 高亮该 beat
+				if (typeof api.highlightPlaybackRange === "function") {
+					api.highlightPlaybackRange(beat, beat);
+				}
+
+				// 滚动到该 beat 所在位置（可选）
+				const bb = api.boundsLookup?.findBeat?.(beat);
+				if (bb && containerRef.current) {
+					const visual = bb.visualBounds;
+					const container = containerRef.current;
+					const containerRect = container.getBoundingClientRect();
+
+					// 检查 beat 是否在可视区域内
+					const beatTop = visual.y;
+					const beatBottom = visual.y + visual.h;
+					const scrollTop = container.scrollTop;
+					const viewportTop = scrollTop;
+					const viewportBottom = scrollTop + containerRect.height;
+
+					// 如果 beat 不在可视区域，滚动到它
+					if (beatTop < viewportTop || beatBottom > viewportBottom) {
+						container.scrollTo({
+							top: Math.max(0, beatTop - containerRect.height / 3),
+							behavior: "smooth",
+						});
+					}
+				}
+			} catch (e) {
+				console.debug("[Preview] Failed to sync editor cursor to score:", e);
+			}
+		}
+	}, [editorCursor]);
+
 	useEffect(() => {
 		if (!containerRef.current) return;
 
@@ -222,6 +327,9 @@ export default function Preview({
 						clearScoreSelection();
 						return;
 					}
+
+					// 标记：这次编辑器光标更新是由乐谱选择触发的，防止循环
+					isEditorCursorFromScoreRef.current = true;
 
 					// 从 Beat 对象中提取小节和 Beat 索引
 					const startBeat = e.startBeat;

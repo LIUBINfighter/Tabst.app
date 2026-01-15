@@ -12,10 +12,12 @@ import { getAlphaTexHighlight } from "../lib/alphatex-highlight";
 import type { AlphaTexLSPClient } from "../lib/alphatex-lsp";
 import { createAlphaTexLSPClient } from "../lib/alphatex-lsp";
 import {
+	createCursorTrackingExtension,
 	createSelectionSyncExtension,
 	updateEditorSelectionHighlight,
 } from "../lib/alphatex-selection-sync";
 import { whitespaceDecoration } from "../lib/whitespace-decoration";
+import type { EditorCursorInfo } from "../store/appStore";
 import { useAppStore } from "../store/appStore";
 import Preview from "./Preview";
 import { Button } from "./ui/button";
@@ -180,6 +182,14 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 					// 🆕 Add selection sync extension (乐谱选区 → 代码高亮)
 					const selectionSyncExt = createSelectionSyncExtension();
 					extensions.push(...selectionSyncExt);
+
+					// 🆕 Add cursor tracking extension (代码光标 → 乐谱定位)
+					const cursorTrackingExt = createCursorTrackingExtension(
+						(cursor: EditorCursorInfo | null) => {
+							useAppStore.getState().setEditorCursor(cursor);
+						},
+					);
+					extensions.push(cursorTrackingExt);
 
 					// Enable soft-wrapping
 					extensions.push(EditorView.lineWrapping);

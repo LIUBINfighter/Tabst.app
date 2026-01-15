@@ -22,6 +22,20 @@ export interface ScoreSelectionInfo {
 	endBeatIndex: number;
 }
 
+/**
+ * 编辑器光标位置信息 - 用于反向同步到乐谱
+ */
+export interface EditorCursorInfo {
+	/** 光标所在行 (0-based) */
+	line: number;
+	/** 光标所在列 (0-based) */
+	column: number;
+	/** 对应的小节索引 (0-based)，-1 表示未知 */
+	barIndex: number;
+	/** 对应的 Beat 索引 (0-based)，-1 表示未知 */
+	beatIndex: number;
+}
+
 interface AppState {
 	// 文件列表
 	files: FileItem[];
@@ -30,6 +44,9 @@ interface AppState {
 
 	// 🆕 乐谱选区状态 - 用于 Preview ↔ Editor 双向同步
 	scoreSelection: ScoreSelectionInfo | null;
+
+	// 🆕 编辑器光标位置 - 用于 Editor → Preview 反向同步
+	editorCursor: EditorCursorInfo | null;
 
 	// Actions
 	addFile: (file: FileItem) => void;
@@ -43,6 +60,9 @@ interface AppState {
 	setScoreSelection: (selection: ScoreSelectionInfo | null) => void;
 	clearScoreSelection: () => void;
 
+	// 🆕 编辑器光标操作
+	setEditorCursor: (cursor: EditorCursorInfo | null) => void;
+
 	// 初始化，从主进程读取持久化状态
 	initialize: () => Promise<void>;
 }
@@ -51,6 +71,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 	files: [],
 	activeFileId: null,
 	scoreSelection: null,
+	editorCursor: null,
 
 	addFile: (file) => {
 		set((state) => {
@@ -190,6 +211,11 @@ export const useAppStore = create<AppState>((set, get) => ({
 	// 🆕 清除乐谱选区
 	clearScoreSelection: () => {
 		set({ scoreSelection: null });
+	},
+
+	// 🆕 设置编辑器光标位置
+	setEditorCursor: (cursor) => {
+		set({ editorCursor: cursor });
 	},
 
 	initialize: async () => {
