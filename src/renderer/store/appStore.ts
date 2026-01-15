@@ -36,6 +36,16 @@ export interface EditorCursorInfo {
 	beatIndex: number;
 }
 
+/**
+ * 播放位置信息 - 用于播放时同步高亮
+ */
+export interface PlaybackBeatInfo {
+	/** 小节索引 (0-based) */
+	barIndex: number;
+	/** Beat 索引 (0-based) */
+	beatIndex: number;
+}
+
 interface AppState {
 	// 文件列表
 	files: FileItem[];
@@ -47,6 +57,9 @@ interface AppState {
 
 	// 🆕 编辑器光标位置 - 用于 Editor → Preview 反向同步
 	editorCursor: EditorCursorInfo | null;
+
+	// 🆕 播放位置 - 用于播放时编辑器跟随高亮
+	playbackBeat: PlaybackBeatInfo | null;
 
 	// Actions
 	addFile: (file: FileItem) => void;
@@ -63,6 +76,10 @@ interface AppState {
 	// 🆕 编辑器光标操作
 	setEditorCursor: (cursor: EditorCursorInfo | null) => void;
 
+	// 🆕 播放位置操作
+	setPlaybackBeat: (beat: PlaybackBeatInfo | null) => void;
+	clearPlaybackBeat: () => void;
+
 	// 初始化，从主进程读取持久化状态
 	initialize: () => Promise<void>;
 }
@@ -72,6 +89,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 	activeFileId: null,
 	scoreSelection: null,
 	editorCursor: null,
+	playbackBeat: null,
 
 	addFile: (file) => {
 		set((state) => {
@@ -216,6 +234,16 @@ export const useAppStore = create<AppState>((set, get) => ({
 	// 🆕 设置编辑器光标位置
 	setEditorCursor: (cursor) => {
 		set({ editorCursor: cursor });
+	},
+
+	// 🆕 设置播放位置
+	setPlaybackBeat: (beat) => {
+		set({ playbackBeat: beat });
+	},
+
+	// 🆕 清除播放位置
+	clearPlaybackBeat: () => {
+		set({ playbackBeat: null });
 	},
 
 	initialize: async () => {

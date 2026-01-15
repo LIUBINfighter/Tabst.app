@@ -295,12 +295,24 @@ export default function Preview({
 				setIsPlaying(false);
 				const cursor = cursorRef.current;
 				if (cursor) cursor.style.display = "none";
+				// 🆕 播放结束时清除编辑器中的播放高亮
+				useAppStore.getState().clearPlaybackBeat();
 			});
 
 			// 3. 播放进度（更新光标位置）
 			api.playedBeatChanged?.on((beat: alphaTab.model.Beat | null) => {
-				if (!beat) return;
+				if (!beat) {
+					// 播放停止时清除播放高亮
+					useAppStore.getState().clearPlaybackBeat();
+					return;
+				}
 				setIsPlaying(true);
+
+				// 🆕 更新播放位置到 store，触发编辑器高亮
+				const barIndex = beat.voice?.bar?.index ?? 0;
+				const beatIndex = beat.index ?? 0;
+				useAppStore.getState().setPlaybackBeat({ barIndex, beatIndex });
+
 				const cursor = cursorRef.current;
 				if (!cursor) return;
 				const bb = api.boundsLookup?.findBeat?.(beat);

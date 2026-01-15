@@ -14,7 +14,11 @@ import {
 	StateField,
 } from "@codemirror/state";
 import { Decoration, type DecorationSet, EditorView } from "@codemirror/view";
-import type { EditorCursorInfo, ScoreSelectionInfo } from "../store/appStore";
+import type {
+	EditorCursorInfo,
+	PlaybackBeatInfo,
+	ScoreSelectionInfo,
+} from "../store/appStore";
 
 /**
  * 代码中的位置范围
@@ -86,6 +90,86 @@ const METADATA_COMMANDS = [
 ];
 
 /**
+ * 🆕 判断一个 token 是否是非 beat 的修饰符
+ * 这些 token 不应该被计入 beat 索引
+ *
+ * 包括：
+ * - 时值修饰符：:1, :2, :4, :8, :16, :32, :64 等
+ * - 附点：:4. :8. 等（带附点的时值）
+ * - 三连音等：:4{tu 3} 等
+ * - 力度标记：{dy ppp}, {dy fff} 等（以 { 开头）
+ * - 效果标记：{g}, {h}, {p} 等
+ *
+ * 注意：如果时值修饰符后面紧跟音符（如 :8(3.2 0.3)），则不是非 beat token
+ */
+function isNonBeatToken(token: string): boolean {
+	const trimmed = token.trim();
+
+	// 空字符串不是 beat
+	if (!trimmed) return true;
+
+	// 时值修饰符：以 : 开头，后面是数字
+	// 但如果后面还有音符内容（数字、括号等），则不是纯时值修饰符
+	if (/^:\d+/.test(trimmed)) {
+		// 提取时值部分后检查是否还有其他内容
+		// :8 → 纯时值，跳过
+		// :8. → 带附点的时值，跳过
+		// :8{tu 3} → 三连音修饰，跳过
+		// :8(3.2 0.3) → 时值+和弦，不跳过！
+		// :83.2 → 时值+音符，不跳过！
+
+		// 匹配纯时值修饰符的完整模式
+		// :数字 + 可选的附点 + 可选的花括号修饰
+		const pureModifierPattern = /^:\d+\.?(\{[^}]*\})?$/;
+		if (pureModifierPattern.test(trimmed)) {
+			return true;
+		}
+		// 否则，这个 token 包含实际音符，不跳过
+		return false;
+	}
+
+	// 单独的修饰符（以 { 开头的效果/力度等）
+	// 例如：{dy fff}, {g}, {h}
+	if (/^\{[^}]*\}$/.test(trimmed)) {
+		return true;
+	}
+
+	// 休止符标记 r 后面跟时值不算（r.4 是休止符，应该计入）
+	// 但单独的 r 也是一个 beat
+
+	return false;
+}
+
+/**
+ * 🆕 从 token 中提取实际的 beat 内容（去除时值前缀）
+ * 例如：:8(3.2 0.3) → (3.2 0.3)
+ *       :83.2 → 3.2
+ *       3.2 → 3.2
+ */
+function extractBeatContent(token: string): {
+	content: string;
+	prefixLength: number;
+} {
+	const trimmed = token.trim();
+
+	// 检查是否以时值修饰符开头
+	const match = trimmed.match(/^(:\d+\.?(?:\{[^}]*\})?)/);
+	if (match) {
+		const prefix = match[1];
+		const rest = trimmed.slice(prefix.length);
+		// 如果时值后面还有内容，返回去除前缀后的内容
+		if (rest.length > 0) {
+			return {
+				content: rest,
+				prefixLength: prefix.length,
+			};
+		}
+	}
+
+	return { content: trimmed, prefixLength: 0 };
+}
+
+/**
  * 辅助函数：根据字符偏移计算行和列
  */
 function offsetToLineCol(
@@ -131,59 +215,116 @@ function lineColToOffset(text: string, line: number, column: number): number {
  */
 export function parseBeatPositions(text: string): ParseResult {
 	const beats: BeatCodePosition[] = [];
-	const lines = text.split("\n");
 
-	// 查找音符内容的起始位置（跳过元数据）
+	// 🆕 查找音符内容的起始位置：从 "." 开始
+	// AlphaTex 格式中，"." 标记音符内容的开始，之前都是元数据
 	let contentStart = 0;
-	let foundContent = false;
-	let lineOffset = 0;
+	let foundDot = false;
 
-	for (let i = 0; i < lines.length; i++) {
-		const line = lines[i];
-		const trimmedLine = line.trim();
+	// 查找单独的 "." 作为内容起始标记
+	for (let i = 0; i < text.length; i++) {
+		const char = text[i];
 
-		// 跳过空行
-		if (!trimmedLine) {
-			lineOffset += line.length + 1;
+		// 跳过注释
+		if (char === "/" && text[i + 1] === "/") {
+			// 行注释，跳到行尾
+			while (i < text.length && text[i] !== "\n") {
+				i++;
+			}
+			continue;
+		}
+		if (char === "/" && text[i + 1] === "*") {
+			// 块注释，跳到 */
+			i += 2;
+			while (i < text.length - 1 && !(text[i] === "*" && text[i + 1] === "/")) {
+				i++;
+			}
+			i++; // 跳过 /
 			continue;
 		}
 
-		// 跳过注释行
-		if (trimmedLine.startsWith("//")) {
-			lineOffset += line.length + 1;
+		// 跳过字符串
+		if (char === '"') {
+			i++;
+			while (i < text.length && text[i] !== '"') {
+				if (text[i] === "\\" && i + 1 < text.length) {
+					i++; // 跳过转义字符
+				}
+				i++;
+			}
 			continue;
 		}
 
-		// 跳过块注释开始
-		if (trimmedLine.startsWith("/*")) {
-			lineOffset += line.length + 1;
-			continue;
-		}
+		// 🆕 查找单独的 "."（作为内容起始标记，不是小数点）
+		// 条件：前后是空白或行首/行尾
+		if (char === ".") {
+			const prevChar = i > 0 ? text[i - 1] : " ";
+			const nextChar = i + 1 < text.length ? text[i + 1] : " ";
 
-		// 检查是否是元数据命令
-		const isMetadata = METADATA_COMMANDS.some((cmd) =>
-			trimmedLine.toLowerCase().startsWith(cmd.toLowerCase()),
-		);
+			// 如果 "." 前面不是数字，后面也不是数字，则认为是内容起始标记
+			const isPrevDigit = /\d/.test(prevChar);
+			const isNextDigit = /\d/.test(nextChar);
 
-		if (isMetadata) {
-			lineOffset += line.length + 1;
-			continue;
+			if (!isPrevDigit && !isNextDigit) {
+				// 找到了内容起始标记，内容从 "." 之后开始
+				contentStart = i + 1;
+				foundDot = true;
+				break;
+			}
 		}
-
-		// 找到第一个非元数据内容
-		const firstNonSpaceIndex = line.search(/\S/);
-		if (firstNonSpaceIndex >= 0) {
-			contentStart = lineOffset + firstNonSpaceIndex;
-			foundContent = true;
-		} else {
-			contentStart = lineOffset;
-			foundContent = true;
-		}
-		break;
 	}
 
-	if (!foundContent) {
-		return { beats, contentStart: 0 };
+	// 如果没有找到 "."，使用旧的逻辑作为后备
+	if (!foundDot) {
+		const lines = text.split("\n");
+		let lineOffset = 0;
+
+		for (let i = 0; i < lines.length; i++) {
+			const line = lines[i];
+			const trimmedLine = line.trim();
+
+			// 跳过空行
+			if (!trimmedLine) {
+				lineOffset += line.length + 1;
+				continue;
+			}
+
+			// 跳过注释行
+			if (trimmedLine.startsWith("//")) {
+				lineOffset += line.length + 1;
+				continue;
+			}
+
+			// 跳过块注释开始
+			if (trimmedLine.startsWith("/*")) {
+				lineOffset += line.length + 1;
+				continue;
+			}
+
+			// 检查是否是元数据命令
+			const isMetadata = METADATA_COMMANDS.some((cmd) =>
+				trimmedLine.toLowerCase().startsWith(cmd.toLowerCase()),
+			);
+
+			if (isMetadata) {
+				lineOffset += line.length + 1;
+				continue;
+			}
+
+			// 找到第一个非元数据内容
+			const firstNonSpaceIndex = line.search(/\S/);
+			if (firstNonSpaceIndex >= 0) {
+				contentStart = lineOffset + firstNonSpaceIndex;
+			} else {
+				contentStart = lineOffset;
+			}
+			break;
+		}
+	}
+
+	// 跳过 contentStart 后的空白
+	while (contentStart < text.length && /\s/.test(text[contentStart])) {
+		contentStart++;
 	}
 
 	// 解析状态
@@ -192,6 +333,8 @@ export function parseBeatPositions(text: string): ParseResult {
 	let inString = false;
 	let inBlockComment = false;
 	let inLineComment = false;
+	let inChord = false; // 🆕 是否在和弦括号内
+	let chordDepth = 0; // 🆕 括号嵌套深度
 
 	// 当前 beat 的起始位置
 	let beatStartOffset = contentStart;
@@ -246,6 +389,30 @@ export function parseBeatPositions(text: string): ParseResult {
 			continue;
 		}
 
+		// 🆕 处理和弦括号 - 括号内的内容作为一个整体 beat
+		if (char === "(") {
+			if (!inBeatContent) {
+				inBeatContent = true;
+				beatStartOffset = i;
+			}
+			inChord = true;
+			chordDepth++;
+			continue;
+		}
+		if (char === ")") {
+			chordDepth--;
+			if (chordDepth <= 0) {
+				inChord = false;
+				chordDepth = 0;
+			}
+			continue;
+		}
+
+		// 🆕 如果在和弦内，空格不作为分隔符
+		if (inChord) {
+			continue;
+		}
+
 		// 检测小节线 '|'
 		if (char === "|") {
 			// 保存当前 beat（如果有内容）
@@ -257,19 +424,32 @@ export function parseBeatPositions(text: string): ParseResult {
 				}
 
 				if (endOffset > beatStartOffset) {
-					const startPos = offsetToLineCol(text, beatStartOffset);
-					const endPos = offsetToLineCol(text, endOffset);
+					// 🆕 检查是否是时值修饰符（不是真正的 beat）
+					const content = text.slice(beatStartOffset, endOffset).trim();
+					if (!isNonBeatToken(content)) {
+						// 🆕 提取实际的 beat 内容（去除时值前缀）
+						const { content: beatContent, prefixLength } =
+							extractBeatContent(content);
+						const adjustedStart = beatStartOffset + prefixLength;
 
-					beats.push({
-						barIndex,
-						beatIndex,
-						startOffset: beatStartOffset,
-						endOffset,
-						startLine: startPos.line,
-						startColumn: startPos.column,
-						endLine: endPos.line,
-						endColumn: endPos.column,
-					});
+						// 如果提取后还有内容，才添加为 beat
+						if (beatContent.length > 0 && adjustedStart < endOffset) {
+							const startPos = offsetToLineCol(text, adjustedStart);
+							const endPos = offsetToLineCol(text, endOffset);
+
+							beats.push({
+								barIndex,
+								beatIndex,
+								startOffset: adjustedStart,
+								endOffset,
+								startLine: startPos.line,
+								startColumn: startPos.column,
+								endLine: endPos.line,
+								endColumn: endPos.column,
+							});
+							beatIndex++;
+						}
+					}
 				}
 			}
 
@@ -299,30 +479,41 @@ export function parseBeatPositions(text: string): ParseResult {
 				// 检查是否有实际内容（不只是空白）
 				const content = text.slice(beatStartOffset, i).trim();
 				if (content.length > 0) {
-					// 去除尾部空白
-					let endOffset = i;
-					while (
-						endOffset > beatStartOffset &&
-						/\s/.test(text[endOffset - 1])
-					) {
-						endOffset--;
+					// 🆕 检查是否是时值修饰符等非 beat token
+					if (!isNonBeatToken(content)) {
+						// 去除尾部空白
+						let endOffset = i;
+						while (
+							endOffset > beatStartOffset &&
+							/\s/.test(text[endOffset - 1])
+						) {
+							endOffset--;
+						}
+
+						// 🆕 提取实际的 beat 内容（去除时值前缀）
+						const { content: beatContent, prefixLength } =
+							extractBeatContent(content);
+						const adjustedStart = beatStartOffset + prefixLength;
+
+						// 如果提取后还有内容，才添加为 beat
+						if (beatContent.length > 0 && adjustedStart < endOffset) {
+							const startPos = offsetToLineCol(text, adjustedStart);
+							const endPos = offsetToLineCol(text, endOffset);
+
+							beats.push({
+								barIndex,
+								beatIndex,
+								startOffset: adjustedStart,
+								endOffset,
+								startLine: startPos.line,
+								startColumn: startPos.column,
+								endLine: endPos.line,
+								endColumn: endPos.column,
+							});
+
+							beatIndex++;
+						}
 					}
-
-					const startPos = offsetToLineCol(text, beatStartOffset);
-					const endPos = offsetToLineCol(text, endOffset);
-
-					beats.push({
-						barIndex,
-						beatIndex,
-						startOffset: beatStartOffset,
-						endOffset,
-						startLine: startPos.line,
-						startColumn: startPos.column,
-						endLine: endPos.line,
-						endColumn: endPos.column,
-					});
-
-					beatIndex++;
 				}
 				inBeatContent = false;
 			}
@@ -344,19 +535,31 @@ export function parseBeatPositions(text: string): ParseResult {
 		}
 
 		if (endOffset > beatStartOffset) {
-			const startPos = offsetToLineCol(text, beatStartOffset);
-			const endPos = offsetToLineCol(text, endOffset);
+			// 🆕 检查是否是时值修饰符等非 beat token
+			const content = text.slice(beatStartOffset, endOffset).trim();
+			if (!isNonBeatToken(content)) {
+				// 🆕 提取实际的 beat 内容（去除时值前缀）
+				const { content: beatContent, prefixLength } =
+					extractBeatContent(content);
+				const adjustedStart = beatStartOffset + prefixLength;
 
-			beats.push({
-				barIndex,
-				beatIndex,
-				startOffset: beatStartOffset,
-				endOffset,
-				startLine: startPos.line,
-				startColumn: startPos.column,
-				endLine: endPos.line,
-				endColumn: endPos.column,
-			});
+				// 如果提取后还有内容，才添加为 beat
+				if (beatContent.length > 0 && adjustedStart < endOffset) {
+					const startPos = offsetToLineCol(text, adjustedStart);
+					const endPos = offsetToLineCol(text, endOffset);
+
+					beats.push({
+						barIndex,
+						beatIndex,
+						startOffset: adjustedStart,
+						endOffset,
+						startLine: startPos.line,
+						startColumn: startPos.column,
+						endLine: endPos.line,
+						endColumn: endPos.column,
+					});
+				}
+			}
 		}
 	}
 
@@ -442,9 +645,22 @@ export function mapSelectionToCodeRange(
 		endBeat,
 	});
 
+	// 🆕 验证范围有效性
+	const from = startBeat.startOffset;
+	const to = endBeat.endOffset;
+
+	if (from < 0 || to < 0 || from >= to || to > text.length) {
+		console.debug("[mapSelectionToCodeRange] Invalid range:", {
+			from,
+			to,
+			textLength: text.length,
+		});
+		return null;
+	}
+
 	return {
-		from: startBeat.startOffset,
-		to: endBeat.endOffset,
+		from,
+		to,
 		startLine: startBeat.startLine,
 		startColumn: startBeat.startColumn,
 		endLine: endBeat.endLine,
@@ -545,36 +761,41 @@ export const selectionHighlightField = StateField.define<DecorationSet>({
 		return Decoration.none;
 	},
 	update(highlights, tr) {
-		highlights = highlights.map(tr.changes);
+		try {
+			highlights = highlights.map(tr.changes);
 
-		for (const e of tr.effects) {
-			if (e.is(setSelectionHighlightEffect)) {
-				if (!e.value) {
-					return Decoration.none;
-				}
-
-				const range = e.value;
-				const builder = new RangeSetBuilder<Decoration>();
-
-				try {
-					const from = range.from;
-					const to = range.to;
-
-					if (from < to && from >= 0 && to <= tr.state.doc.length) {
-						builder.add(from, to, selectionHighlightMark);
+			for (const e of tr.effects) {
+				if (e.is(setSelectionHighlightEffect)) {
+					if (!e.value) {
+						return Decoration.none;
 					}
-				} catch (err) {
-					console.error(
-						"[SelectionSync] Failed to calculate highlight range:",
-						err,
-					);
+
+					const range = e.value;
+					const docLength = tr.state.doc.length;
+
+					// 🆕 加强范围验证
+					const from = Math.max(0, Math.min(range.from, docLength));
+					const to = Math.max(0, Math.min(range.to, docLength));
+
+					if (from >= to || from < 0 || to > docLength) {
+						console.debug("[SelectionSync] Invalid selection range, skipping");
+						return Decoration.none;
+					}
+
+					const builder = new RangeSetBuilder<Decoration>();
+					builder.add(from, to, selectionHighlightMark);
+					return builder.finish();
 				}
-
-				return builder.finish();
 			}
-		}
 
-		return highlights;
+			return highlights;
+		} catch (err) {
+			console.error(
+				"[SelectionSync] Error in selectionHighlightField update:",
+				err,
+			);
+			return Decoration.none;
+		}
 	},
 	provide: (f) => EditorView.decorations.from(f),
 });
@@ -600,6 +821,32 @@ export function createSelectionSyncExtension(): Extension[] {
 }
 
 /**
+ * 安全地 dispatch effect，避免在视图更新期间冲突
+ */
+function safeDispatch(
+	view: EditorView,
+	effect: StateEffect<CodeRange | null>,
+): void {
+	// 检查 view 是否有效
+	if (!view || !view.dom || !document.contains(view.dom)) {
+		return;
+	}
+
+	// 使用 requestAnimationFrame 避免在滚动等操作期间直接 dispatch
+	requestAnimationFrame(() => {
+		// 再次检查
+		if (!view || !view.dom || !document.contains(view.dom)) {
+			return;
+		}
+		try {
+			view.dispatch({ effects: effect });
+		} catch (err) {
+			console.error("[SelectionSync] Failed to dispatch:", err);
+		}
+	});
+}
+
+/**
  * 更新编辑器中的选区高亮
  *
  * @param view CodeMirror EditorView
@@ -612,16 +859,12 @@ export function updateEditorSelectionHighlight(
 	selection: ScoreSelectionInfo | null,
 ): void {
 	if (!selection) {
-		view.dispatch({
-			effects: setSelectionHighlightEffect.of(null),
-		});
+		safeDispatch(view, setSelectionHighlightEffect.of(null));
 		return;
 	}
 
 	const codeRange = mapSelectionToCodeRange(text, selection);
-	view.dispatch({
-		effects: setSelectionHighlightEffect.of(codeRange),
-	});
+	safeDispatch(view, setSelectionHighlightEffect.of(codeRange));
 }
 
 /**
@@ -657,4 +900,153 @@ export function createCursorTrackingExtension(
 			}, 100);
 		}
 	});
+}
+
+// ============================================================================
+// 播放进度高亮部分
+// ============================================================================
+
+/**
+ * Effect to update playback highlight in the editor
+ */
+export const setPlaybackHighlightEffect =
+	StateEffect.define<CodeRange | null>();
+
+/**
+ * 播放进度高亮装饰样式 - 使用不同于选区的颜色（绿色/青色调）
+ */
+const playbackHighlightMark = Decoration.mark({
+	class: "cm-playback-highlight",
+});
+
+/**
+ * State field to manage playback highlight decorations
+ */
+export const playbackHighlightField = StateField.define<DecorationSet>({
+	create() {
+		return Decoration.none;
+	},
+	update(highlights, tr) {
+		try {
+			highlights = highlights.map(tr.changes);
+
+			for (const e of tr.effects) {
+				if (e.is(setPlaybackHighlightEffect)) {
+					if (!e.value) {
+						return Decoration.none;
+					}
+
+					const range = e.value;
+					const docLength = tr.state.doc.length;
+
+					// 🆕 加强范围验证
+					const from = Math.max(0, Math.min(range.from, docLength));
+					const to = Math.max(0, Math.min(range.to, docLength));
+
+					if (from >= to || from < 0 || to > docLength) {
+						console.debug("[SelectionSync] Invalid playback range, skipping");
+						return Decoration.none;
+					}
+
+					const builder = new RangeSetBuilder<Decoration>();
+					builder.add(from, to, playbackHighlightMark);
+					return builder.finish();
+				}
+			}
+
+			return highlights;
+		} catch (err) {
+			console.error(
+				"[SelectionSync] Error in playbackHighlightField update:",
+				err,
+			);
+			return Decoration.none;
+		}
+	},
+	provide: (f) => EditorView.decorations.from(f),
+});
+
+/**
+ * 播放进度高亮的主题样式 - 使用绿色调，与选区高亮区分
+ */
+export const playbackHighlightTheme = EditorView.baseTheme({
+	".cm-playback-highlight": {
+		backgroundColor: "hsl(142 76% 36% / 0.3)",
+		borderRadius: "2px",
+		boxShadow: "0 0 0 1px hsl(142 76% 36% / 0.5)",
+		// 添加动画效果
+		transition: "background-color 0.1s ease-out",
+	},
+});
+
+/**
+ * 创建播放进度同步扩展
+ *
+ * @returns CodeMirror 扩展数组
+ */
+export function createPlaybackSyncExtension(): Extension[] {
+	return [playbackHighlightField, playbackHighlightTheme];
+}
+
+/**
+ * 根据播放位置信息计算代码范围
+ *
+ * @param text AlphaTex 源代码
+ * @param playback 播放位置信息
+ * @returns 代码范围，如果无法映射则返回 null
+ */
+export function mapPlaybackToCodeRange(
+	text: string,
+	playback: PlaybackBeatInfo,
+): CodeRange | null {
+	const { beats } = parseBeatPositions(text);
+
+	if (beats.length === 0) {
+		return null;
+	}
+
+	// 查找对应的 Beat
+	let targetBeat = beats.find(
+		(b) =>
+			b.barIndex === playback.barIndex && b.beatIndex === playback.beatIndex,
+	);
+
+	// 如果找不到精确匹配，尝试只匹配小节的第一个 beat
+	if (!targetBeat) {
+		targetBeat = beats.find((b) => b.barIndex === playback.barIndex);
+	}
+
+	if (!targetBeat) {
+		return null;
+	}
+
+	return {
+		from: targetBeat.startOffset,
+		to: targetBeat.endOffset,
+		startLine: targetBeat.startLine,
+		startColumn: targetBeat.startColumn,
+		endLine: targetBeat.endLine,
+		endColumn: targetBeat.endColumn,
+	};
+}
+
+/**
+ * 更新编辑器中的播放进度高亮
+ *
+ * @param view CodeMirror EditorView
+ * @param text AlphaTex 源代码
+ * @param playback 播放位置信息
+ */
+export function updateEditorPlaybackHighlight(
+	view: EditorView,
+	text: string,
+	playback: PlaybackBeatInfo | null,
+): void {
+	if (!playback) {
+		safeDispatch(view, setPlaybackHighlightEffect.of(null));
+		return;
+	}
+
+	const codeRange = mapPlaybackToCodeRange(text, playback);
+	safeDispatch(view, setPlaybackHighlightEffect.of(codeRange));
 }

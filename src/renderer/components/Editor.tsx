@@ -13,7 +13,9 @@ import type { AlphaTexLSPClient } from "../lib/alphatex-lsp";
 import { createAlphaTexLSPClient } from "../lib/alphatex-lsp";
 import {
 	createCursorTrackingExtension,
+	createPlaybackSyncExtension,
 	createSelectionSyncExtension,
+	updateEditorPlaybackHighlight,
 	updateEditorSelectionHighlight,
 } from "../lib/alphatex-selection-sync";
 import { whitespaceDecoration } from "../lib/whitespace-decoration";
@@ -46,6 +48,9 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 
 	// 🆕 订阅乐谱选区状态
 	const scoreSelection = useAppStore((s) => s.scoreSelection);
+
+	// 🆕 订阅播放位置状态
+	const playbackBeat = useAppStore((s) => s.playbackBeat);
 
 	// Observe <html> to detect dark mode toggles (class 'dark')
 	const [isDark, setIsDark] = useState<boolean>(() => {
@@ -182,6 +187,10 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 					// 🆕 Add selection sync extension (乐谱选区 → 代码高亮)
 					const selectionSyncExt = createSelectionSyncExtension();
 					extensions.push(...selectionSyncExt);
+
+					// 🆕 Add playback sync extension (播放进度 → 代码高亮)
+					const playbackSyncExt = createPlaybackSyncExtension();
+					extensions.push(...playbackSyncExt);
 
 					// 🆕 Add cursor tracking extension (代码光标 → 乐谱定位)
 					const cursorTrackingExt = createCursorTrackingExtension(
@@ -392,6 +401,19 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 		const content = activeFile?.content ?? "";
 		updateEditorSelectionHighlight(view, content, scoreSelection);
 	}, [scoreSelection, activeFile, getLanguageForFile]);
+
+	// 🆕 监听播放位置变化，更新编辑器播放高亮
+	useEffect(() => {
+		const view = viewRef.current;
+		if (!view) return;
+
+		// 只有 AlphaTex 文件才需要播放同步
+		const language = activeFile ? getLanguageForFile(activeFile.path) : "";
+		if (language !== "alphatex") return;
+
+		const content = activeFile?.content ?? "";
+		updateEditorPlaybackHighlight(view, content, playbackBeat);
+	}, [playbackBeat, activeFile, getLanguageForFile]);
 
 	// Cleanup on unmount
 	useEffect(() => {
