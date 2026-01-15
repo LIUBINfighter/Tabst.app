@@ -34,7 +34,7 @@ import PrintPreview from "./PrintPreview";
  * 根据 barIndex 和 beatIndex 从乐谱中查找对应的 Beat 对象
  */
 function findBeatInScore(
-	score: alphaTab.model.Score | undefined,
+	score: alphaTab.model.Score | null | undefined,
 	barIndex: number,
 	beatIndex: number,
 ): alphaTab.model.Beat | null {
