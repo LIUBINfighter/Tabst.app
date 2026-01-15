@@ -1374,6 +1374,11 @@ export function updateEditorPlaybackHighlight(
 			view,
 			barRanges.length > 0 ? { ranges: barRanges } : null,
 		);
+
+		// 🆕 自动滚动到黄色小节高亮位置（视窗 33% 位置）
+		if (autoScroll && barRanges.length > 0) {
+			scrollToBarHighlight(view, barRanges[0]);
+		}
 	} else {
 		// 没有任何位置信息：清除所有高亮
 		safeDispatch(view, setPlaybackHighlightEffect.of(null));
@@ -1426,22 +1431,19 @@ function scrollToPlaybackHighlight(
 		}
 
 		try {
-			// 获取高亮位置的屏幕坐标
-			const coords = view.coordsAtPos(codeRange.from);
-			if (!coords) return;
+			const targetPos = codeRange.from;
 
-			// 获取编辑器可视区域
-			const scrollDOM = view.scrollDOM;
-			const editorRect = scrollDOM.getBoundingClientRect();
+			// 🆕 使用 visibleRanges 检查位置是否在可视区域内
+			// 这比 coordsAtPos 更可靠，因为 coordsAtPos 对于未渲染的位置会返回 null
+			const { visibleRanges } = view;
+			const isVisible = visibleRanges.some(
+				(range) => targetPos >= range.from && targetPos <= range.to,
+			);
 
-			// 检查高亮是否在可视区域内
-			const isAboveView = coords.top < editorRect.top;
-			const isBelowView = coords.bottom > editorRect.bottom;
-
-			// 如果超出可视区域，滚动到使高亮位于顶部（留一些边距）
-			if (isAboveView || isBelowView) {
+			// 如果不在可视区域内，滚动到顶部位置
+			if (!isVisible) {
 				view.dispatch({
-					effects: EditorView.scrollIntoView(codeRange.from, {
+					effects: EditorView.scrollIntoView(targetPos, {
 						y: "start", // 滚动到顶部
 						yMargin: 50, // 顶部留 50px 边距
 					}),
@@ -1454,4 +1456,51 @@ function scrollToPlaybackHighlight(
 			);
 		}
 	});
+}
+
+/**
+ * 滚动编辑器使小节高亮可见（滚动到视窗 33% 位置）
+ * 只有当高亮超出可视区域时才滚动
+ *
+ * @param view CodeMirror EditorView
+ * @param codeRange 高亮的代码范围
+ */
+function scrollToBarHighlight(view: EditorView, codeRange: CodeRange): void {
+	if (!view || !view.dom || !document.contains(view.dom)) {
+		return;
+	}
+
+	setTimeout(() => {
+		if (!view || !view.dom || !document.contains(view.dom)) {
+			return;
+		}
+
+		try {
+			// 🆕 使用 visibleRanges 判断是否在视口内（不依赖 coordsAtPos）
+			const targetPos = codeRange.from;
+			const visibleRanges = view.visibleRanges;
+
+			// 检查目标位置是否在任何可见范围内
+			const isVisible = visibleRanges.some(
+				(range) => targetPos >= range.from && targetPos <= range.to,
+			);
+
+			// 如果不在可见范围内，执行滚动
+			if (!isVisible) {
+				// 获取编辑器可视区域高度，计算 33% 位置的 margin
+				const scrollDOM = view.scrollDOM;
+				const viewportHeight = scrollDOM.getBoundingClientRect().height;
+				const targetMargin = Math.floor(viewportHeight * 0.33);
+
+				view.dispatch({
+					effects: EditorView.scrollIntoView(targetPos, {
+						y: "start",
+						yMargin: targetMargin,
+					}),
+				});
+			}
+		} catch (err) {
+			console.error("[SelectionSync] Failed to scroll to bar highlight:", err);
+		}
+	}, 0);
 }
