@@ -1036,11 +1036,13 @@ export function mapPlaybackToCodeRange(
  * @param view CodeMirror EditorView
  * @param text AlphaTex 源代码
  * @param playback 播放位置信息
+ * @param autoScroll 是否自动滚动到高亮位置（默认 true）
  */
 export function updateEditorPlaybackHighlight(
 	view: EditorView,
 	text: string,
 	playback: PlaybackBeatInfo | null,
+	autoScroll = true,
 ): void {
 	if (!playback) {
 		safeDispatch(view, setPlaybackHighlightEffect.of(null));
@@ -1049,4 +1051,60 @@ export function updateEditorPlaybackHighlight(
 
 	const codeRange = mapPlaybackToCodeRange(text, playback);
 	safeDispatch(view, setPlaybackHighlightEffect.of(codeRange));
+
+	// 自动滚动：当高亮位置超出可视区域时，滚动到顶部
+	if (autoScroll && codeRange) {
+		scrollToPlaybackHighlight(view, codeRange);
+	}
+}
+
+/**
+ * 滚动编辑器使播放高亮可见
+ * 逻辑：如果高亮超出当前可视区域，则滚动使其位于视口顶部
+ *
+ * @param view CodeMirror EditorView
+ * @param codeRange 高亮的代码范围
+ */
+function scrollToPlaybackHighlight(
+	view: EditorView,
+	codeRange: CodeRange,
+): void {
+	if (!view || !view.dom || !document.contains(view.dom)) {
+		return;
+	}
+
+	requestAnimationFrame(() => {
+		if (!view || !view.dom || !document.contains(view.dom)) {
+			return;
+		}
+
+		try {
+			// 获取高亮位置的屏幕坐标
+			const coords = view.coordsAtPos(codeRange.from);
+			if (!coords) return;
+
+			// 获取编辑器可视区域
+			const scrollDOM = view.scrollDOM;
+			const editorRect = scrollDOM.getBoundingClientRect();
+
+			// 检查高亮是否在可视区域内
+			const isAboveView = coords.top < editorRect.top;
+			const isBelowView = coords.bottom > editorRect.bottom;
+
+			// 如果超出可视区域，滚动到使高亮位于顶部（留一些边距）
+			if (isAboveView || isBelowView) {
+				view.dispatch({
+					effects: EditorView.scrollIntoView(codeRange.from, {
+						y: "start", // 滚动到顶部
+						yMargin: 50, // 顶部留 50px 边距
+					}),
+				});
+			}
+		} catch (err) {
+			console.error(
+				"[SelectionSync] Failed to scroll to playback highlight:",
+				err,
+			);
+		}
+	});
 }
