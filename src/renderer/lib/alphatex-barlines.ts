@@ -124,7 +124,7 @@ const barlinesField = StateField.define<DecorationSet>({
 		if (tr.docChanged) {
 			try {
 				return barlines.map(tr.changes);
-			} catch (err) {
+			} catch (_err) {
 				// 映射失败（文档变化太大），清除 barlines
 				console.debug("[Barlines] Failed to map barlines, clearing");
 				return Decoration.none;

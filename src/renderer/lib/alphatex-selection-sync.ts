@@ -24,9 +24,7 @@ import type {
 	ScoreSelectionInfo,
 } from "../store/appStore";
 
-// alphaTab 内部类型别名
-type AlphaTexBarNode = alphaTab.importer.alphaTex.AlphaTexBarNode;
-type AlphaTexBeatNode = alphaTab.importer.alphaTex.AlphaTexBeatNode;
+// alphaTab 内部类型别名（已移除未使用的别名）
 
 /**
  * 代码中的位置范围
@@ -965,7 +963,10 @@ export const selectionHighlightField = StateField.define<DecorationSet>({
 				return highlights.map(tr.changes);
 			} catch (err) {
 				// 映射失败（文档变化太大），清除高亮
-				console.debug("[SelectionSync] Failed to map highlights, clearing");
+				console.debug(
+					"[SelectionSync] Failed to map highlights, clearing",
+					err,
+				);
 				return Decoration.none;
 			}
 		}
@@ -1055,6 +1056,7 @@ export const playbackBarHighlightField = StateField.define<DecorationSet>({
 			} catch (err) {
 				console.debug(
 					"[SelectionSync] Failed to map playback bar highlights, clearing",
+					err,
 				);
 				return Decoration.none;
 			}
@@ -1255,6 +1257,7 @@ export const playbackHighlightField = StateField.define<DecorationSet>({
 				// 映射失败（文档变化太大），清除高亮
 				console.debug(
 					"[SelectionSync] Failed to map playback highlights, clearing",
+					err,
 				);
 				return Decoration.none;
 			}
@@ -1405,6 +1408,7 @@ function safeDispatchBarHighlight(
 			view.dispatch({ effects: setPlaybackBarHighlightEffect.of(value) });
 		} catch (err) {
 			// ignore
+			void err;
 		}
 	}, 0);
 }
