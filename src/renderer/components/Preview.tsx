@@ -27,7 +27,41 @@ import {
 	getAlphaTabColorsForTheme,
 	setupThemeObserver,
 } from "../lib/themeManager";
+import { useAppStore } from "../store/appStore";
 import PrintPreview from "./PrintPreview";
+
+/**
+ * 根据 barIndex 和 beatIndex 从乐谱中查找对应的 Beat 对象
+ */
+function findBeatInScore(
+	score: alphaTab.model.Score | null | undefined,
+	barIndex: number,
+	beatIndex: number,
+): alphaTab.model.Beat | null {
+	if (!score?.tracks?.length) return null;
+
+	// 遍历第一个音轨的所有 staff
+	const track = score.tracks[0];
+	for (const staff of track.staves) {
+		for (const bar of staff.bars) {
+			if (bar.index === barIndex) {
+				// 找到对应小节，查找 beat
+				for (const voice of bar.voices) {
+					for (const beat of voice.beats) {
+						if (beat.index === beatIndex) {
+							return beat;
+						}
+					}
+				}
+				// 如果找不到精确的 beatIndex，返回该小节的第一个 beat
+				if (bar.voices[0]?.beats?.length > 0) {
+					return bar.voices[0].beats[0];
+				}
+			}
+		}
+	}
+	return null;
+}
 
 export interface PreviewProps {
 	fileName?: string;
@@ -82,6 +116,11 @@ export default function Preview({
 	// 打印预览状态和重新初始化触发器
 	const [showPrintPreview, setShowPrintPreview] = useState(false);
 	const [reinitTrigger, setReinitTrigger] = useState(0);
+
+	// 🆕 订阅编辑器光标位置，用于反向同步（编辑器 → 乐谱）
+	const editorCursor = useAppStore((s) => s.editorCursor);
+	// 防止因乐谱选择触发的光标更新导致循环
+	const isEditorCursorFromScoreRef = useRef(false);
 
 	useEffect(() => {
 		latestContentRef.current = content ?? "";
@@ -152,6 +191,73 @@ export default function Preview({
 		}
 	}, []);
 
+	/**
+	 * 🆕 监听编辑器光标变化，反向同步到乐谱选区
+	 * 实现点击编辑器代码定位到乐谱对应位置
+	 */
+	useEffect(() => {
+		const api = apiRef.current;
+		if (!api || !editorCursor) return;
+
+		// 检查是否是无效的位置（在元数据区域）
+		if (editorCursor.barIndex < 0 || editorCursor.beatIndex < 0) {
+			return;
+		}
+
+		// 防止循环：如果当前光标是由乐谱选择触发的，跳过
+		if (isEditorCursorFromScoreRef.current) {
+			isEditorCursorFromScoreRef.current = false;
+			return;
+		}
+
+		// 从当前乐谱中查找对应的 Beat
+		const score = api.score;
+		const beat = findBeatInScore(
+			score,
+			editorCursor.barIndex,
+			editorCursor.beatIndex,
+		);
+
+		if (beat) {
+			console.debug(
+				"[Preview] Editor cursor → Score sync:",
+				`Bar ${editorCursor.barIndex}, Beat ${editorCursor.beatIndex}`,
+			);
+
+			try {
+				// 使用 Selection API 高亮该 beat
+				if (typeof api.highlightPlaybackRange === "function") {
+					api.highlightPlaybackRange(beat, beat);
+				}
+
+				// 滚动到该 beat 所在位置（可选）
+				const bb = api.boundsLookup?.findBeat?.(beat);
+				if (bb && containerRef.current) {
+					const visual = bb.visualBounds;
+					const container = containerRef.current;
+					const containerRect = container.getBoundingClientRect();
+
+					// 检查 beat 是否在可视区域内
+					const beatTop = visual.y;
+					const beatBottom = visual.y + visual.h;
+					const scrollTop = container.scrollTop;
+					const viewportTop = scrollTop;
+					const viewportBottom = scrollTop + containerRect.height;
+
+					// 如果 beat 不在可视区域，滚动到它
+					if (beatTop < viewportTop || beatBottom > viewportBottom) {
+						container.scrollTo({
+							top: Math.max(0, beatTop - containerRect.height / 3),
+							behavior: "smooth",
+						});
+					}
+				}
+			} catch (e) {
+				console.debug("[Preview] Failed to sync editor cursor to score:", e);
+			}
+		}
+	}, [editorCursor]);
+
 	useEffect(() => {
 		if (!containerRef.current) return;
 
@@ -189,12 +295,26 @@ export default function Preview({
 				setIsPlaying(false);
 				const cursor = cursorRef.current;
 				if (cursor) cursor.style.display = "none";
+				// 🆕 播放结束时清除编辑器中的播放高亮
+				useAppStore.getState().clearPlaybackBeat();
 			});
 
 			// 3. 播放进度（更新光标位置）
 			api.playedBeatChanged?.on((beat: alphaTab.model.Beat | null) => {
-				if (!beat) return;
+				if (!beat) {
+					// 播放停止时清除播放高亮（但保留 playerCursorPosition）
+					useAppStore.getState().clearPlaybackBeat();
+					return;
+				}
 				setIsPlaying(true);
+
+				// 🆕 更新播放位置到 store，触发编辑器高亮
+				const barIndex = beat.voice?.bar?.index ?? 0;
+				const beatIndex = beat.index ?? 0;
+				useAppStore.getState().setPlaybackBeat({ barIndex, beatIndex });
+				// 🆕 同时更新播放器光标位置（暂停后保留）
+				useAppStore.getState().setPlayerCursorPosition({ barIndex, beatIndex });
+
 				const cursor = cursorRef.current;
 				if (!cursor) return;
 				const bb = api.boundsLookup?.findBeat?.(beat);
@@ -209,6 +329,65 @@ export default function Preview({
 				cursor.style.width = `${visual.w}px`;
 				cursor.style.height = `${visual.h}px`;
 			});
+
+			// 🆕 3.6. 点击曲谱时更新播放器光标位置（不播放也能设置）
+			api.beatMouseDown?.on((beat: alphaTab.model.Beat) => {
+				if (!beat) return;
+				const barIndex = beat.voice?.bar?.index ?? 0;
+				const beatIndex = beat.index ?? 0;
+				console.info("[Preview] Beat clicked:", `Bar ${barIndex}:${beatIndex}`);
+				// 🆕 清除播放高亮（绿色），让黄色小节高亮能够显示
+				useAppStore.getState().clearPlaybackBeat();
+				// 更新播放器光标位置，触发编辑器黄色高亮
+				useAppStore.getState().setPlayerCursorPosition({ barIndex, beatIndex });
+			});
+
+			// 🆕 3.5. Selection API (alphaTab 1.8.0+): 监听选区变化，同步到编辑器
+			try {
+				api.playbackRangeHighlightChanged?.on((e) => {
+					const { setScoreSelection, clearScoreSelection } =
+						useAppStore.getState();
+
+					// 如果没有选区，清除编辑器高亮
+					if (!e.startBeat || !e.endBeat) {
+						clearScoreSelection();
+						return;
+					}
+
+					// 标记：这次编辑器光标更新是由乐谱选择触发的，防止循环
+					isEditorCursorFromScoreRef.current = true;
+
+					// 从 Beat 对象中提取小节和 Beat 索引
+					const startBeat = e.startBeat;
+					const endBeat = e.endBeat;
+
+					// 获取小节索引
+					const startBarIndex = startBeat.voice?.bar?.index ?? 0;
+					const endBarIndex = endBeat.voice?.bar?.index ?? startBarIndex;
+
+					// 获取 Beat 在小节内的索引
+					const startBeatIndex = startBeat.index ?? 0;
+					const endBeatIndex = endBeat.index ?? 0;
+
+					console.info(
+						"[Preview] Selection changed:",
+						`Bar ${startBarIndex}:${startBeatIndex} -> Bar ${endBarIndex}:${endBeatIndex}`,
+					);
+
+					// 更新 store，触发 Editor 高亮
+					setScoreSelection({
+						startBarIndex,
+						startBeatIndex,
+						endBarIndex,
+						endBeatIndex,
+					});
+				});
+			} catch (e) {
+				console.debug(
+					"[Preview] playbackRangeHighlightChanged not available (requires alphaTab 1.8.0+):",
+					e,
+				);
+			}
 
 			// 4. 改进的错误处理：保留上一次成功的渲染
 			api.error.on((err: unknown) => {

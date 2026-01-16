@@ -56,8 +56,8 @@ export const alphatexAbbreviations = ViewPlugin.fromClass(
 						continue;
 
 					// Trigger the snippet expansion
-					// We use requestAnimationFrame to ensure we're outside the current update cycle
-					requestAnimationFrame(() => {
+					// 🆕 使用 setTimeout(0) 代替 requestAnimationFrame 避免与滚动冲突
+					setTimeout(() => {
 						const view = update.view;
 						// Double check if the view is still valid, attached, and the text is still there
 						if (
@@ -70,7 +70,7 @@ export const alphatexAbbreviations = ViewPlugin.fromClass(
 						const dummyCompletion: Completion = { label: abbr };
 						// Apply the snippet
 						snippet(expansion as string)(view, dummyCompletion, start, pos);
-					});
+					}, 0);
 
 					break;
 				}

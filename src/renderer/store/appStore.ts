@@ -7,11 +7,62 @@ export interface FileItem {
 	content: string;
 }
 
+/**
+ * 乐谱选区信息 - 用于 Preview 和 Editor 之间同步选区
+ * 使用 alphaTab 1.8.0 Selection API
+ */
+export interface ScoreSelectionInfo {
+	/** 起始 Beat 的小节索引 (0-based) */
+	startBarIndex: number;
+	/** 起始 Beat 在小节内的索引 (0-based) */
+	startBeatIndex: number;
+	/** 结束 Beat 的小节索引 (0-based) */
+	endBarIndex: number;
+	/** 结束 Beat 在小节内的索引 (0-based) */
+	endBeatIndex: number;
+}
+
+/**
+ * 编辑器光标位置信息 - 用于反向同步到乐谱
+ */
+export interface EditorCursorInfo {
+	/** 光标所在行 (0-based) */
+	line: number;
+	/** 光标所在列 (0-based) */
+	column: number;
+	/** 对应的小节索引 (0-based)，-1 表示未知 */
+	barIndex: number;
+	/** 对应的 Beat 索引 (0-based)，-1 表示未知 */
+	beatIndex: number;
+}
+
+/**
+ * 播放位置信息 - 用于播放时同步高亮
+ */
+export interface PlaybackBeatInfo {
+	/** 小节索引 (0-based) */
+	barIndex: number;
+	/** Beat 索引 (0-based) */
+	beatIndex: number;
+}
+
 interface AppState {
 	// 文件列表
 	files: FileItem[];
 	// 当前选中的文件
 	activeFileId: string | null;
+
+	// 🆕 乐谱选区状态 - 用于 Preview ↔ Editor 双向同步
+	scoreSelection: ScoreSelectionInfo | null;
+
+	// 🆕 编辑器光标位置 - 用于 Editor → Preview 反向同步
+	editorCursor: EditorCursorInfo | null;
+
+	// 🆕 播放位置 - 用于播放时编辑器跟随高亮
+	playbackBeat: PlaybackBeatInfo | null;
+
+	// 🆕 播放器光标位置 - 暂停时也保留，用于显示黄色小节高亮
+	playerCursorPosition: PlaybackBeatInfo | null;
 
 	// Actions
 	addFile: (file: FileItem) => void;
@@ -21,6 +72,20 @@ interface AppState {
 	updateFileContent: (id: string, content: string) => void;
 	getActiveFile: () => FileItem | undefined;
 
+	// 🆕 选区操作
+	setScoreSelection: (selection: ScoreSelectionInfo | null) => void;
+	clearScoreSelection: () => void;
+
+	// 🆕 编辑器光标操作
+	setEditorCursor: (cursor: EditorCursorInfo | null) => void;
+
+	// 🆕 播放位置操作
+	setPlaybackBeat: (beat: PlaybackBeatInfo | null) => void;
+	clearPlaybackBeat: () => void;
+
+	// 🆕 播放器光标位置操作（暂停时也保留）
+	setPlayerCursorPosition: (position: PlaybackBeatInfo | null) => void;
+
 	// 初始化，从主进程读取持久化状态
 	initialize: () => Promise<void>;
 }
@@ -28,6 +93,10 @@ interface AppState {
 export const useAppStore = create<AppState>((set, get) => ({
 	files: [],
 	activeFileId: null,
+	scoreSelection: null,
+	editorCursor: null,
+	playbackBeat: null,
+	playerCursorPosition: null,
 
 	addFile: (file) => {
 		set((state) => {
@@ -157,6 +226,36 @@ export const useAppStore = create<AppState>((set, get) => ({
 	getActiveFile: () => {
 		const state = get();
 		return state.files.find((f) => f.id === state.activeFileId);
+	},
+
+	// 🆕 设置乐谱选区
+	setScoreSelection: (selection) => {
+		set({ scoreSelection: selection });
+	},
+
+	// 🆕 清除乐谱选区
+	clearScoreSelection: () => {
+		set({ scoreSelection: null });
+	},
+
+	// 🆕 设置编辑器光标位置
+	setEditorCursor: (cursor) => {
+		set({ editorCursor: cursor });
+	},
+
+	// 🆕 设置播放位置
+	setPlaybackBeat: (beat) => {
+		set({ playbackBeat: beat });
+	},
+
+	// 🆕 清除播放位置
+	clearPlaybackBeat: () => {
+		set({ playbackBeat: null });
+	},
+
+	// 🆕 设置播放器光标位置（暂停时也保留）
+	setPlayerCursorPosition: (position) => {
+		set({ playerCursorPosition: position });
 	},
 
 	initialize: async () => {

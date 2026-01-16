@@ -11,7 +11,15 @@ import { createAlphaTexAutocomplete } from "../lib/alphatex-completion";
 import { getAlphaTexHighlight } from "../lib/alphatex-highlight";
 import type { AlphaTexLSPClient } from "../lib/alphatex-lsp";
 import { createAlphaTexLSPClient } from "../lib/alphatex-lsp";
+import {
+	createCursorTrackingExtension,
+	createPlaybackSyncExtension,
+	createSelectionSyncExtension,
+	updateEditorPlaybackHighlight,
+	updateEditorSelectionHighlight,
+} from "../lib/alphatex-selection-sync";
 import { whitespaceDecoration } from "../lib/whitespace-decoration";
+import type { EditorCursorInfo } from "../store/appStore";
 import { useAppStore } from "../store/appStore";
 import Preview from "./Preview";
 import { Button } from "./ui/button";
@@ -37,6 +45,15 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 	const activeFileId = useAppStore((s) => s.activeFileId);
 	const files = useAppStore((s) => s.files);
 	const activeFile = files.find((f) => f.id === activeFileId);
+
+	// 🆕 订阅乐谱选区状态
+	const scoreSelection = useAppStore((s) => s.scoreSelection);
+
+	// 🆕 订阅播放位置状态
+	const playbackBeat = useAppStore((s) => s.playbackBeat);
+
+	// 🆕 订阅播放器光标位置（暂停时也保留）
+	const playerCursorPosition = useAppStore((s) => s.playerCursorPosition);
 
 	// Observe <html> to detect dark mode toggles (class 'dark')
 	const [isDark, setIsDark] = useState<boolean>(() => {
@@ -169,6 +186,22 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 
 					// Add immediate abbreviation expansion
 					extensions.push(alphatexAbbreviations);
+
+					// 🆕 Add selection sync extension (乐谱选区 → 代码高亮)
+					const selectionSyncExt = createSelectionSyncExtension();
+					extensions.push(...selectionSyncExt);
+
+					// 🆕 Add playback sync extension (播放进度 → 代码高亮)
+					const playbackSyncExt = createPlaybackSyncExtension();
+					extensions.push(...playbackSyncExt);
+
+					// 🆕 Add cursor tracking extension (代码光标 → 乐谱定位)
+					const cursorTrackingExt = createCursorTrackingExtension(
+						(cursor: EditorCursorInfo | null) => {
+							useAppStore.getState().setEditorCursor(cursor);
+						},
+					);
+					extensions.push(cursorTrackingExt);
 
 					// Enable soft-wrapping
 					extensions.push(EditorView.lineWrapping);
@@ -358,6 +391,41 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 			effects: themeCompartmentRef.current.reconfigure(themeExtension),
 		});
 	}, [isDark, createThemeExtension]);
+
+	// 🆕 监听乐谱选区变化，更新编辑器高亮
+	useEffect(() => {
+		const view = viewRef.current;
+		if (!view) return;
+
+		// 只有 AlphaTex 文件才需要选区同步
+		const language = activeFile ? getLanguageForFile(activeFile.path) : "";
+		if (language !== "alphatex") return;
+
+		const content = activeFile?.content ?? "";
+		updateEditorSelectionHighlight(view, content, scoreSelection);
+	}, [scoreSelection, activeFile, getLanguageForFile]);
+
+	// 🆕 监听播放位置变化，更新编辑器播放高亮
+	// 播放中：显示绿色高亮（当前音符）
+	// 未播放：显示黄色高亮（播放器光标所在小节）
+	useEffect(() => {
+		const view = viewRef.current;
+		if (!view) return;
+
+		// 只有 AlphaTex 文件才需要播放同步
+		const language = activeFile ? getLanguageForFile(activeFile.path) : "";
+		if (language !== "alphatex") return;
+
+		const content = activeFile?.content ?? "";
+		const isPlaying = playbackBeat !== null;
+		updateEditorPlaybackHighlight(
+			view,
+			content,
+			playbackBeat,
+			playerCursorPosition,
+			isPlaying,
+		);
+	}, [playbackBeat, playerCursorPosition, activeFile, getLanguageForFile]);
 
 	// Cleanup on unmount
 	useEffect(() => {
