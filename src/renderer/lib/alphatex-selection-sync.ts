@@ -1411,7 +1411,8 @@ function safeDispatchBarHighlight(
 
 /**
  * 滚动编辑器使播放高亮可见
- * 逻辑：如果高亮超出当前可视区域，则滚动使其位于视口顶部
+ * 策略：始终滚动，让高亮保持在视口顶部附近
+ * 播放时频繁调用，保持跟随效果
  *
  * @param view CodeMirror EditorView
  * @param codeRange 高亮的代码范围
@@ -1424,7 +1425,6 @@ function scrollToPlaybackHighlight(
 		return;
 	}
 
-	// 🆕 使用 setTimeout(0) 代替 requestAnimationFrame 避免与滚动事件冲突
 	setTimeout(() => {
 		if (!view || !view.dom || !document.contains(view.dom)) {
 			return;
@@ -1433,19 +1433,24 @@ function scrollToPlaybackHighlight(
 		try {
 			const targetPos = codeRange.from;
 
-			// 🆕 使用 visibleRanges 检查位置是否在可视区域内
-			// 这比 coordsAtPos 更可靠，因为 coordsAtPos 对于未渲染的位置会返回 null
-			const { visibleRanges } = view;
-			const isVisible = visibleRanges.some(
-				(range) => targetPos >= range.from && targetPos <= range.to,
-			);
+			// 获取像素坐标来判断是否需要滚动
+			const coords = view.coordsAtPos(targetPos);
+			const scrollDOM = view.scrollDOM;
+			const editorRect = scrollDOM.getBoundingClientRect();
 
-			// 如果不在可视区域内，滚动到顶部位置
-			if (!isVisible) {
+			// 计算舒适区域（像素）：视口高度的 15% ~ 70%
+			const topThreshold = editorRect.top + editorRect.height * 0.15;
+			const bottomThreshold = editorRect.top + editorRect.height * 0.7;
+
+			// 如果坐标获取失败（位置未渲染）或超出舒适区域，触发滚动
+			const needsScroll =
+				!coords || coords.top < topThreshold || coords.top > bottomThreshold;
+
+			if (needsScroll) {
 				view.dispatch({
 					effects: EditorView.scrollIntoView(targetPos, {
-						y: "start", // 滚动到顶部
-						yMargin: 50, // 顶部留 50px 边距
+						y: "start",
+						yMargin: 50,
 					}),
 				});
 			}
@@ -1455,12 +1460,12 @@ function scrollToPlaybackHighlight(
 				err,
 			);
 		}
-	});
+	}, 0);
 }
 
 /**
  * 滚动编辑器使小节高亮可见（滚动到视窗 33% 位置）
- * 只有当高亮超出可视区域时才滚动
+ * 策略：当高亮不在舒适区域时滚动
  *
  * @param view CodeMirror EditorView
  * @param codeRange 高亮的代码范围
@@ -1476,20 +1481,24 @@ function scrollToBarHighlight(view: EditorView, codeRange: CodeRange): void {
 		}
 
 		try {
-			// 🆕 使用 visibleRanges 判断是否在视口内（不依赖 coordsAtPos）
 			const targetPos = codeRange.from;
-			const visibleRanges = view.visibleRanges;
 
-			// 检查目标位置是否在任何可见范围内
-			const isVisible = visibleRanges.some(
-				(range) => targetPos >= range.from && targetPos <= range.to,
-			);
+			// 获取像素坐标来判断是否需要滚动
+			const coords = view.coordsAtPos(targetPos);
+			const scrollDOM = view.scrollDOM;
+			const editorRect = scrollDOM.getBoundingClientRect();
 
-			// 如果不在可见范围内，执行滚动
-			if (!isVisible) {
-				// 获取编辑器可视区域高度，计算 33% 位置的 margin
-				const scrollDOM = view.scrollDOM;
-				const viewportHeight = scrollDOM.getBoundingClientRect().height;
+			// 计算舒适区域（像素）：视口高度的 20% ~ 80%
+			const topThreshold = editorRect.top + editorRect.height * 0.2;
+			const bottomThreshold = editorRect.top + editorRect.height * 0.8;
+
+			// 如果坐标获取失败（位置未渲染）或超出舒适区域，触发滚动
+			const needsScroll =
+				!coords || coords.top < topThreshold || coords.top > bottomThreshold;
+
+			if (needsScroll) {
+				// 滚动到 33% 位置
+				const viewportHeight = editorRect.height;
 				const targetMargin = Math.floor(viewportHeight * 0.33);
 
 				view.dispatch({
