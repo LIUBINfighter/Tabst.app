@@ -18,6 +18,7 @@ import {
 import type { ResourceUrls } from "../lib/resourceLoaderService";
 import { getResourceUrls } from "../lib/resourceLoaderService";
 import { PrintTracksPanel } from "./PrintTracksPanel";
+import TopBar from "./TopBar";
 import { Button } from "./ui/button";
 
 export interface PrintPreviewProps {
@@ -660,88 +661,98 @@ export default function PrintPreview({
 					`}
 				</style>
 			)}
-			{/* 工具栏 */}
-			<div className="h-12 border-b border-border flex items-center justify-between px-4 bg-card shrink-0">
-				<div className="flex items-center gap-4">
-					<Button variant="ghost" size="icon" onClick={onClose} title="关闭">
+			{/* 工具栏（复用 TopBar 以统一样式） */}
+			<TopBar
+				className="px-4"
+				leading={
+					<Button
+						variant="ghost"
+						size="icon"
+						className="h-8 w-8"
+						onClick={onClose}
+						title="关闭"
+					>
 						<X className="h-5 w-5" />
 					</Button>
+				}
+				title={
 					<span className="text-sm font-medium">{fileName} - 打印预览</span>
-				</div>
-
-				<div className="flex items-center gap-4">
-					{/* 音轨选择按钮 */}
-					<Button
-						variant={isTracksPanelOpen ? "secondary" : "ghost"}
-						size="icon"
-						onClick={() => setIsTracksPanelOpen(!isTracksPanelOpen)}
-						title="音轨选择"
-						disabled={isLoading || !apiRef.current?.score}
-					>
-						<Layers className="h-5 w-5" />
-					</Button>
-
-					{/* 页面尺寸选择 */}
-					<select
-						className="h-8 px-2 text-sm border border-border rounded bg-background"
-						value={pageSize.name}
-						onChange={(e) => {
-							const size = PAGE_SIZES.find((s) => s.name === e.target.value);
-							if (size) setPageSize(size);
-						}}
-					>
-						{PAGE_SIZES.map((size) => (
-							<option key={size.name} value={size.name}>
-								{size.name} ({size.width}×{size.height}mm)
-							</option>
-						))}
-					</select>
-
-					{/* 页码导航 */}
-					{totalPages > 0 && (
-						<div className="flex items-center gap-2">
-							<Button
-								variant="ghost"
-								size="icon"
-								onClick={() => navigateToPage(currentPage - 1)}
-								disabled={currentPage <= 1}
-							>
-								<ChevronLeft className="h-4 w-4" />
-							</Button>
-							<span className="text-sm min-w-[80px] text-center">
-								{currentPage} / {totalPages}
-							</span>
-							<Button
-								variant="ghost"
-								size="icon"
-								onClick={() => navigateToPage(currentPage + 1)}
-								disabled={currentPage >= totalPages}
-							>
-								<ChevronRight className="h-4 w-4" />
-							</Button>
-						</div>
-					)}
-
-					{/* 打印按钮 */}
-					<Button
-						onClick={handlePrint}
-						disabled={isLoading || !!error || pages.length === 0}
-					>
-						<Printer className="h-4 w-4 mr-2" />
-						打印 / 导出 PDF
-					</Button>
-
-					{/* 字体加载状态提示 */}
-					{fontError && (
-						<span
-							className="text-xs text-amber-600"
-							title="字体加载失败，使用回退字体"
+				}
+				trailing={
+					<div className="flex items-center gap-4">
+						{/* 音轨选择按钮 */}
+						<Button
+							variant={isTracksPanelOpen ? "secondary" : "ghost"}
+							size="icon"
+							className="h-8 w-8"
+							disabled={isLoading || !apiRef.current?.score}
 						>
-							⚠️ 字体
-						</span>
-					)}
-				</div>
-			</div>
+							<Layers className="h-5 w-5" />
+						</Button>
+
+						{/* 页面尺寸选择 */}
+						<select
+							className="h-8 px-2 text-sm border border-border rounded bg-background"
+							value={pageSize.name}
+							onChange={(e) => {
+								const size = PAGE_SIZES.find((s) => s.name === e.target.value);
+								if (size) setPageSize(size);
+							}}
+						>
+							{PAGE_SIZES.map((size) => (
+								<option key={size.name} value={size.name}>
+									{size.name} ({size.width}×{size.height}mm)
+								</option>
+							))}
+						</select>
+
+						{/* 页码导航 */}
+						{totalPages > 0 && (
+							<div className="flex items-center gap-2">
+								<Button
+									variant="ghost"
+									size="icon"
+									className="h-8 w-8"
+									onClick={() => navigateToPage(currentPage - 1)}
+									disabled={currentPage <= 1}
+								>
+									<ChevronLeft className="h-4 w-4" />
+								</Button>
+								<span className="text-sm min-w-[80px] text-center">
+									{currentPage} / {totalPages}
+								</span>
+								<Button
+									variant="ghost"
+									size="icon"
+									className="h-8 w-8"
+									onClick={() => navigateToPage(currentPage + 1)}
+									disabled={currentPage >= totalPages}
+								>
+									<ChevronRight className="h-4 w-4" />
+								</Button>
+							</div>
+						)}
+						<Button
+							size="sm"
+							onClick={handlePrint}
+							disabled={isLoading || !!error || pages.length === 0}
+						>
+							<Printer className="h-4 w-4 mr-2" />
+							打印 / 导出 PDF
+						</Button>
+
+						{/* 字体加载状态提示 */}
+						{fontError && (
+							<span
+								className="text-xs text-amber-600"
+								title="字体加载失败，使用回退字体"
+							>
+								⚠️ 字体
+							</span>
+						)}
+					</div>
+				}
+			/>
 
 			{/* 主内容区域（包含侧边栏和预览） */}
 			<div className="flex-1 flex overflow-hidden">
