@@ -361,8 +361,8 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 											</button>
 										</div>
 
-										{/* 扩展名 */}
-										{fileExt && (
+										{/* 扩展名（仅显示 .md，隐藏 .atex） */}
+										{fileExt === "md" && (
 											<code
 												className={`shrink-0 font-mono bg-muted/50 px-1 rounded text-xs h-6 leading-6 select-none ${
 													isActive ? "text-blue-600" : "text-muted-foreground"
