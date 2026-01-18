@@ -281,21 +281,21 @@ export default function Preview({
 				console.debug("[Preview] Soundfont event binding failed:", e);
 			}
 
-			// 2. 渲染完成（处理播放状态和光标）
+			// 2. 渲染完成（处理光标，注意：不要修改播放状态）
 			api.renderFinished.on((r) => {
 				console.info("[Preview] alphaTab render complete:", r);
-				setIsPlaying(false);
 				const cursor = cursorRef.current;
 				if (cursor) cursor.style.display = "none";
-				// 🆕 播放结束时清除编辑器中的播放高亮
+				// 渲染完成时清除编辑器中的播放高亮（但不修改播放状态）
 				useAppStore.getState().clearPlaybackBeat();
 			});
 
 			// 3. 播放进度（更新光标位置）
 			api.playedBeatChanged?.on((beat: alphaTab.model.Beat | null) => {
 				if (!beat) {
-					// 播放停止时清除播放高亮（但保留 playerCursorPosition）
+					// 播放停止时清除播放高亮并更新播放按钮状态（保留 playerCursorPosition）
 					useAppStore.getState().clearPlaybackBeat();
+					setIsPlaying(false);
 					return;
 				}
 				setIsPlaying(true);
@@ -320,6 +320,24 @@ export default function Preview({
 				cursor.style.top = `${visual.y}px`;
 				cursor.style.width = `${visual.w}px`;
 				cursor.style.height = `${visual.h}px`;
+			});
+
+			// 4. 播放器完成/状态变化事件：确保 UI 与播放器同步
+			api.playerFinished?.on(() => {
+				console.info("[Preview] alphaTab player finished");
+				setIsPlaying(false);
+				useAppStore.getState().clearPlaybackBeat();
+			});
+
+			api.playerStateChanged?.on((e: { state: number; stopped?: boolean }) => {
+				console.info("[Preview] alphaTab player state changed:", e);
+				if (e?.stopped) {
+					setIsPlaying(false);
+				} else if (e?.state === 1 /* Playing */) {
+					setIsPlaying(true);
+				} else {
+					setIsPlaying(false);
+				}
 			});
 
 			// 🆕 3.6. 点击曲谱时更新播放器光标位置（不播放也能设置）
