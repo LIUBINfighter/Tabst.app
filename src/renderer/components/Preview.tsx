@@ -1,14 +1,5 @@
 import * as alphaTab from "@coderline/alphatab";
-import {
-	FileText,
-	Minus,
-	Pause,
-	Play,
-	Plus,
-	Printer,
-	Square,
-	Waves,
-} from "lucide-react";
+import { FileText, Printer } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPreviewSettings } from "../lib/alphatab-config";
 import { formatFullError } from "../lib/alphatab-error";
@@ -77,7 +68,7 @@ export default function Preview({
 	const apiRef = useRef<alphaTab.AlphaTabApi | null>(null);
 	const cursorRef = useRef<HTMLDivElement | null>(null);
 	// Zoom state (percentage)
-	const [zoomPercent, setZoomPercent] = useState<number>(60);
+
 	const zoomRef = useRef<number>(60);
 	// 🆕 保存 tracks 配置，用于主题切换时恢复
 	const trackConfigRef = useRef<{
@@ -110,6 +101,11 @@ export default function Preview({
 	const [showPrintPreview, setShowPrintPreview] = useState(false);
 	const [reinitTrigger, setReinitTrigger] = useState(0);
 
+	// Playback UI states (moved earlier so listeners can reference them)
+	const [scrollMode, setScrollMode] = useState<alphaTab.ScrollMode>(
+		alphaTab.ScrollMode.OffScreen,
+	);
+
 	// 🆕 订阅编辑器光标位置，用于反向同步（编辑器 → 乐谱）
 	const editorCursor = useAppStore((s) => s.editorCursor);
 	const setFirstStaffOptions = useAppStore((s) => s.setFirstStaffOptions);
@@ -127,7 +123,8 @@ export default function Preview({
 	// Apply zoom to alphaTab API
 	const applyZoom = useCallback((newPercent: number) => {
 		const pct = Math.max(10, Math.min(400, Math.round(newPercent)));
-		setZoomPercent(pct);
+		// Keep store in sync
+		useAppStore.getState().setZoomPercent(pct);
 		zoomRef.current = pct;
 		const api = apiRef.current;
 		if (!api || !api.settings) return;
@@ -295,12 +292,9 @@ export default function Preview({
 				if (!beat) {
 					// 播放停止时清除播放高亮并更新播放按钮状态（保留 playerCursorPosition）
 					useAppStore.getState().clearPlaybackBeat();
-					setIsPlaying(false);
+					useAppStore.getState().setPlayerIsPlaying(false);
 					return;
 				}
-				setIsPlaying(true);
-
-				// 🆕 更新播放位置到 store，触发编辑器高亮
 				const barIndex = beat.voice?.bar?.index ?? 0;
 				const beatIndex = beat.index ?? 0;
 				useAppStore.getState().setPlaybackBeat({ barIndex, beatIndex });
@@ -325,22 +319,47 @@ export default function Preview({
 			// 4. 播放器完成/状态变化事件：确保 UI 与播放器同步
 			api.playerFinished?.on(() => {
 				console.info("[Preview] alphaTab player finished");
-				setIsPlaying(false);
-				useAppStore.getState().clearPlaybackBeat();
 			});
 
 			api.playerStateChanged?.on((e: { state: number; stopped?: boolean }) => {
 				console.info("[Preview] alphaTab player state changed:", e);
 				if (e?.stopped) {
-					setIsPlaying(false);
+					useAppStore.getState().setPlayerIsPlaying(false);
 				} else if (e?.state === 1 /* Playing */) {
-					setIsPlaying(true);
+					useAppStore.getState().setPlayerIsPlaying(true);
 				} else {
-					setIsPlaying(false);
+					useAppStore.getState().setPlayerIsPlaying(false);
 				}
 			});
 
-			// 🆕 3.6. 点击曲谱时更新播放器光标位置（不播放也能设置）
+			// 🆕 Register playback controls to store so controls can live outside of Preview
+			try {
+				useAppStore.getState().registerPlayerControls({
+					play: () => api.play?.(),
+					pause: () => api.pause?.(),
+					stop: () => api.stop?.(),
+					toggleScrollMode: () => {
+						const newMode =
+							scrollMode === alphaTab.ScrollMode.Continuous
+								? alphaTab.ScrollMode.OffScreen
+								: alphaTab.ScrollMode.Continuous;
+						setScrollMode(newMode);
+						try {
+							(api.settings.player as alphaTab.PlayerSettings).scrollMode =
+								newMode;
+							api.updateSettings?.();
+						} catch (err) {
+							console.error("Failed to toggle scroll mode:", err);
+						}
+						useAppStore.getState().setScrollMode(newMode);
+					},
+					applyZoom: (pct: number) => applyZoom(pct),
+				});
+			} catch (err) {
+				console.debug("Failed to register player controls:", err);
+			}
+
+			// 3.6. 点击曲谱时更新播放器光标位置（不播放也能设置）
 			api.beatMouseDown?.on((beat: alphaTab.model.Beat) => {
 				if (!beat) return;
 				const barIndex = beat.voice?.bar?.index ?? 0;
@@ -724,7 +743,7 @@ export default function Preview({
 			}
 			pendingTexRef.current = null;
 		};
-	}, [applyTracksConfig, reinitTrigger]);
+	}, [applyTracksConfig, reinitTrigger, applyZoom, scrollMode]);
 
 	// 内容更新：仅调用 tex，不销毁 API，避免闪烁
 	useEffect(() => {
@@ -784,12 +803,6 @@ export default function Preview({
 		}
 	}, [content]);
 
-	// Playback UI states
-	const [isPlaying, setIsPlaying] = useState(false);
-	const [scrollMode, setScrollMode] = useState<alphaTab.ScrollMode>(
-		alphaTab.ScrollMode.OffScreen,
-	);
-
 	// 管理打印预览的生命周期：销毁和重建 alphaTab API 以避免设置污染
 	useEffect(() => {
 		if (showPrintPreview) {
@@ -802,6 +815,12 @@ export default function Preview({
 				).__unsubscribeTheme;
 				if (typeof unsubscribeTheme === "function") {
 					unsubscribeTheme();
+				}
+				// Unregister controls from store so bottom bar won't call destroyed API
+				try {
+					useAppStore.getState().unregisterPlayerControls();
+				} catch (e) {
+					console.debug("Failed to unregister player controls:", e);
 				}
 				apiRef.current.destroy();
 				apiRef.current = null;
@@ -833,128 +852,6 @@ export default function Preview({
 						title={<span className="sr-only">{fileName ?? "预览"}</span>}
 						trailing={
 							<>
-								{/* Player controls: inline buttons (Play-Pause / Stop / Scroll) */}
-								<div className="flex items-center gap-1">
-									{/* Player enable toggle removed: controls are always enabled */}
-
-									<IconButton
-										active={isPlaying}
-										title={isPlaying ? "暂停" : "播放"}
-										onClick={() => {
-											const api = apiRef.current;
-											if (!api) return;
-											try {
-												if (!isPlaying) {
-													api.play?.();
-													setIsPlaying(true);
-												} else {
-													api.pause?.();
-													setIsPlaying(false);
-												}
-											} catch (e) {
-												console.error("Failed play/pause:", e);
-											}
-										}}
-									>
-										{isPlaying ? (
-											<Pause className="h-4 w-4" />
-										) : (
-											<Play className="h-4 w-4" />
-										)}
-									</IconButton>
-
-									<IconButton
-										title="停止"
-										onClick={() => {
-											const api = apiRef.current;
-											if (!api) return;
-											try {
-												api.stop?.();
-												setIsPlaying(false);
-											} catch (e) {
-												console.error("Failed stop:", e);
-											}
-										}}
-									>
-										<Square className="h-4 w-4" />
-									</IconButton>
-
-									<IconButton
-										active={scrollMode === alphaTab.ScrollMode.Continuous}
-										onClick={() => {
-											const api = apiRef.current;
-											if (!api || !api.settings) return;
-											try {
-												const newMode =
-													scrollMode === alphaTab.ScrollMode.Continuous
-														? alphaTab.ScrollMode.OffScreen
-														: alphaTab.ScrollMode.Continuous;
-												setScrollMode(newMode);
-												(
-													api.settings.player as alphaTab.PlayerSettings
-												).scrollMode = newMode;
-												api.updateSettings?.();
-											} catch (error) {
-												console.error("Failed to toggle scroll mode:", error);
-											}
-										}}
-										title={`滚动模式：${
-											scrollMode === alphaTab.ScrollMode.Continuous
-												? "连续滚动"
-												: "超出页面后滚动"
-										}`}
-									>
-										<Waves className="h-4 w-4" />
-									</IconButton>
-								</div>
-								{/* Zoom controls: - button, percentage input, + button */}
-								<div className="ml-2 flex items-center gap-1">
-									<IconButton
-										compact
-										title="缩小"
-										onClick={() => applyZoom(zoomPercent - 10)}
-									>
-										<Minus className="h-4 w-4" />
-									</IconButton>
-
-									<input
-										aria-label="缩放百分比"
-										value={zoomPercent}
-										onChange={(e) => {
-											const v = parseInt(e.target.value ?? "60", 10);
-											if (Number.isNaN(v)) return;
-											applyZoom(v);
-										}}
-										onBlur={(e) => {
-											const v = parseInt(e.target.value ?? "60", 10);
-											if (Number.isNaN(v)) return;
-											applyZoom(v);
-										}}
-										className="w-8 h-6 text-xs text-center rounded bg-transparent border border-border px-1 input-no-spinner"
-										step={1}
-										min={10}
-										max={400}
-										onKeyDown={(e) => {
-											if (e.key === "ArrowUp" || e.key === "ArrowDown") {
-												e.preventDefault();
-											}
-										}}
-										onWheel={(e) => {
-											e.preventDefault();
-										}}
-										type="number"
-									/>
-									<span className="text-xs">%</span>
-
-									<IconButton
-										compact
-										title="放大"
-										onClick={() => applyZoom(zoomPercent + 10)}
-									>
-										<Plus className="h-4 w-4" />
-									</IconButton>
-								</div>
-
 								{/* 打印按钮 */}
 								<div className="ml-2 flex items-center gap-1">
 									<IconButton

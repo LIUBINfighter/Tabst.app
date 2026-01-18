@@ -65,6 +65,23 @@ interface AppState {
 	// 🆕 播放器光标位置 - 暂停时也保留，用于显示黄色小节高亮
 	playerCursorPosition: PlaybackBeatInfo | null;
 
+	// 🆕 Player UI / remote controls
+	playerControls: {
+		play?: () => void;
+		pause?: () => void;
+		stop?: () => void;
+		toggleScrollMode?: () => void;
+		applyZoom?: (percent: number) => void;
+	} | null;
+	registerPlayerControls: (controls: NonNullable<object>) => void;
+	unregisterPlayerControls: () => void;
+	playerIsPlaying: boolean;
+	setPlayerIsPlaying: (v: boolean) => void;
+	zoomPercent: number;
+	setZoomPercent: (v: number) => void;
+	scrollMode: number;
+	setScrollMode: (v: number) => void;
+
 	// 🆕 第一个谱表显示选项
 	firstStaffOptions: StaffDisplayOptions | null;
 
@@ -109,6 +126,15 @@ export const useAppStore = create<AppState>((set, get) => ({
 	editorCursor: null,
 	playbackBeat: null,
 	playerCursorPosition: null,
+	playerControls: null,
+	registerPlayerControls: (controls) => set({ playerControls: controls }),
+	unregisterPlayerControls: () => set({ playerControls: null }),
+	playerIsPlaying: false,
+	setPlayerIsPlaying: (v) => set({ playerIsPlaying: v }),
+	zoomPercent: 60,
+	setZoomPercent: (v) => set({ zoomPercent: v }),
+	scrollMode: 0,
+	setScrollMode: (v) => set({ scrollMode: v }),
 	firstStaffOptions: null,
 	pendingStaffToggle: null,
 
