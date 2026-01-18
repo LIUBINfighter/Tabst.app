@@ -50,16 +50,16 @@ function App() {
 				<Sidebar onCollapse={() => setSidebarCollapsed(true)} />
 			)}
 
-			{/* 编辑器主体 */}
-			<Editor
-				showExpandSidebar={sidebarCollapsed}
-				onExpandSidebar={() => setSidebarCollapsed(false)}
-			/>
+			{/* 编辑器主体 + 全局底部栏（将底部栏放在主内容流中，避免遮挡滚动内容） */}
+			<div className="flex-1 flex flex-col min-h-0">
+				<Editor
+					showExpandSidebar={sidebarCollapsed}
+					onExpandSidebar={() => setSidebarCollapsed(false)}
+				/>
 
-			{/* 全局底部栏（单独设计，不复用 PrintPreview 的实现） */}
-			{/* 使用 fixed 定位以覆盖全局，Editor 已有底部内边距以避免遮挡 */}
-			{/* 注意：如果你想让底部栏包含更多交互（可折叠、通知等），可以再扩展这个组件 */}
-			<GlobalBottomBar />
+				{/* 全局底部栏（放在主内容流中，保持与 Editor 排列，不再遮挡内容） */}
+				<GlobalBottomBar />
+			</div>
 		</div>
 	);
 }

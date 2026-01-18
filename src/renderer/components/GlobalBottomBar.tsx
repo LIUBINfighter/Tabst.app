@@ -17,7 +17,7 @@ export default function GlobalBottomBar() {
 	const scrollMode = useAppStore((s) => s.scrollMode);
 
 	return (
-		<footer className="fixed bottom-0 left-0 right-0 z-40 h-9 border-t border-border bg-card flex items-center justify-between px-4 text-xs text-muted-foreground">
+		<footer className="h-9 border-t border-border bg-card flex items-center justify-between px-4 text-xs text-muted-foreground flex-shrink-0 w-full">
 			{/* Left: app status */}
 			<div className="flex items-center gap-3">
 				<span className="font-medium">Tabst</span>
