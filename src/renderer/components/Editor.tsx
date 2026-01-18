@@ -22,7 +22,9 @@ import { whitespaceDecoration } from "../lib/whitespace-decoration";
 import type { EditorCursorInfo } from "../store/appStore";
 import { useAppStore } from "../store/appStore";
 import Preview from "./Preview";
+import TopBar from "./TopBar";
 import { Button } from "./ui/button";
+import IconButton from "./ui/icon-button";
 
 interface EditorProps {
 	showExpandSidebar?: boolean;
@@ -464,21 +466,26 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 					{/* Left: Editor */}
 					<div className="w-1/2 border-r border-border flex flex-col min-h-0">
 						{/* Column header to align with Preview header */}
-						<div className="h-9 border-b border-border flex items-center px-3 text-xs text-muted-foreground shrink-0 gap-2 bg-card">
-							{showExpandSidebar && (
-								<Button
-									variant="ghost"
-									size="icon"
-									className="h-8 w-8"
-									onClick={onExpandSidebar}
-									aria-label="展开侧边栏"
-								>
-									<ChevronRight className="h-4 w-4" />
-								</Button>
-							)}
-							<Edit className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-							<div className="truncate">{activeFile.name}</div>
-						</div>
+						<TopBar
+							leading={
+								showExpandSidebar ? (
+									<Button
+										variant="ghost"
+										size="icon"
+										className="h-8 w-8"
+										onClick={onExpandSidebar}
+										aria-label="展开侧边栏"
+									>
+										<ChevronRight className="h-4 w-4" />
+									</Button>
+								) : undefined
+							}
+							icon={
+								<Edit className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+							}
+							title={activeFile.name}
+						/>
+
 						<div className="flex-1 min-h-0 overflow-hidden relative">
 							{/* Host for CodeMirror */}
 							<div ref={editorRef} className="h-full" />
@@ -495,21 +502,19 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 				</div>
 			) : (
 				<div className="flex-1 flex flex-col min-h-0 overflow-hidden relative">
-					<div className="h-9 border-b border-border flex items-center px-3 text-xs text-muted-foreground shrink-0 gap-2 bg-card">
-						{showExpandSidebar && (
-							<Button
-								variant="ghost"
-								size="icon"
-								className="h-8 w-8"
-								onClick={onExpandSidebar}
-								aria-label="展开侧边栏"
-							>
-								<ChevronRight className="h-4 w-4" />
-							</Button>
-						)}
-						<Edit className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-						<div className="truncate">{activeFile.name}</div>
-					</div>
+					<TopBar
+						leading={
+							showExpandSidebar ? (
+								<IconButton title="展开侧边栏" onClick={onExpandSidebar}>
+									<ChevronRight className="h-4 w-4" />
+								</IconButton>
+							) : undefined
+						}
+						icon={
+							<Edit className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+						}
+						title={activeFile.name}
+					/>
 					{/* Host for CodeMirror */}
 					<div ref={editorRef} className="h-full" />
 				</div>
