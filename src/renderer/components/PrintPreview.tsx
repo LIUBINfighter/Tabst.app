@@ -59,7 +59,7 @@ export default function PrintPreview({
 	const [printFontUrl, setPrintFontUrl] = useState<string>("");
 
 	// 音轨选择侧边栏状态
-	const [isTracksPanelOpen, setIsTracksPanelOpen] = useState(false);
+	const [isTracksPanelOpen, setIsTracksPanelOpen] = useState(true);
 
 	// 缩放比例状态
 	const [zoom, setZoom] = useState(1.0);
@@ -680,16 +680,6 @@ export default function PrintPreview({
 				}
 				trailing={
 					<div className="flex items-center gap-4">
-						{/* 音轨选择按钮 */}
-						<Button
-							variant={isTracksPanelOpen ? "secondary" : "ghost"}
-							size="icon"
-							className="h-8 w-8"
-							disabled={isLoading || !apiRef.current?.score}
-						>
-							<Layers className="h-5 w-5" />
-						</Button>
-
 						{/* 页面尺寸选择 */}
 						<select
 							className="h-8 px-2 text-sm border border-border rounded bg-background"
@@ -732,15 +722,24 @@ export default function PrintPreview({
 								</Button>
 							</div>
 						)}
+						{/* 音轨选择按钮 */}
+						<Button
+							variant={isTracksPanelOpen ? "secondary" : "ghost"}
+							size="icon"
+							className="h-8 w-8"
+							onClick={() => setIsTracksPanelOpen(!isTracksPanelOpen)}
+							disabled={isLoading || !apiRef.current?.score}
+						>
+							<Layers className="h-5 w-5" />
+						</Button>
 						<Button
 							size="sm"
+							className="px-3"
 							onClick={handlePrint}
 							disabled={isLoading || !!error || pages.length === 0}
 						>
-							<Printer className="h-4 w-4 mr-2" />
-							打印 / 导出 PDF
+							<Printer className="h-3.5 w-3.5 mr-1" /> 打印 / 导出 PDF
 						</Button>
-
 						{/* 字体加载状态提示 */}
 						{fontError && (
 							<span
