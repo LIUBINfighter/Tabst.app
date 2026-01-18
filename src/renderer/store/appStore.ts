@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import type { StaffDisplayOptions } from "../lib/staff-config";
 
 export interface FileItem {
 	id: string;
@@ -64,6 +65,12 @@ interface AppState {
 	// 🆕 播放器光标位置 - 暂停时也保留，用于显示黄色小节高亮
 	playerCursorPosition: PlaybackBeatInfo | null;
 
+	// 🆕 第一个谱表显示选项
+	firstStaffOptions: StaffDisplayOptions | null;
+
+	// 🆕 待处理的谱表选项切换
+	pendingStaffToggle: keyof StaffDisplayOptions | null;
+
 	// Actions
 	addFile: (file: FileItem) => void;
 	removeFile: (id: string) => void;
@@ -86,6 +93,11 @@ interface AppState {
 	// 🆕 播放器光标位置操作（暂停时也保留）
 	setPlayerCursorPosition: (position: PlaybackBeatInfo | null) => void;
 
+	// 🆕 谱表选项操作
+	setFirstStaffOptions: (options: StaffDisplayOptions | null) => void;
+	toggleFirstStaffOption: (key: keyof StaffDisplayOptions) => void;
+	requestStaffToggle: (key: keyof StaffDisplayOptions) => void;
+
 	// 初始化，从主进程读取持久化状态
 	initialize: () => Promise<void>;
 }
@@ -97,6 +109,8 @@ export const useAppStore = create<AppState>((set, get) => ({
 	editorCursor: null,
 	playbackBeat: null,
 	playerCursorPosition: null,
+	firstStaffOptions: null,
+	pendingStaffToggle: null,
 
 	addFile: (file) => {
 		set((state) => {
@@ -256,6 +270,28 @@ export const useAppStore = create<AppState>((set, get) => ({
 	// 🆕 设置播放器光标位置（暂停时也保留）
 	setPlayerCursorPosition: (position) => {
 		set({ playerCursorPosition: position });
+	},
+
+	// 🆕 设置第一个谱表选项
+	setFirstStaffOptions: (options) => {
+		set({ firstStaffOptions: options });
+	},
+
+	// 🆕 切换第一个谱表选项
+	toggleFirstStaffOption: (key) => {
+		set((state) => ({
+			firstStaffOptions: state.firstStaffOptions
+				? {
+						...state.firstStaffOptions,
+						[key]: !state.firstStaffOptions[key],
+					}
+				: null,
+		}));
+	},
+
+	// 🆕 请求切换谱表选项（由 Preview 处理）
+	requestStaffToggle: (key) => {
+		set({ pendingStaffToggle: key });
 	},
 
 	initialize: async () => {

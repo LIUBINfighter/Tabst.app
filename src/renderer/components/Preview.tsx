@@ -1,14 +1,11 @@
 import * as alphaTab from "@coderline/alphatab";
 import {
 	FileText,
-	Hash,
 	Minus,
-	Music,
 	Pause,
 	Play,
 	Plus,
 	Printer,
-	Slash,
 	Square,
 	Waves,
 } from "lucide-react";
@@ -79,12 +76,6 @@ export default function Preview({
 	const containerRef = useRef<HTMLDivElement>(null);
 	const apiRef = useRef<alphaTab.AlphaTabApi | null>(null);
 	const cursorRef = useRef<HTMLDivElement | null>(null);
-	const [firstStaffOptions, setFirstStaffOptions] = useState<{
-		showNumbered?: boolean;
-		showSlash?: boolean;
-		showTablature?: boolean;
-		showStandardNotation?: boolean;
-	} | null>(null);
 	// Zoom state (percentage)
 	const [zoomPercent, setZoomPercent] = useState<number>(60);
 	const zoomRef = useRef<number>(60);
@@ -121,38 +112,17 @@ export default function Preview({
 
 	// 🆕 订阅编辑器光标位置，用于反向同步（编辑器 → 乐谱）
 	const editorCursor = useAppStore((s) => s.editorCursor);
+	const setFirstStaffOptions = useAppStore((s) => s.setFirstStaffOptions);
+	const pendingStaffToggle = useAppStore((s) => s.pendingStaffToggle);
+	const toggleFirstStaffOptionStore = useAppStore(
+		(s) => s.toggleFirstStaffOption,
+	);
 	// 防止因乐谱选择触发的光标更新导致循环
 	const isEditorCursorFromScoreRef = useRef(false);
 
 	useEffect(() => {
 		latestContentRef.current = content ?? "";
 	}, [content]);
-
-	const toggleFirstStaffOpt = (
-		key:
-			| "showTablature"
-			| "showStandardNotation"
-			| "showSlash"
-			| "showNumbered",
-	) => {
-		const api = apiRef.current;
-		if (!api) return;
-
-		const newValue = toggleFirstStaffOption(api, key);
-		if (newValue === null) return; // 切换失败或不允许
-
-		// Update UI state for compact display
-		setFirstStaffOptions((prev) => ({
-			...(prev ?? {}),
-			[key]: newValue,
-		}));
-
-		// 🆕 同时保存到 ref，用于主题切换时恢复
-		trackConfigRef.current = {
-			...trackConfigRef.current,
-			[key]: newValue,
-		};
-	};
 
 	// Apply zoom to alphaTab API
 	const applyZoom = useCallback((newPercent: number) => {
@@ -176,22 +146,25 @@ export default function Preview({
 	 * 🆕 应用 tracks 显示配置到第一个音轨
 	 * 从 trackConfigRef 读取保存的配置，如果没有则使用默认值
 	 */
-	const applyTracksConfig = useCallback((api: alphaTab.AlphaTabApi) => {
-		// 从 ref 获取保存的配置，如果没有则使用默认值
-		const config: StaffDisplayOptions = trackConfigRef.current || {
-			showTablature: true,
-			showStandardNotation: false,
-			showSlash: false,
-			showNumbered: false,
-		};
+	const applyTracksConfig = useCallback(
+		(api: alphaTab.AlphaTabApi) => {
+			// 从 ref 获取保存的配置，如果没有则使用默认值
+			const config: StaffDisplayOptions = trackConfigRef.current || {
+				showTablature: true,
+				showStandardNotation: false,
+				showSlash: false,
+				showNumbered: false,
+			};
 
-		// 应用配置
-		const appliedConfig = applyStaffConfig(api, config);
-		if (appliedConfig) {
-			// 更新 UI state
-			setFirstStaffOptions(appliedConfig);
-		}
-	}, []);
+			// 应用配置
+			const appliedConfig = applyStaffConfig(api, config);
+			if (appliedConfig) {
+				// 更新 UI state
+				setFirstStaffOptions(appliedConfig);
+			}
+		},
+		[setFirstStaffOptions],
+	);
 
 	/**
 	 * 🆕 监听编辑器光标变化，反向同步到乐谱选区
@@ -259,6 +232,23 @@ export default function Preview({
 			}
 		}
 	}, [editorCursor]);
+
+	// 🆕 处理来自 GlobalBottomBar 的谱表切换请求
+	useEffect(() => {
+		if (pendingStaffToggle) {
+			const api = apiRef.current;
+			if (!api) return;
+
+			const newValue = toggleFirstStaffOption(api, pendingStaffToggle);
+			if (newValue !== null) {
+				// 更新 store 中的状态
+				toggleFirstStaffOptionStore(pendingStaffToggle);
+			}
+
+			// 清除 pending toggle
+			setTimeout(() => useAppStore.setState({ pendingStaffToggle: null }), 0);
+		}
+	}, [pendingStaffToggle, toggleFirstStaffOptionStore]);
 
 	useEffect(() => {
 		if (!containerRef.current) return;
@@ -825,47 +815,8 @@ export default function Preview({
 						title={<span className="sr-only">{fileName ?? "预览"}</span>}
 						trailing={
 							<>
-								{/* First track staff options (TAB / Standard / Slash / Numbered) */}
-								{firstStaffOptions && (
-									<div className="flex items-center gap-1">
-										<IconButton
-											active={firstStaffOptions?.showStandardNotation}
-											title="标准记谱法（五线谱)"
-											onClick={() =>
-												toggleFirstStaffOpt("showStandardNotation")
-											}
-										>
-											<Music className="h-4 w-4" />
-										</IconButton>
-
-										<IconButton
-											active={firstStaffOptions?.showTablature}
-											title="六线谱（TAB)"
-											onClick={() => toggleFirstStaffOpt("showTablature")}
-										>
-											<Hash className="h-4 w-4" />
-										</IconButton>
-
-										<IconButton
-											active={firstStaffOptions?.showSlash}
-											title="斜线记谱法（节拍）"
-											onClick={() => toggleFirstStaffOpt("showSlash")}
-										>
-											<Slash className="h-4 w-4" />
-										</IconButton>
-
-										<IconButton
-											active={firstStaffOptions?.showNumbered}
-											title="简谱（数字谱）"
-											onClick={() => toggleFirstStaffOpt("showNumbered")}
-										>
-											<FileText className="h-3.5 w-3.5" />
-										</IconButton>
-									</div>
-								)}
-
 								{/* Player controls: inline buttons (Play-Pause / Stop / Scroll) */}
-								<div className="ml-2 flex items-center gap-1">
+								<div className="flex items-center gap-1">
 									{/* Player enable toggle removed: controls are always enabled */}
 
 									<IconButton
