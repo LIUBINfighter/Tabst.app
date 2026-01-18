@@ -664,6 +664,24 @@ export default function PrintPreview({
 			)}
 			{/* 工具栏（复用 TopBar 以统一样式） */}
 			{/* Using IconButton component for consistent active styling (no extra CSS needed) */}
+			{/* Print button specific styling */}
+			<style>{`
+				.print-btn {
+					/* smaller to fit top bar */
+					padding-left: 0.5rem;
+					padding-right: 0.5rem;
+					height: 2rem; /* 32px to match icon buttons */
+					font-weight: 600;
+					font-size: 0.75rem; /* smaller text */
+					line-height: 1;
+				}
+				.print-btn svg {
+					width: 0.75rem;
+					height: 0.75rem;
+					margin-right: 0.25rem;
+				}
+				.print-btn:disabled { opacity: 0.6; }
+			`}</style>
 			<TopBar
 				className="px-4"
 				leading={
@@ -735,11 +753,12 @@ export default function PrintPreview({
 						</IconButton>
 						<Button
 							size="sm"
-							className="px-3"
+							className="px-2 print-btn h-8 text-xs"
+							variant="default"
 							onClick={handlePrint}
 							disabled={isLoading || !!error || pages.length === 0}
 						>
-							<Printer className="h-3.5 w-3.5 mr-1" /> 打印 / 导出 PDF
+							<Printer className="h-3 w-3 mr-1" /> 打印 / 导出 PDF
 						</Button>
 						{/* 字体加载状态提示 */}
 						{fontError && (
