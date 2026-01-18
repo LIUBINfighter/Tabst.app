@@ -983,7 +983,7 @@ export default function Preview({
 									if (Number.isNaN(v)) return;
 									applyZoom(v);
 								}}
-								className="w-16 h-6 text-xs text-center rounded bg-transparent border border-border px-1 input-no-spinner"
+								className="w-8 h-6 text-xs text-center rounded bg-transparent border border-border px-1 input-no-spinner"
 								step={1}
 								min={10}
 								max={400}
