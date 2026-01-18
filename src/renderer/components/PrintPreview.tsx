@@ -20,6 +20,7 @@ import { getResourceUrls } from "../lib/resourceLoaderService";
 import { PrintTracksPanel } from "./PrintTracksPanel";
 import TopBar from "./TopBar";
 import { Button } from "./ui/button";
+import IconButton from "./ui/icon-button";
 
 export interface PrintPreviewProps {
 	/** AlphaTex 内容 */
@@ -662,6 +663,7 @@ export default function PrintPreview({
 				</style>
 			)}
 			{/* 工具栏（复用 TopBar 以统一样式） */}
+			{/* Using IconButton component for consistent active styling (no extra CSS needed) */}
 			<TopBar
 				className="px-4"
 				leading={
@@ -722,16 +724,15 @@ export default function PrintPreview({
 								</Button>
 							</div>
 						)}
-						{/* 音轨选择按钮 */}
-						<Button
-							variant={isTracksPanelOpen ? "secondary" : "ghost"}
-							size="icon"
-							className="h-8 w-8"
+						{/* 音轨选择按钮（使用 IconButton 与主预览一致） */}
+						<IconButton
+							active={isTracksPanelOpen}
+							title={isTracksPanelOpen ? "关闭音轨选择" : "打开音轨选择"}
 							onClick={() => setIsTracksPanelOpen(!isTracksPanelOpen)}
 							disabled={isLoading || !apiRef.current?.score}
 						>
 							<Layers className="h-5 w-5" />
-						</Button>
+						</IconButton>
 						<Button
 							size="sm"
 							className="px-3"
