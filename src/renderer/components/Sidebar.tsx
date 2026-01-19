@@ -14,6 +14,7 @@ import { useEffect, useRef, useState } from "react";
 import { type FileItem, useAppStore } from "../store/appStore";
 import { TutorialsSidebar } from "./TutorialsSidebar";
 import { Button } from "./ui/button";
+import IconButton from "./ui/icon-button";
 import { ScrollArea } from "./ui/scroll-area";
 // Separator import removed - toolbar now includes border
 import {
@@ -79,7 +80,9 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 	const [renameValue, setRenameValue] = useState<string>("");
 	const [renameExt, setRenameExt] = useState<string>("");
 	const inputRef = useRef<HTMLInputElement | null>(null);
-	const [tutorialMode, setTutorialMode] = useState(false);
+	const workspaceMode = useAppStore((s) => s.workspaceMode);
+	const setWorkspaceMode = useAppStore((s) => s.setWorkspaceMode);
+	const setActiveTutorialId = useAppStore((s) => s.setActiveTutorialId);
 
 	const splitName = (name: string) => {
 		const idx = name.lastIndexOf(".");
@@ -143,15 +146,15 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 
 	// 打开应用设置（如果主进程提供接口则调用）
 	const handleOpenSettings = () => {
+		// Toggle settings workspace view; call main openSettings when activating
 		try {
-			// Use a safe any cast because the preload API may not expose openSettings
+			const newMode = workspaceMode === "settings" ? "editor" : "settings";
+			setWorkspaceMode(newMode);
 			const api = (
 				window as unknown as { electronAPI?: { openSettings?: () => void } }
 			).electronAPI;
-			if (api?.openSettings) {
+			if (newMode === "settings" && api?.openSettings) {
 				api.openSettings();
-			} else {
-				console.info("openSettings not available; implement settings UI here");
 			}
 		} catch (err) {
 			console.error("Failed to open settings:", err);
@@ -181,26 +184,6 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 							</TooltipContent>
 						</Tooltip>
 					)}
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<Button
-								variant="ghost"
-								size="icon"
-								className={`h-8 w-8 ${
-									tutorialMode
-										? "bg-blue-600 text-white hover:bg-blue-500/20 hover:text-blue-600"
-										: "hover:bg-blue-500/20 hover:text-blue-600"
-								}`}
-								aria-pressed={tutorialMode}
-								onClick={() => setTutorialMode((s) => !s)}
-							>
-								<FileQuestion className="h-4 w-4" />
-							</Button>
-						</TooltipTrigger>
-						<TooltipContent side="bottom">
-							<p>{tutorialMode ? "教程（切换回文件）" : "教程"}</p>
-						</TooltipContent>
-					</Tooltip>
 
 					<Tooltip>
 						<TooltipTrigger asChild>
@@ -274,7 +257,7 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 				{/* 文件列表 */}
 				<ScrollArea className="flex-1 w-full overflow-hidden">
 					<div className="py-1 w-full overflow-hidden">
-						{tutorialMode ? (
+						{workspaceMode === "tutorial" ? (
 							<TutorialsSidebar />
 						) : files.length === 0 ? (
 							<div className="p-3 text-xs text-muted-foreground text-center">
@@ -295,10 +278,14 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 									// biome-ignore lint/a11y/useSemanticElements: 需要在内部嵌套删除按钮，不能使用button
 									<div
 										key={file.id}
-										onClick={() => setActiveFile(file.id)}
+										onClick={() => {
+											setActiveFile(file.id);
+											setWorkspaceMode("editor");
+										}}
 										onKeyDown={(e) => {
 											if (e.key === "Enter" || e.key === " ") {
 												setActiveFile(file.id);
+												setWorkspaceMode("editor");
 											}
 										}}
 										role="button"
@@ -400,16 +387,36 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 				<div className="h-9 px-3 flex items-center gap-1 border-t border-border bg-muted/40 shrink-0">
 					<Tooltip>
 						<TooltipTrigger asChild>
-							<Button
-								variant="ghost"
-								size="icon"
-								className="h-8 w-8 hover:bg-blue-500/20 hover:text-blue-600"
+							<IconButton
+								active={workspaceMode === "tutorial"}
+								onClick={() => {
+									const newMode =
+										workspaceMode === "tutorial" ? "editor" : "tutorial";
+									setWorkspaceMode(newMode);
+									if (newMode === "tutorial") {
+										setActiveTutorialId(null);
+									}
+								}}
+								aria-label="教程"
+							>
+								<FileQuestion className="h-4 w-4" />
+							</IconButton>
+						</TooltipTrigger>
+						<TooltipContent side="top">
+							<p>{workspaceMode === "tutorial" ? "退出教程" : "进入教程"}</p>
+						</TooltipContent>
+					</Tooltip>
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<IconButton
+								active={workspaceMode === "settings"}
 								onClick={handleOpenSettings}
+								aria-label="设置"
 							>
 								<Settings className="h-4 w-4" />
-							</Button>
+							</IconButton>
 						</TooltipTrigger>
-						<TooltipContent side="right">
+						<TooltipContent side="top">
 							<p>设置</p>
 						</TooltipContent>
 					</Tooltip>

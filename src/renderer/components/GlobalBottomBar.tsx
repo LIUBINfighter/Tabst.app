@@ -2,6 +2,12 @@ import { Minus, Pause, Play, Plus, Square, Waves } from "lucide-react";
 import { useAppStore } from "../store/appStore";
 import StaffControls from "./StaffControls";
 import IconButton from "./ui/icon-button";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipProvider,
+	TooltipTrigger,
+} from "./ui/tooltip";
 
 export default function GlobalBottomBar() {
 	const activeFile = useAppStore((state) => state.getActiveFile());
@@ -17,120 +23,152 @@ export default function GlobalBottomBar() {
 	const scrollMode = useAppStore((s) => s.scrollMode);
 
 	return (
-		<footer className="h-9 border-t border-border bg-card flex items-center justify-between px-4 text-xs text-muted-foreground flex-shrink-0 w-full">
-			{/* Left: app status */}
-			<div className="flex items-center gap-3">
-				<span className="font-medium">Tabst</span>
-			</div>
+		<TooltipProvider delayDuration={200}>
+			<footer className="h-9 border-t border-border bg-card flex items-center justify-between px-4 text-xs text-muted-foreground flex-shrink-0 w-full">
+				{/* Left: app status */}
+				<div className="flex items-center gap-3">
+					<span className="font-medium">Tabst</span>
+				</div>
 
-			{/* Center/Right: moved controls (only for .atex files) */}
-			{isAtexFile && (
-				<div className="flex items-center gap-2">
-					{/* Existing staff controls (leftmost) */}
-					<StaffControls
-						firstStaffOptions={firstStaffOptions}
-						toggleFirstStaffOpt={requestStaffToggle}
-					/>
-
-					{/* Zoom controls (display size): shrink / input / enlarge */}
-					<div className="ml-2 flex items-center gap-1">
-						<IconButton
-							compact
-							title="缩小"
-							onClick={() => {
-								const pct = Math.max(10, zoomPercent - 10);
-								setZoomPercent(pct);
-								playerControls?.applyZoom?.(pct);
-							}}
-							aria-label="缩小"
-						>
-							<Minus className="h-4 w-4" />
-						</IconButton>
-
-						<input
-							aria-label="缩放百分比"
-							value={zoomPercent}
-							onChange={(e) => {
-								const v = parseInt(e.target.value ?? "60", 10);
-								if (Number.isNaN(v)) return;
-								setZoomPercent(v);
-							}}
-							onBlur={(e) => {
-								const v = parseInt(e.target.value ?? "60", 10);
-								if (Number.isNaN(v)) return;
-								const pct = Math.max(10, Math.min(400, v));
-								setZoomPercent(pct);
-								playerControls?.applyZoom?.(pct);
-							}}
-							className="w-10 h-6 text-xs text-center rounded bg-transparent border border-border px-1 input-no-spinner"
-							step={1}
-							min={10}
-							max={400}
-							style={{ textAlign: "center" }}
+				{/* Center/Right: moved controls (only for .atex files) */}
+				{isAtexFile && (
+					<div className="flex items-center gap-2">
+						{/* Existing staff controls (leftmost) */}
+						<StaffControls
+							firstStaffOptions={firstStaffOptions}
+							toggleFirstStaffOpt={requestStaffToggle}
 						/>
 
-						<IconButton
-							compact
-							title="放大"
-							onClick={() => {
-								const pct = Math.min(400, zoomPercent + 10);
-								setZoomPercent(pct);
-								playerControls?.applyZoom?.(pct);
-							}}
-							aria-label="放大"
-						>
-							<Plus className="h-4 w-4" />
-						</IconButton>
+						{/* Zoom controls (display size): shrink / input / enlarge */}
+						<div className="ml-2 flex items-center gap-1">
+							<Tooltip>
+								<TooltipTrigger asChild>
+									<IconButton
+										compact
+										onClick={() => {
+											const pct = Math.max(10, zoomPercent - 10);
+											setZoomPercent(pct);
+											playerControls?.applyZoom?.(pct);
+										}}
+										aria-label="缩小"
+									>
+										<Minus className="h-4 w-4" />
+									</IconButton>
+								</TooltipTrigger>
+								<TooltipContent side="top">
+									<p>缩小</p>
+								</TooltipContent>
+							</Tooltip>
+
+							<input
+								aria-label="缩放百分比"
+								value={zoomPercent}
+								onChange={(e) => {
+									const v = parseInt(e.target.value ?? "60", 10);
+									if (Number.isNaN(v)) return;
+									setZoomPercent(v);
+								}}
+								onBlur={(e) => {
+									const v = parseInt(e.target.value ?? "60", 10);
+									if (Number.isNaN(v)) return;
+									const pct = Math.max(10, Math.min(400, v));
+									setZoomPercent(pct);
+									playerControls?.applyZoom?.(pct);
+								}}
+								className="w-10 h-6 text-xs text-center rounded bg-transparent border border-border px-1 input-no-spinner"
+								step={1}
+								min={10}
+								max={400}
+								style={{ textAlign: "center" }}
+							/>
+
+							<Tooltip>
+								<TooltipTrigger asChild>
+									<IconButton
+										compact
+										onClick={() => {
+											const pct = Math.min(400, zoomPercent + 10);
+											setZoomPercent(pct);
+											playerControls?.applyZoom?.(pct);
+										}}
+										aria-label="放大"
+									>
+										<Plus className="h-4 w-4" />
+									</IconButton>
+								</TooltipTrigger>
+								<TooltipContent side="top">
+									<p>放大</p>
+								</TooltipContent>
+							</Tooltip>
+						</div>
+
+						{/* Display mode: scroll */}
+						<Tooltip>
+							<TooltipTrigger asChild>
+								<IconButton
+									active={scrollMode === 1}
+									onClick={() => playerControls?.toggleScrollMode?.()}
+									aria-label="切换滚动模式"
+								>
+									<Waves className="h-4 w-4" />
+								</IconButton>
+							</TooltipTrigger>
+							<TooltipContent side="top">
+								<p>{scrollMode === 1 ? "连续滚动" : "超出页面后滚动"}</p>
+							</TooltipContent>
+						</Tooltip>
+
+						{/* Playback controls (play/pause, stop) - right side */}
+						<Tooltip>
+							<TooltipTrigger asChild>
+								<IconButton
+									active={playerIsPlaying}
+									onClick={() => {
+										if (!playerControls) return;
+										try {
+											if (!playerIsPlaying) playerControls.play?.();
+											else playerControls.pause?.();
+										} catch (e) {
+											console.error("GlobalBottomBar play/pause failed:", e);
+										}
+									}}
+									aria-label="播放/暂停"
+								>
+									{playerIsPlaying ? (
+										<Pause className="h-4 w-4" />
+									) : (
+										<Play className="h-4 w-4" />
+									)}
+								</IconButton>
+							</TooltipTrigger>
+							<TooltipContent side="top">
+								<p>{playerIsPlaying ? "暂停" : "播放"}</p>
+							</TooltipContent>
+						</Tooltip>
+
+						<Tooltip>
+							<TooltipTrigger asChild>
+								<IconButton
+									onClick={() => {
+										if (!playerControls) return;
+										try {
+											playerControls.stop?.();
+										} catch (e) {
+											console.error("GlobalBottomBar stop failed:", e);
+										}
+									}}
+									aria-label="停止"
+								>
+									<Square className="h-4 w-4" />
+								</IconButton>
+							</TooltipTrigger>
+							<TooltipContent side="top">
+								<p>停止</p>
+							</TooltipContent>
+						</Tooltip>
 					</div>
-
-					{/* Display mode: scroll */}
-					<IconButton
-						active={scrollMode === 1}
-						title={`滚动模式：${scrollMode === 1 ? "连续滚动" : "超出页面后滚动"}`}
-						onClick={() => playerControls?.toggleScrollMode?.()}
-						aria-label="切换滚动模式"
-					>
-						<Waves className="h-4 w-4" />
-					</IconButton>
-
-					{/* Playback controls (play/pause, stop) - right side */}
-					<IconButton
-						active={playerIsPlaying}
-						title={playerIsPlaying ? "暂停" : "播放"}
-						onClick={() => {
-							if (!playerControls) return;
-							try {
-								if (!playerIsPlaying) playerControls.play?.();
-								else playerControls.pause?.();
-							} catch (e) {
-								console.error("GlobalBottomBar play/pause failed:", e);
-							}
-						}}
-						aria-label="播放/暂停"
-					>
-						{playerIsPlaying ? (
-							<Pause className="h-4 w-4" />
-						) : (
-							<Play className="h-4 w-4" />
-						)}
-					</IconButton>
-
-					<IconButton
-						title="停止"
-						onClick={() => {
-							if (!playerControls) return;
-							try {
-								playerControls.stop?.();
-							} catch (e) {
-								console.error("GlobalBottomBar stop failed:", e);
-							}
-						}}
-						aria-label="停止"
-					>
-						<Square className="h-4 w-4" />
-					</IconButton>
-				</div>
-			)}
-		</footer>
+				)}
+			</footer>
+		</TooltipProvider>
 	);
 }

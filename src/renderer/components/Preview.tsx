@@ -19,6 +19,12 @@ import { useAppStore } from "../store/appStore";
 import PrintPreview from "./PrintPreview";
 import TopBar from "./TopBar";
 import IconButton from "./ui/icon-button";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipProvider,
+	TooltipTrigger,
+} from "./ui/tooltip";
 
 /**
  * 根据 barIndex 和 beatIndex 从乐谱中查找对应的 Beat 对象
@@ -838,76 +844,84 @@ export default function Preview({
 	}, [showPrintPreview]);
 
 	return (
-		<div
-			className={`flex-1 flex flex-col h-full overflow-hidden ${className ?? ""}`}
-		>
-			{/* 当打印预览显示时，隐藏主预览区域以避免资源冲突 */}
-			{!showPrintPreview && (
-				<>
-					{/* 错误提示已移到底部 */}
-					<TopBar
-						icon={
-							<FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-						}
-						title={<span className="sr-only">{fileName ?? "预览"}</span>}
-						trailing={
-							<>
-								{/* 打印按钮 */}
-								<div className="ml-2 flex items-center gap-1">
-									<IconButton
-										title="打印预览"
-										onClick={() => setShowPrintPreview(true)}
-										disabled={!content}
-									>
-										<Printer className="h-4 w-4" />
-									</IconButton>
-								</div>
-							</>
-						}
-					/>
-					<div className="flex-1 overflow-auto relative h-full">
-						<div ref={containerRef} className="w-full h-full" />
-						<div
-							ref={cursorRef}
-							className="pointer-events-none absolute z-20 bg-amber-300/40 rounded-sm"
-							style={{ display: "none" }}
-						/>
-					</div>
-					{parseError && (
-						<div className="bg-destructive/10 text-destructive px-3 py-2 text-xs border-t border-destructive/20 flex items-start gap-2">
-							<span className="font-semibold shrink-0">⚠️</span>
-							<div className="flex-1 min-w-0">
-								<div className="font-medium">AlphaTex 解析错误</div>
-								<div className="mt-0.5 text-destructive/80 break-words">
-									{parseError}
-								</div>
-								{restorePerformed && lastValidScoreRef.current && (
-									<div className="mt-1 text-destructive/60 text-[11px]">
-										已恢复到上一次成功的乐谱
+		<TooltipProvider delayDuration={200}>
+			<div
+				className={`flex-1 flex flex-col h-full overflow-hidden ${className ?? ""}`}
+			>
+				{/* 当打印预览显示时，隐藏主预览区域以避免资源冲突 */}
+				{!showPrintPreview && (
+					<>
+						{/* 错误提示已移到底部 */}
+						<TopBar
+							icon={
+								<FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+							}
+							title={<span className="sr-only">{fileName ?? "预览"}</span>}
+							trailing={
+								<>
+									{/* 打印按钮 */}
+									<div className="ml-2 flex items-center gap-1">
+										<Tooltip>
+											<TooltipTrigger asChild>
+												<IconButton
+													onClick={() => setShowPrintPreview(true)}
+													disabled={!content}
+												>
+													<Printer className="h-4 w-4" />
+												</IconButton>
+											</TooltipTrigger>
+											<TooltipContent side="bottom">
+												<p>打印预览</p>
+											</TooltipContent>
+										</Tooltip>
 									</div>
-								)}
-							</div>
-							<button
-								type="button"
-								onClick={() => setParseError(null)}
-								className="shrink-0 text-destructive/60 hover:text-destructive text-lg leading-none"
-								title="关闭错误提示"
-							>
-								×
-							</button>
+								</>
+							}
+						/>
+						<div className="flex-1 overflow-auto relative h-full">
+							<div ref={containerRef} className="w-full h-full" />
+							<div
+								ref={cursorRef}
+								className="pointer-events-none absolute z-20 bg-amber-300/40 rounded-sm"
+								style={{ display: "none" }}
+							/>
 						</div>
-					)}
-				</>
-			)}
+						{parseError && (
+							<div className="bg-destructive/10 text-destructive px-3 py-2 text-xs border-t border-destructive/20 flex items-start gap-2">
+								<span className="font-semibold shrink-0">⚠️</span>
+								<div className="flex-1 min-w-0">
+									<div className="font-medium">AlphaTex 解析错误</div>
+									<div className="mt-0.5 text-destructive/80 break-words">
+										{parseError}
+									</div>
+									{restorePerformed && lastValidScoreRef.current && (
+										<div className="mt-1 text-destructive/60 text-[11px]">
+											已恢复到上一次成功的乐谱
+										</div>
+									)}
+								</div>
+								<button
+									type="button"
+									onClick={() => setParseError(null)}
+									className="shrink-0 text-destructive/60 hover:text-destructive text-lg leading-none"
+									title="关闭错误提示"
+								>
+									×
+								</button>
+							</div>
+						)}
+					</>
+				)}
 
-			{/* 打印预览模态窗口 */}
-			{showPrintPreview && content && (
-				<PrintPreview
-					content={content}
-					fileName={fileName}
-					onClose={() => setShowPrintPreview(false)}
-				/>
-			)}
-		</div>
+				{/* 打印预览模态窗口 */}
+				{showPrintPreview && content && (
+					<PrintPreview
+						content={content}
+						fileName={fileName}
+						onClose={() => setShowPrintPreview(false)}
+					/>
+				)}
+			</div>
+		</TooltipProvider>
 	);
 }

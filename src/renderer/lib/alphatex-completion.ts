@@ -9,9 +9,13 @@ import {
 	type Completion,
 	type CompletionContext,
 	type CompletionResult,
+	completionKeymap,
 	snippet,
 } from "@codemirror/autocomplete";
 import { syntaxTree } from "@codemirror/language";
+import type { Extension } from "@codemirror/state";
+import { Prec } from "@codemirror/state";
+import { keymap } from "@codemirror/view";
 import type { AlphaTexLSPClient } from "./alphatex-lsp";
 
 // Minimal LSP CompletionItem shape we currently use
@@ -140,13 +144,23 @@ export function createAlphaTexCompletionSource(lspClient: AlphaTexLSPClient) {
 
 /**
  * Create CodeMirror autocomplete configuration for AlphaTex
+ * Returns an array of extensions including the autocompletion extension
+ * and the completionKeymap with highest precedence to ensure arrow keys
+ * work correctly in the autocomplete dropdown.
  */
-export function createAlphaTexAutocomplete(lspClient: AlphaTexLSPClient) {
+export function createAlphaTexAutocomplete(
+	lspClient: AlphaTexLSPClient,
+): Extension[] {
 	const completionSource = createAlphaTexCompletionSource(lspClient);
 
-	return autocompletion({
-		override: [completionSource],
-		// Ensure typing characters (like `\`) can activate completions without requiring explicit Ctrl+Space
-		activateOnTyping: true,
-	});
+	return [
+		autocompletion({
+			override: [completionSource],
+			// Ensure typing characters (like `\`) can activate completions without requiring explicit Ctrl+Space
+			activateOnTyping: true,
+		}),
+		// Use Prec.highest to ensure completionKeymap has highest precedence
+		// This ensures arrow keys navigate the autocomplete menu instead of moving the cursor
+		Prec.highest(keymap.of(completionKeymap)),
+	];
 }

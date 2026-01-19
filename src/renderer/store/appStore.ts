@@ -82,11 +82,19 @@ interface AppState {
 	scrollMode: number;
 	setScrollMode: (v: number) => void;
 
+	// 工作区模式：editor | tutorial | settings
+	workspaceMode: "editor" | "tutorial" | "settings";
+	setWorkspaceMode: (mode: "editor" | "tutorial" | "settings") => void;
+
 	// 🆕 第一个谱表显示选项
 	firstStaffOptions: StaffDisplayOptions | null;
 
 	// 🆕 待处理的谱表选项切换
 	pendingStaffToggle: keyof StaffDisplayOptions | null;
+
+	// 教程选择（用于侧边栏与教程视图间同步）
+	activeTutorialId: string | null;
+	setActiveTutorialId: (id: string | null) => void;
 
 	// Actions
 	addFile: (file: FileItem) => void;
@@ -135,8 +143,13 @@ export const useAppStore = create<AppState>((set, get) => ({
 	setZoomPercent: (v) => set({ zoomPercent: v }),
 	scrollMode: 0,
 	setScrollMode: (v) => set({ scrollMode: v }),
+	workspaceMode: "editor",
+	setWorkspaceMode: (mode: "editor" | "tutorial" | "settings") =>
+		set({ workspaceMode: mode }),
 	firstStaffOptions: null,
 	pendingStaffToggle: null,
+	activeTutorialId: null,
+	setActiveTutorialId: (id) => set({ activeTutorialId: id }),
 
 	addFile: (file) => {
 		set((state) => {

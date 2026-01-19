@@ -178,9 +178,9 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 						})
 						.catch((e: unknown) => console.error("LSP init failed:", e));
 
-					// Add code completion extension
-					const completionExt = createAlphaTexAutocomplete(lspClient);
-					extensions.push(completionExt);
+					// Add code completion extension (returns array of extensions)
+					const completionExts = createAlphaTexAutocomplete(lspClient);
+					extensions.push(...completionExts);
 
 					// Add barline decorations extension
 					const barlinesExt = createAlphaTexBarlinesExtension(lspClient);
@@ -448,9 +448,38 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 	}, []);
 
 	if (!activeFile) {
+		const setWorkspaceMode = useAppStore((s) => s.setWorkspaceMode);
+
 		return (
-			<div className="flex-1 flex items-center justify-center text-muted-foreground">
-				<span>选择或创建一个文件开始编辑</span>
+			<div className="flex-1 flex items-center justify-center">
+				<div className="flex flex-col items-center gap-6">
+					<p className="text-sm text-muted-foreground">
+						选择或创建一个文件开始编辑
+					</p>
+					<div className="flex flex-col gap-2 items-center">
+						<button
+							type="button"
+							onClick={onExpandSidebar}
+							className="text-sm text-primary hover:underline cursor-pointer bg-transparent border-none p-0 font-normal"
+						>
+							打开侧边栏
+						</button>
+						<button
+							type="button"
+							onClick={() => setWorkspaceMode("tutorial")}
+							className="text-sm text-primary hover:underline cursor-pointer bg-transparent border-none p-0 font-normal"
+						>
+							打开教程
+						</button>
+						<button
+							type="button"
+							onClick={() => setWorkspaceMode("settings")}
+							className="text-sm text-primary hover:underline cursor-pointer bg-transparent border-none p-0 font-normal"
+						>
+							打开设置
+						</button>
+					</div>
+				</div>
 			</div>
 		);
 	}
