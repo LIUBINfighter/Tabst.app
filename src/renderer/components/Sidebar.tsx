@@ -7,6 +7,7 @@ import {
 	FileText,
 	FolderOpen,
 	Moon,
+	Settings,
 	Sun,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -137,6 +138,23 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 			localStorage.setItem("theme", isDark ? "dark" : "light");
 		} catch {
 			// ignore storage errors in sandboxed environments
+		}
+	};
+
+	// 打开应用设置（如果主进程提供接口则调用）
+	const handleOpenSettings = () => {
+		try {
+			// Use a safe any cast because the preload API may not expose openSettings
+			const api = (
+				window as unknown as { electronAPI?: { openSettings?: () => void } }
+			).electronAPI;
+			if (api?.openSettings) {
+				api.openSettings();
+			} else {
+				console.info("openSettings not available; implement settings UI here");
+			}
+		} catch (err) {
+			console.error("Failed to open settings:", err);
 		}
 	};
 
@@ -377,6 +395,25 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 						)}
 					</div>
 				</ScrollArea>
+
+				{/* Sidebar bottom bar */}
+				<div className="h-9 px-3 flex items-center gap-1 border-t border-border bg-muted/40 shrink-0">
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<Button
+								variant="ghost"
+								size="icon"
+								className="h-8 w-8 hover:bg-blue-500/20 hover:text-blue-600"
+								onClick={handleOpenSettings}
+							>
+								<Settings className="h-4 w-4" />
+							</Button>
+						</TooltipTrigger>
+						<TooltipContent side="right">
+							<p>设置</p>
+						</TooltipContent>
+					</Tooltip>
+				</div>
 			</div>
 		</TooltipProvider>
 	);
