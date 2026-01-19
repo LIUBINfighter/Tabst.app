@@ -335,15 +335,22 @@ export const useAppStore = create<AppState>((set, get) => ({
 
 	initialize: async () => {
 		try {
-			const result = await window.electronAPI.loadAppState();
-			if (result?.files) {
-				const restored = result.files.map((f) => ({
-					id: f.id ?? crypto.randomUUID(),
-					name: f.name,
-					path: f.path,
-					content: f.content ?? "",
-				}));
-				set({ files: restored, activeFileId: result.activeFileId });
+			// 检查 electronAPI 是否可用
+			if (
+				typeof window !== "undefined" &&
+				window.electronAPI &&
+				window.electronAPI.loadAppState
+			) {
+				const result = await window.electronAPI.loadAppState();
+				if (result?.files) {
+					const restored = result.files.map((f) => ({
+						id: f.id ?? crypto.randomUUID(),
+						name: f.name,
+						path: f.path,
+						content: f.content ?? "",
+					}));
+					set({ files: restored, activeFileId: result.activeFileId });
+				}
 			}
 		} catch (err) {
 			console.error("初始化应用状态失败:", err);

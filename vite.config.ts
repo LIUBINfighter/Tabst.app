@@ -1,6 +1,8 @@
 // vite.config.ts
 
 import react from "@vitejs/plugin-react";
+import mdx from "@mdx-js/rollup";
+import remarkGfm from "remark-gfm";
 import path from "path";
 import { fileURLToPath } from "url";
 import { defineConfig } from "vite";
@@ -12,6 +14,10 @@ const __dirname = path.dirname(__filename);
 export default defineConfig({
 	plugins: [
 		react(),
+		mdx({
+			remarkPlugins: [remarkGfm],
+			providerImportSource: "@mdx-js/react",
+		}),
 		// dev-only middleware: rewrite root requests to the real HTML inside /src/renderer
 		{
 			name: "rewrite-middleware",

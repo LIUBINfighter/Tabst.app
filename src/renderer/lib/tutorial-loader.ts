@@ -1,8 +1,26 @@
+import type { MDXModule } from "mdx/types";
 import type { TutorialMetadata } from "../data/tutorials";
 import { tutorialsRegistry } from "../data/tutorials";
 
 /**
- * 加载教程内容
+ * 加载 MDX 教程组件
+ * 优先尝试加载 .mdx 文件，如果不存在则回退到 .md
+ */
+export async function loadTutorialComponent(
+	id: string,
+): Promise<MDXModule | null> {
+	try {
+		// 尝试加载 MDX 文件
+		const module = await import(`../data/tutorials/${id}.mdx`);
+		return module as MDXModule;
+	} catch (error) {
+		// MDX 文件不存在，返回 null（让调用者处理回退）
+		return null;
+	}
+}
+
+/**
+ * 加载教程内容（字符串格式，用于向后兼容）
  * 使用 Vite 的 ?raw 导入来加载 Markdown 文件
  */
 export async function loadTutorial(id: string): Promise<string> {

@@ -1,12 +1,15 @@
 import { ChevronLeft, FileText } from "lucide-react";
 import { useEffect, useState } from "react";
+import type { MDXModule } from "mdx/types";
 import {
 	getNextTutorial,
 	getPrevTutorial,
 	getTutorialMetadata,
 	loadTutorial,
+	loadTutorialComponent,
 } from "../lib/tutorial-loader";
 import { useAppStore } from "../store/appStore";
+import { MDXRenderer } from "./tutorial/MDXRenderer";
 import { TutorialRenderer } from "./tutorial/TutorialRenderer";
 import TopBar from "./TopBar";
 import IconButton from "./ui/icon-button";
@@ -16,6 +19,7 @@ export default function TutorialView() {
 	const activeTutorialId = useAppStore((s) => s.activeTutorialId);
 	const setActiveTutorialId = useAppStore((s) => s.setActiveTutorialId);
 
+	const [mdxModule, setMdxModule] = useState<MDXModule | null>(null);
 	const [content, setContent] = useState<string>("");
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
@@ -31,17 +35,31 @@ export default function TutorialView() {
 		? getNextTutorial(activeTutorialId)
 		: null;
 
-	// 加载教程内容
+	// 加载教程内容（优先尝试 MDX，如果不存在则回退到 Markdown）
 	useEffect(() => {
 		if (!activeTutorialId) return;
 
 		setLoading(true);
 		setError(null);
+		setMdxModule(null);
+		setContent("");
 
-		loadTutorial(activeTutorialId)
+		// 首先尝试加载 MDX
+		loadTutorialComponent(activeTutorialId)
+			.then((module) => {
+				if (module) {
+					setMdxModule(module);
+					setLoading(false);
+				} else {
+					// MDX 不存在，回退到 Markdown
+					return loadTutorial(activeTutorialId);
+				}
+			})
 			.then((loadedContent) => {
-				setContent(loadedContent);
-				setLoading(false);
+				if (typeof loadedContent === "string") {
+					setContent(loadedContent);
+					setLoading(false);
+				}
 			})
 			.catch((err) => {
 				console.error("Failed to load tutorial:", err);
@@ -103,11 +121,17 @@ export default function TutorialView() {
 					</div>
 				)}
 
-				{!loading && !error && content && (
+				{/* 如果加载了 MDX 模块，使用 MDX 渲染器 */}
+				{!loading && !error && mdxModule && (
+					<MDXRenderer module={mdxModule} />
+				)}
+
+				{/* 否则使用 Markdown 渲染器 */}
+				{!loading && !error && !mdxModule && content && (
 					<TutorialRenderer content={content} />
 				)}
 
-				{!loading && !error && !content && metadata && (
+				{!loading && !error && !mdxModule && !content && metadata && (
 					<div>
 						<h2 className="text-lg font-semibold mb-2">{metadata.title}</h2>
 						<p className="text-sm text-muted-foreground">
