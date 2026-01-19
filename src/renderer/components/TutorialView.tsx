@@ -1,6 +1,6 @@
 import { ChevronLeft, FileText } from "lucide-react";
-import { useEffect, useState } from "react";
 import type { MDXModule } from "mdx/types";
+import { useEffect, useState } from "react";
 import {
 	getNextTutorial,
 	getPrevTutorial,
@@ -9,9 +9,9 @@ import {
 	loadTutorialComponent,
 } from "../lib/tutorial-loader";
 import { useAppStore } from "../store/appStore";
+import TopBar from "./TopBar";
 import { MDXRenderer } from "./tutorial/MDXRenderer";
 import { TutorialRenderer } from "./tutorial/TutorialRenderer";
-import TopBar from "./TopBar";
 import IconButton from "./ui/icon-button";
 
 export default function TutorialView() {
@@ -84,12 +84,7 @@ export default function TutorialView() {
 
 		window.addEventListener("keydown", handleKeyDown);
 		return () => window.removeEventListener("keydown", handleKeyDown);
-	}, [
-		setWorkspaceMode,
-		setActiveTutorialId,
-		prevTutorial,
-		nextTutorial,
-	]);
+	}, [setWorkspaceMode, setActiveTutorialId, prevTutorial, nextTutorial]);
 
 	return (
 		<div className="flex-1 flex flex-col min-h-0 overflow-hidden">
@@ -122,9 +117,7 @@ export default function TutorialView() {
 				)}
 
 				{/* 如果加载了 MDX 模块，使用 MDX 渲染器 */}
-				{!loading && !error && mdxModule && (
-					<MDXRenderer module={mdxModule} />
-				)}
+				{!loading && !error && mdxModule && <MDXRenderer module={mdxModule} />}
 
 				{/* 否则使用 Markdown 渲染器 */}
 				{!loading && !error && !mdxModule && content && (
@@ -134,9 +127,7 @@ export default function TutorialView() {
 				{!loading && !error && !mdxModule && !content && metadata && (
 					<div>
 						<h2 className="text-lg font-semibold mb-2">{metadata.title}</h2>
-						<p className="text-sm text-muted-foreground">
-							教程内容为空
-						</p>
+						<p className="text-sm text-muted-foreground">教程内容为空</p>
 					</div>
 				)}
 			</div>

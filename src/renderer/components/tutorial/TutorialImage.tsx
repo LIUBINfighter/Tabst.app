@@ -7,9 +7,10 @@ interface TutorialImageProps {
 export function TutorialImage({ src, alt, title }: TutorialImageProps) {
 	// 处理图片路径：支持相对路径和绝对路径
 	// 如果 src 是相对路径，假设图片在 public/tutorials/images/ 目录下
-	const imageSrc = src.startsWith("/") || src.startsWith("http")
-		? src
-		: `/tutorials/images/${src}`;
+	const imageSrc =
+		src.startsWith("/") || src.startsWith("http")
+			? src
+			: `/tutorials/images/${src}`;
 
 	return (
 		<figure className="my-4">

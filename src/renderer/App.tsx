@@ -11,7 +11,9 @@ import { useAppStore } from "./store/appStore";
 function App() {
 	const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 	const workspaceMode = useAppStore((s) => s.workspaceMode);
-	const prevWorkspaceModeRef = useRef<"editor" | "tutorial" | "settings">("editor");
+	const prevWorkspaceModeRef = useRef<"editor" | "tutorial" | "settings">(
+		"editor",
+	);
 
 	// 初始化 store：从主进程恢复上次打开的文件和选中项
 	const initialize = useAppStore((s) => s.initialize);

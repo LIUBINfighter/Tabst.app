@@ -21,7 +21,7 @@ export const components = {
 		onClick?: () => void;
 	}) => {
 		const [clicked, setClicked] = useState(false);
-		
+
 		return (
 			<button
 				type="button"
@@ -92,9 +92,7 @@ export const components = {
 					<span className="font-medium">{title}</span>
 					<span className="text-muted-foreground">{isOpen ? "▼" : "▶"}</span>
 				</button>
-				{isOpen && (
-					<div className="p-4 bg-card">{children}</div>
-				)}
+				{isOpen && <div className="p-4 bg-card">{children}</div>}
 			</div>
 		);
 	},

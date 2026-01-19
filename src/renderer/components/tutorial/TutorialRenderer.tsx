@@ -1,6 +1,6 @@
+import type { Components } from "react-markdown";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import type { Components } from "react-markdown";
 import { CodeBlock } from "./CodeBlock";
 import { TutorialImage } from "./TutorialImage";
 
@@ -15,7 +15,7 @@ export function TutorialRenderer({ content }: TutorialRendererProps) {
 		code({ node, className, children, ...props }) {
 			// 检查是否是内联代码（通过检查是否有 className）
 			const isInline = !className;
-			
+
 			// 内联代码
 			if (isInline) {
 				return (
@@ -43,9 +43,7 @@ export function TutorialRenderer({ content }: TutorialRendererProps) {
 
 		// 标题样式
 		h1: ({ children }) => (
-			<h1 className="text-2xl font-bold mt-6 mb-4 first:mt-0">
-				{children}
-			</h1>
+			<h1 className="text-2xl font-bold mt-6 mb-4 first:mt-0">{children}</h1>
 		),
 		h2: ({ children }) => (
 			<h2 className="text-xl font-semibold mt-5 mb-3">{children}</h2>
@@ -59,9 +57,7 @@ export function TutorialRenderer({ content }: TutorialRendererProps) {
 
 		// 段落
 		p: ({ children }) => (
-			<p className="text-sm text-foreground mb-4 leading-relaxed">
-				{children}
-			</p>
+			<p className="text-sm text-foreground mb-4 leading-relaxed">{children}</p>
 		),
 
 		// 列表
@@ -107,9 +103,7 @@ export function TutorialRenderer({ content }: TutorialRendererProps) {
 				</table>
 			</div>
 		),
-		thead: ({ children }) => (
-			<thead className="bg-muted">{children}</thead>
-		),
+		thead: ({ children }) => <thead className="bg-muted">{children}</thead>,
 		tbody: ({ children }) => <tbody>{children}</tbody>,
 		tr: ({ children }) => (
 			<tr className="border-b border-border">{children}</tr>

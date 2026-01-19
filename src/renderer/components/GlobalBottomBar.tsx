@@ -8,10 +8,7 @@ import {
 	Square,
 	Waves,
 } from "lucide-react";
-import {
-	getNextTutorial,
-	getPrevTutorial,
-} from "../lib/tutorial-loader";
+import { getNextTutorial, getPrevTutorial } from "../lib/tutorial-loader";
 import { useAppStore } from "../store/appStore";
 import StaffControls from "./StaffControls";
 import IconButton from "./ui/icon-button";

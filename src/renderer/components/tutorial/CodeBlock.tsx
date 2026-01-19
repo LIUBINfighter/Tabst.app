@@ -1,9 +1,9 @@
+import { useEffect, useState } from "react";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import {
-	vscDarkPlus,
 	vs,
+	vscDarkPlus,
 } from "react-syntax-highlighter/dist/esm/styles/prism";
-import { useEffect, useState } from "react";
 
 interface CodeBlockProps {
 	language?: string;
@@ -11,19 +11,13 @@ interface CodeBlockProps {
 	className?: string;
 }
 
-export function CodeBlock({
-	language,
-	children,
-	className,
-}: CodeBlockProps) {
+export function CodeBlock({ language, children, className }: CodeBlockProps) {
 	const [isDark, setIsDark] = useState(false);
 
 	useEffect(() => {
 		// 检测当前主题
 		const checkTheme = () => {
-			setIsDark(
-				document.documentElement.classList.contains("dark"),
-			);
+			setIsDark(document.documentElement.classList.contains("dark"));
 		};
 
 		checkTheme();
@@ -40,9 +34,7 @@ export function CodeBlock({
 
 	// 如果没有语言标识，尝试从 className 中提取（Markdown 代码块通常有 `language-xxx` 类）
 	const detectedLanguage =
-		language ||
-		className?.replace(/language-/, "") ||
-		"text";
+		language || className?.replace(/language-/, "") || "text";
 
 	// 移除可能的换行符
 	const code = String(children || "").replace(/\n$/, "");
