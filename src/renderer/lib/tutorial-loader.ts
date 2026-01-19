@@ -13,7 +13,7 @@ export async function loadTutorialComponent(
 		// 尝试加载 MDX 文件
 		const module = await import(`../data/tutorials/${id}.mdx`);
 		return module as MDXModule;
-	} catch (error) {
+	} catch (_error) {
 		// MDX 文件不存在，返回 null（让调用者处理回退）
 		return null;
 	}
