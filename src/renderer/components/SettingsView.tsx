@@ -1,10 +1,23 @@
 import { ChevronLeft, Settings } from "lucide-react";
+import { useEffect } from "react";
 import { useAppStore } from "../store/appStore";
 import TopBar from "./TopBar";
 import IconButton from "./ui/icon-button";
 
 export default function SettingsView() {
 	const setWorkspaceMode = useAppStore((s) => s.setWorkspaceMode);
+
+	// 键盘快捷键：ESC 返回编辑器
+	useEffect(() => {
+		const handleKeyDown = (e: KeyboardEvent) => {
+			if (e.key === "Escape") {
+				setWorkspaceMode("editor");
+			}
+		};
+
+		window.addEventListener("keydown", handleKeyDown);
+		return () => window.removeEventListener("keydown", handleKeyDown);
+	}, [setWorkspaceMode]);
 
 	const toggleTheme = () => {
 		const root = document.documentElement;

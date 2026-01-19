@@ -279,13 +279,23 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 									<div
 										key={file.id}
 										onClick={() => {
-											setActiveFile(file.id);
-											setWorkspaceMode("editor");
+											// 如果点击已选中的文件，则取消选择；否则选择该文件
+											if (isActive) {
+												setActiveFile(null);
+											} else {
+												setActiveFile(file.id);
+												setWorkspaceMode("editor");
+											}
 										}}
 										onKeyDown={(e) => {
 											if (e.key === "Enter" || e.key === " ") {
-												setActiveFile(file.id);
-												setWorkspaceMode("editor");
+												// 如果按 Enter/Space 在已选中的文件上，则取消选择；否则选择该文件
+												if (isActive) {
+													setActiveFile(null);
+												} else {
+													setActiveFile(file.id);
+													setWorkspaceMode("editor");
+												}
 											}
 										}}
 										role="button"

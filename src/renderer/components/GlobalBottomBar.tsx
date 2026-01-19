@@ -1,7 +1,8 @@
-import { Minus, Pause, Play, Plus, Square, Waves } from "lucide-react";
+import { ChevronLeft, ChevronRight, Minus, Pause, Play, Plus, Square, Waves } from "lucide-react";
 import { useAppStore } from "../store/appStore";
 import StaffControls from "./StaffControls";
 import IconButton from "./ui/icon-button";
+import { defaultTutorials } from "./TutorialView";
 import {
 	Tooltip,
 	TooltipContent,
@@ -22,6 +23,17 @@ export default function GlobalBottomBar() {
 	const setZoomPercent = useAppStore((s) => s.setZoomPercent);
 	const scrollMode = useAppStore((s) => s.scrollMode);
 
+	// Tutorial navigation
+	const workspaceMode = useAppStore((s) => s.workspaceMode);
+	const activeTutorialId = useAppStore((s) => s.activeTutorialId);
+	const setActiveTutorialId = useAppStore((s) => s.setActiveTutorialId);
+	const isTutorialMode = workspaceMode === "tutorial";
+	
+	// Calculate previous and next tutorial
+	const currentIndex = defaultTutorials.findIndex((t) => t.id === activeTutorialId);
+	const prevTutorial = currentIndex > 0 ? defaultTutorials[currentIndex - 1] : null;
+	const nextTutorial = currentIndex >= 0 && currentIndex < defaultTutorials.length - 1 ? defaultTutorials[currentIndex + 1] : null;
+
 	return (
 		<TooltipProvider delayDuration={200}>
 			<footer className="h-9 border-t border-border bg-card flex items-center justify-between px-4 text-xs text-muted-foreground flex-shrink-0 w-full">
@@ -30,8 +42,56 @@ export default function GlobalBottomBar() {
 					<span className="font-medium">Tabst</span>
 				</div>
 
-				{/* Center/Right: moved controls (only for .atex files) */}
-				{isAtexFile && (
+				{/* Right: Controls area */}
+				<div className="flex items-center gap-2">
+					{/* Tutorial navigation buttons (only in tutorial mode) */}
+					{isTutorialMode && (prevTutorial || nextTutorial) && (
+						<div className="flex items-center gap-3">
+							{/* Keyboard hint */}
+							<span className="text-xs text-muted-foreground/70 hidden sm:inline">
+								使用 ← → 键翻页
+							</span>
+							<div className="flex items-center gap-2">
+								{prevTutorial && (
+									<Tooltip>
+										<TooltipTrigger asChild>
+											<button
+												onClick={() => setActiveTutorialId(prevTutorial.id)}
+												className="flex items-center gap-1.5 px-2 py-1 rounded hover:bg-accent hover:text-accent-foreground transition-colors text-xs"
+												aria-label={`前一页：${prevTutorial.title}`}
+											>
+												<ChevronLeft className="h-3.5 w-3.5" />
+												<span className="text-xs">前一页：{prevTutorial.title}</span>
+											</button>
+										</TooltipTrigger>
+										<TooltipContent side="top">
+											<p>前一页：{prevTutorial.title} (← 键)</p>
+										</TooltipContent>
+									</Tooltip>
+								)}
+								{nextTutorial && (
+									<Tooltip>
+										<TooltipTrigger asChild>
+											<button
+												onClick={() => setActiveTutorialId(nextTutorial.id)}
+												className="flex items-center gap-1.5 px-2 py-1 rounded hover:bg-accent hover:text-accent-foreground transition-colors text-xs"
+												aria-label={`后一页：${nextTutorial.title}`}
+											>
+												<span className="text-xs">后一页：{nextTutorial.title}</span>
+												<ChevronRight className="h-3.5 w-3.5" />
+											</button>
+										</TooltipTrigger>
+										<TooltipContent side="top">
+											<p>后一页：{nextTutorial.title} (→ 键)</p>
+										</TooltipContent>
+									</Tooltip>
+								)}
+							</div>
+						</div>
+					)}
+
+					{/* Center/Right: moved controls (only for .atex files, not in tutorial mode) */}
+					{isAtexFile && !isTutorialMode && (
 					<div className="flex items-center gap-2">
 						{/* Existing staff controls (leftmost) */}
 						<StaffControls
@@ -167,7 +227,8 @@ export default function GlobalBottomBar() {
 							</TooltipContent>
 						</Tooltip>
 					</div>
-				)}
+					)}
+				</div>
 			</footer>
 		</TooltipProvider>
 	);

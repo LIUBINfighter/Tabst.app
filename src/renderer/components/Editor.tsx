@@ -47,6 +47,7 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 	const activeFileId = useAppStore((s) => s.activeFileId);
 	const files = useAppStore((s) => s.files);
 	const activeFile = files.find((f) => f.id === activeFileId);
+	const setWorkspaceMode = useAppStore((s) => s.setWorkspaceMode);
 
 	// 🆕 订阅乐谱选区状态
 	const scoreSelection = useAppStore((s) => s.scoreSelection);
@@ -448,8 +449,6 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 	}, []);
 
 	if (!activeFile) {
-		const setWorkspaceMode = useAppStore((s) => s.setWorkspaceMode);
-
 		return (
 			<div className="flex-1 flex items-center justify-center">
 				<div className="flex flex-col items-center gap-6">
@@ -457,27 +456,32 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 						选择或创建一个文件开始编辑
 					</p>
 					<div className="flex flex-col gap-2 items-center">
-						<button
-							type="button"
-							onClick={onExpandSidebar}
-							className="text-sm text-primary hover:underline cursor-pointer bg-transparent border-none p-0 font-normal"
-						>
-							打开侧边栏
-						</button>
-						<button
-							type="button"
+						{onExpandSidebar && (
+							<Button
+								variant="ghost"
+								size="sm"
+								className="h-7 px-2 text-muted-foreground"
+								onClick={onExpandSidebar}
+							>
+								打开侧边栏
+							</Button>
+						)}
+						<Button
+							variant="ghost"
+							size="sm"
+							className="h-7 px-2 text-muted-foreground"
 							onClick={() => setWorkspaceMode("tutorial")}
-							className="text-sm text-primary hover:underline cursor-pointer bg-transparent border-none p-0 font-normal"
 						>
 							打开教程
-						</button>
-						<button
-							type="button"
+						</Button>
+						<Button
+							variant="ghost"
+							size="sm"
+							className="h-7 px-2 text-muted-foreground"
 							onClick={() => setWorkspaceMode("settings")}
-							className="text-sm text-primary hover:underline cursor-pointer bg-transparent border-none p-0 font-normal"
 						>
 							打开设置
-						</button>
+						</Button>
 					</div>
 				</div>
 			</div>
