@@ -8,9 +8,12 @@ import {
 	Square,
 	Waves,
 } from "lucide-react";
+import {
+	getNextTutorial,
+	getPrevTutorial,
+} from "../lib/tutorial-loader";
 import { useAppStore } from "../store/appStore";
 import StaffControls from "./StaffControls";
-import { defaultTutorials } from "./TutorialView";
 import IconButton from "./ui/icon-button";
 import {
 	Tooltip,
@@ -39,15 +42,12 @@ export default function GlobalBottomBar() {
 	const isTutorialMode = workspaceMode === "tutorial";
 
 	// Calculate previous and next tutorial
-	const currentIndex = defaultTutorials.findIndex(
-		(t) => t.id === activeTutorialId,
-	);
-	const prevTutorial =
-		currentIndex > 0 ? defaultTutorials[currentIndex - 1] : null;
-	const nextTutorial =
-		currentIndex >= 0 && currentIndex < defaultTutorials.length - 1
-			? defaultTutorials[currentIndex + 1]
-			: null;
+	const prevTutorial = activeTutorialId
+		? getPrevTutorial(activeTutorialId)
+		: null;
+	const nextTutorial = activeTutorialId
+		? getNextTutorial(activeTutorialId)
+		: null;
 
 	return (
 		<TooltipProvider delayDuration={200}>
