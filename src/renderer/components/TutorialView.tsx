@@ -35,9 +35,15 @@ export default function TutorialView() {
 		defaultTutorials[0];
 
 	// 计算前一页和后一页
-	const currentIndex = defaultTutorials.findIndex((t) => t.id === activeTutorialId);
-	const prevTutorial = currentIndex > 0 ? defaultTutorials[currentIndex - 1] : null;
-	const nextTutorial = currentIndex >= 0 && currentIndex < defaultTutorials.length - 1 ? defaultTutorials[currentIndex + 1] : null;
+	const currentIndex = defaultTutorials.findIndex(
+		(t) => t.id === activeTutorialId,
+	);
+	const prevTutorial =
+		currentIndex > 0 ? defaultTutorials[currentIndex - 1] : null;
+	const nextTutorial =
+		currentIndex >= 0 && currentIndex < defaultTutorials.length - 1
+			? defaultTutorials[currentIndex + 1]
+			: null;
 
 	// 键盘快捷键：ESC 返回编辑器，左右箭头键翻页
 	useEffect(() => {
@@ -81,14 +87,6 @@ export default function TutorialView() {
 
 				<h2 className="text-lg font-semibold mb-2">{cur.title}</h2>
 				<p className="text-sm text-muted-foreground mb-4">{cur.content}</p>
-				
-				{/* 键盘导航提示 */}
-				{(prevTutorial || nextTutorial) && (
-					<div className="mb-4 bg-muted/50 border border-border p-2 rounded text-xs text-muted-foreground">
-						💡 提示：使用 <kbd className="px-1.5 py-0.5 bg-background border border-border rounded text-xs font-mono">←</kbd> 和 <kbd className="px-1.5 py-0.5 bg-background border border-border rounded text-xs font-mono">→</kbd> 键快速翻页
-					</div>
-				)}
-				
 				<div className="bg-card border border-border p-3 rounded">
 					<p className="text-xs text-muted-foreground">
 						这里可以放更多的步骤、图片或嵌入的示例。当前为占位内容，方便你查看布局效果。

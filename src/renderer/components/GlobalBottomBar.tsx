@@ -1,8 +1,17 @@
-import { ChevronLeft, ChevronRight, Minus, Pause, Play, Plus, Square, Waves } from "lucide-react";
+import {
+	ChevronLeft,
+	ChevronRight,
+	Minus,
+	Pause,
+	Play,
+	Plus,
+	Square,
+	Waves,
+} from "lucide-react";
 import { useAppStore } from "../store/appStore";
 import StaffControls from "./StaffControls";
-import IconButton from "./ui/icon-button";
 import { defaultTutorials } from "./TutorialView";
+import IconButton from "./ui/icon-button";
 import {
 	Tooltip,
 	TooltipContent,
@@ -28,11 +37,17 @@ export default function GlobalBottomBar() {
 	const activeTutorialId = useAppStore((s) => s.activeTutorialId);
 	const setActiveTutorialId = useAppStore((s) => s.setActiveTutorialId);
 	const isTutorialMode = workspaceMode === "tutorial";
-	
+
 	// Calculate previous and next tutorial
-	const currentIndex = defaultTutorials.findIndex((t) => t.id === activeTutorialId);
-	const prevTutorial = currentIndex > 0 ? defaultTutorials[currentIndex - 1] : null;
-	const nextTutorial = currentIndex >= 0 && currentIndex < defaultTutorials.length - 1 ? defaultTutorials[currentIndex + 1] : null;
+	const currentIndex = defaultTutorials.findIndex(
+		(t) => t.id === activeTutorialId,
+	);
+	const prevTutorial =
+		currentIndex > 0 ? defaultTutorials[currentIndex - 1] : null;
+	const nextTutorial =
+		currentIndex >= 0 && currentIndex < defaultTutorials.length - 1
+			? defaultTutorials[currentIndex + 1]
+			: null;
 
 	return (
 		<TooltipProvider delayDuration={200}>
@@ -56,12 +71,15 @@ export default function GlobalBottomBar() {
 									<Tooltip>
 										<TooltipTrigger asChild>
 											<button
+												type="button"
 												onClick={() => setActiveTutorialId(prevTutorial.id)}
 												className="flex items-center gap-1.5 px-2 py-1 rounded hover:bg-accent hover:text-accent-foreground transition-colors text-xs"
 												aria-label={`前一页：${prevTutorial.title}`}
 											>
 												<ChevronLeft className="h-3.5 w-3.5" />
-												<span className="text-xs">前一页：{prevTutorial.title}</span>
+												<span className="text-xs">
+													前一页：{prevTutorial.title}
+												</span>
 											</button>
 										</TooltipTrigger>
 										<TooltipContent side="top">
@@ -73,11 +91,14 @@ export default function GlobalBottomBar() {
 									<Tooltip>
 										<TooltipTrigger asChild>
 											<button
+												type="button"
 												onClick={() => setActiveTutorialId(nextTutorial.id)}
 												className="flex items-center gap-1.5 px-2 py-1 rounded hover:bg-accent hover:text-accent-foreground transition-colors text-xs"
 												aria-label={`后一页：${nextTutorial.title}`}
 											>
-												<span className="text-xs">后一页：{nextTutorial.title}</span>
+												<span className="text-xs">
+													后一页：{nextTutorial.title}
+												</span>
 												<ChevronRight className="h-3.5 w-3.5" />
 											</button>
 										</TooltipTrigger>
@@ -92,141 +113,141 @@ export default function GlobalBottomBar() {
 
 					{/* Center/Right: moved controls (only for .atex files, not in tutorial mode) */}
 					{isAtexFile && !isTutorialMode && (
-					<div className="flex items-center gap-2">
-						{/* Existing staff controls (leftmost) */}
-						<StaffControls
-							firstStaffOptions={firstStaffOptions}
-							toggleFirstStaffOpt={requestStaffToggle}
-						/>
+						<div className="flex items-center gap-2">
+							{/* Existing staff controls (leftmost) */}
+							<StaffControls
+								firstStaffOptions={firstStaffOptions}
+								toggleFirstStaffOpt={requestStaffToggle}
+							/>
 
-						{/* Zoom controls (display size): shrink / input / enlarge */}
-						<div className="ml-2 flex items-center gap-1">
+							{/* Zoom controls (display size): shrink / input / enlarge */}
+							<div className="ml-2 flex items-center gap-1">
+								<Tooltip>
+									<TooltipTrigger asChild>
+										<IconButton
+											compact
+											onClick={() => {
+												const pct = Math.max(10, zoomPercent - 10);
+												setZoomPercent(pct);
+												playerControls?.applyZoom?.(pct);
+											}}
+											aria-label="缩小"
+										>
+											<Minus className="h-4 w-4" />
+										</IconButton>
+									</TooltipTrigger>
+									<TooltipContent side="top">
+										<p>缩小</p>
+									</TooltipContent>
+								</Tooltip>
+
+								<input
+									aria-label="缩放百分比"
+									value={zoomPercent}
+									onChange={(e) => {
+										const v = parseInt(e.target.value ?? "60", 10);
+										if (Number.isNaN(v)) return;
+										setZoomPercent(v);
+									}}
+									onBlur={(e) => {
+										const v = parseInt(e.target.value ?? "60", 10);
+										if (Number.isNaN(v)) return;
+										const pct = Math.max(10, Math.min(400, v));
+										setZoomPercent(pct);
+										playerControls?.applyZoom?.(pct);
+									}}
+									className="w-10 h-6 text-xs text-center rounded bg-transparent border border-border px-1 input-no-spinner"
+									step={1}
+									min={10}
+									max={400}
+									style={{ textAlign: "center" }}
+								/>
+
+								<Tooltip>
+									<TooltipTrigger asChild>
+										<IconButton
+											compact
+											onClick={() => {
+												const pct = Math.min(400, zoomPercent + 10);
+												setZoomPercent(pct);
+												playerControls?.applyZoom?.(pct);
+											}}
+											aria-label="放大"
+										>
+											<Plus className="h-4 w-4" />
+										</IconButton>
+									</TooltipTrigger>
+									<TooltipContent side="top">
+										<p>放大</p>
+									</TooltipContent>
+								</Tooltip>
+							</div>
+
+							{/* Display mode: scroll */}
 							<Tooltip>
 								<TooltipTrigger asChild>
 									<IconButton
-										compact
-										onClick={() => {
-											const pct = Math.max(10, zoomPercent - 10);
-											setZoomPercent(pct);
-											playerControls?.applyZoom?.(pct);
-										}}
-										aria-label="缩小"
+										active={scrollMode === 1}
+										onClick={() => playerControls?.toggleScrollMode?.()}
+										aria-label="切换滚动模式"
 									>
-										<Minus className="h-4 w-4" />
+										<Waves className="h-4 w-4" />
 									</IconButton>
 								</TooltipTrigger>
 								<TooltipContent side="top">
-									<p>缩小</p>
+									<p>{scrollMode === 1 ? "连续滚动" : "超出页面后滚动"}</p>
 								</TooltipContent>
 							</Tooltip>
 
-							<input
-								aria-label="缩放百分比"
-								value={zoomPercent}
-								onChange={(e) => {
-									const v = parseInt(e.target.value ?? "60", 10);
-									if (Number.isNaN(v)) return;
-									setZoomPercent(v);
-								}}
-								onBlur={(e) => {
-									const v = parseInt(e.target.value ?? "60", 10);
-									if (Number.isNaN(v)) return;
-									const pct = Math.max(10, Math.min(400, v));
-									setZoomPercent(pct);
-									playerControls?.applyZoom?.(pct);
-								}}
-								className="w-10 h-6 text-xs text-center rounded bg-transparent border border-border px-1 input-no-spinner"
-								step={1}
-								min={10}
-								max={400}
-								style={{ textAlign: "center" }}
-							/>
+							{/* Playback controls (play/pause, stop) - right side */}
+							<Tooltip>
+								<TooltipTrigger asChild>
+									<IconButton
+										active={playerIsPlaying}
+										onClick={() => {
+											if (!playerControls) return;
+											try {
+												if (!playerIsPlaying) playerControls.play?.();
+												else playerControls.pause?.();
+											} catch (e) {
+												console.error("GlobalBottomBar play/pause failed:", e);
+											}
+										}}
+										aria-label="播放/暂停"
+									>
+										{playerIsPlaying ? (
+											<Pause className="h-4 w-4" />
+										) : (
+											<Play className="h-4 w-4" />
+										)}
+									</IconButton>
+								</TooltipTrigger>
+								<TooltipContent side="top">
+									<p>{playerIsPlaying ? "暂停" : "播放"}</p>
+								</TooltipContent>
+							</Tooltip>
 
 							<Tooltip>
 								<TooltipTrigger asChild>
 									<IconButton
-										compact
 										onClick={() => {
-											const pct = Math.min(400, zoomPercent + 10);
-											setZoomPercent(pct);
-											playerControls?.applyZoom?.(pct);
+											if (!playerControls) return;
+											try {
+												playerControls.stop?.();
+											} catch (e) {
+												console.error("GlobalBottomBar stop failed:", e);
+											}
 										}}
-										aria-label="放大"
+										aria-label="停止"
 									>
-										<Plus className="h-4 w-4" />
+										<Square className="h-4 w-4" />
 									</IconButton>
 								</TooltipTrigger>
 								<TooltipContent side="top">
-									<p>放大</p>
+									<p>停止</p>
 								</TooltipContent>
 							</Tooltip>
 						</div>
-
-						{/* Display mode: scroll */}
-						<Tooltip>
-							<TooltipTrigger asChild>
-								<IconButton
-									active={scrollMode === 1}
-									onClick={() => playerControls?.toggleScrollMode?.()}
-									aria-label="切换滚动模式"
-								>
-									<Waves className="h-4 w-4" />
-								</IconButton>
-							</TooltipTrigger>
-							<TooltipContent side="top">
-								<p>{scrollMode === 1 ? "连续滚动" : "超出页面后滚动"}</p>
-							</TooltipContent>
-						</Tooltip>
-
-						{/* Playback controls (play/pause, stop) - right side */}
-						<Tooltip>
-							<TooltipTrigger asChild>
-								<IconButton
-									active={playerIsPlaying}
-									onClick={() => {
-										if (!playerControls) return;
-										try {
-											if (!playerIsPlaying) playerControls.play?.();
-											else playerControls.pause?.();
-										} catch (e) {
-											console.error("GlobalBottomBar play/pause failed:", e);
-										}
-									}}
-									aria-label="播放/暂停"
-								>
-									{playerIsPlaying ? (
-										<Pause className="h-4 w-4" />
-									) : (
-										<Play className="h-4 w-4" />
-									)}
-								</IconButton>
-							</TooltipTrigger>
-							<TooltipContent side="top">
-								<p>{playerIsPlaying ? "暂停" : "播放"}</p>
-							</TooltipContent>
-						</Tooltip>
-
-						<Tooltip>
-							<TooltipTrigger asChild>
-								<IconButton
-									onClick={() => {
-										if (!playerControls) return;
-										try {
-											playerControls.stop?.();
-										} catch (e) {
-											console.error("GlobalBottomBar stop failed:", e);
-										}
-									}}
-									aria-label="停止"
-								>
-									<Square className="h-4 w-4" />
-								</IconButton>
-							</TooltipTrigger>
-							<TooltipContent side="top">
-								<p>停止</p>
-							</TooltipContent>
-						</Tooltip>
-					</div>
 					)}
 				</div>
 			</footer>
