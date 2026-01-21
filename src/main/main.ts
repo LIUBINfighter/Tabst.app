@@ -67,6 +67,7 @@ if (process.platform === "win32" && !isDev) {
 			log.transports.file.level = "info";
 			autoUpdater.logger = log;
 			autoUpdater.autoDownload = true;
+			autoUpdater.allowPrerelease = true; // Allow checking prerelease versions
 
 			autoUpdater.on("update-available", () => {
 				console.info("Update available — downloading...");
