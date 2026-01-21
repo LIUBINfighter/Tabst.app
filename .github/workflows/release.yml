@@ -46,7 +46,10 @@ jobs:
         with:
           tag_name: ${{ github.ref_name }}
           name: ${{ github.ref_name }} (Windows)
-          files: dist/**/*
+          files: |
+            dist/*.exe
+            dist/*.blockmap
+            dist/latest.yml
           body: "Automated Windows release created by workflow"
           draft: true
         env:
