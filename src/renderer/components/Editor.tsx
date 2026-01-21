@@ -22,7 +22,9 @@ import { whitespaceDecoration } from "../lib/whitespace-decoration";
 import type { EditorCursorInfo } from "../store/appStore";
 import { useAppStore } from "../store/appStore";
 import Preview from "./Preview";
+import TopBar from "./TopBar";
 import { Button } from "./ui/button";
+import IconButton from "./ui/icon-button";
 
 interface EditorProps {
 	showExpandSidebar?: boolean;
@@ -45,6 +47,7 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 	const activeFileId = useAppStore((s) => s.activeFileId);
 	const files = useAppStore((s) => s.files);
 	const activeFile = files.find((f) => f.id === activeFileId);
+	const setWorkspaceMode = useAppStore((s) => s.setWorkspaceMode);
 
 	// 🆕 订阅乐谱选区状态
 	const scoreSelection = useAppStore((s) => s.scoreSelection);
@@ -105,7 +108,8 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 				scrollbarColor: "hsl(var(--border) / 0.7) transparent",
 			},
 			".cm-content": {
-				padding: "8px 0 150px 0",
+				// 顶部 8px、左右 0；底部留白通过 CSS 变量控制（由容器高度 * 0.6 计算得到）
+				padding: "8px 0 var(--scroll-buffer, 150px) 0",
 			},
 			".cm-gutters": {
 				backgroundColor: "transparent",
@@ -176,9 +180,9 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 						})
 						.catch((e: unknown) => console.error("LSP init failed:", e));
 
-					// Add code completion extension
-					const completionExt = createAlphaTexAutocomplete(lspClient);
-					extensions.push(completionExt);
+					// Add code completion extension (returns array of extensions)
+					const completionExts = createAlphaTexAutocomplete(lspClient);
+					extensions.push(...completionExts);
 
 					// Add barline decorations extension
 					const barlinesExt = createAlphaTexBarlinesExtension(lspClient);
@@ -382,6 +386,25 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 		activeFile,
 	]);
 
+	// ✅ 统一滚动缓冲：不使用 vh，按容器高度的 60% 计算底部留白（px）
+	useEffect(() => {
+		const host = editorRef.current;
+		if (!host) return;
+
+		const apply = () => {
+			// editor 列的可用高度（接近“视口高度”）作为基准
+			const h = host.getBoundingClientRect().height;
+			const px = Math.max(0, Math.floor(h * 0.6));
+			host.style.setProperty("--scroll-buffer", `${px}px`);
+		};
+
+		apply();
+
+		const ro = new ResizeObserver(() => apply());
+		ro.observe(host);
+		return () => ro.disconnect();
+	}, []);
+
 	// Update theme when dark mode changes
 	useEffect(() => {
 		if (!viewRef.current || !themeCompartmentRef.current) return;
@@ -447,8 +470,40 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 
 	if (!activeFile) {
 		return (
-			<div className="flex-1 flex items-center justify-center text-muted-foreground">
-				<span>选择或创建一个文件开始编辑</span>
+			<div className="flex-1 flex items-center justify-center">
+				<div className="flex flex-col items-center gap-6">
+					<p className="text-sm text-muted-foreground">
+						选择或创建一个文件开始编辑
+					</p>
+					<div className="flex flex-col gap-2 items-center">
+						{onExpandSidebar && (
+							<Button
+								variant="ghost"
+								size="sm"
+								className="h-7 px-2 text-muted-foreground"
+								onClick={onExpandSidebar}
+							>
+								打开侧边栏
+							</Button>
+						)}
+						<Button
+							variant="ghost"
+							size="sm"
+							className="h-7 px-2 text-muted-foreground"
+							onClick={() => setWorkspaceMode("tutorial")}
+						>
+							打开教程
+						</Button>
+						<Button
+							variant="ghost"
+							size="sm"
+							className="h-7 px-2 text-muted-foreground"
+							onClick={() => setWorkspaceMode("settings")}
+						>
+							打开设置
+						</Button>
+					</div>
+				</div>
 			</div>
 		);
 	}
@@ -464,21 +519,26 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 					{/* Left: Editor */}
 					<div className="w-1/2 border-r border-border flex flex-col min-h-0">
 						{/* Column header to align with Preview header */}
-						<div className="h-9 border-b border-border flex items-center px-3 text-xs text-muted-foreground shrink-0 gap-2 bg-card">
-							{showExpandSidebar && (
-								<Button
-									variant="ghost"
-									size="icon"
-									className="h-8 w-8"
-									onClick={onExpandSidebar}
-									aria-label="展开侧边栏"
-								>
-									<ChevronRight className="h-4 w-4" />
-								</Button>
-							)}
-							<Edit className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-							<div className="truncate">{activeFile.name}</div>
-						</div>
+						<TopBar
+							leading={
+								showExpandSidebar ? (
+									<Button
+										variant="ghost"
+										size="icon"
+										className="h-8 w-8"
+										onClick={onExpandSidebar}
+										aria-label="展开侧边栏"
+									>
+										<ChevronRight className="h-4 w-4" />
+									</Button>
+								) : undefined
+							}
+							icon={
+								<Edit className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+							}
+							title={activeFile.name}
+						/>
+
 						<div className="flex-1 min-h-0 overflow-hidden relative">
 							{/* Host for CodeMirror */}
 							<div ref={editorRef} className="h-full" />
@@ -495,21 +555,19 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 				</div>
 			) : (
 				<div className="flex-1 flex flex-col min-h-0 overflow-hidden relative">
-					<div className="h-9 border-b border-border flex items-center px-3 text-xs text-muted-foreground shrink-0 gap-2 bg-card">
-						{showExpandSidebar && (
-							<Button
-								variant="ghost"
-								size="icon"
-								className="h-8 w-8"
-								onClick={onExpandSidebar}
-								aria-label="展开侧边栏"
-							>
-								<ChevronRight className="h-4 w-4" />
-							</Button>
-						)}
-						<Edit className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-						<div className="truncate">{activeFile.name}</div>
-					</div>
+					<TopBar
+						leading={
+							showExpandSidebar ? (
+								<IconButton title="展开侧边栏" onClick={onExpandSidebar}>
+									<ChevronRight className="h-4 w-4" />
+								</IconButton>
+							) : undefined
+						}
+						icon={
+							<Edit className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+						}
+						title={activeFile.name}
+					/>
 					{/* Host for CodeMirror */}
 					<div ref={editorRef} className="h-full" />
 				</div>

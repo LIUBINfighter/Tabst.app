@@ -18,7 +18,15 @@ import {
 import type { ResourceUrls } from "../lib/resourceLoaderService";
 import { getResourceUrls } from "../lib/resourceLoaderService";
 import { PrintTracksPanel } from "./PrintTracksPanel";
+import TopBar from "./TopBar";
 import { Button } from "./ui/button";
+import IconButton from "./ui/icon-button";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipProvider,
+	TooltipTrigger,
+} from "./ui/tooltip";
 
 export interface PrintPreviewProps {
 	/** AlphaTex 内容 */
@@ -58,7 +66,7 @@ export default function PrintPreview({
 	const [printFontUrl, setPrintFontUrl] = useState<string>("");
 
 	// 音轨选择侧边栏状态
-	const [isTracksPanelOpen, setIsTracksPanelOpen] = useState(false);
+	const [isTracksPanelOpen, setIsTracksPanelOpen] = useState(true);
 
 	// 缩放比例状态
 	const [zoom, setZoom] = useState(1.0);
@@ -660,88 +668,124 @@ export default function PrintPreview({
 					`}
 				</style>
 			)}
-			{/* 工具栏 */}
-			<div className="h-12 border-b border-border flex items-center justify-between px-4 bg-card shrink-0">
-				<div className="flex items-center gap-4">
-					<Button variant="ghost" size="icon" onClick={onClose} title="关闭">
-						<X className="h-5 w-5" />
-					</Button>
-					<span className="text-sm font-medium">{fileName} - 打印预览</span>
-				</div>
-
-				<div className="flex items-center gap-4">
-					{/* 音轨选择按钮 */}
-					<Button
-						variant={isTracksPanelOpen ? "secondary" : "ghost"}
-						size="icon"
-						onClick={() => setIsTracksPanelOpen(!isTracksPanelOpen)}
-						title="音轨选择"
-						disabled={isLoading || !apiRef.current?.score}
-					>
-						<Layers className="h-5 w-5" />
-					</Button>
-
-					{/* 页面尺寸选择 */}
-					<select
-						className="h-8 px-2 text-sm border border-border rounded bg-background"
-						value={pageSize.name}
-						onChange={(e) => {
-							const size = PAGE_SIZES.find((s) => s.name === e.target.value);
-							if (size) setPageSize(size);
-						}}
-					>
-						{PAGE_SIZES.map((size) => (
-							<option key={size.name} value={size.name}>
-								{size.name} ({size.width}×{size.height}mm)
-							</option>
-						))}
-					</select>
-
-					{/* 页码导航 */}
-					{totalPages > 0 && (
-						<div className="flex items-center gap-2">
-							<Button
-								variant="ghost"
-								size="icon"
-								onClick={() => navigateToPage(currentPage - 1)}
-								disabled={currentPage <= 1}
+			{/* 工具栏（复用 TopBar 以统一样式） */}
+			{/* Using IconButton component for consistent active styling (no extra CSS needed) */}
+			{/* Print button specific styling */}
+			<style>{`
+				.print-btn {
+					/* smaller to fit top bar */
+					padding-left: 0.5rem;
+					padding-right: 0.5rem;
+					height: 2rem; /* 32px to match icon buttons */
+					font-weight: 600;
+					font-size: 0.75rem; /* smaller text */
+					line-height: 1;
+				}
+				.print-btn svg {
+					width: 0.75rem;
+					height: 0.75rem;
+					margin-right: 0.25rem;
+				}
+				.print-btn:disabled { opacity: 0.6; }
+			`}</style>
+			<TooltipProvider delayDuration={200}>
+				<TopBar
+					className="px-4"
+					title={
+						<span className="text-sm font-medium">{fileName} - 打印预览</span>
+					}
+					trailing={
+						<div className="flex items-center gap-4">
+							{/* 页面尺寸选择 */}
+							<select
+								className="h-8 px-2 text-sm border border-border rounded bg-background"
+								value={pageSize.name}
+								onChange={(e) => {
+									const size = PAGE_SIZES.find(
+										(s) => s.name === e.target.value,
+									);
+									if (size) setPageSize(size);
+								}}
 							>
-								<ChevronLeft className="h-4 w-4" />
-							</Button>
-							<span className="text-sm min-w-[80px] text-center">
-								{currentPage} / {totalPages}
-							</span>
-							<Button
-								variant="ghost"
-								size="icon"
-								onClick={() => navigateToPage(currentPage + 1)}
-								disabled={currentPage >= totalPages}
+								{PAGE_SIZES.map((size) => (
+									<option key={size.name} value={size.name}>
+										{size.name} ({size.width}×{size.height}mm)
+									</option>
+								))}
+							</select>
+
+							{/* 页码导航 */}
+							{totalPages > 0 && (
+								<div className="flex items-center gap-2">
+									<Button
+										variant="ghost"
+										size="icon"
+										className="h-8 w-8"
+										onClick={() => navigateToPage(currentPage - 1)}
+										disabled={currentPage <= 1}
+									>
+										<ChevronLeft className="h-4 w-4" />
+									</Button>
+									<span className="text-sm min-w-[80px] text-center">
+										{currentPage} / {totalPages}
+									</span>
+									<Button
+										variant="ghost"
+										size="icon"
+										className="h-8 w-8"
+										onClick={() => navigateToPage(currentPage + 1)}
+										disabled={currentPage >= totalPages}
+									>
+										<ChevronRight className="h-4 w-4" />
+									</Button>
+								</div>
+							)}
+							{/* 音轨选择按钮（使用 IconButton 与主预览一致） */}
+							<IconButton
+								active={isTracksPanelOpen}
+								title={isTracksPanelOpen ? "关闭音轨选择" : "打开音轨选择"}
+								onClick={() => setIsTracksPanelOpen(!isTracksPanelOpen)}
+								disabled={isLoading || !apiRef.current?.score}
 							>
-								<ChevronRight className="h-4 w-4" />
+								<Layers className="h-5 w-5" />
+							</IconButton>
+							<Button
+								size="sm"
+								className="px-2 print-btn h-8 text-xs"
+								variant="default"
+								onClick={handlePrint}
+								disabled={isLoading || !!error || pages.length === 0}
+							>
+								<Printer className="h-3 w-3 mr-1" /> 打印 / 导出 PDF
 							</Button>
+							{/* 字体加载状态提示 */}
+							{fontError && (
+								<span
+									className="text-xs text-amber-600"
+									title="字体加载失败，使用回退字体"
+								>
+									⚠️ 字体
+								</span>
+							)}
+							{/* 关闭按钮 - 放在最右侧，红色高亮样式 */}
+							<Tooltip>
+								<TooltipTrigger asChild>
+									<IconButton
+										className="hover:bg-red-500/20 hover:text-red-600"
+										onClick={onClose}
+										aria-label="关闭"
+									>
+										<X className="h-4 w-4" />
+									</IconButton>
+								</TooltipTrigger>
+								<TooltipContent side="bottom">
+									<p>关闭</p>
+								</TooltipContent>
+							</Tooltip>
 						</div>
-					)}
-
-					{/* 打印按钮 */}
-					<Button
-						onClick={handlePrint}
-						disabled={isLoading || !!error || pages.length === 0}
-					>
-						<Printer className="h-4 w-4 mr-2" />
-						打印 / 导出 PDF
-					</Button>
-
-					{/* 字体加载状态提示 */}
-					{fontError && (
-						<span
-							className="text-xs text-amber-600"
-							title="字体加载失败，使用回退字体"
-						>
-							⚠️ 字体
-						</span>
-					)}
-				</div>
-			</div>
+					}
+				/>
+			</TooltipProvider>
 
 			{/* 主内容区域（包含侧边栏和预览） */}
 			<div className="flex-1 flex overflow-hidden">

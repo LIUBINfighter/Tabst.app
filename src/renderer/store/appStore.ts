@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import type { StaffDisplayOptions } from "../lib/staff-config";
 
 export interface FileItem {
 	id: string;
@@ -64,6 +65,40 @@ interface AppState {
 	// 🆕 播放器光标位置 - 暂停时也保留，用于显示黄色小节高亮
 	playerCursorPosition: PlaybackBeatInfo | null;
 
+	// 🆕 Player UI / remote controls
+	playerControls: {
+		play?: () => void;
+		pause?: () => void;
+		stop?: () => void;
+		applyZoom?: (percent: number) => void;
+		applyPlaybackSpeed?: (speed: number) => void;
+		setMetronomeVolume?: (volume: number) => void;
+	} | null;
+	registerPlayerControls: (controls: NonNullable<object>) => void;
+	unregisterPlayerControls: () => void;
+	playerIsPlaying: boolean;
+	setPlayerIsPlaying: (v: boolean) => void;
+	zoomPercent: number;
+	setZoomPercent: (v: number) => void;
+	playbackSpeed: number;
+	setPlaybackSpeed: (v: number) => void;
+	metronomeVolume: number;
+	setMetronomeVolume: (v: number) => void;
+
+	// 工作区模式：editor | tutorial | settings
+	workspaceMode: "editor" | "tutorial" | "settings";
+	setWorkspaceMode: (mode: "editor" | "tutorial" | "settings") => void;
+
+	// 🆕 第一个谱表显示选项
+	firstStaffOptions: StaffDisplayOptions | null;
+
+	// 🆕 待处理的谱表选项切换
+	pendingStaffToggle: keyof StaffDisplayOptions | null;
+
+	// 教程选择（用于侧边栏与教程视图间同步）
+	activeTutorialId: string | null;
+	setActiveTutorialId: (id: string | null) => void;
+
 	// Actions
 	addFile: (file: FileItem) => void;
 	removeFile: (id: string) => void;
@@ -85,6 +120,22 @@ interface AppState {
 
 	// 🆕 播放器光标位置操作（暂停时也保留）
 	setPlayerCursorPosition: (position: PlaybackBeatInfo | null) => void;
+	/**
+	 * 🆕 清除“播放相关”高亮状态，回到无高亮状态
+	 * - 清除绿色当前 beat 高亮
+	 * - 清除黄色小节高亮（依赖 playerCursorPosition）
+	 */
+	clearPlaybackHighlights: () => void;
+
+	/**
+	 * 🆕 清除所有高亮（选区 + 播放），回到无高亮状态
+	 */
+	clearAllHighlights: () => void;
+
+	// 🆕 谱表选项操作
+	setFirstStaffOptions: (options: StaffDisplayOptions | null) => void;
+	toggleFirstStaffOption: (key: keyof StaffDisplayOptions) => void;
+	requestStaffToggle: (key: keyof StaffDisplayOptions) => void;
 
 	// 初始化，从主进程读取持久化状态
 	initialize: () => Promise<void>;
@@ -97,6 +148,24 @@ export const useAppStore = create<AppState>((set, get) => ({
 	editorCursor: null,
 	playbackBeat: null,
 	playerCursorPosition: null,
+	playerControls: null,
+	registerPlayerControls: (controls) => set({ playerControls: controls }),
+	unregisterPlayerControls: () => set({ playerControls: null }),
+	playerIsPlaying: false,
+	setPlayerIsPlaying: (v) => set({ playerIsPlaying: v }),
+	zoomPercent: 60,
+	setZoomPercent: (v) => set({ zoomPercent: v }),
+	playbackSpeed: 1.0,
+	setPlaybackSpeed: (v) => set({ playbackSpeed: v }),
+	metronomeVolume: 0,
+	setMetronomeVolume: (v) => set({ metronomeVolume: v }),
+	workspaceMode: "editor",
+	setWorkspaceMode: (mode: "editor" | "tutorial" | "settings") =>
+		set({ workspaceMode: mode }),
+	firstStaffOptions: null,
+	pendingStaffToggle: null,
+	activeTutorialId: null,
+	setActiveTutorialId: (id) => set({ activeTutorialId: id }),
 
 	addFile: (file) => {
 		set((state) => {
@@ -256,6 +325,42 @@ export const useAppStore = create<AppState>((set, get) => ({
 	// 🆕 设置播放器光标位置（暂停时也保留）
 	setPlayerCursorPosition: (position) => {
 		set({ playerCursorPosition: position });
+	},
+
+	// 🆕 清除播放相关高亮（绿色 + 黄色）
+	clearPlaybackHighlights: () => {
+		set({ playbackBeat: null, playerCursorPosition: null });
+	},
+
+	// 🆕 清除所有高亮（选区 + 播放）
+	clearAllHighlights: () => {
+		set({
+			scoreSelection: null,
+			playbackBeat: null,
+			playerCursorPosition: null,
+		});
+	},
+
+	// 🆕 设置第一个谱表选项
+	setFirstStaffOptions: (options) => {
+		set({ firstStaffOptions: options });
+	},
+
+	// 🆕 切换第一个谱表选项
+	toggleFirstStaffOption: (key) => {
+		set((state) => ({
+			firstStaffOptions: state.firstStaffOptions
+				? {
+						...state.firstStaffOptions,
+						[key]: !state.firstStaffOptions[key],
+					}
+				: null,
+		}));
+	},
+
+	// 🆕 请求切换谱表选项（由 Preview 处理）
+	requestStaffToggle: (key) => {
+		set({ pendingStaffToggle: key });
 	},
 
 	initialize: async () => {

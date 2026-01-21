@@ -1,5 +1,6 @@
 import { FileText } from "lucide-react";
-import { useState } from "react";
+import { useEffect } from "react";
+import { useAppStore } from "../store/appStore";
 
 export interface TutorialItem {
 	id: string;
@@ -26,7 +27,16 @@ export function TutorialsSidebar() {
 		},
 	];
 
-	const [active, setActive] = useState<string | null>(defaultTutorials[0].id);
+	const activeTutorialId = useAppStore((s) => s.activeTutorialId);
+	const setActiveTutorialId = useAppStore((s) => s.setActiveTutorialId);
+	const setWorkspaceMode = useAppStore((s) => s.setWorkspaceMode);
+
+	useEffect(() => {
+		// Initialize to first tutorial if none selected
+		if (!activeTutorialId) {
+			setActiveTutorialId(defaultTutorials[0].id);
+		}
+	}, [activeTutorialId, setActiveTutorialId]);
 
 	return (
 		<div className="py-1">
@@ -34,16 +44,19 @@ export function TutorialsSidebar() {
 				<button
 					key={t.id}
 					type="button"
-					onClick={() => setActive(t.id)}
+					onClick={() => {
+						setActiveTutorialId(t.id);
+						setWorkspaceMode("tutorial");
+					}}
 					className={`w-full group flex items-center gap-2 px-3 py-1.5 cursor-pointer text-xs transition-colors text-left ${
-						active === t.id
+						activeTutorialId === t.id
 							? "bg-blue-500/20 text-blue-600"
 							: "hover:bg-blue-500/20 hover:text-blue-600 text-muted-foreground"
 					}`}
 				>
 					<FileText
 						className={`flex-none h-3.5 w-3.5 ${
-							active === t.id
+							activeTutorialId === t.id
 								? "text-blue-600"
 								: "text-muted-foreground hover:text-blue-600"
 						}`}
