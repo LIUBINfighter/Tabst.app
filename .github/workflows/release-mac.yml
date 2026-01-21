@@ -53,14 +53,27 @@ jobs:
       - name: Make macOS DMG
         run: pnpm make --platform=darwin
 
+      - name: Rename macOS artifacts to match naming convention
+        run: |
+          cd out/make
+          VERSION=$(node -p "require('../../package.json').version")
+          # Rename DMG: Tabst-{version}-arm64.dmg -> Tabst-{version}-macos-arm64.dmg
+          if [ -f "Tabst-${VERSION}-arm64.dmg" ]; then
+            mv "Tabst-${VERSION}-arm64.dmg" "Tabst-${VERSION}-macos-arm64.dmg"
+          fi
+          # Rename ZIP: Tabst-darwin-arm64-{version}.zip -> Tabst-{version}-macos-arm64-portable.zip
+          if [ -f "zip/darwin/arm64/Tabst-darwin-arm64-${VERSION}.zip" ]; then
+            mv "zip/darwin/arm64/Tabst-darwin-arm64-${VERSION}.zip" "Tabst-${VERSION}-macos-arm64-portable.zip"
+          fi
+
       - name: Create Release and upload macOS assets
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ github.ref_name }}
           name: ${{ github.ref_name }} (macOS)
           files: |
-            out/make/**/*.dmg
-            out/make/**/*.zip
+            out/make/Tabst-*-macos-*.dmg
+            out/make/Tabst-*-macos-*-portable.zip
           body: "Automated macOS release created by workflow"
           draft: true
         env:

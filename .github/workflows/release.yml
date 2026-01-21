@@ -48,6 +48,7 @@ jobs:
           name: ${{ github.ref_name }} (Windows)
           files: |
             dist/*.exe
+            dist/*.zip
             dist/*.blockmap
             dist/latest.yml
           body: "Automated Windows release created by workflow"

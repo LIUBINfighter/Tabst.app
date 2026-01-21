@@ -116,9 +116,15 @@
 					"arch": [
 						"x64"
 					]
+				},
+				{
+					"target": "zip",
+					"arch": [
+						"x64"
+					]
 				}
 			],
-			"artifactName": "Tabst-${version}-win32-${arch}.${ext}"
+			"artifactName": "Tabst-${version}-win-${arch}-${name}.${ext}"
 		},
 		"nsis": {
 			"oneClick": false,
