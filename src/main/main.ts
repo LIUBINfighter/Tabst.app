@@ -59,6 +59,48 @@ function createWindow() {
 
 app.whenReady().then(createWindow);
 
+// Auto-update (Windows NSIS) — only enabled in packaged production builds on Windows
+if (process.platform === "win32" && !isDev) {
+	import("electron-updater")
+		.then(({ autoUpdater }) => {
+			const log = require("electron-log");
+			log.transports.file.level = "info";
+			autoUpdater.logger = log;
+			autoUpdater.autoDownload = true;
+
+			autoUpdater.on("update-available", () => {
+				console.info("Update available — downloading...");
+			});
+
+			autoUpdater.on("update-downloaded", (_info) => {
+				const win = BrowserWindow.getAllWindows()[0];
+				dialog
+					.showMessageBox(win, {
+						type: "info",
+						buttons: ["Install and Restart", "Later"],
+						defaultId: 0,
+						message:
+							"A new update has been downloaded. Install and restart now?",
+					})
+					.then((result) => {
+						if (result.response === 0) {
+							autoUpdater.quitAndInstall(false, true);
+						}
+					});
+			});
+
+			// Delay slightly so the app finishes startup
+			setTimeout(() => {
+				autoUpdater.checkForUpdatesAndNotify().catch((e) => {
+					console.warn("checkForUpdatesAndNotify failed:", e);
+				});
+			}, 2000);
+		})
+		.catch((err) => {
+			console.warn("autoUpdater not available:", err);
+		});
+}
+
 app.on("window-all-closed", () => {
 	if (process.platform !== "darwin") app.quit();
 });

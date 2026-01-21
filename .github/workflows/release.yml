@@ -38,23 +38,16 @@ jobs:
       - name: Build (frontend & main)
         run: pnpm build
 
-      - name: Package application
-        run: pnpm package
+      - name: Run electron-builder for Windows (NSIS)
+        run: pnpm dist:win
 
-      - name: Install 7-Zip (needed by Squirrel)
-        shell: powershell
-        run: choco install 7zip -y
-
-      - name: Make (create installers)
-        run: pnpm make
-
-      - name: Create Release and upload ZIP portable assets only
+      - name: Create Draft Release and upload Windows artifacts
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
-          name: ${{ github.ref_name }}
-          files: out/make/**/*.zip
-          body: "Automated release created by workflow"
+          name: ${{ github.ref_name }} (Windows)
+          files: dist/**/*
+          body: "Automated Windows release created by workflow"
           draft: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
