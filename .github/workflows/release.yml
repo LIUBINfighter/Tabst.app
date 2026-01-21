@@ -54,7 +54,7 @@ jobs:
           tag_name: ${{ github.ref_name }}
           name: ${{ github.ref_name }}
           files: out/make/**/*.zip
-          body: "Automated release created by workflow (portable ZIP only)"
+          body: "Automated release created by workflow"
           draft: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
