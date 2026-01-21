@@ -3,7 +3,13 @@ const { FusesPlugin } = require("@electron-forge/plugin-fuses");
 const { FuseV1Options, FuseVersion } = require("@electron/fuses");
 const { productName } = require("./package.json");
 
-const dmgAppPath = path.join(__dirname, "out", "make", `${process.platform}-${process.arch}`, `${productName}.app`);
+const dmgAppPath = path.join(
+	__dirname,
+	"out",
+	"make",
+	`${process.platform}-${process.arch}`,
+	`${productName}.app`,
+);
 
 module.exports = {
 	packagerConfig: {
@@ -28,13 +34,7 @@ module.exports = {
 						x: 130,
 						y: 220,
 						type: "file",
-						path: path.join(
-							__dirname,
-							"out",
-							"make",
-							"macos-arm64",
-							"Tabst.app",
-						),
+						path: dmgAppPath,
 					},
 					{
 						x: 410,
@@ -54,8 +54,8 @@ module.exports = {
 		{
 			name: "@electron-forge/maker-rpm",
 			config: {},
-						type: "file",
-						path: dmgAppPath,
+		},
+	],
 	plugins: [
 		{
 			name: "@electron-forge/plugin-auto-unpack-natives",
