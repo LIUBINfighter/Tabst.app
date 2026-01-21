@@ -135,6 +135,7 @@
 我需要快速找到答案                             → THEME_SWITCH_QUICK_REFERENCE.md
 我遇到了 tracks 参数丢失问题                   → INITIALIZATION_FLOW_PROBLEM.md
 我想修复 tracks 参数丢失问题                   → TRACKS_PARAMETER_FIX.md
+我遇到了 useEffect 依赖项回归问题              → USEEFFECT_DEPENDENCY_REGRESSION.md
 我想全面学习这个实现                           → 按顺序读所有文档
 ```
 
