@@ -117,6 +117,17 @@ interface AppState {
 
 	// 🆕 播放器光标位置操作（暂停时也保留）
 	setPlayerCursorPosition: (position: PlaybackBeatInfo | null) => void;
+	/**
+	 * 🆕 清除“播放相关”高亮状态，回到无高亮状态
+	 * - 清除绿色当前 beat 高亮
+	 * - 清除黄色小节高亮（依赖 playerCursorPosition）
+	 */
+	clearPlaybackHighlights: () => void;
+
+	/**
+	 * 🆕 清除所有高亮（选区 + 播放），回到无高亮状态
+	 */
+	clearAllHighlights: () => void;
 
 	// 🆕 谱表选项操作
 	setFirstStaffOptions: (options: StaffDisplayOptions | null) => void;
@@ -309,6 +320,16 @@ export const useAppStore = create<AppState>((set, get) => ({
 	// 🆕 设置播放器光标位置（暂停时也保留）
 	setPlayerCursorPosition: (position) => {
 		set({ playerCursorPosition: position });
+	},
+
+	// 🆕 清除播放相关高亮（绿色 + 黄色）
+	clearPlaybackHighlights: () => {
+		set({ playbackBeat: null, playerCursorPosition: null });
+	},
+
+	// 🆕 清除所有高亮（选区 + 播放）
+	clearAllHighlights: () => {
+		set({ scoreSelection: null, playbackBeat: null, playerCursorPosition: null });
 	},
 
 	// 🆕 设置第一个谱表选项

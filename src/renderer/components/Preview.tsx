@@ -289,15 +289,15 @@ export default function Preview({
 				console.info("[Preview] alphaTab render complete:", r);
 				const cursor = cursorRef.current;
 				if (cursor) cursor.style.display = "none";
-				// 渲染完成时清除编辑器中的播放高亮（但不修改播放状态）
-				useAppStore.getState().clearPlaybackBeat();
+				// 渲染完成时回到无高亮状态（避免保留旧的黄色小节高亮导致滚动锁定）
+				useAppStore.getState().clearPlaybackHighlights();
 			});
 
 			// 3. 播放进度（更新光标位置）
 			api.playedBeatChanged?.on((beat: alphaTab.model.Beat | null) => {
 				if (!beat) {
-					// 播放停止时清除播放高亮并更新播放按钮状态（保留 playerCursorPosition）
-					useAppStore.getState().clearPlaybackBeat();
+					// 播放停止/结束时回到无高亮状态（同时清除黄色小节高亮的来源）
+					useAppStore.getState().clearPlaybackHighlights();
 					useAppStore.getState().setPlayerIsPlaying(false);
 					return;
 				}
@@ -325,11 +325,17 @@ export default function Preview({
 			// 4. 播放器完成/状态变化事件：确保 UI 与播放器同步
 			api.playerFinished?.on(() => {
 				console.info("[Preview] alphaTab player finished");
+				// 播放结束后播放器光标可能回到默认位置，但 store 仍可能停留在末尾
+				// 这里强制回到无高亮状态，避免编辑器高亮/滚动锁死在末尾
+				useAppStore.getState().clearPlaybackHighlights();
+				useAppStore.getState().setPlayerIsPlaying(false);
 			});
 
 			api.playerStateChanged?.on((e: { state: number; stopped?: boolean }) => {
 				console.info("[Preview] alphaTab player state changed:", e);
 				if (e?.stopped) {
+					// stopped 明确表示停止（而不是暂停），停止时清除播放相关高亮
+					useAppStore.getState().clearPlaybackHighlights();
 					useAppStore.getState().setPlayerIsPlaying(false);
 				} else if (e?.state === 1 /* Playing */) {
 					useAppStore.getState().setPlayerIsPlaying(true);
