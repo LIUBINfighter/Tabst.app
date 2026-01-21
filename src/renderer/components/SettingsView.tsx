@@ -66,7 +66,7 @@ export default function SettingsView() {
 				</section>
 
 				<section className="bg-card border border-border rounded p-4">
-					<h3 className="text-sm font-medium mb-2">关于 v0.1.2</h3>
+					<h3 className="text-sm font-medium mb-2">关于 v0.1.3</h3>
 					<div className="space-y-2">
 						<p className="text-xs text-muted-foreground">
 							Tabst. Write guitar tabs like markdown. Powered by alphaTab.js.
