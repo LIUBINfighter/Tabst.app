@@ -1,6 +1,9 @@
 const path = require("node:path");
 const { FusesPlugin } = require("@electron-forge/plugin-fuses");
 const { FuseV1Options, FuseVersion } = require("@electron/fuses");
+const { productName } = require("./package.json");
+
+const dmgAppPath = path.join(__dirname, "out", "make", `${process.platform}-${process.arch}`, `${productName}.app`);
 
 module.exports = {
 	packagerConfig: {
@@ -51,8 +54,8 @@ module.exports = {
 		{
 			name: "@electron-forge/maker-rpm",
 			config: {},
-		},
-	],
+						type: "file",
+						path: dmgAppPath,
 	plugins: [
 		{
 			name: "@electron-forge/plugin-auto-unpack-natives",
