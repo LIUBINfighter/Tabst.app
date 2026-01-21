@@ -9,6 +9,8 @@ jobs:
   build-and-release-macos:
     name: Build and package macOS app
     runs-on: macos-latest
+    env:
+      NPM_CONFIG_PYTHON: python3
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -26,7 +28,6 @@ jobs:
       - name: Install build tools
         run: |
           brew install python-setuptools
-          npm config set python python3
 
       - name: Check pnpm version
         run: pnpm -v
