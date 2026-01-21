@@ -49,7 +49,7 @@ jobs:
         run: pnpm make
 
       - name: Create Release and upload ZIP portable assets only
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
           name: ${{ github.ref_name }}
