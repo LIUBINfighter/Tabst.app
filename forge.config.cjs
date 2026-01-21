@@ -6,9 +6,8 @@ const { productName } = require("./package.json");
 const dmgAppPath = path.join(
 	__dirname,
 	"out",
-	"make",
-	`${process.platform}-${process.arch}`,
-	`${productName}-${process.platform}-${process.arch}.app`,
+	`${productName}-darwin-arm64`,
+	`${productName}.app`,
 );
 
 module.exports = {
