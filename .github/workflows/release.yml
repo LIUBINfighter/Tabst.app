@@ -51,7 +51,7 @@ jobs:
             dist/*.zip
             dist/*.blockmap
             dist/latest.yml
-          body: "Automated Windows release created by workflow"
+          body: "Automated release created by workflow"
           draft: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
