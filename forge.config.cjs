@@ -1,3 +1,4 @@
+const path = require("node:path");
 const { FusesPlugin } = require("@electron-forge/plugin-fuses");
 const { FuseV1Options, FuseVersion } = require("@electron/fuses");
 
@@ -23,6 +24,14 @@ module.exports = {
 					{
 						x: 130,
 						y: 220,
+						type: "file",
+						path: path.join(
+							__dirname,
+							"out",
+							"make",
+							"macos-arm64",
+							"Tabst.app",
+						),
 					},
 					{
 						x: 410,
