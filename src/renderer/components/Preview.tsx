@@ -117,12 +117,38 @@ export default function Preview({
 	);
 	const playbackSpeed = useAppStore((s) => s.playbackSpeed);
 	const metronomeVolume = useAppStore((s) => s.metronomeVolume);
+	// 使用 ref 保存最新的播放速度/节拍器音量，避免它们变化时触发「重建 alphaTab API」的 useEffect
+	const playbackSpeedRef = useRef(playbackSpeed);
+	const metronomeVolumeRef = useRef(metronomeVolume);
 	// 防止因乐谱选择触发的光标更新导致循环
 	const isEditorCursorFromScoreRef = useRef(false);
 
 	useEffect(() => {
 		latestContentRef.current = content ?? "";
 	}, [content]);
+
+	// 同步全局状态到已初始化的 alphaTab（不重建 score）
+	useEffect(() => {
+		playbackSpeedRef.current = playbackSpeed;
+		const api = apiRef.current;
+		if (!api) return;
+		try {
+			api.playbackSpeed = playbackSpeed;
+		} catch (err) {
+			console.debug("Failed to apply playback speed:", err);
+		}
+	}, [playbackSpeed]);
+
+	useEffect(() => {
+		metronomeVolumeRef.current = metronomeVolume;
+		const api = apiRef.current;
+		if (!api) return;
+		try {
+			api.metronomeVolume = metronomeVolume;
+		} catch (err) {
+			console.debug("Failed to apply metronome volume:", err);
+		}
+	}, [metronomeVolume]);
 
 	// ✅ 统一滚动缓冲：不使用 vh，按预览滚动容器高度的 60% 计算底部留白（px）
 	useEffect(() => {
@@ -568,8 +594,8 @@ export default function Preview({
 
 					// 初始应用全局状态的播放速度与节拍器音量
 					try {
-						apiRef.current.playbackSpeed = playbackSpeed;
-						apiRef.current.metronomeVolume = metronomeVolume;
+						apiRef.current.playbackSpeed = playbackSpeedRef.current;
+						apiRef.current.metronomeVolume = metronomeVolumeRef.current;
 					} catch (err) {
 						console.debug("Failed to apply initial speed/metronome:", err);
 					}
@@ -632,8 +658,8 @@ export default function Preview({
 
 									// 重新应用全局状态的播放速度与节拍器音量
 									try {
-										apiRef.current.playbackSpeed = playbackSpeed;
-										apiRef.current.metronomeVolume = metronomeVolume;
+										apiRef.current.playbackSpeed = playbackSpeedRef.current;
+										apiRef.current.metronomeVolume = metronomeVolumeRef.current;
 									} catch (err) {
 										console.debug(
 											"Failed to reapply speed/metronome after rebuild:",
@@ -798,13 +824,7 @@ export default function Preview({
 			}
 			pendingTexRef.current = null;
 		};
-	}, [
-		applyTracksConfig,
-		reinitTrigger,
-		applyZoom,
-		playbackSpeed,
-		metronomeVolume,
-	]);
+	}, [applyTracksConfig, reinitTrigger, applyZoom]);
 
 	// 内容更新：仅调用 tex，不销毁 API，避免闪烁
 	useEffect(() => {
