@@ -798,7 +798,13 @@ export default function Preview({
 			}
 			pendingTexRef.current = null;
 		};
-	}, [applyTracksConfig, reinitTrigger, applyZoom]);
+	}, [
+		applyTracksConfig,
+		reinitTrigger,
+		applyZoom,
+		playbackSpeed,
+		metronomeVolume,
+	]);
 
 	// 内容更新：仅调用 tex，不销毁 API，避免闪烁
 	useEffect(() => {
