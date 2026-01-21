@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
+import { initAutoUpdater } from "./autoUpdater";
 
 // 这里的 env 变量由 cross-env 在 package.json 中注入
 // 只要 NODE_ENV 是 development，或者应用没有打包(isPackaged 为 false)，都算是开发环境
@@ -57,7 +58,10 @@ function createWindow() {
 	}
 }
 
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+	createWindow();
+	initAutoUpdater();
+});
 
 app.on("window-all-closed", () => {
 	if (process.platform !== "darwin") app.quit();
