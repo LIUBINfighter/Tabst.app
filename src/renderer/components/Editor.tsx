@@ -108,7 +108,8 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 				scrollbarColor: "hsl(var(--border) / 0.7) transparent",
 			},
 			".cm-content": {
-				padding: "8px 0 150px 0",
+				// 顶部 8px、左右 0；底部留白通过 CSS 变量控制（由容器高度 * 0.6 计算得到）
+				padding: "8px 0 var(--scroll-buffer, 150px) 0",
 			},
 			".cm-gutters": {
 				backgroundColor: "transparent",
@@ -384,6 +385,25 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 		createUpdateListener,
 		activeFile,
 	]);
+
+	// ✅ 统一滚动缓冲：不使用 vh，按容器高度的 60% 计算底部留白（px）
+	useEffect(() => {
+		const host = editorRef.current;
+		if (!host) return;
+
+		const apply = () => {
+			// editor 列的可用高度（接近“视口高度”）作为基准
+			const h = host.getBoundingClientRect().height;
+			const px = Math.max(0, Math.floor(h * 0.6));
+			host.style.setProperty("--scroll-buffer", `${px}px`);
+		};
+
+		apply();
+
+		const ro = new ResizeObserver(() => apply());
+		ro.observe(host);
+		return () => ro.disconnect();
+	}, []);
 
 	// Update theme when dark mode changes
 	useEffect(() => {

@@ -329,7 +329,11 @@ export const useAppStore = create<AppState>((set, get) => ({
 
 	// 🆕 清除所有高亮（选区 + 播放）
 	clearAllHighlights: () => {
-		set({ scoreSelection: null, playbackBeat: null, playerCursorPosition: null });
+		set({
+			scoreSelection: null,
+			playbackBeat: null,
+			playerCursorPosition: null,
+		});
 	},
 
 	// 🆕 设置第一个谱表选项

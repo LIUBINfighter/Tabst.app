@@ -71,6 +71,7 @@ export default function Preview({
 	className,
 }: PreviewProps) {
 	const containerRef = useRef<HTMLDivElement>(null);
+	const scrollHostRef = useRef<HTMLDivElement>(null);
 	const apiRef = useRef<alphaTab.AlphaTabApi | null>(null);
 	const cursorRef = useRef<HTMLDivElement | null>(null);
 	// Zoom state (percentage)
@@ -125,6 +126,24 @@ export default function Preview({
 	useEffect(() => {
 		latestContentRef.current = content ?? "";
 	}, [content]);
+
+	// ✅ 统一滚动缓冲：不使用 vh，按预览滚动容器高度的 60% 计算底部留白（px）
+	useEffect(() => {
+		const host = scrollHostRef.current;
+		if (!host) return;
+
+		const apply = () => {
+			const h = host.getBoundingClientRect().height;
+			const px = Math.max(0, Math.floor(h * 0.6));
+			host.style.setProperty("--scroll-buffer", `${px}px`);
+		};
+
+		apply();
+
+		const ro = new ResizeObserver(() => apply());
+		ro.observe(host);
+		return () => ro.disconnect();
+	}, []);
 
 	// Apply zoom to alphaTab API
 	const applyZoom = useCallback((newPercent: number) => {
@@ -288,7 +307,7 @@ export default function Preview({
 			api.renderFinished.on((r) => {
 				console.info("[Preview] alphaTab render complete:", r);
 				const cursor = cursorRef.current;
-				if (cursor) cursor.style.display = "none";
+				if (cursor) cursor.classList.add("hidden");
 				// 渲染完成时回到无高亮状态（避免保留旧的黄色小节高亮导致滚动锁定）
 				useAppStore.getState().clearPlaybackHighlights();
 			});
@@ -311,10 +330,10 @@ export default function Preview({
 				if (!cursor) return;
 				const bb = api.boundsLookup?.findBeat?.(beat);
 				if (!bb) {
-					cursor.style.display = "none";
+					cursor.classList.add("hidden");
 					return;
 				}
-				cursor.style.display = "block";
+				cursor.classList.remove("hidden");
 				const visual = bb.visualBounds;
 				cursor.style.left = `${visual.x}px`;
 				cursor.style.top = `${visual.y}px`;
@@ -884,12 +903,16 @@ export default function Preview({
 								</>
 							}
 						/>
-						<div className="flex-1 overflow-auto relative h-full">
-							<div ref={containerRef} className="w-full h-full" />
+						<div
+							ref={scrollHostRef}
+							className="flex-1 overflow-auto relative h-full"
+						>
+							<div className="w-full min-h-full pb-[var(--scroll-buffer)]">
+								<div ref={containerRef} className="w-full h-full" />
+							</div>
 							<div
 								ref={cursorRef}
-								className="pointer-events-none absolute z-20 bg-amber-300/40 rounded-sm"
-								style={{ display: "none" }}
+								className="pointer-events-none absolute z-20 bg-amber-300/40 rounded-sm hidden"
 							/>
 						</div>
 						{parseError && (
