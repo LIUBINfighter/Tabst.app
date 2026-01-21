@@ -108,11 +108,6 @@ export default function Preview({
 	const [showPrintPreview, setShowPrintPreview] = useState(false);
 	const [reinitTrigger, setReinitTrigger] = useState(0);
 
-	// Playback UI states (moved earlier so listeners can reference them)
-	const [scrollMode, setScrollMode] = useState<alphaTab.ScrollMode>(
-		alphaTab.ScrollMode.OffScreen,
-	);
-
 	// 🆕 订阅编辑器光标位置，用于反向同步（编辑器 → 乐谱）
 	const editorCursor = useAppStore((s) => s.editorCursor);
 	const setFirstStaffOptions = useAppStore((s) => s.setFirstStaffOptions);
@@ -120,6 +115,8 @@ export default function Preview({
 	const toggleFirstStaffOptionStore = useAppStore(
 		(s) => s.toggleFirstStaffOption,
 	);
+	const playbackSpeed = useAppStore((s) => s.playbackSpeed);
+	const metronomeVolume = useAppStore((s) => s.metronomeVolume);
 	// 防止因乐谱选择触发的光标更新导致循环
 	const isEditorCursorFromScoreRef = useRef(false);
 
@@ -229,15 +226,18 @@ export default function Preview({
 
 				// 滚动到该 beat 所在位置（可选）
 				const bb = api.boundsLookup?.findBeat?.(beat);
-				if (bb && containerRef.current) {
+				// 实际滚动容器：优先使用 scrollHost（有 overflow-auto），退回到内部容器
+				const scrollHost = scrollHostRef.current;
+				const container = scrollHost ?? containerRef.current;
+
+				if (bb && container) {
 					const visual = bb.visualBounds;
-					const container = containerRef.current;
 					const containerRect = container.getBoundingClientRect();
 
 					// 检查 beat 是否在可视区域内
 					const beatTop = visual.y;
 					const beatBottom = visual.y + visual.h;
-					const scrollTop = container.scrollTop;
+					const scrollTop = (container as HTMLElement).scrollTop ?? 0;
 					const viewportTop = scrollTop;
 					const viewportBottom = scrollTop + containerRect.height;
 
@@ -369,20 +369,19 @@ export default function Preview({
 					play: () => api.play?.(),
 					pause: () => api.pause?.(),
 					stop: () => api.stop?.(),
-					toggleScrollMode: () => {
-						const newMode =
-							scrollMode === alphaTab.ScrollMode.Continuous
-								? alphaTab.ScrollMode.OffScreen
-								: alphaTab.ScrollMode.Continuous;
-						setScrollMode(newMode);
+					applyPlaybackSpeed: (speed: number) => {
 						try {
-							(api.settings.player as alphaTab.PlayerSettings).scrollMode =
-								newMode;
-							api.updateSettings?.();
+							api.playbackSpeed = speed;
 						} catch (err) {
-							console.error("Failed to toggle scroll mode:", err);
+							console.error("Failed to set playback speed:", err);
 						}
-						useAppStore.getState().setScrollMode(newMode);
+					},
+					setMetronomeVolume: (volume: number) => {
+						try {
+							api.metronomeVolume = volume;
+						} catch (err) {
+							console.error("Failed to set metronome volume:", err);
+						}
 					},
 					applyZoom: (pct: number) => applyZoom(pct),
 				});
@@ -532,7 +531,11 @@ export default function Preview({
 				// 1. 获取所有资源 URL（自动适配 dev 和打包环境）
 				const urls = await getResourceUrls();
 				const el = containerRef.current as HTMLElement;
-				const scrollEl = (el.parentElement ?? el) as HTMLElement;
+				// 实际滚动容器：优先使用 scrollHostRef（overflow-auto），
+				// 退回到原来的父元素以保持兼容性。
+				const fallbackScrollEl = (el.parentElement ?? el) as HTMLElement;
+				const scrollEl =
+					(scrollHostRef.current as HTMLElement | null) ?? fallbackScrollEl;
 
 				// 2. 加载 Bravura 字体
 				try {
@@ -562,6 +565,14 @@ export default function Preview({
 					});
 
 					apiRef.current = new alphaTab.AlphaTabApi(el, settings);
+
+					// 初始应用全局状态的播放速度与节拍器音量
+					try {
+						apiRef.current.playbackSpeed = playbackSpeed;
+						apiRef.current.metronomeVolume = metronomeVolume;
+					} catch (err) {
+						console.debug("Failed to apply initial speed/metronome:", err);
+					}
 
 					// 4. 附加监听器
 					attachApiListeners(apiRef.current);
@@ -608,7 +619,9 @@ export default function Preview({
 										urls as ResourceUrls,
 										{
 											scale: zoomRef.current / 100,
-											scrollElement: scrollEl,
+											scrollElement:
+												(scrollHostRef.current as HTMLElement | null) ??
+												scrollEl,
 											enablePlayer: true,
 											colors: newColors,
 										},
@@ -616,6 +629,17 @@ export default function Preview({
 
 									// 创建新的 API
 									apiRef.current = new alphaTab.AlphaTabApi(el, newSettings);
+
+									// 重新应用全局状态的播放速度与节拍器音量
+									try {
+										apiRef.current.playbackSpeed = playbackSpeed;
+										apiRef.current.metronomeVolume = metronomeVolume;
+									} catch (err) {
+										console.debug(
+											"Failed to reapply speed/metronome after rebuild:",
+											err,
+										);
+									}
 
 									// 🆕 附加所有监听器（包括 scoreLoaded, error, playback 等）
 									attachApiListeners(apiRef.current);
@@ -774,7 +798,7 @@ export default function Preview({
 			}
 			pendingTexRef.current = null;
 		};
-	}, [applyTracksConfig, reinitTrigger, applyZoom, scrollMode]);
+	}, [applyTracksConfig, reinitTrigger, applyZoom]);
 
 	// 内容更新：仅调用 tex，不销毁 API，避免闪烁
 	useEffect(() => {
