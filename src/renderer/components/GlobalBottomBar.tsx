@@ -12,7 +12,13 @@ import { useAppStore } from "../store/appStore";
 import StaffControls from "./StaffControls";
 import { defaultTutorials } from "./TutorialView";
 import IconButton from "./ui/icon-button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "./ui/select";
 import {
 	Tooltip,
 	TooltipContent,
