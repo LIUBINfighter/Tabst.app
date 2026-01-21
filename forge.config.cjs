@@ -8,7 +8,7 @@ const dmgAppPath = path.join(
 	"out",
 	"make",
 	`${process.platform}-${process.arch}`,
-	`${productName}.app`,
+	`${productName}-${process.platform}-${process.arch}.app`,
 );
 
 module.exports = {
