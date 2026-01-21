@@ -2,16 +2,17 @@ import {
 	ChevronLeft,
 	ChevronRight,
 	Minus,
+	Music2,
 	Pause,
 	Play,
 	Plus,
 	Square,
-	Waves,
 } from "lucide-react";
 import { getNextTutorial, getPrevTutorial } from "../lib/tutorial-loader";
 import { useAppStore } from "../store/appStore";
 import StaffControls from "./StaffControls";
 import IconButton from "./ui/icon-button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import {
 	Tooltip,
 	TooltipContent,
@@ -30,7 +31,10 @@ export default function GlobalBottomBar() {
 	const playerControls = useAppStore((s) => s.playerControls);
 	const zoomPercent = useAppStore((s) => s.zoomPercent);
 	const setZoomPercent = useAppStore((s) => s.setZoomPercent);
-	const scrollMode = useAppStore((s) => s.scrollMode);
+	const playbackSpeed = useAppStore((s) => s.playbackSpeed);
+	const setPlaybackSpeed = useAppStore((s) => s.setPlaybackSpeed);
+	const metronomeVolume = useAppStore((s) => s.metronomeVolume);
+	const setMetronomeVolume = useAppStore((s) => s.setMetronomeVolume);
 
 	// Tutorial navigation
 	const workspaceMode = useAppStore((s) => s.workspaceMode);
@@ -157,8 +161,8 @@ export default function GlobalBottomBar() {
 									step={1}
 									min={10}
 									max={400}
-									style={{ textAlign: "center" }}
 								/>
+								<span className="text-xs text-muted-foreground ml-0.5">%</span>
 
 								<Tooltip>
 									<TooltipTrigger asChild>
@@ -180,21 +184,51 @@ export default function GlobalBottomBar() {
 								</Tooltip>
 							</div>
 
-							{/* Display mode: scroll */}
-							<Tooltip>
-								<TooltipTrigger asChild>
-									<IconButton
-										active={scrollMode === 1}
-										onClick={() => playerControls?.toggleScrollMode?.()}
-										aria-label="切换滚动模式"
-									>
-										<Waves className="h-4 w-4" />
-									</IconButton>
-								</TooltipTrigger>
-								<TooltipContent side="top">
-									<p>{scrollMode === 1 ? "连续滚动" : "超出页面后滚动"}</p>
-								</TooltipContent>
-							</Tooltip>
+							{/* Playback speed */}
+							<div className="ml-3 flex items-center gap-1 text-xs">
+								<Select
+									value={String(playbackSpeed)}
+									onValueChange={(value) => {
+										const v = Number.parseFloat(value);
+										if (Number.isNaN(v)) return;
+										setPlaybackSpeed(v);
+										playerControls?.applyPlaybackSpeed?.(v);
+									}}
+								>
+									<SelectTrigger aria-label="播放速度">
+										<SelectValue />
+									</SelectTrigger>
+									<SelectContent side="top" align="end">
+										{[0.5, 0.75, 1, 1.25, 1.5, 2].map((v) => (
+											<SelectItem key={v} value={String(v)}>
+												{v}x
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
+							</div>
+
+							{/* Metronome toggle */}
+							<div className="ml-2 flex items-center">
+								<Tooltip>
+									<TooltipTrigger asChild>
+										<IconButton
+											active={metronomeVolume > 0}
+											onClick={() => {
+												const nextVolume = metronomeVolume > 0 ? 0 : 0.6;
+												setMetronomeVolume(nextVolume);
+												playerControls?.setMetronomeVolume?.(nextVolume);
+											}}
+											aria-label="节拍器"
+										>
+											<Music2 className="h-4 w-4" />
+										</IconButton>
+									</TooltipTrigger>
+									<TooltipContent side="top">
+										<p>{metronomeVolume > 0 ? "关闭节拍器" : "开启节拍器"}</p>
+									</TooltipContent>
+								</Tooltip>
+							</div>
 
 							{/* Playback controls (play/pause, stop) - right side */}
 							<Tooltip>

@@ -70,8 +70,9 @@ interface AppState {
 		play?: () => void;
 		pause?: () => void;
 		stop?: () => void;
-		toggleScrollMode?: () => void;
 		applyZoom?: (percent: number) => void;
+		applyPlaybackSpeed?: (speed: number) => void;
+		setMetronomeVolume?: (volume: number) => void;
 	} | null;
 	registerPlayerControls: (controls: NonNullable<object>) => void;
 	unregisterPlayerControls: () => void;
@@ -79,8 +80,10 @@ interface AppState {
 	setPlayerIsPlaying: (v: boolean) => void;
 	zoomPercent: number;
 	setZoomPercent: (v: number) => void;
-	scrollMode: number;
-	setScrollMode: (v: number) => void;
+	playbackSpeed: number;
+	setPlaybackSpeed: (v: number) => void;
+	metronomeVolume: number;
+	setMetronomeVolume: (v: number) => void;
 
 	// 工作区模式：editor | tutorial | settings
 	workspaceMode: "editor" | "tutorial" | "settings";
@@ -117,6 +120,17 @@ interface AppState {
 
 	// 🆕 播放器光标位置操作（暂停时也保留）
 	setPlayerCursorPosition: (position: PlaybackBeatInfo | null) => void;
+	/**
+	 * 🆕 清除“播放相关”高亮状态，回到无高亮状态
+	 * - 清除绿色当前 beat 高亮
+	 * - 清除黄色小节高亮（依赖 playerCursorPosition）
+	 */
+	clearPlaybackHighlights: () => void;
+
+	/**
+	 * 🆕 清除所有高亮（选区 + 播放），回到无高亮状态
+	 */
+	clearAllHighlights: () => void;
 
 	// 🆕 谱表选项操作
 	setFirstStaffOptions: (options: StaffDisplayOptions | null) => void;
@@ -141,8 +155,10 @@ export const useAppStore = create<AppState>((set, get) => ({
 	setPlayerIsPlaying: (v) => set({ playerIsPlaying: v }),
 	zoomPercent: 60,
 	setZoomPercent: (v) => set({ zoomPercent: v }),
-	scrollMode: 0,
-	setScrollMode: (v) => set({ scrollMode: v }),
+	playbackSpeed: 1.0,
+	setPlaybackSpeed: (v) => set({ playbackSpeed: v }),
+	metronomeVolume: 0,
+	setMetronomeVolume: (v) => set({ metronomeVolume: v }),
 	workspaceMode: "editor",
 	setWorkspaceMode: (mode: "editor" | "tutorial" | "settings") =>
 		set({ workspaceMode: mode }),
@@ -309,6 +325,20 @@ export const useAppStore = create<AppState>((set, get) => ({
 	// 🆕 设置播放器光标位置（暂停时也保留）
 	setPlayerCursorPosition: (position) => {
 		set({ playerCursorPosition: position });
+	},
+
+	// 🆕 清除播放相关高亮（绿色 + 黄色）
+	clearPlaybackHighlights: () => {
+		set({ playbackBeat: null, playerCursorPosition: null });
+	},
+
+	// 🆕 清除所有高亮（选区 + 播放）
+	clearAllHighlights: () => {
+		set({
+			scoreSelection: null,
+			playbackBeat: null,
+			playerCursorPosition: null,
+		});
 	},
 
 	// 🆕 设置第一个谱表选项

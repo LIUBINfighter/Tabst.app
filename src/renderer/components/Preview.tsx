@@ -71,6 +71,7 @@ export default function Preview({
 	className,
 }: PreviewProps) {
 	const containerRef = useRef<HTMLDivElement>(null);
+	const scrollHostRef = useRef<HTMLDivElement>(null);
 	const apiRef = useRef<alphaTab.AlphaTabApi | null>(null);
 	const cursorRef = useRef<HTMLDivElement | null>(null);
 	// Zoom state (percentage)
@@ -107,11 +108,6 @@ export default function Preview({
 	const [showPrintPreview, setShowPrintPreview] = useState(false);
 	const [reinitTrigger, setReinitTrigger] = useState(0);
 
-	// Playback UI states (moved earlier so listeners can reference them)
-	const [scrollMode, setScrollMode] = useState<alphaTab.ScrollMode>(
-		alphaTab.ScrollMode.OffScreen,
-	);
-
 	// 🆕 订阅编辑器光标位置，用于反向同步（编辑器 → 乐谱）
 	const editorCursor = useAppStore((s) => s.editorCursor);
 	const setFirstStaffOptions = useAppStore((s) => s.setFirstStaffOptions);
@@ -119,12 +115,32 @@ export default function Preview({
 	const toggleFirstStaffOptionStore = useAppStore(
 		(s) => s.toggleFirstStaffOption,
 	);
+	const playbackSpeed = useAppStore((s) => s.playbackSpeed);
+	const metronomeVolume = useAppStore((s) => s.metronomeVolume);
 	// 防止因乐谱选择触发的光标更新导致循环
 	const isEditorCursorFromScoreRef = useRef(false);
 
 	useEffect(() => {
 		latestContentRef.current = content ?? "";
 	}, [content]);
+
+	// ✅ 统一滚动缓冲：不使用 vh，按预览滚动容器高度的 60% 计算底部留白（px）
+	useEffect(() => {
+		const host = scrollHostRef.current;
+		if (!host) return;
+
+		const apply = () => {
+			const h = host.getBoundingClientRect().height;
+			const px = Math.max(0, Math.floor(h * 0.6));
+			host.style.setProperty("--scroll-buffer", `${px}px`);
+		};
+
+		apply();
+
+		const ro = new ResizeObserver(() => apply());
+		ro.observe(host);
+		return () => ro.disconnect();
+	}, []);
 
 	// Apply zoom to alphaTab API
 	const applyZoom = useCallback((newPercent: number) => {
@@ -210,15 +226,18 @@ export default function Preview({
 
 				// 滚动到该 beat 所在位置（可选）
 				const bb = api.boundsLookup?.findBeat?.(beat);
-				if (bb && containerRef.current) {
+				// 实际滚动容器：优先使用 scrollHost（有 overflow-auto），退回到内部容器
+				const scrollHost = scrollHostRef.current;
+				const container = scrollHost ?? containerRef.current;
+
+				if (bb && container) {
 					const visual = bb.visualBounds;
-					const container = containerRef.current;
 					const containerRect = container.getBoundingClientRect();
 
 					// 检查 beat 是否在可视区域内
 					const beatTop = visual.y;
 					const beatBottom = visual.y + visual.h;
-					const scrollTop = container.scrollTop;
+					const scrollTop = (container as HTMLElement).scrollTop ?? 0;
 					const viewportTop = scrollTop;
 					const viewportBottom = scrollTop + containerRect.height;
 
@@ -288,16 +307,16 @@ export default function Preview({
 			api.renderFinished.on((r) => {
 				console.info("[Preview] alphaTab render complete:", r);
 				const cursor = cursorRef.current;
-				if (cursor) cursor.style.display = "none";
-				// 渲染完成时清除编辑器中的播放高亮（但不修改播放状态）
-				useAppStore.getState().clearPlaybackBeat();
+				if (cursor) cursor.classList.add("hidden");
+				// 渲染完成时回到无高亮状态（避免保留旧的黄色小节高亮导致滚动锁定）
+				useAppStore.getState().clearPlaybackHighlights();
 			});
 
 			// 3. 播放进度（更新光标位置）
 			api.playedBeatChanged?.on((beat: alphaTab.model.Beat | null) => {
 				if (!beat) {
-					// 播放停止时清除播放高亮并更新播放按钮状态（保留 playerCursorPosition）
-					useAppStore.getState().clearPlaybackBeat();
+					// 播放停止/结束时回到无高亮状态（同时清除黄色小节高亮的来源）
+					useAppStore.getState().clearPlaybackHighlights();
 					useAppStore.getState().setPlayerIsPlaying(false);
 					return;
 				}
@@ -311,10 +330,10 @@ export default function Preview({
 				if (!cursor) return;
 				const bb = api.boundsLookup?.findBeat?.(beat);
 				if (!bb) {
-					cursor.style.display = "none";
+					cursor.classList.add("hidden");
 					return;
 				}
-				cursor.style.display = "block";
+				cursor.classList.remove("hidden");
 				const visual = bb.visualBounds;
 				cursor.style.left = `${visual.x}px`;
 				cursor.style.top = `${visual.y}px`;
@@ -325,11 +344,17 @@ export default function Preview({
 			// 4. 播放器完成/状态变化事件：确保 UI 与播放器同步
 			api.playerFinished?.on(() => {
 				console.info("[Preview] alphaTab player finished");
+				// 播放结束后播放器光标可能回到默认位置，但 store 仍可能停留在末尾
+				// 这里强制回到无高亮状态，避免编辑器高亮/滚动锁死在末尾
+				useAppStore.getState().clearPlaybackHighlights();
+				useAppStore.getState().setPlayerIsPlaying(false);
 			});
 
 			api.playerStateChanged?.on((e: { state: number; stopped?: boolean }) => {
 				console.info("[Preview] alphaTab player state changed:", e);
 				if (e?.stopped) {
+					// stopped 明确表示停止（而不是暂停），停止时清除播放相关高亮
+					useAppStore.getState().clearPlaybackHighlights();
 					useAppStore.getState().setPlayerIsPlaying(false);
 				} else if (e?.state === 1 /* Playing */) {
 					useAppStore.getState().setPlayerIsPlaying(true);
@@ -344,20 +369,19 @@ export default function Preview({
 					play: () => api.play?.(),
 					pause: () => api.pause?.(),
 					stop: () => api.stop?.(),
-					toggleScrollMode: () => {
-						const newMode =
-							scrollMode === alphaTab.ScrollMode.Continuous
-								? alphaTab.ScrollMode.OffScreen
-								: alphaTab.ScrollMode.Continuous;
-						setScrollMode(newMode);
+					applyPlaybackSpeed: (speed: number) => {
 						try {
-							(api.settings.player as alphaTab.PlayerSettings).scrollMode =
-								newMode;
-							api.updateSettings?.();
+							api.playbackSpeed = speed;
 						} catch (err) {
-							console.error("Failed to toggle scroll mode:", err);
+							console.error("Failed to set playback speed:", err);
 						}
-						useAppStore.getState().setScrollMode(newMode);
+					},
+					setMetronomeVolume: (volume: number) => {
+						try {
+							api.metronomeVolume = volume;
+						} catch (err) {
+							console.error("Failed to set metronome volume:", err);
+						}
 					},
 					applyZoom: (pct: number) => applyZoom(pct),
 				});
@@ -507,7 +531,11 @@ export default function Preview({
 				// 1. 获取所有资源 URL（自动适配 dev 和打包环境）
 				const urls = await getResourceUrls();
 				const el = containerRef.current as HTMLElement;
-				const scrollEl = (el.parentElement ?? el) as HTMLElement;
+				// 实际滚动容器：优先使用 scrollHostRef（overflow-auto），
+				// 退回到原来的父元素以保持兼容性。
+				const fallbackScrollEl = (el.parentElement ?? el) as HTMLElement;
+				const scrollEl =
+					(scrollHostRef.current as HTMLElement | null) ?? fallbackScrollEl;
 
 				// 2. 加载 Bravura 字体
 				try {
@@ -537,6 +565,14 @@ export default function Preview({
 					});
 
 					apiRef.current = new alphaTab.AlphaTabApi(el, settings);
+
+					// 初始应用全局状态的播放速度与节拍器音量
+					try {
+						apiRef.current.playbackSpeed = playbackSpeed;
+						apiRef.current.metronomeVolume = metronomeVolume;
+					} catch (err) {
+						console.debug("Failed to apply initial speed/metronome:", err);
+					}
 
 					// 4. 附加监听器
 					attachApiListeners(apiRef.current);
@@ -583,7 +619,9 @@ export default function Preview({
 										urls as ResourceUrls,
 										{
 											scale: zoomRef.current / 100,
-											scrollElement: scrollEl,
+											scrollElement:
+												(scrollHostRef.current as HTMLElement | null) ??
+												scrollEl,
 											enablePlayer: true,
 											colors: newColors,
 										},
@@ -591,6 +629,17 @@ export default function Preview({
 
 									// 创建新的 API
 									apiRef.current = new alphaTab.AlphaTabApi(el, newSettings);
+
+									// 重新应用全局状态的播放速度与节拍器音量
+									try {
+										apiRef.current.playbackSpeed = playbackSpeed;
+										apiRef.current.metronomeVolume = metronomeVolume;
+									} catch (err) {
+										console.debug(
+											"Failed to reapply speed/metronome after rebuild:",
+											err,
+										);
+									}
 
 									// 🆕 附加所有监听器（包括 scoreLoaded, error, playback 等）
 									attachApiListeners(apiRef.current);
@@ -749,7 +798,7 @@ export default function Preview({
 			}
 			pendingTexRef.current = null;
 		};
-	}, [applyTracksConfig, reinitTrigger, applyZoom, scrollMode]);
+	}, [applyTracksConfig, reinitTrigger, applyZoom]);
 
 	// 内容更新：仅调用 tex，不销毁 API，避免闪烁
 	useEffect(() => {
@@ -878,12 +927,16 @@ export default function Preview({
 								</>
 							}
 						/>
-						<div className="flex-1 overflow-auto relative h-full">
-							<div ref={containerRef} className="w-full h-full" />
+						<div
+							ref={scrollHostRef}
+							className="flex-1 overflow-auto relative h-full"
+						>
+							<div className="w-full min-h-full pb-[var(--scroll-buffer)]">
+								<div ref={containerRef} className="w-full h-full" />
+							</div>
 							<div
 								ref={cursorRef}
-								className="pointer-events-none absolute z-20 bg-amber-300/40 rounded-sm"
-								style={{ display: "none" }}
+								className="pointer-events-none absolute z-20 bg-amber-300/40 rounded-sm hidden"
 							/>
 						</div>
 						{parseError && (
