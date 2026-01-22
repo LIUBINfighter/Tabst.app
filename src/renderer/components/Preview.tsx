@@ -118,14 +118,14 @@ export default function Preview({
 	const playbackSpeed = useAppStore((s) => s.playbackSpeed);
 	const metronomeVolume = useAppStore((s) => s.metronomeVolume);
 	const editorHasFocus = useAppStore((s) => s.editorHasFocus);
-	const scoreVersion = useAppStore((s) => s.scoreVersion);
+	const _scoreVersion = useAppStore((s) => s.scoreVersion);
 	const bumpApiInstanceId = useAppStore((s) => s.bumpApiInstanceId);
 	const bumpScoreVersion = useAppStore((s) => s.bumpScoreVersion);
 	// 使用 ref 保存最新的播放速度/节拍器音量，避免它们变化时触发「重建 alphaTab API」的 useEffect
 	const playbackSpeedRef = useRef(playbackSpeed);
 	const metronomeVolumeRef = useRef(metronomeVolume);
 	const editorHasFocusRef = useRef(editorHasFocus);
-	const savedPlayerScrollRef = useRef<{
+	const _savedPlayerScrollRef = useRef<{
 		scrollElement?: HTMLElement | null;
 		scrollMode?: alphaTab.ScrollMode | undefined;
 	} | null>(null);
@@ -216,7 +216,7 @@ export default function Preview({
 		}
 	}, []);
 
-	const clearBarNumberColor = useCallback((api: alphaTab.AlphaTabApi) => {
+	const _clearBarNumberColor = useCallback((_api: alphaTab.AlphaTabApi) => {
 		const previous = lastColoredBarsRef.current;
 		if (!previous?.bars?.length) return;
 		console.debug("[BarColor] Clearing previous bars:", previous.bars.length);
@@ -263,40 +263,22 @@ export default function Preview({
 
 				// 恢复谱线颜色
 				style.colors.set(
-					alphaTab.model.BarSubElement.StandardNotationStaffLines,
+					alphaTab.model.BarSubElement.StandardNotationStaffLine,
 					staffLineColor,
 				);
 				style.colors.set(
-					alphaTab.model.BarSubElement.GuitarTabsStaffLines,
+					alphaTab.model.BarSubElement.GuitarTabsStaffLine,
 					staffLineColor,
 				);
 
-				// 恢复小节线颜色
+				// 恢复小节线颜色（使用 bar lines）
 				style.colors.set(
-					alphaTab.model.BarSubElement.StandardNotationBarSeparator,
+					alphaTab.model.BarSubElement.StandardNotationBarLines,
 					barSeparatorColor,
 				);
 				style.colors.set(
-					alphaTab.model.BarSubElement.GuitarTabsBarSeparator,
+					alphaTab.model.BarSubElement.GuitarTabsBarLines,
 					barSeparatorColor,
-				);
-
-				// 恢复音符/符号颜色 (beats, notes, effects 等)
-				style.colors.set(
-					alphaTab.model.BarSubElement.StandardNotationBeats,
-					mainGlyphColor,
-				);
-				style.colors.set(
-					alphaTab.model.BarSubElement.GuitarTabsBeats,
-					mainGlyphColor,
-				);
-				style.colors.set(
-					alphaTab.model.BarSubElement.StandardNotationEffects,
-					mainGlyphColor,
-				);
-				style.colors.set(
-					alphaTab.model.BarSubElement.GuitarTabsEffects,
-					mainGlyphColor,
 				);
 
 				// 检查是否有 undefined 值，防止序列化时抛错
@@ -330,36 +312,39 @@ export default function Preview({
 	}, []);
 
 	// 辅助函数：安全地设置颜色，确保 key 和 value 都是有效的
-	const safeSetColor = (
-		colors: Map<number, alphaTab.model.Color>,
-		key: number | undefined,
-		value: alphaTab.model.Color | undefined,
-	): boolean => {
-		if (key === undefined || key === null || typeof key !== "number") {
-			console.warn("[BarColor] Invalid key for safeSetColor:", key);
-			return false;
-		}
-		if (!value || value === undefined || value === null) {
-			console.warn("[BarColor] Invalid value for safeSetColor, key:", key);
-			return false;
-		}
-		if (typeof value.toString !== "function") {
-			console.warn(
-				"[BarColor] Value missing toString for safeSetColor, key:",
-				key,
-			);
-			return false;
-		}
-		try {
-			// 测试 toString 是否可以正常调用
-			value.toString();
-			colors.set(key, value);
-			return true;
-		} catch (e) {
-			console.error("[BarColor] Failed to set color, key:", key, "error:", e);
-			return false;
-		}
-	};
+	const safeSetColor = useCallback(
+		(
+			colors: Map<number, alphaTab.model.Color | null>,
+			key: number | undefined,
+			value: alphaTab.model.Color | undefined,
+		): boolean => {
+			if (key === undefined || key === null || typeof key !== "number") {
+				console.warn("[BarColor] Invalid key for safeSetColor:", key);
+				return false;
+			}
+			if (!value || value === undefined || value === null) {
+				console.warn("[BarColor] Invalid value for safeSetColor, key:", key);
+				return false;
+			}
+			if (typeof value.toString !== "function") {
+				console.warn(
+					"[BarColor] Value missing toString for safeSetColor, key:",
+					key,
+				);
+				return false;
+			}
+			try {
+				// 测试 toString 是否可以正常调用
+				value.toString();
+				colors.set(key, value);
+				return true;
+			} catch (e) {
+				console.error("[BarColor] Failed to set color, key:", key, "error:", e);
+				return false;
+			}
+		},
+		[],
+	);
 
 	const sanitizeAllBarStyles = useCallback((api: alphaTab.AlphaTabApi) => {
 		if (!api.score) return false;
@@ -367,10 +352,10 @@ export default function Preview({
 		const themeColors = getAlphaTabColorsForTheme();
 
 		// 验证并创建所有 Color 对象
-		let barNumberColor: alphaTab.model.Color;
-		let mainGlyphColor: alphaTab.model.Color;
-		let staffLineColor: alphaTab.model.Color;
-		let barSeparatorColor: alphaTab.model.Color;
+		let barNumberColor: alphaTab.model.Color | null = null;
+		let mainGlyphColor: alphaTab.model.Color | null = null;
+		let staffLineColor: alphaTab.model.Color | null = null;
+		let barSeparatorColor: alphaTab.model.Color | null = null;
 
 		try {
 			barNumberColor = alphaTab.model.Color.fromJson(
@@ -534,7 +519,7 @@ export default function Preview({
 	// 简化方案：只删除小节号颜色，让其他元素使用全局主题色
 	// 如果 colors Map 为空，尝试删除整个 bar.style（让 alphaTab 使用全局样式）
 	const applyThemeColorsToPreviousBars = useCallback(
-		(api: alphaTab.AlphaTabApi) => {
+		(_api: alphaTab.AlphaTabApi) => {
 			const previous = lastColoredBarsRef.current;
 			if (!previous?.bars?.length) return;
 			console.debug(
@@ -564,13 +549,13 @@ export default function Preview({
 					// 注意：需要确认 alphaTab 是否支持 bar.style = null/undefined
 					// 如果不支持，保留空的 BarStyle（应该不会影响渲染，因为 Map 为空）
 					try {
-						// @ts-expect-error - 尝试删除 style，让 alphaTab 使用全局样式
+						// @ts-ignore - 尝试删除 style，让 alphaTab 使用全局样式
 						bar.style = null;
 						console.debug(
 							"[BarColor] Removed empty bar.style for bar",
 							bar.index,
 						);
-					} catch (e) {
+					} catch (_e) {
 						// 如果 alphaTab 不支持删除 style，保留空的 BarStyle
 						console.debug(
 							"[BarColor] Cannot remove bar.style, keeping empty BarStyle",
@@ -681,7 +666,7 @@ export default function Preview({
 			api.render?.();
 			return true;
 		},
-		[applyThemeColorsToPreviousBars, sanitizeAllBarStyles],
+		[applyThemeColorsToPreviousBars, sanitizeAllBarStyles, safeSetColor],
 	);
 
 	useEffect(() => {
@@ -695,12 +680,7 @@ export default function Preview({
 		if (!applyEditorBarNumberColor(api, editorCursor.barIndex)) {
 			pendingBarColorRef.current = editorCursor.barIndex;
 		}
-	}, [
-		scoreVersion,
-		applyEditorBarNumberColor,
-		applyThemeColorsToPreviousBars,
-		editorCursor,
-	]);
+	}, [applyEditorBarNumberColor, applyThemeColorsToPreviousBars, editorCursor]);
 
 	/**
 	 * 🆕 应用 tracks 显示配置到第一个音轨
@@ -800,12 +780,12 @@ export default function Preview({
 					}
 					// 方法 2: 如果 tickCache 不可用，回退到使用 beat 的属性
 					if (startTick === null) {
-						// @ts-expect-error - beat 可能有 playbackStart 属性
+						// @ts-ignore - beat 可能有 playbackStart 属性
 						if (
 							beat.playbackStart !== undefined &&
 							beat.playbackStart !== null
 						) {
-							// @ts-expect-error
+							// @ts-ignore
 							startTick = beat.playbackStart;
 						}
 					}
@@ -922,12 +902,12 @@ export default function Preview({
 							}
 							// 方法 2: 如果没有下一个 beat，使用最后一个 beat 的开始 tick + 持续时间
 							else {
-								// @ts-expect-error - beat 可能有 playbackDuration 属性
+								// @ts-ignore - beat 可能有 playbackDuration 属性
 								if (
 									lastBeatInBar.playbackDuration !== undefined &&
 									lastBeatInBar.playbackDuration !== null
 								) {
-									// @ts-expect-error
+									// @ts-ignore
 									barEndTick =
 										lastBeatStartTick + lastBeatInBar.playbackDuration;
 								} else {
@@ -1052,7 +1032,7 @@ export default function Preview({
 				console.debug("[Preview] Failed to clear playback range:", err);
 			}
 		}
-	}, [editorCursor]);
+	}, [editorCursor, applyEditorBarNumberColor]);
 
 	// 🆕 处理来自 GlobalBottomBar 的谱表切换请求
 	useEffect(() => {
@@ -1280,7 +1260,46 @@ export default function Preview({
 						api.play?.();
 					},
 					pause: () => api.pause?.(),
-					stop: () => api.stop?.(),
+					stop: () => {
+						// 1. 停止播放器
+						api.stop?.();
+						
+						// 2. 清除选区高亮
+						useAppStore.getState().clearScoreSelection();
+						
+						// 3. 清除播放相关高亮（绿色当前 beat 高亮 + 黄色小节高亮）
+						useAppStore.getState().clearPlaybackHighlights();
+						
+						// 4. 重置播放器状态
+						useAppStore.getState().setPlayerIsPlaying(false);
+						
+						// 5. 清除编辑器光标相关的 refs（避免残留状态）
+						isHighlightFromEditorCursorRef.current = false;
+						lastEditorCursorSelectionRef.current = null;
+						
+						// 6. 清除播放范围和高亮范围
+						try {
+							// @ts-expect-error - playbackRange 可能需要特定的类型
+							api.playbackRange = null;
+							
+							// 清除高亮范围（如果 API 支持）
+							if (typeof api.highlightPlaybackRange === "function") {
+								// 注意：alphaTab 可能不支持传递 null 来清除，但我们可以尝试
+								// 如果不行，这个调用会被忽略
+								try {
+									// 尝试清除：传递 undefined 或 null（如果 API 支持）
+									// @ts-expect-error - 尝试清除高亮
+									api.highlightPlaybackRange(null, null);
+								} catch {
+									// 如果 API 不支持，忽略错误
+								}
+							}
+						} catch (err) {
+							console.debug("[Preview] Failed to clear playback range:", err);
+						}
+						
+						console.debug("[Preview] Stop button: cleared all selection and playback states");
+					},
 					applyPlaybackSpeed: (speed: number) => {
 						try {
 							api.playbackSpeed = speed;
@@ -1336,6 +1355,28 @@ export default function Preview({
 					if (!e.startBeat || !e.endBeat) {
 						console.debug(
 							"[Preview] No beats in selection, clearing scoreSelection",
+						);
+						clearScoreSelection();
+						return;
+					}
+
+					// 🆕 检查 beat 是否属于当前有效的 score（避免旧曲谱的 beat 触发事件）
+					const currentScore = api.score;
+					const startBeatScore = e.startBeat.voice?.bar?.staff?.track?.score;
+					const endBeatScore = e.endBeat.voice?.bar?.staff?.track?.score;
+
+					if (
+						!currentScore ||
+						startBeatScore !== currentScore ||
+						endBeatScore !== currentScore
+					) {
+						console.debug(
+							"[Preview] Beats belong to different score, clearing scoreSelection",
+							{
+								hasCurrentScore: !!currentScore,
+								startBeatScoreMatches: startBeatScore === currentScore,
+								endBeatScoreMatches: endBeatScore === currentScore,
+							},
 						);
 						clearScoreSelection();
 						return;
@@ -1450,6 +1491,12 @@ export default function Preview({
 				try {
 					if (score?.tracks && score.tracks.length > 0) {
 						bumpScoreVersion();
+
+						// 🆕 新乐谱加载时，清除选区高亮和相关的 refs（避免旧乐谱的选区残留）
+						useAppStore.getState().clearScoreSelection();
+						isHighlightFromEditorCursorRef.current = false;
+						lastEditorCursorSelectionRef.current = null;
+
 						// Sanitize any invalid BarStyle.color entries to avoid serializer crashes
 						try {
 							sanitizeAllBarStyles(api);
@@ -1546,6 +1593,9 @@ export default function Preview({
 					apiRef.current = new alphaTab.AlphaTabApi(el, settings);
 					bumpApiInstanceId();
 
+					// 🆕 新建 API 时清除选区高亮（避免旧 API 的选区残留）
+					useAppStore.getState().clearScoreSelection();
+
 					// 初始应用全局状态的播放速度与节拍器音量
 					try {
 						apiRef.current.playbackSpeed = playbackSpeedRef.current;
@@ -1591,6 +1641,9 @@ export default function Preview({
 									// 销毁旧的 API
 									apiRef.current?.destroy();
 
+									// 🆕 销毁旧 API 时清除选区高亮（避免旧 API 的选区残留）
+									useAppStore.getState().clearScoreSelection();
+
 									// 获取新的颜色配置
 									const newColors = getAlphaTabColorsForTheme();
 
@@ -1610,6 +1663,9 @@ export default function Preview({
 									// 创建新的 API
 									apiRef.current = new alphaTab.AlphaTabApi(el, newSettings);
 									bumpApiInstanceId();
+
+									// 🆕 新建 API 时清除选区高亮（避免旧 API 的选区残留）
+									useAppStore.getState().clearScoreSelection();
 
 									// 重新应用全局状态的播放速度与节拍器音量
 									try {
@@ -1771,6 +1827,9 @@ export default function Preview({
 				}
 				apiRef.current.destroy();
 				apiRef.current = null;
+
+				// 🆕 销毁 API 时清除选区高亮（避免旧 API 的选区残留）
+				useAppStore.getState().clearScoreSelection();
 			}
 			// 清除 pending tex 相关计时器
 			if (pendingTexTimerRef.current) {
@@ -1779,7 +1838,15 @@ export default function Preview({
 			}
 			pendingTexRef.current = null;
 		};
-	}, [applyTracksConfig, reinitTrigger, applyZoom]);
+	}, [
+		applyTracksConfig,
+		reinitTrigger,
+		applyZoom,
+		applyEditorBarNumberColor,
+		bumpScoreVersion,
+		bumpApiInstanceId,
+		sanitizeAllBarStyles,
+	]);
 
 	// 内容更新：仅调用 tex，不销毁 API，避免闪烁
 	useEffect(() => {
@@ -1863,6 +1930,9 @@ export default function Preview({
 				}
 				apiRef.current.destroy();
 				apiRef.current = null;
+
+				// 🆕 销毁 API 时清除选区高亮（避免旧 API 的选区残留）
+				useAppStore.getState().clearScoreSelection();
 			}
 		} else if (!showPrintPreview && !apiRef.current) {
 			// 关闭打印预览：延迟重新初始化 API，确保 PrintPreview 完全卸载
@@ -1891,6 +1961,9 @@ export default function Preview({
 				}
 				apiRef.current.destroy();
 				apiRef.current = null;
+
+				// 🆕 销毁 API 时清除选区高亮（避免旧 API 的选区残留）
+				useAppStore.getState().clearScoreSelection();
 			}
 		} else if (!showPrintPreview && !apiRef.current) {
 			// 关闭打印预览：延迟重新初始化 API，确保 PrintPreview 完全卸载
