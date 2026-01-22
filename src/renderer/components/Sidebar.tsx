@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { type FileItem, useAppStore } from "../store/appStore";
+import { SettingsSidebar } from "./SettingsSidebar";
 import { TutorialsSidebar } from "./TutorialsSidebar";
 import { Button } from "./ui/button";
 import IconButton from "./ui/icon-button";
@@ -259,6 +260,8 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 					<div className="py-1 w-full overflow-hidden">
 						{workspaceMode === "tutorial" ? (
 							<TutorialsSidebar />
+						) : workspaceMode === "settings" ? (
+							<SettingsSidebar />
 						) : files.length === 0 ? (
 							<div className="p-3 text-xs text-muted-foreground text-center">
 								暂无文件

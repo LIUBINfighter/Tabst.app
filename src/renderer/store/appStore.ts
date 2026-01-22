@@ -99,6 +99,10 @@ interface AppState {
 	activeTutorialId: string | null;
 	setActiveTutorialId: (id: string | null) => void;
 
+	// 设置页选择（用于侧边栏与设置视图间同步）
+	activeSettingsPageId: string | null;
+	setActiveSettingsPageId: (id: string | null) => void;
+
 	// Actions
 	addFile: (file: FileItem) => void;
 	removeFile: (id: string) => void;
@@ -166,6 +170,9 @@ export const useAppStore = create<AppState>((set, get) => ({
 	pendingStaffToggle: null,
 	activeTutorialId: null,
 	setActiveTutorialId: (id) => set({ activeTutorialId: id }),
+
+	activeSettingsPageId: null,
+	setActiveSettingsPageId: (id) => set({ activeSettingsPageId: id }),
 
 	addFile: (file) => {
 		set((state) => {
