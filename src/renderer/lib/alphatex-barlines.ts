@@ -33,11 +33,15 @@ class BarlineWidget extends WidgetType {
 	toDOM() {
 		const wrapper = document.createElement("span");
 		wrapper.className = "cm-barline-widget";
+		const badgeWidth = 20;
+		const badgeGap = 1;
 		Object.assign(wrapper.style, {
-			display: "inline-flex",
-			alignItems: "center",
+			display: "inline-block",
+			position: "relative",
 			whiteSpace: "nowrap",
-			verticalAlign: "middle",
+			verticalAlign: "baseline",
+			lineHeight: "1",
+			paddingRight: `${badgeWidth + badgeGap}px`,
 			cursor: "default",
 			userSelect: "none",
 			pointerEvents: "none",
@@ -45,7 +49,7 @@ class BarlineWidget extends WidgetType {
 
 		const barline = document.createElement("span");
 		barline.textContent = "|";
-		barline.style.marginRight = "4px";
+		barline.style.marginRight = "1px";
 		const isMajor = this.barNumber % 5 === 0;
 		barline.style.color = isMajor
 			? "hsl(var(--destructive))"
@@ -53,6 +57,10 @@ class BarlineWidget extends WidgetType {
 
 		const badge = document.createElement("span");
 		Object.assign(badge.style, {
+			position: "absolute",
+			right: "0",
+			top: "50%",
+			transform: "translateY(-50%)",
 			display: "inline-flex",
 			alignItems: "center",
 			justifyContent: "center",
@@ -67,8 +75,10 @@ class BarlineWidget extends WidgetType {
 			fontSize: "10px",
 			lineHeight: "1",
 			height: "14px",
-			minWidth: "16px",
+			minWidth: `${badgeWidth}px`,
+			width: `${badgeWidth}px`,
 			fontWeight: "bold",
+			boxSizing: "border-box",
 			color: isMajor ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))",
 		});
 		badge.textContent = this.barNumber.toString();
