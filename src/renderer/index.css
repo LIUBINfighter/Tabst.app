@@ -250,3 +250,14 @@
 	-moz-appearance: textfield;
 	appearance: textfield;
 }
+
+/* Remove text background highlighting in code blocks */
+/* 需要覆盖 react-syntax-highlighter 的内联样式 */
+.code-block-no-text-bg span,
+.code-block-no-text-bg span[style*="background"],
+.code-block-no-text-bg span[style*="background-color"] {
+	/* biome-ignore lint/complexity/noImportantStyles: Need to override react-syntax-highlighter inline styles */
+	background: transparent !important;
+	/* biome-ignore lint/complexity/noImportantStyles: Need to override react-syntax-highlighter inline styles */
+	background-color: transparent !important;
+}

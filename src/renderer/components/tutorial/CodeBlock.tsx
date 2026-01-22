@@ -5,6 +5,24 @@ import {
 	oneLight,
 } from "react-syntax-highlighter/dist/esm/styles/prism";
 
+// 移除主题中所有背景色的辅助函数
+const removeBackgroundFromTheme = (theme: typeof oneDark) => {
+	const cleanedTheme = { ...theme };
+	Object.keys(cleanedTheme).forEach((key) => {
+		const style = cleanedTheme[key as keyof typeof cleanedTheme];
+		if (style && typeof style === "object" && style !== null) {
+			// 移除 background 和 backgroundColor
+			if ("background" in style) {
+				delete (style as { background?: string }).background;
+			}
+			if ("backgroundColor" in style) {
+				delete (style as { backgroundColor?: string }).backgroundColor;
+			}
+		}
+	});
+	return cleanedTheme;
+};
+
 interface CodeBlockProps {
 	language?: string;
 	children?: string;
@@ -37,14 +55,18 @@ export function CodeBlock({ language, children, className }: CodeBlockProps) {
 		return () => observer.disconnect();
 	}, []);
 
+	// 创建移除背景色的自定义主题
+	const theme = isDark ? oneDark : oneLight;
+	const cleanedTheme = removeBackgroundFromTheme(theme);
+
 	return (
-		<div className="not-prose my-4 overflow-hidden rounded-md border border-border bg-muted/30">
+		<div className="not-prose my-4 overflow-hidden rounded-md border border-border bg-muted/30 code-block-no-text-bg">
 			<SyntaxHighlighter
 				language={detectedLanguage}
-				style={isDark ? oneDark : oneLight}
+				style={cleanedTheme}
 				customStyle={{
 					margin: 0,
-					padding: "1rem",
+					padding: "0.5rem 0.75rem",
 					fontSize: "0.75rem",
 					lineHeight: "1.5",
 					background: "transparent",

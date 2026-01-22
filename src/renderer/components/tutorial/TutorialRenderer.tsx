@@ -1,3 +1,4 @@
+import { Children, isValidElement } from "react";
 import type { Components } from "react-markdown";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -11,6 +12,9 @@ interface TutorialRendererProps {
 export function TutorialRenderer({ content }: TutorialRendererProps) {
 	// 自定义组件映射
 	const components: Components = {
+		// pre 标签：直接传递子元素，不添加容器
+		pre: ({ children }) => <>{children}</>,
+
 		// 代码块
 		code({ node, className, children, ...props }) {
 			// 检查是否是内联代码（通过检查是否有 className）
@@ -56,9 +60,40 @@ export function TutorialRenderer({ content }: TutorialRendererProps) {
 		),
 
 		// 段落
-		p: ({ children }) => (
-			<p className="text-sm text-foreground mb-4 leading-relaxed">{children}</p>
-		),
+		p: ({ children }) => {
+			// 检查子元素中是否包含图片（TutorialImage 会渲染为 <figure>）
+			// 如果包含图片，不能将 <figure> 包裹在 <p> 中（HTML 规范不允许）
+			const childrenArray = Children.toArray(children);
+			const hasImage = childrenArray.some((child) => {
+				if (isValidElement(child)) {
+					// 检查是否是 TutorialImage 组件
+					// TutorialImage 组件会接收 src, alt, title 属性
+					const props = child.props as
+						| { src?: string; alt?: string; title?: string }
+						| undefined;
+					return (
+						child.type === TutorialImage ||
+						(typeof props?.src === "string" && props.src.length > 0)
+					);
+				}
+				return false;
+			});
+
+			// 如果包含图片，使用 div 而不是 p（因为 <figure> 不能是 <p> 的子元素）
+			if (hasImage) {
+				return (
+					<div className="text-sm text-foreground mb-4 leading-relaxed">
+						{children}
+					</div>
+				);
+			}
+
+			return (
+				<p className="text-sm text-foreground mb-4 leading-relaxed">
+					{children}
+				</p>
+			);
+		},
 
 		// 列表
 		ul: ({ children }) => (
