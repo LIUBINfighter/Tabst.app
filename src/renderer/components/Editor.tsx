@@ -50,22 +50,13 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 	const setWorkspaceMode = useAppStore((s) => s.setWorkspaceMode);
 
 	// 🆕 订阅乐谱选区状态
-	const scoreSelection = useAppStore((s) => s.scoreSelection);
+	const _scoreSelection = useAppStore((s) => s.scoreSelection);
 
 	// 🆕 订阅播放位置状态
-	const playbackBeat = useAppStore((s) => s.playbackBeat);
+	const _playbackBeat = useAppStore((s) => s.playbackBeat);
 
 	// 🆕 订阅播放器光标位置（暂停时也保留）
-	const playerCursorPosition = useAppStore((s) => s.playerCursorPosition);
-
-	// 🆕 订阅乐谱选区状态
-	const scoreSelection = useAppStore((s) => s.scoreSelection);
-
-	// 🆕 订阅播放位置状态
-	const playbackBeat = useAppStore((s) => s.playbackBeat);
-
-	// 🆕 订阅播放器光标位置（暂停时也保留）
-	const playerCursorPosition = useAppStore((s) => s.playerCursorPosition);
+	const _playerCursorPosition = useAppStore((s) => s.playerCursorPosition);
 
 	// Observe <html> to detect dark mode toggles (class 'dark')
 	const [isDark, setIsDark] = useState<boolean>(() => {
@@ -434,8 +425,8 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 		if (language !== "alphatex") return;
 
 		const content = activeFile?.content ?? "";
-		updateEditorSelectionHighlight(view, content, scoreSelection);
-	}, [scoreSelection, activeFile, getLanguageForFile]);
+		updateEditorSelectionHighlight(view, content, _scoreSelection);
+	}, [_scoreSelection, activeFile, getLanguageForFile]);
 
 	// 🆕 监听播放位置变化，更新编辑器播放高亮
 	// 播放中：显示绿色高亮（当前音符）
@@ -449,15 +440,15 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 		if (language !== "alphatex") return;
 
 		const content = activeFile?.content ?? "";
-		const isPlaying = playbackBeat !== null;
+		const isPlaying = _playbackBeat !== null;
 		updateEditorPlaybackHighlight(
 			view,
 			content,
-			playbackBeat,
-			playerCursorPosition,
+			_playbackBeat,
+			_playerCursorPosition,
 			isPlaying,
 		);
-	}, [playbackBeat, playerCursorPosition, activeFile, getLanguageForFile]);
+	}, [_playbackBeat, _playerCursorPosition, activeFile, getLanguageForFile]);
 
 	// Cleanup on unmount
 	useEffect(() => {
