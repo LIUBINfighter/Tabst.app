@@ -257,48 +257,79 @@ export default function Preview({
 		}
 	}, []);
 
+	const clearBarNumberColor = useCallback((api: alphaTab.AlphaTabApi) => {
+		const previous = lastColoredBarsRef.current;
+		if (!previous?.bars?.length) return;
+		console.debug("[BarColor] Clearing previous bars:", previous.bars.length);
+
+		// 获取当前主题的小节号默认颜色
+		const themeColors = getAlphaTabColorsForTheme();
+		const defaultColor = alphaTab.model.Color.fromJson(
+			themeColors.barNumberColor,
+		);
+
+		for (const bar of previous.bars) {
+			const style = bar.style;
+			if (!style?.colors) continue;
+			// 恢复为主题默认颜色，而不是删除
+			style.colors.set(
+				alphaTab.model.BarSubElement.StandardNotationBarNumber,
+				defaultColor,
+			);
+			style.colors.set(
+				alphaTab.model.BarSubElement.GuitarTabsBarNumber,
+				defaultColor,
+			);
+			style.colors.set(
+				alphaTab.model.BarSubElement.SlashBarNumber,
+				defaultColor,
+			);
+			style.colors.set(
+				alphaTab.model.BarSubElement.NumberedBarNumber,
+				defaultColor,
+			);
+		}
+		lastColoredBarsRef.current = null;
+	}, []);
+
 	const applyEditorBarNumberColor = useCallback(
 		(api: alphaTab.AlphaTabApi, barIndex: number): boolean => {
-			if (!api.score?.tracks?.length) return false;
+			console.debug("[BarColor] applyEditorBarNumberColor called", {
+				barIndex,
+				hasScore: !!api.score,
+				trackCount: api.score?.tracks?.length ?? 0,
+			});
+
+			if (!api.score?.tracks?.length) {
+				console.debug("[BarColor] No score/tracks, aborting");
+				return false;
+			}
 			const currentScore = api.score ?? null;
 			if (
 				lastColoredBarsRef.current?.barIndex === barIndex &&
 				lastColoredBarsRef.current?.score === currentScore
 			) {
+				console.debug("[BarColor] Same bar/score, skip");
 				return true;
 			}
 
-			const previous = lastColoredBarsRef.current;
-			if (previous) {
-				for (const bar of previous.bars) {
-					const style = bar.style;
-					if (!style?.colors) continue;
-					style.colors.set(
-						alphaTab.model.BarSubElement.StandardNotationBarNumber,
-						null,
-					);
-					style.colors.set(
-						alphaTab.model.BarSubElement.GuitarTabsBarNumber,
-						null,
-					);
-					style.colors.set(alphaTab.model.BarSubElement.SlashBarNumber, null);
-					style.colors.set(
-						alphaTab.model.BarSubElement.NumberedBarNumber,
-						null,
-					);
-				}
-			}
+			clearBarNumberColor(api);
 
 			const bars: alphaTab.model.Bar[] = [];
 			const color = alphaTab.model.Color.fromJson("#ef4444");
+
 			for (const track of api.score.tracks ?? []) {
 				for (const staff of track.staves ?? []) {
 					for (const bar of staff.bars ?? []) {
 						if (bar.index !== barIndex) continue;
 						bars.push(bar);
+
+						// 只在 style 不存在时创建，避免覆盖已有样式
 						if (!bar.style) {
 							bar.style = new alphaTab.model.BarStyle();
 						}
+
+						// 只设置小节号颜色，不影响其他元素
 						bar.style.colors.set(
 							alphaTab.model.BarSubElement.StandardNotationBarNumber,
 							color,
@@ -319,23 +350,31 @@ export default function Preview({
 				}
 			}
 
+			console.debug("[BarColor] Colored bars count:", bars.length);
 			lastColoredBarsRef.current = { barIndex, bars, score: currentScore };
 			api.render?.();
 			return true;
 		},
-		[],
+		[clearBarNumberColor],
 	);
 
 	useEffect(() => {
 		// score 发生变化时，清理旧的着色缓存并重新应用
-		lastColoredBarsRef.current = null;
-		pendingBarColorRef.current = null;
 		const api = apiRef.current;
+		if (api) {
+			clearBarNumberColor(api);
+		}
+		pendingBarColorRef.current = null;
 		if (!api || !editorCursor || editorCursor.barIndex < 0) return;
 		if (!applyEditorBarNumberColor(api, editorCursor.barIndex)) {
 			pendingBarColorRef.current = editorCursor.barIndex;
 		}
-	}, [scoreVersion, applyEditorBarNumberColor, editorCursor]);
+	}, [
+		scoreVersion,
+		applyEditorBarNumberColor,
+		clearBarNumberColor,
+		editorCursor,
+	]);
 
 	/**
 	 * 🆕 应用 tracks 显示配置到第一个音轨
