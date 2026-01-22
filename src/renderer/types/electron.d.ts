@@ -44,6 +44,12 @@ export interface ElectronAPI {
 	// Auto-update
 	checkForUpdates: () => Promise<{ supported: boolean; message?: string }>;
 	installUpdate: () => Promise<{ ok: boolean; message?: string }>;
+	// Fetch GitHub releases RSS feed
+	fetchReleasesFeed: () => Promise<{
+		success: boolean;
+		data?: string;
+		error?: string;
+	}>;
 	onUpdateEvent: (
 		callback: (event: {
 			type:
