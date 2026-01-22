@@ -32,6 +32,11 @@ jobs:
       - name: Check node-linker config
         run: pnpm config get node-linker
 
+      - name: Force git to use HTTPS for GitHub
+        run: |
+          git config --global url."https://github.com/".insteadOf "git@github.com:"
+          git config --global url."https://github.com/".insteadOf "ssh://git@github.com/"
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
