@@ -1167,37 +1167,53 @@ export function updateEditorSelectionHighlight(
 export function createCursorTrackingExtension(
 	onCursorChange: (cursor: EditorCursorInfo | null) => void,
 ): Extension {
-	let debounceTimer: number | null = null;
+	let rafId: number | null = null;
+	let lastEmitted: EditorCursorInfo | null = null;
 
 	return EditorView.updateListener.of((update) => {
-		if (update.selectionSet || update.docChanged) {
-			// 防抖处理，避免频繁更新
-			if (debounceTimer) {
-				clearTimeout(debounceTimer);
-			}
+		if (!update.selectionSet && !update.docChanged) {
+			return;
+		}
 
-			const fromDocChange = update.docChanged;
+		const fromDocChange = update.docChanged;
+		if (rafId !== null) return;
+		rafId = window.requestAnimationFrame(() => {
+			rafId = null;
+			const { head } = update.state.selection.main;
+			const line = update.state.doc.lineAt(head);
+			const lineNumber = line.number - 1; // Convert to 0-based
+			const column = head - line.from;
 
-			debounceTimer = window.setTimeout(() => {
-				const { head } = update.state.selection.main;
-				const line = update.state.doc.lineAt(head);
-				const lineNumber = line.number - 1; // Convert to 0-based
-				const column = head - line.from;
+			const text = update.state.doc.toString();
+			const beatInfo = findBeatAtPosition(text, lineNumber, column);
 
-				const text = update.state.doc.toString();
-				const beatInfo = findBeatAtPosition(text, lineNumber, column);
-
-				if (beatInfo) {
-					onCursorChange({
-						...beatInfo,
-						fromDocChange,
-					});
-				} else {
+			if (!beatInfo) {
+				if (lastEmitted !== null) {
+					lastEmitted = null;
 					onCursorChange(null);
 				}
-				debounceTimer = null;
-			}, 100);
-		}
+				return;
+			}
+
+			const next: EditorCursorInfo = {
+				...beatInfo,
+				fromDocChange,
+			};
+
+			if (lastEmitted && lastEmitted.barIndex === next.barIndex) {
+				return;
+			}
+
+			lastEmitted = next;
+			console.debug("[EditorCursor] Emit bar update:", {
+				line: next.line,
+				column: next.column,
+				barIndex: next.barIndex,
+				beatIndex: next.beatIndex,
+				fromDocChange: next.fromDocChange,
+			});
+			onCursorChange(next);
+		});
 	});
 }
 

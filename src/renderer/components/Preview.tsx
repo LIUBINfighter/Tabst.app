@@ -118,6 +118,9 @@ export default function Preview({
 	const playbackSpeed = useAppStore((s) => s.playbackSpeed);
 	const metronomeVolume = useAppStore((s) => s.metronomeVolume);
 	const editorHasFocus = useAppStore((s) => s.editorHasFocus);
+	const scoreVersion = useAppStore((s) => s.scoreVersion);
+	const bumpApiInstanceId = useAppStore((s) => s.bumpApiInstanceId);
+	const bumpScoreVersion = useAppStore((s) => s.bumpScoreVersion);
 	// 使用 ref 保存最新的播放速度/节拍器音量，避免它们变化时触发「重建 alphaTab API」的 useEffect
 	const playbackSpeedRef = useRef(playbackSpeed);
 	const metronomeVolumeRef = useRef(metronomeVolume);
@@ -126,6 +129,12 @@ export default function Preview({
 		scrollElement?: HTMLElement | null;
 		scrollMode?: alphaTab.ScrollMode | undefined;
 	} | null>(null);
+	const lastColoredBarsRef = useRef<{
+		barIndex: number;
+		bars: alphaTab.model.Bar[];
+		score: alphaTab.model.Score | null;
+	} | null>(null);
+	const pendingBarColorRef = useRef<number | null>(null);
 	// 防止因乐谱选择触发的光标更新导致循环
 	const isEditorCursorFromScoreRef = useRef(false);
 
@@ -248,6 +257,86 @@ export default function Preview({
 		}
 	}, []);
 
+	const applyEditorBarNumberColor = useCallback(
+		(api: alphaTab.AlphaTabApi, barIndex: number): boolean => {
+			if (!api.score?.tracks?.length) return false;
+			const currentScore = api.score ?? null;
+			if (
+				lastColoredBarsRef.current?.barIndex === barIndex &&
+				lastColoredBarsRef.current?.score === currentScore
+			) {
+				return true;
+			}
+
+			const previous = lastColoredBarsRef.current;
+			if (previous) {
+				for (const bar of previous.bars) {
+					const style = bar.style;
+					if (!style?.colors) continue;
+					style.colors.set(
+						alphaTab.model.BarSubElement.StandardNotationBarNumber,
+						null,
+					);
+					style.colors.set(
+						alphaTab.model.BarSubElement.GuitarTabsBarNumber,
+						null,
+					);
+					style.colors.set(alphaTab.model.BarSubElement.SlashBarNumber, null);
+					style.colors.set(
+						alphaTab.model.BarSubElement.NumberedBarNumber,
+						null,
+					);
+				}
+			}
+
+			const bars: alphaTab.model.Bar[] = [];
+			const color = alphaTab.model.Color.fromJson("#ef4444");
+			for (const track of api.score.tracks ?? []) {
+				for (const staff of track.staves ?? []) {
+					for (const bar of staff.bars ?? []) {
+						if (bar.index !== barIndex) continue;
+						bars.push(bar);
+						if (!bar.style) {
+							bar.style = new alphaTab.model.BarStyle();
+						}
+						bar.style.colors.set(
+							alphaTab.model.BarSubElement.StandardNotationBarNumber,
+							color,
+						);
+						bar.style.colors.set(
+							alphaTab.model.BarSubElement.GuitarTabsBarNumber,
+							color,
+						);
+						bar.style.colors.set(
+							alphaTab.model.BarSubElement.SlashBarNumber,
+							color,
+						);
+						bar.style.colors.set(
+							alphaTab.model.BarSubElement.NumberedBarNumber,
+							color,
+						);
+					}
+				}
+			}
+
+			lastColoredBarsRef.current = { barIndex, bars, score: currentScore };
+			api.render?.();
+			return true;
+		},
+		[],
+	);
+
+	useEffect(() => {
+		// score 发生变化时，清理旧的着色缓存并重新应用
+		lastColoredBarsRef.current = null;
+		pendingBarColorRef.current = null;
+		const api = apiRef.current;
+		if (!api || !editorCursor || editorCursor.barIndex < 0) return;
+		if (!applyEditorBarNumberColor(api, editorCursor.barIndex)) {
+			pendingBarColorRef.current = editorCursor.barIndex;
+		}
+	}, [scoreVersion, applyEditorBarNumberColor, editorCursor]);
+
 	/**
 	 * 🆕 应用 tracks 显示配置到第一个音轨
 	 * 从 trackConfigRef 读取保存的配置，如果没有则使用默认值
@@ -281,7 +370,7 @@ export default function Preview({
 		if (!api || !editorCursor) return;
 
 		// 检查是否是无效的位置（在元数据区域）
-		if (editorCursor.barIndex < 0 || editorCursor.beatIndex < 0) {
+		if (editorCursor.barIndex < 0) {
 			return;
 		}
 
@@ -289,6 +378,16 @@ export default function Preview({
 		if (isEditorCursorFromScoreRef.current) {
 			isEditorCursorFromScoreRef.current = false;
 			return;
+		}
+
+		console.debug("[Preview] Editor cursor received:", {
+			barIndex: editorCursor.barIndex,
+			beatIndex: editorCursor.beatIndex,
+			fromDocChange: editorCursor.fromDocChange,
+		});
+
+		if (!applyEditorBarNumberColor(api, editorCursor.barIndex)) {
+			pendingBarColorRef.current = editorCursor.barIndex;
 		}
 
 		// 从当前乐谱中查找对应的 Beat
@@ -361,72 +460,6 @@ export default function Preview({
 			setTimeout(() => useAppStore.setState({ pendingStaffToggle: null }), 0);
 		}
 	}, [pendingStaffToggle, toggleFirstStaffOptionStore]);
-
-	/**
-	 * 🆕 监听编辑器光标变化，反向同步到乐谱选区
-	 * 实现点击编辑器代码定位到乐谱对应位置
-	 */
-	useEffect(() => {
-		const api = apiRef.current;
-		if (!api || !editorCursor) return;
-
-		// 检查是否是无效的位置（在元数据区域）
-		if (editorCursor.barIndex < 0 || editorCursor.beatIndex < 0) {
-			return;
-		}
-
-		// 防止循环：如果当前光标是由乐谱选择触发的，跳过
-		if (isEditorCursorFromScoreRef.current) {
-			isEditorCursorFromScoreRef.current = false;
-			return;
-		}
-
-		// 从当前乐谱中查找对应的 Beat
-		const score = api.score;
-		const beat = findBeatInScore(
-			score,
-			editorCursor.barIndex,
-			editorCursor.beatIndex,
-		);
-
-		if (beat) {
-			console.debug(
-				"[Preview] Editor cursor → Score sync:",
-				`Bar ${editorCursor.barIndex}, Beat ${editorCursor.beatIndex}`,
-			);
-
-			try {
-				// 使用 Selection API 高亮该 beat
-				if (typeof api.highlightPlaybackRange === "function") {
-					api.highlightPlaybackRange(beat, beat);
-				}
-
-				// 滚动到该 beat 所在位置（可选）
-				// ✋ 输入导致的 docChanged 不自动滚动，保持当前视图
-				if (!editorCursor.fromDocChange) {
-					const bb = api.boundsLookup?.findBeat?.(beat);
-					if (bb && containerRef.current) {
-						const visual = bb.visualBounds;
-						const container = containerRef.current;
-						const containerRect = container.getBoundingClientRect();
-						const beatTop = visual.y;
-						const beatBottom = visual.y + visual.h;
-						const scrollTop = container.scrollTop;
-						const viewportTop = scrollTop;
-						const viewportBottom = scrollTop + containerRect.height;
-						if (beatTop < viewportTop || beatBottom > viewportBottom) {
-							container.scrollTo({
-								top: Math.max(0, beatTop - containerRect.height / 3),
-								behavior: "smooth",
-							});
-						}
-					}
-				}
-			} catch (e) {
-				console.debug("[Preview] Failed to sync editor cursor to score:", e);
-			}
-		}
-	}, [editorCursor]);
 
 	useEffect(() => {
 		if (!containerRef.current) return;
@@ -644,6 +677,7 @@ export default function Preview({
 			api.scoreLoaded.on((score) => {
 				try {
 					if (score?.tracks && score.tracks.length > 0) {
+						bumpScoreVersion();
 						const currentContent = latestContentRef.current ?? "";
 						// 如果当前有 pending 请求，并且内容匹配，则将其视为成功解析，保存为 lastValid
 						if (
@@ -673,6 +707,14 @@ export default function Preview({
 						}
 						// 🆕 统一调用 applyTracksConfig，无论是首次还是重建
 						if (apiRef.current) applyTracksConfig(apiRef.current);
+						// 🆕 如果有挂起的小节号高亮请求，scoreLoaded 后执行
+						if (apiRef.current && pendingBarColorRef.current !== null) {
+							applyEditorBarNumberColor(
+								apiRef.current,
+								pendingBarColorRef.current,
+							);
+							pendingBarColorRef.current = null;
+						}
 						// Reset load flag after handling a scoreLoaded to avoid stale state
 						lastLoadWasUserContentRef.current = false;
 					}
@@ -721,6 +763,7 @@ export default function Preview({
 					});
 
 					apiRef.current = new alphaTab.AlphaTabApi(el, settings);
+					bumpApiInstanceId();
 
 					// 初始应用全局状态的播放速度与节拍器音量
 					try {
@@ -785,6 +828,7 @@ export default function Preview({
 
 									// 创建新的 API
 									apiRef.current = new alphaTab.AlphaTabApi(el, newSettings);
+									bumpApiInstanceId();
 
 									// 重新应用全局状态的播放速度与节拍器音量
 									try {

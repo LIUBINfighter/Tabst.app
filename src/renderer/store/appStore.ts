@@ -91,6 +91,12 @@ interface AppState {
 	metronomeVolume: number;
 	setMetronomeVolume: (v: number) => void;
 
+	// 🆕 alphaTab API / score 生命周期标识
+	apiInstanceId: number;
+	scoreVersion: number;
+	bumpApiInstanceId: () => void;
+	bumpScoreVersion: () => void;
+
 	// 工作区模式：editor | tutorial | settings
 	workspaceMode: "editor" | "tutorial" | "settings";
 	setWorkspaceMode: (mode: "editor" | "tutorial" | "settings") => void;
@@ -167,6 +173,12 @@ export const useAppStore = create<AppState>((set, get) => ({
 	setPlaybackSpeed: (v) => set({ playbackSpeed: v }),
 	metronomeVolume: 0,
 	setMetronomeVolume: (v) => set({ metronomeVolume: v }),
+	apiInstanceId: 0,
+	scoreVersion: 0,
+	bumpApiInstanceId: () =>
+		set((state) => ({ apiInstanceId: state.apiInstanceId + 1 })),
+	bumpScoreVersion: () =>
+		set((state) => ({ scoreVersion: state.scoreVersion + 1 })),
 	workspaceMode: "editor",
 	setWorkspaceMode: (mode: "editor" | "tutorial" | "settings") =>
 		set({ workspaceMode: mode }),
