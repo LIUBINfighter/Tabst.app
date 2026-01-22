@@ -1269,7 +1269,30 @@ export default function Preview({
 						isHighlightFromEditorCursorRef.current = false;
 						lastEditorCursorSelectionRef.current = null;
 
-						// 6. 清除播放范围和高亮范围
+						// 6. 🆕 清除小节号红色高亮（Editor -> Preview 的高亮）
+						// 恢复之前高亮的小节到默认主题颜色
+						try {
+							if (lastColoredBarsRef.current?.bars?.length > 0) {
+								applyThemeColorsToPreviousBars(api);
+								// 清除 refs
+								lastColoredBarsRef.current = null;
+								pendingBarColorRef.current = null;
+								// 重新渲染以应用颜色更改
+								if (api.render) {
+									api.render();
+								}
+								console.debug(
+									"[Preview] Stop button: cleared bar number highlight and re-rendered",
+								);
+							}
+						} catch (err) {
+							console.debug(
+								"[Preview] Failed to clear bar number highlight:",
+								err,
+							);
+						}
+
+						// 7. 清除播放范围和高亮范围
 						try {
 							api.playbackRange = null;
 
