@@ -76,6 +76,7 @@ interface AppState {
 		play?: () => void;
 		pause?: () => void;
 		stop?: () => void;
+		refresh?: () => void;
 		applyZoom?: (percent: number) => void;
 		applyPlaybackSpeed?: (speed: number) => void;
 		setMetronomeVolume?: (volume: number) => void;

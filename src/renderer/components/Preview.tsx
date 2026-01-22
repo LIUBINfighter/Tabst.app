@@ -1292,6 +1292,58 @@ export default function Preview({
 							"[Preview] Stop button: cleared all selection and playback states",
 						);
 					},
+					refresh: () => {
+						console.log("[Preview] Refresh button: clearing and reloading API");
+
+						// 1. 先停止播放并清除所有状态
+						api.stop?.();
+						useAppStore.getState().clearScoreSelection();
+						useAppStore.getState().clearPlaybackHighlights();
+						useAppStore.getState().setPlayerIsPlaying(false);
+
+						// 2. 清除编辑器光标相关的 refs
+						isHighlightFromEditorCursorRef.current = false;
+						lastEditorCursorSelectionRef.current = null;
+
+						// 3. 销毁当前 API
+						if (apiRef.current) {
+							// 清理主题观察者
+							const unsubscribeTheme = (
+								apiRef.current as unknown as Record<string, unknown>
+							).__unsubscribeTheme;
+							if (typeof unsubscribeTheme === "function") {
+								unsubscribeTheme();
+							}
+
+							// 取消注册播放器控制
+							try {
+								useAppStore.getState().unregisterPlayerControls();
+							} catch (e) {
+								console.debug("Failed to unregister player controls:", e);
+							}
+
+							// 销毁 API
+							apiRef.current.destroy();
+							apiRef.current = null;
+
+							// 清除选区高亮
+							useAppStore.getState().clearScoreSelection();
+						}
+
+						// 4. 清除 pending tex 相关计时器
+						if (pendingTexTimerRef.current) {
+							clearTimeout(pendingTexTimerRef.current);
+							pendingTexTimerRef.current = null;
+						}
+						pendingTexRef.current = null;
+
+						// 5. 触发重新初始化（通过增加 reinitTrigger）
+						setReinitTrigger((prev) => prev + 1);
+
+						console.debug(
+							"[Preview] Refresh: API destroyed, reinitialization triggered",
+						);
+					},
 					applyPlaybackSpeed: (speed: number) => {
 						try {
 							api.playbackSpeed = speed;
