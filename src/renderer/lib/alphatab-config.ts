@@ -86,6 +86,12 @@ export function createPreviewSettings(
 				},
 			}),
 		},
+		notation: {
+			elements: {
+				chordDiagrams: true,
+				effectChordNames: true,
+			},
+		},
 		player: {
 			playerMode: alphaTab.PlayerMode.EnabledAutomatic,
 			enablePlayer,
