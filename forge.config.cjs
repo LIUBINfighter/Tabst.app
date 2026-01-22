@@ -46,14 +46,19 @@ module.exports = {
 				skipNativeDeps: true,
 			},
 		},
-		{
-			name: "@electron-forge/maker-deb",
-			config: {},
-		},
-		{
-			name: "@electron-forge/maker-rpm",
-			config: {},
-		},
+		// Linux-only makers (avoid pulling flatpak deps on Windows/macOS)
+		...(process.platform === "linux"
+			? [
+					{
+						name: "@electron-forge/maker-deb",
+						config: {},
+					},
+					{
+						name: "@electron-forge/maker-rpm",
+						config: {},
+					},
+				]
+			: []),
 	],
 	plugins: [
 		{

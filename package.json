@@ -59,6 +59,8 @@
 		"react": "^19.2.3",
 		"react-dom": "^19.2.3",
 		"tailwind-merge": "^3.4.0",
+		"@types/fs-extra": "^11.0.4",
+		"tmp-promise": "^3.0.3",
 		"vscode-oniguruma": "^2.0.1",
 		"zustand": "^5.0.8",
 		"electron-log": "^5.4.3",
