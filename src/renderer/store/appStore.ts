@@ -35,6 +35,8 @@ export interface EditorCursorInfo {
 	barIndex: number;
 	/** 对应的 Beat 索引 (0-based)，-1 表示未知 */
 	beatIndex: number;
+	/** 是否由文档变更触发（例如输入/粘贴） */
+	fromDocChange?: boolean;
 }
 
 /**
@@ -64,6 +66,10 @@ interface AppState {
 
 	// 🆕 播放器光标位置 - 暂停时也保留，用于显示黄色小节高亮
 	playerCursorPosition: PlaybackBeatInfo | null;
+
+	// 🆕 编辑器焦点状态（用于控制 player enable）
+	editorHasFocus: boolean;
+	setEditorHasFocus: (hasFocus: boolean) => void;
 
 	// 🆕 Player UI / remote controls
 	playerControls: {
@@ -148,6 +154,8 @@ export const useAppStore = create<AppState>((set, get) => ({
 	editorCursor: null,
 	playbackBeat: null,
 	playerCursorPosition: null,
+	editorHasFocus: false,
+	setEditorHasFocus: (hasFocus) => set({ editorHasFocus: hasFocus }),
 	playerControls: null,
 	registerPlayerControls: (controls) => set({ playerControls: controls }),
 	unregisterPlayerControls: () => set({ playerControls: null }),

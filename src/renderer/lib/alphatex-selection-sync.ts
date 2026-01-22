@@ -1176,6 +1176,8 @@ export function createCursorTrackingExtension(
 				clearTimeout(debounceTimer);
 			}
 
+			const fromDocChange = update.docChanged;
+
 			debounceTimer = window.setTimeout(() => {
 				const { head } = update.state.selection.main;
 				const line = update.state.doc.lineAt(head);
@@ -1185,7 +1187,14 @@ export function createCursorTrackingExtension(
 				const text = update.state.doc.toString();
 				const beatInfo = findBeatAtPosition(text, lineNumber, column);
 
-				onCursorChange(beatInfo);
+				if (beatInfo) {
+					onCursorChange({
+						...beatInfo,
+						fromDocChange,
+					});
+				} else {
+					onCursorChange(null);
+				}
 				debounceTimer = null;
 			}, 100);
 		}

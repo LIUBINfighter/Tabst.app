@@ -117,11 +117,72 @@ export default function Preview({
 	);
 	const playbackSpeed = useAppStore((s) => s.playbackSpeed);
 	const metronomeVolume = useAppStore((s) => s.metronomeVolume);
+	const editorHasFocus = useAppStore((s) => s.editorHasFocus);
 	// 使用 ref 保存最新的播放速度/节拍器音量，避免它们变化时触发「重建 alphaTab API」的 useEffect
 	const playbackSpeedRef = useRef(playbackSpeed);
 	const metronomeVolumeRef = useRef(metronomeVolume);
+	const editorHasFocusRef = useRef(editorHasFocus);
+	const savedPlayerScrollRef = useRef<{
+		scrollElement?: HTMLElement | null;
+		scrollMode?: alphaTab.ScrollMode | undefined;
+	} | null>(null);
 	// 防止因乐谱选择触发的光标更新导致循环
 	const isEditorCursorFromScoreRef = useRef(false);
+
+	useEffect(() => {
+		editorHasFocusRef.current = editorHasFocus;
+		const api = apiRef.current;
+		if (!api) return;
+		try {
+			const settings = api.settings as unknown as {
+				player?: {
+					enablePlayer?: boolean;
+					enableCursor?: boolean;
+					enableAnimatedBeatCursor?: boolean;
+					enableElementHighlighting?: boolean;
+					enableUserInteraction?: boolean;
+					scrollElement?: HTMLElement | null;
+					scrollMode?: alphaTab.ScrollMode;
+				};
+			};
+			if (settings?.player) {
+				const enabled = !editorHasFocus;
+				settings.player.enablePlayer = enabled;
+				settings.player.enableCursor = enabled;
+				settings.player.enableAnimatedBeatCursor = enabled;
+				settings.player.enableElementHighlighting = enabled;
+				settings.player.enableUserInteraction = enabled;
+				if (!enabled) {
+					if (!savedPlayerScrollRef.current) {
+						savedPlayerScrollRef.current = {
+							scrollElement: settings.player.scrollElement ?? null,
+							scrollMode: settings.player.scrollMode,
+						};
+					}
+					settings.player.scrollElement = undefined;
+					settings.player.scrollMode = alphaTab.ScrollMode.Off;
+				} else if (savedPlayerScrollRef.current) {
+					settings.player.scrollElement =
+						savedPlayerScrollRef.current.scrollElement ?? undefined;
+					settings.player.scrollMode =
+						savedPlayerScrollRef.current.scrollMode ??
+						settings.player.scrollMode;
+					savedPlayerScrollRef.current = null;
+				}
+				api.updateSettings?.();
+				api.render?.();
+			}
+			if (editorHasFocus) {
+				api.stop?.();
+				useAppStore.getState().clearPlaybackHighlights();
+				useAppStore.getState().setPlayerIsPlaying(false);
+				const cursor = cursorRef.current;
+				if (cursor) cursor.classList.add("hidden");
+			}
+		} catch (err) {
+			console.debug("[Preview] Failed to toggle player enable state:", err);
+		}
+	}, [editorHasFocus]);
 
 	useEffect(() => {
 		latestContentRef.current = content ?? "";
@@ -251,28 +312,31 @@ export default function Preview({
 				}
 
 				// 滚动到该 beat 所在位置（可选）
-				const bb = api.boundsLookup?.findBeat?.(beat);
-				// 实际滚动容器：优先使用 scrollHost（有 overflow-auto），退回到内部容器
-				const scrollHost = scrollHostRef.current;
-				const container = scrollHost ?? containerRef.current;
+				// ✋ 输入导致的 docChanged 不自动滚动，保持当前视图
+				if (!editorCursor.fromDocChange) {
+					const bb = api.boundsLookup?.findBeat?.(beat);
+					// 实际滚动容器：优先使用 scrollHost（有 overflow-auto），退回到内部容器
+					const scrollHost = scrollHostRef.current;
+					const container = scrollHost ?? containerRef.current;
 
-				if (bb && container) {
-					const visual = bb.visualBounds;
-					const containerRect = container.getBoundingClientRect();
+					if (bb && container) {
+						const visual = bb.visualBounds;
+						const containerRect = container.getBoundingClientRect();
 
-					// 检查 beat 是否在可视区域内
-					const beatTop = visual.y;
-					const beatBottom = visual.y + visual.h;
-					const scrollTop = (container as HTMLElement).scrollTop ?? 0;
-					const viewportTop = scrollTop;
-					const viewportBottom = scrollTop + containerRect.height;
+						// 检查 beat 是否在可视区域内
+						const beatTop = visual.y;
+						const beatBottom = visual.y + visual.h;
+						const scrollTop = (container as HTMLElement).scrollTop ?? 0;
+						const viewportTop = scrollTop;
+						const viewportBottom = scrollTop + containerRect.height;
 
-					// 如果 beat 不在可视区域，滚动到它
-					if (beatTop < viewportTop || beatBottom > viewportBottom) {
-						container.scrollTo({
-							top: Math.max(0, beatTop - containerRect.height / 3),
-							behavior: "smooth",
-						});
+						// 如果 beat 不在可视区域，滚动到它
+						if (beatTop < viewportTop || beatBottom > viewportBottom) {
+							container.scrollTo({
+								top: Math.max(0, beatTop - containerRect.height / 3),
+								behavior: "smooth",
+							});
+						}
 					}
 				}
 			} catch (e) {
@@ -338,25 +402,24 @@ export default function Preview({
 				}
 
 				// 滚动到该 beat 所在位置（可选）
-				const bb = api.boundsLookup?.findBeat?.(beat);
-				if (bb && containerRef.current) {
-					const visual = bb.visualBounds;
-					const container = containerRef.current;
-					const containerRect = container.getBoundingClientRect();
-
-					// 检查 beat 是否在可视区域内
-					const beatTop = visual.y;
-					const beatBottom = visual.y + visual.h;
-					const scrollTop = container.scrollTop;
-					const viewportTop = scrollTop;
-					const viewportBottom = scrollTop + containerRect.height;
-
-					// 如果 beat 不在可视区域，滚动到它
-					if (beatTop < viewportTop || beatBottom > viewportBottom) {
-						container.scrollTo({
-							top: Math.max(0, beatTop - containerRect.height / 3),
-							behavior: "smooth",
-						});
+				// ✋ 输入导致的 docChanged 不自动滚动，保持当前视图
+				if (!editorCursor.fromDocChange) {
+					const bb = api.boundsLookup?.findBeat?.(beat);
+					if (bb && containerRef.current) {
+						const visual = bb.visualBounds;
+						const container = containerRef.current;
+						const containerRect = container.getBoundingClientRect();
+						const beatTop = visual.y;
+						const beatBottom = visual.y + visual.h;
+						const scrollTop = container.scrollTop;
+						const viewportTop = scrollTop;
+						const viewportBottom = scrollTop + containerRect.height;
+						if (beatTop < viewportTop || beatBottom > viewportBottom) {
+							container.scrollTo({
+								top: Math.max(0, beatTop - containerRect.height / 3),
+								behavior: "smooth",
+							});
+						}
 					}
 				}
 			} catch (e) {
@@ -646,7 +709,7 @@ export default function Preview({
 					const settings = createPreviewSettings(urls as ResourceUrls, {
 						scale: zoomRef.current / 100,
 						scrollElement: scrollEl,
-						enablePlayer: true,
+						enablePlayer: !editorHasFocusRef.current,
 						colors,
 					});
 
@@ -715,7 +778,7 @@ export default function Preview({
 											scrollElement:
 												(scrollHostRef.current as HTMLElement | null) ??
 												scrollEl,
-											enablePlayer: true,
+											enablePlayer: !editorHasFocusRef.current,
 											colors: newColors,
 										},
 									);
