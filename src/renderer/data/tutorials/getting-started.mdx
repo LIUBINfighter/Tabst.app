@@ -6,57 +6,15 @@
 
 Tabst 是一个用于编写吉他谱的编辑器，使用类似 Markdown 的纯文本格式。
 
-## MDX 组件测试
+## 示例代码
 
-这个教程使用 MDX 格式，可以直接在 Markdown 中使用 React 组件。下面是一些测试组件：
+下面是一个最小的 AlphaTex 片段示例：
 
-### 1. 交互式按钮测试
-
-<TestButton onClick={() => alert('按钮点击成功！')}>
-  点击我测试交互
-</TestButton>
-
-### 2. 计数器组件测试
-
-<Counter initialValue={5} />
-
-### 3. 折叠面板测试
-
-<Collapsible title="点击展开/收起">
-  这是一个可折叠的内容区域。你可以在这里放置任何内容，包括：
-
-  - 列表项
-  - **粗体文本**
-  - 甚至其他组件
-
-  <TestButton>嵌套的按钮</TestButton>
-</Collapsible>
-
-### 4. 提示框组件测试
-
-<Alert type="info">
-  这是一个信息提示框
-</Alert>
-
-<Alert type="success">
-  这是一个成功提示框
-</Alert>
-
-<Alert type="warning">
-  这是一个警告提示框
-</Alert>
-
-<Alert type="error">
-  这是一个错误提示框
-</Alert>
-
-### 5. 代码块组件测试
-
-<CodeBlock language="alphatex">
+```alphatex
 \title "示例曲目"
 \time 4/4
 \key C
-</CodeBlock>
+```
 
 ## 下一步
 

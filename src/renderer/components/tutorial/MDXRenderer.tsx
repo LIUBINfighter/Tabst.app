@@ -58,6 +58,7 @@ const allComponents = {
 	em: ({ children }: { children?: React.ReactNode }) => (
 		<em className="italic">{children}</em>
 	),
+	pre: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
 	code: ({
 		children,
 		className,
@@ -68,7 +69,7 @@ const allComponents = {
 		// 内联代码
 		if (!className) {
 			return (
-				<code className="px-1.5 py-0.5 bg-muted rounded text-sm font-mono">
+				<code className="px-1.5 py-0.5 bg-muted rounded text-sm font-mono before:content-none after:content-none">
 					{children}
 				</code>
 			);
