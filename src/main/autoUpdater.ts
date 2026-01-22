@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import { app, type BrowserWindow } from "electron";
 
 type UpdateEventPayload =
@@ -35,8 +37,15 @@ export function registerUpdateWindow(win: BrowserWindow) {
 export async function initAutoUpdater(): Promise<void> {
 	// Only enable auto-update for Windows in production builds
 	const isDev = process.env.NODE_ENV === "development" || !app.isPackaged;
+	const updateConfigPath = path.join(process.resourcesPath, "app-update.yml");
+	const hasUpdateConfig = fs.existsSync(updateConfigPath);
 
-	if (process.platform !== "win32" || isDev || updaterInitialized) {
+	if (
+		process.platform !== "win32" ||
+		isDev ||
+		updaterInitialized ||
+		!hasUpdateConfig
+	) {
 		return;
 	}
 	try {
