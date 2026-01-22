@@ -18,7 +18,7 @@ export function TutorialsSidebar() {
 	}, [activeTutorialId, setActiveTutorialId, tutorials]);
 
 	return (
-		<div className="py-1">
+		<div>
 			{tutorials.map((t) => (
 				<button
 					key={t.id}
