@@ -961,7 +961,116 @@ export default function Preview({
 			// 🆕 Register playback controls to store so controls can live outside of Preview
 			try {
 				useAppStore.getState().registerPlayerControls({
-					play: () => api.play?.(),
+					play: () => {
+						// 如果有高亮的小节，从该小节的第一个 beat 开始播放
+						const highlightedBar = lastColoredBarsRef.current;
+						if (highlightedBar?.bars?.length > 0 && api.score) {
+							const bar = highlightedBar.bars[0];
+							// 获取该小节的第一个 beat
+							if (bar.voices?.[0]?.beats?.length > 0) {
+								const firstBeat = bar.voices[0].beats[0];
+								const barIndex = bar.index;
+								const beatIndex = firstBeat.index;
+
+								console.info(
+									"[Preview] Starting playback from highlighted bar",
+									barIndex,
+									"beat",
+									beatIndex,
+								);
+
+								// 先停止当前播放（如果有）
+								api.stop?.();
+
+								// 先设置播放器光标位置
+								useAppStore.getState().setPlayerCursorPosition({
+									barIndex,
+									beatIndex,
+								});
+
+								// 尝试设置播放位置
+								let positionSet = false;
+								try {
+									// 方法 1: 使用 tickCache.getBeatStart() 获取 beat 的开始 tick 位置
+									// 这是 alphaTab 官方推荐的方法
+									if (
+										api.tickCache &&
+										typeof api.tickCache.getBeatStart === "function"
+									) {
+										const startTick = api.tickCache.getBeatStart(firstBeat);
+										if (
+											startTick !== undefined &&
+											startTick !== null &&
+											startTick >= 0
+										) {
+											api.tickPosition = startTick;
+											positionSet = true;
+											console.debug(
+												"[Preview] Set tickPosition from tickCache.getBeatStart() to",
+												startTick,
+											);
+										}
+									}
+
+									// 方法 2: 如果 tickCache 不可用，尝试使用 beat 的属性
+									if (!positionSet) {
+										// @ts-expect-error - beat 可能有 playbackStart 属性
+										if (
+											firstBeat.playbackStart !== undefined &&
+											firstBeat.playbackStart !== null
+										) {
+											// @ts-expect-error
+											api.tickPosition = firstBeat.playbackStart;
+											positionSet = true;
+											console.debug(
+												"[Preview] Set tickPosition from beat.playbackStart to",
+												firstBeat.playbackStart,
+											);
+										}
+										// @ts-expect-error
+										else if (
+											firstBeat.displayStart !== undefined &&
+											firstBeat.displayStart !== null
+										) {
+											// @ts-expect-error
+											api.tickPosition = firstBeat.displayStart;
+											positionSet = true;
+											console.debug(
+												"[Preview] Set tickPosition from beat.displayStart to",
+												firstBeat.displayStart,
+											);
+										}
+									}
+								} catch (err) {
+									console.warn(
+										"[Preview] Failed to set playback position:",
+										err,
+									);
+								}
+
+								// 如果成功设置了位置，等待一小段时间让位置设置生效，然后播放
+								if (positionSet) {
+									// 使用 setTimeout 确保位置设置生效后再播放
+									setTimeout(() => {
+										api.play?.();
+									}, 50); // 50ms 延迟，确保位置设置生效
+								} else {
+									// 如果无法设置位置，尝试使用 highlightPlaybackRange
+									// 然后正常播放（可能不会从该位置开始，但至少会高亮）
+									if (typeof api.highlightPlaybackRange === "function") {
+										api.highlightPlaybackRange(firstBeat, firstBeat);
+										console.debug(
+											"[Preview] Set playback range (position not available), playing from start",
+										);
+									}
+									api.play?.();
+								}
+								return;
+							}
+						}
+						// 如果没有高亮小节，正常从头播放
+						api.play?.();
+					},
 					pause: () => api.pause?.(),
 					stop: () => api.stop?.(),
 					applyPlaybackSpeed: (speed: number) => {
