@@ -63,7 +63,7 @@
         { "target": "nsis", "arch": ["x64"] },
         { "target": "zip", "arch": ["x64"] }
       ],
-      "artifactName": "Tabst-${version}-windows-${arch}-${name}.${ext}"
+      "artifactName": "${productName}-${version}-win-${arch}.${ext}"
     },
     "nsis": {
       "oneClick": false,
@@ -80,6 +80,8 @@
   }
 }
 ```
+
+> **注意**: 示例中不要使用 `${name}` 作为 artifact 模板占位符（例如 `Tabst-${version}-windows-${arch}-${name}.${ext}`），因为 `${name}` 来自 `package.json` 的 `name` 字段（通常是小写的 `tabst`），会导致类似 `Tabst-0.1.3-win-x64-tabst.exe` 的重复命名。建议使用 `${productName}` 或直接移除 `${name}` 来获得更简洁的文件名。
 
 添加脚本：
 

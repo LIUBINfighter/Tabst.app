@@ -126,7 +126,7 @@
 					]
 				}
 			],
-			"artifactName": "Tabst-${version}-win-${arch}-${name}.${ext}"
+			"artifactName": "${productName}-${version}-win-${arch}.${ext}"
 		},
 		"nsis": {
 			"oneClick": false,
