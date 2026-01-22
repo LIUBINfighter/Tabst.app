@@ -298,6 +298,73 @@ export default function Preview({
 		}
 	}, [pendingStaffToggle, toggleFirstStaffOptionStore]);
 
+	/**
+	 * 🆕 监听编辑器光标变化，反向同步到乐谱选区
+	 * 实现点击编辑器代码定位到乐谱对应位置
+	 */
+	useEffect(() => {
+		const api = apiRef.current;
+		if (!api || !editorCursor) return;
+
+		// 检查是否是无效的位置（在元数据区域）
+		if (editorCursor.barIndex < 0 || editorCursor.beatIndex < 0) {
+			return;
+		}
+
+		// 防止循环：如果当前光标是由乐谱选择触发的，跳过
+		if (isEditorCursorFromScoreRef.current) {
+			isEditorCursorFromScoreRef.current = false;
+			return;
+		}
+
+		// 从当前乐谱中查找对应的 Beat
+		const score = api.score;
+		const beat = findBeatInScore(
+			score,
+			editorCursor.barIndex,
+			editorCursor.beatIndex,
+		);
+
+		if (beat) {
+			console.debug(
+				"[Preview] Editor cursor → Score sync:",
+				`Bar ${editorCursor.barIndex}, Beat ${editorCursor.beatIndex}`,
+			);
+
+			try {
+				// 使用 Selection API 高亮该 beat
+				if (typeof api.highlightPlaybackRange === "function") {
+					api.highlightPlaybackRange(beat, beat);
+				}
+
+				// 滚动到该 beat 所在位置（可选）
+				const bb = api.boundsLookup?.findBeat?.(beat);
+				if (bb && containerRef.current) {
+					const visual = bb.visualBounds;
+					const container = containerRef.current;
+					const containerRect = container.getBoundingClientRect();
+
+					// 检查 beat 是否在可视区域内
+					const beatTop = visual.y;
+					const beatBottom = visual.y + visual.h;
+					const scrollTop = container.scrollTop;
+					const viewportTop = scrollTop;
+					const viewportBottom = scrollTop + containerRect.height;
+
+					// 如果 beat 不在可视区域，滚动到它
+					if (beatTop < viewportTop || beatBottom > viewportBottom) {
+						container.scrollTo({
+							top: Math.max(0, beatTop - containerRect.height / 3),
+							behavior: "smooth",
+						});
+					}
+				}
+			} catch (e) {
+				console.debug("[Preview] Failed to sync editor cursor to score:", e);
+			}
+		}
+	}, [editorCursor]);
+
 	useEffect(() => {
 		if (!containerRef.current) return;
 
@@ -902,6 +969,34 @@ export default function Preview({
 					useAppStore.getState().unregisterPlayerControls();
 				} catch (e) {
 					console.debug("Failed to unregister player controls:", e);
+				}
+				apiRef.current.destroy();
+				apiRef.current = null;
+			}
+		} else if (!showPrintPreview && !apiRef.current) {
+			// 关闭打印预览：延迟重新初始化 API，确保 PrintPreview 完全卸载
+			console.log(
+				"[Preview] Scheduling API reinitialization after print preview",
+			);
+			const timer = setTimeout(() => {
+				setReinitTrigger((prev) => prev + 1);
+			}, 150);
+			return () => clearTimeout(timer);
+		}
+	}, [showPrintPreview]);
+
+	// 管理打印预览的生命周期：销毁和重建 alphaTab API 以避免设置污染
+	useEffect(() => {
+		if (showPrintPreview) {
+			// 打开打印预览：销毁当前 API 释放资源（特别是字体缓存）
+			console.log("[Preview] Destroying API for print preview");
+			if (apiRef.current) {
+				// 清理主题观察者
+				const unsubscribeTheme = (
+					apiRef.current as unknown as Record<string, unknown>
+				).__unsubscribeTheme;
+				if (typeof unsubscribeTheme === "function") {
+					unsubscribeTheme();
 				}
 				apiRef.current.destroy();
 				apiRef.current = null;

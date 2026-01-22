@@ -58,6 +58,15 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 	// 🆕 订阅播放器光标位置（暂停时也保留）
 	const playerCursorPosition = useAppStore((s) => s.playerCursorPosition);
 
+	// 🆕 订阅乐谱选区状态
+	const scoreSelection = useAppStore((s) => s.scoreSelection);
+
+	// 🆕 订阅播放位置状态
+	const playbackBeat = useAppStore((s) => s.playbackBeat);
+
+	// 🆕 订阅播放器光标位置（暂停时也保留）
+	const playerCursorPosition = useAppStore((s) => s.playerCursorPosition);
+
 	// Observe <html> to detect dark mode toggles (class 'dark')
 	const [isDark, setIsDark] = useState<boolean>(() => {
 		if (typeof document === "undefined") return false;
