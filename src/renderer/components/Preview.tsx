@@ -1052,7 +1052,7 @@ export default function Preview({
 							ref={scrollHostRef}
 							className="flex-1 overflow-auto relative h-full"
 						>
-							<div className="w-full min-h-full pb-[var(--scroll-buffer)]">
+							<div className="w-full min-h-full pb-[var(--scroll-buffer)] overflow-x-hidden">
 								<div ref={containerRef} className="w-full h-full" />
 							</div>
 							<div
