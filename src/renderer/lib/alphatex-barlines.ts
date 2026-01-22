@@ -46,9 +46,11 @@ class BarlineWidget extends WidgetType {
 		const barline = document.createElement("span");
 		barline.textContent = "|";
 		barline.style.marginRight = "4px";
-		barline.style.color = "hsl(var(--destructive))";
-
 		const isMajor = this.barNumber % 5 === 0;
+		barline.style.color = isMajor
+			? "hsl(var(--destructive))"
+			: "hsl(var(--muted-foreground))";
+
 		const badge = document.createElement("span");
 		Object.assign(badge.style, {
 			display: "inline-flex",
