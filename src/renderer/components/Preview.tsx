@@ -262,35 +262,244 @@ export default function Preview({
 		if (!previous?.bars?.length) return;
 		console.debug("[BarColor] Clearing previous bars:", previous.bars.length);
 
-		// 获取当前主题的小节号默认颜色
+		// 获取当前主题的所有默认颜色
 		const themeColors = getAlphaTabColorsForTheme();
-		const defaultColor = alphaTab.model.Color.fromJson(
+		const barNumberColor = alphaTab.model.Color.fromJson(
 			themeColors.barNumberColor,
+		);
+		const mainGlyphColor = alphaTab.model.Color.fromJson(
+			themeColors.mainGlyphColor,
+		);
+		const staffLineColor = alphaTab.model.Color.fromJson(
+			themeColors.staffLineColor,
+		);
+		const barSeparatorColor = alphaTab.model.Color.fromJson(
+			themeColors.barSeparatorColor,
 		);
 
 		for (const bar of previous.bars) {
 			const style = bar.style;
 			if (!style?.colors) continue;
-			// 恢复为主题默认颜色，而不是删除
-			style.colors.set(
-				alphaTab.model.BarSubElement.StandardNotationBarNumber,
-				defaultColor,
-			);
-			style.colors.set(
-				alphaTab.model.BarSubElement.GuitarTabsBarNumber,
-				defaultColor,
-			);
-			style.colors.set(
-				alphaTab.model.BarSubElement.SlashBarNumber,
-				defaultColor,
-			);
-			style.colors.set(
-				alphaTab.model.BarSubElement.NumberedBarNumber,
-				defaultColor,
-			);
+
+			// 备份原始 colors，以便出错时恢复
+			const backup = Array.from(style.colors.entries());
+			try {
+				// 恢复小节号颜色
+				style.colors.set(
+					alphaTab.model.BarSubElement.StandardNotationBarNumber,
+					barNumberColor,
+				);
+				style.colors.set(
+					alphaTab.model.BarSubElement.GuitarTabsBarNumber,
+					barNumberColor,
+				);
+				style.colors.set(
+					alphaTab.model.BarSubElement.SlashBarNumber,
+					barNumberColor,
+				);
+				style.colors.set(
+					alphaTab.model.BarSubElement.NumberedBarNumber,
+					barNumberColor,
+				);
+
+				// 恢复谱线颜色
+				style.colors.set(
+					alphaTab.model.BarSubElement.StandardNotationStaffLines,
+					staffLineColor,
+				);
+				style.colors.set(
+					alphaTab.model.BarSubElement.GuitarTabsStaffLines,
+					staffLineColor,
+				);
+
+				// 恢复小节线颜色
+				style.colors.set(
+					alphaTab.model.BarSubElement.StandardNotationBarSeparator,
+					barSeparatorColor,
+				);
+				style.colors.set(
+					alphaTab.model.BarSubElement.GuitarTabsBarSeparator,
+					barSeparatorColor,
+				);
+
+				// 恢复音符/符号颜色 (beats, notes, effects 等)
+				style.colors.set(
+					alphaTab.model.BarSubElement.StandardNotationBeats,
+					mainGlyphColor,
+				);
+				style.colors.set(
+					alphaTab.model.BarSubElement.GuitarTabsBeats,
+					mainGlyphColor,
+				);
+				style.colors.set(
+					alphaTab.model.BarSubElement.StandardNotationEffects,
+					mainGlyphColor,
+				);
+				style.colors.set(
+					alphaTab.model.BarSubElement.GuitarTabsEffects,
+					mainGlyphColor,
+				);
+
+				// 检查是否有 undefined 值，防止序列化时抛错
+				for (const [k, v] of style.colors.entries()) {
+					if (v === undefined || v === null) {
+						console.warn("[BarColor] Found undefined color value for key", k);
+						throw new Error("Invalid color value");
+					}
+					if (typeof v?.toString !== "function") {
+						console.warn(
+							"[BarColor] Color value missing toString for key",
+							k,
+							v,
+						);
+						throw new Error("Invalid color object");
+					}
+				}
+			} catch (err) {
+				console.error(
+					"[BarColor] Failed to restore bar colors, reverting:",
+					err,
+				);
+				// 恢复备份
+				style.colors.clear?.();
+				for (const [k, v] of backup) {
+					style.colors.set(k, v);
+				}
+			}
 		}
 		lastColoredBarsRef.current = null;
 	}, []);
+
+	const sanitizeAllBarStyles = useCallback((api: alphaTab.AlphaTabApi) => {
+		if (!api.score) return false;
+		let fixes = 0;
+		const themeColors = getAlphaTabColorsForTheme();
+		const barNumberColor = alphaTab.model.Color.fromJson(
+			themeColors.barNumberColor,
+		);
+		const mainGlyphColor = alphaTab.model.Color.fromJson(
+			themeColors.mainGlyphColor,
+		);
+		const staffLineColor = alphaTab.model.Color.fromJson(
+			themeColors.staffLineColor,
+		);
+		const barSeparatorColor = alphaTab.model.Color.fromJson(
+			themeColors.barSeparatorColor,
+		);
+
+		for (const track of api.score.tracks ?? []) {
+			for (const staff of track.staves ?? []) {
+				for (const bar of staff.bars ?? []) {
+					const style = bar.style;
+					if (!style?.colors) continue;
+					for (const [k, v] of Array.from(style.colors.entries())) {
+						try {
+							if (v === undefined || v === null) {
+								style.colors.delete(k);
+								fixes++;
+								continue;
+							}
+							if (typeof v === "string") {
+								try {
+									const parsed = alphaTab.model.Color.fromJson(v);
+									style.colors.set(k, parsed);
+									fixes++;
+									continue;
+								} catch (_e) {
+									// fall through
+								}
+							}
+							if (typeof v?.toString !== "function") {
+								let fallback = mainGlyphColor;
+								const keyName = Object.keys(alphaTab.model.BarSubElement).find(
+									(n) => alphaTab.model.BarSubElement[n] === k,
+								);
+								if (keyName) {
+									if (keyName.includes("BarNumber")) fallback = barNumberColor;
+									else if (keyName.includes("StaffLines"))
+										fallback = staffLineColor;
+									else if (keyName.includes("BarSeparator"))
+										fallback = barSeparatorColor;
+								}
+								style.colors.set(k, fallback);
+								fixes++;
+							}
+						} catch (err) {
+							console.error(
+								"[BarColor] Error validating color for key",
+								k,
+								err,
+							);
+							style.colors.delete(k);
+							fixes++;
+						}
+					}
+				}
+			}
+		}
+		if (fixes > 0) {
+			console.debug("[BarColor] sanitizeAllBarStyles applied fixes:", fixes);
+			try {
+				api.render?.();
+			} catch (e) {
+				console.error("[BarColor] render failed after sanitize:", e);
+			}
+		}
+		return fixes > 0;
+	}, []);
+
+	// 将主题色显式应用到之前缓存的小节（覆盖所有 BarSubElement）
+	const applyThemeColorsToPreviousBars = useCallback(
+		(api: alphaTab.AlphaTabApi) => {
+			const previous = lastColoredBarsRef.current;
+			if (!previous?.bars?.length) return;
+			console.debug(
+				"[BarColor] Applying theme colors to previous bars:",
+				previous.bars.length,
+			);
+
+			const themeColors = getAlphaTabColorsForTheme();
+			const elementNames = Object.keys(alphaTab.model.BarSubElement).filter(
+				(k) => isNaN(Number(k)),
+			);
+
+			for (const bar of previous.bars) {
+				if (!bar) continue;
+				if (!bar.style) bar.style = new alphaTab.model.BarStyle();
+				const style = bar.style;
+				if (!style?.colors) continue;
+
+				const backup = Array.from(style.colors.entries());
+				try {
+					for (const name of elementNames) {
+						const key = alphaTab.model.BarSubElement[
+							name as keyof typeof alphaTab.model.BarSubElement
+						] as unknown as number;
+						let colorHex = themeColors.mainGlyphColor;
+						if (name.includes("BarNumber"))
+							colorHex = themeColors.barNumberColor;
+						else if (name.includes("StaffLines"))
+							colorHex = themeColors.staffLineColor;
+						else if (name.includes("BarSeparator"))
+							colorHex = themeColors.barSeparatorColor;
+						const color = alphaTab.model.Color.fromJson(colorHex);
+						style.colors.set(key, color);
+					}
+				} catch (err) {
+					console.error(
+						"[BarColor] Failed to set theme colors for bar, reverting:",
+						err,
+					);
+					style.colors.clear?.();
+					for (const [k, v] of backup) {
+						style.colors.set(k, v);
+					}
+				}
+			}
+			lastColoredBarsRef.current = null;
+		},
+		[],
+	);
 
 	const applyEditorBarNumberColor = useCallback(
 		(api: alphaTab.AlphaTabApi, barIndex: number): boolean => {
@@ -313,7 +522,11 @@ export default function Preview({
 				return true;
 			}
 
-			clearBarNumberColor(api);
+			// 在修改前先 sanitize 全局 bar styles，防止序列化时崩溃
+			sanitizeAllBarStyles(api);
+
+			// 先用主题色覆盖之前的小节（避免残留特殊样式）
+			applyThemeColorsToPreviousBars(api);
 
 			const bars: alphaTab.model.Bar[] = [];
 			const color = alphaTab.model.Color.fromJson("#ef4444");
@@ -355,14 +568,14 @@ export default function Preview({
 			api.render?.();
 			return true;
 		},
-		[clearBarNumberColor],
+		[applyThemeColorsToPreviousBars, sanitizeAllBarStyles],
 	);
 
 	useEffect(() => {
 		// score 发生变化时，清理旧的着色缓存并重新应用
 		const api = apiRef.current;
 		if (api) {
-			clearBarNumberColor(api);
+			applyThemeColorsToPreviousBars(api);
 		}
 		pendingBarColorRef.current = null;
 		if (!api || !editorCursor || editorCursor.barIndex < 0) return;
@@ -717,6 +930,15 @@ export default function Preview({
 				try {
 					if (score?.tracks && score.tracks.length > 0) {
 						bumpScoreVersion();
+						// Sanitize any invalid BarStyle.color entries to avoid serializer crashes
+						try {
+							sanitizeAllBarStyles(api);
+						} catch (err) {
+							console.error(
+								"[BarColor] sanitizeAllBarStyles failed during scoreLoaded:",
+								err,
+							);
+						}
 						const currentContent = latestContentRef.current ?? "";
 						// 如果当前有 pending 请求，并且内容匹配，则将其视为成功解析，保存为 lastValid
 						if (
