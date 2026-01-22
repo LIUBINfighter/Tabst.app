@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import https from "node:https";
 import path from "node:path";
 import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
 import {
@@ -227,6 +228,61 @@ ipcMain.handle("check-for-updates", async () => {
 
 ipcMain.handle("install-update", async () => {
 	return installUpdate();
+});
+
+// Fetch GitHub releases RSS feed (bypasses CORS)
+ipcMain.handle("fetch-releases-feed", async () => {
+	return new Promise<{ success: boolean; data?: string; error?: string }>(
+		(resolve) => {
+			const url = "https://github.com/LIUBINfighter/Tabst.app/releases.atom";
+			const urlObj = new URL(url);
+
+			const options = {
+				hostname: urlObj.hostname,
+				path: urlObj.pathname + urlObj.search,
+				method: "GET",
+				headers: {
+					"User-Agent": "Tabst/1.0",
+				},
+			};
+
+			const req = https.request(options, (res) => {
+				let data = "";
+
+				res.on("data", (chunk) => {
+					data += chunk;
+				});
+
+				res.on("end", () => {
+					if (res.statusCode === 200) {
+						resolve({ success: true, data });
+					} else {
+						resolve({
+							success: false,
+							error: `HTTP ${res.statusCode}`,
+						});
+					}
+				});
+			});
+
+			req.on("error", (err) => {
+				resolve({
+					success: false,
+					error: err.message || String(err),
+				});
+			});
+
+			req.setTimeout(10000, () => {
+				req.destroy();
+				resolve({
+					success: false,
+					error: "Request timeout",
+				});
+			});
+
+			req.end();
+		},
+	);
 });
 
 // App state persistence ---------------------------------------------------

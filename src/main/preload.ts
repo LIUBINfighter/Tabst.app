@@ -51,6 +51,12 @@ contextBridge.exposeInMainWorld("electronAPI", {
 		ipcRenderer.invoke("check-for-updates"),
 	installUpdate: (): Promise<{ ok: boolean; message?: string }> =>
 		ipcRenderer.invoke("install-update"),
+	// Fetch GitHub releases RSS feed
+	fetchReleasesFeed: (): Promise<{
+		success: boolean;
+		data?: string;
+		error?: string;
+	}> => ipcRenderer.invoke("fetch-releases-feed"),
 	onUpdateEvent: (
 		callback: (event: {
 			type:
