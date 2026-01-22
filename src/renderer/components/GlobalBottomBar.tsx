@@ -6,6 +6,7 @@ import {
 	Pause,
 	Play,
 	Plus,
+	RotateCw,
 	Square,
 } from "lucide-react";
 import { useAppStore } from "../store/appStore";
@@ -285,6 +286,27 @@ export default function GlobalBottomBar() {
 								</TooltipTrigger>
 								<TooltipContent side="top">
 									<p>停止</p>
+								</TooltipContent>
+							</Tooltip>
+
+							<Tooltip>
+								<TooltipTrigger asChild>
+									<IconButton
+										onClick={() => {
+											if (!playerControls) return;
+											try {
+												playerControls.refresh?.();
+											} catch (e) {
+												console.error("GlobalBottomBar refresh failed:", e);
+											}
+										}}
+										aria-label="刷新"
+									>
+										<RotateCw className="h-4 w-4" />
+									</IconButton>
+								</TooltipTrigger>
+								<TooltipContent side="top">
+									<p>刷新</p>
 								</TooltipContent>
 							</Tooltip>
 						</div>
