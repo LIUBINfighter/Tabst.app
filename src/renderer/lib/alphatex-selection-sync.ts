@@ -1148,12 +1148,18 @@ export function updateEditorSelectionHighlight(
 	text: string,
 	selection: ScoreSelectionInfo | null,
 ): void {
+	console.debug(
+		"[SelectionSync] updateEditorSelectionHighlight called:",
+		selection,
+	);
 	if (!selection) {
+		console.debug("[SelectionSync] Selection is null, clearing highlight");
 		safeDispatch(view, setSelectionHighlightEffect.of(null));
 		return;
 	}
 
 	const codeRange = mapSelectionToCodeRange(text, selection);
+	console.debug("[SelectionSync] Mapped selection to codeRange:", codeRange);
 	safeDispatch(view, setSelectionHighlightEffect.of(codeRange));
 }
 

@@ -445,6 +445,10 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 		const language = activeFile ? getLanguageForFile(activeFile.path) : "";
 		if (language !== "alphatex") return;
 
+		console.debug(
+			"[Editor] scoreSelection changed, updating highlight:",
+			_scoreSelection,
+		);
 		const content = activeFile?.content ?? "";
 		updateEditorSelectionHighlight(view, content, _scoreSelection);
 	}, [_scoreSelection, activeFile, getLanguageForFile]);
