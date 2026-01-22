@@ -31,32 +31,50 @@ class BarlineWidget extends WidgetType {
 	}
 
 	toDOM() {
-		const span = document.createElement("span");
-		span.className = "cm-barline-widget";
-		// Styling to make it look like a "slightly thick square with a number"
-		Object.assign(span.style, {
+		const wrapper = document.createElement("span");
+		wrapper.className = "cm-barline-widget";
+		Object.assign(wrapper.style, {
 			display: "inline-flex",
 			alignItems: "center",
-			justifyContent: "center",
-			backgroundColor: "hsl(var(--primary) / 0.15)",
-			border: "1.5px solid hsl(var(--primary) / 0.5)",
-			borderRadius: "3px",
-			padding: "0 3px",
-			margin: "0 2px 0 4px",
-			fontSize: "10px",
-			lineHeight: "1",
-			height: "14px",
-			minWidth: "16px",
-			fontWeight: "bold",
-			color: "hsl(var(--primary))",
+			whiteSpace: "nowrap",
 			verticalAlign: "middle",
 			cursor: "default",
 			userSelect: "none",
 			pointerEvents: "none",
 		});
-		span.textContent = this.barNumber.toString();
-		span.title = `Measure ${this.barNumber}`;
-		return span;
+
+		const barline = document.createElement("span");
+		barline.textContent = "|";
+		barline.style.marginRight = "4px";
+		barline.style.color = "hsl(var(--destructive))";
+
+		const isMajor = this.barNumber % 5 === 0;
+		const badge = document.createElement("span");
+		Object.assign(badge.style, {
+			display: "inline-flex",
+			alignItems: "center",
+			justifyContent: "center",
+			backgroundColor: isMajor
+				? "hsl(var(--primary) / 0.15)"
+				: "hsl(var(--muted-foreground) / 0.12)",
+			border: isMajor
+				? "1.5px solid hsl(var(--primary) / 0.5)"
+				: "1.5px solid hsl(var(--muted-foreground) / 0.35)",
+			borderRadius: "3px",
+			padding: "0 3px",
+			fontSize: "10px",
+			lineHeight: "1",
+			height: "14px",
+			minWidth: "16px",
+			fontWeight: "bold",
+			color: isMajor ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))",
+		});
+		badge.textContent = this.barNumber.toString();
+		badge.title = `Measure ${this.barNumber}`;
+
+		wrapper.appendChild(barline);
+		wrapper.appendChild(badge);
+		return wrapper;
 	}
 
 	ignoreEvent() {
@@ -97,15 +115,15 @@ const barlinesField = StateField.define<DecorationSet>({
 								const char = tr.state.doc.sliceString(pos, pos + 1);
 								if (char === "|") {
 									builder.add(
+										pos,
 										pos + 1,
-										pos + 1,
-										Decoration.widget({
+										Decoration.replace({
 											widget: new BarlineWidget(bar.barNumber),
-											side: 1,
+											side: 0,
 										}),
 									);
-									// Record the actual position used (pos + 1) to keep ordering strict
-									lastPos = pos + 1;
+									// Record the actual position used (pos) to keep ordering strict
+									lastPos = pos;
 								}
 							}
 						} catch (err) {
