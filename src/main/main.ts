@@ -1,6 +1,12 @@
 import fs from "node:fs";
 import path from "node:path";
 import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
+import {
+	checkForUpdates,
+	initAutoUpdater,
+	installUpdate,
+	registerUpdateWindow,
+} from "./autoUpdater";
 
 // 这里的 env 变量由 cross-env 在 package.json 中注入
 // 只要 NODE_ENV 是 development，或者应用没有打包(isPackaged 为 false)，都算是开发环境
@@ -55,9 +61,15 @@ function createWindow() {
 			win.loadFile(path.join(__dirname, "../dist/index.html"));
 		}
 	}
+
+	return win;
 }
 
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+	const win = createWindow();
+	registerUpdateWindow(win);
+	initAutoUpdater();
+});
 
 app.on("window-all-closed", () => {
 	if (process.platform !== "darwin") app.quit();
@@ -206,6 +218,15 @@ ipcMain.handle("read-asset", async (_event, relPath: string) => {
 	throw new Error(
 		`Asset not found: ${relPath} (tried: ${candidates.join(", ")})`,
 	);
+});
+
+// Auto-update handlers
+ipcMain.handle("check-for-updates", async () => {
+	return checkForUpdates();
+});
+
+ipcMain.handle("install-update", async () => {
+	return installUpdate();
 });
 
 // App state persistence ---------------------------------------------------

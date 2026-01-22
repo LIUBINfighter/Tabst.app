@@ -1,5 +1,14 @@
+const path = require("node:path");
 const { FusesPlugin } = require("@electron-forge/plugin-fuses");
 const { FuseV1Options, FuseVersion } = require("@electron/fuses");
+const { productName } = require("./package.json");
+
+const dmgAppPath = path.join(
+	__dirname,
+	"out",
+	`${productName}-darwin-arm64`,
+	`${productName}.app`,
+);
 
 module.exports = {
 	packagerConfig: {
@@ -23,6 +32,8 @@ module.exports = {
 					{
 						x: 130,
 						y: 220,
+						type: "file",
+						path: dmgAppPath,
 					},
 					{
 						x: 410,
@@ -35,14 +46,19 @@ module.exports = {
 				skipNativeDeps: true,
 			},
 		},
-		{
-			name: "@electron-forge/maker-deb",
-			config: {},
-		},
-		{
-			name: "@electron-forge/maker-rpm",
-			config: {},
-		},
+		// Linux-only makers (avoid pulling flatpak deps on Windows/macOS)
+		...(process.platform === "linux"
+			? [
+					{
+						name: "@electron-forge/maker-deb",
+						config: {},
+					},
+					{
+						name: "@electron-forge/maker-rpm",
+						config: {},
+					},
+				]
+			: []),
 	],
 	plugins: [
 		{
