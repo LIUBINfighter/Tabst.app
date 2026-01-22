@@ -1913,6 +1913,7 @@ export default function Preview({
 		bumpScoreVersion,
 		bumpApiInstanceId,
 		sanitizeAllBarStyles,
+		applyThemeColorsToPreviousBars,
 	]);
 
 	// 内容更新：仅调用 tex，不销毁 API，避免闪烁
