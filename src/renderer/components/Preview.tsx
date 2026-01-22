@@ -138,59 +138,11 @@ export default function Preview({
 	// 防止因乐谱选择触发的光标更新导致循环
 	const isEditorCursorFromScoreRef = useRef(false);
 
+	// 🆕 移除：不再在编辑器焦点时禁用播放器
+	// 现在编辑器光标和播放器光标可以同时工作并同步
 	useEffect(() => {
 		editorHasFocusRef.current = editorHasFocus;
-		const api = apiRef.current;
-		if (!api) return;
-		try {
-			const settings = api.settings as unknown as {
-				player?: {
-					enablePlayer?: boolean;
-					enableCursor?: boolean;
-					enableAnimatedBeatCursor?: boolean;
-					enableElementHighlighting?: boolean;
-					enableUserInteraction?: boolean;
-					scrollElement?: HTMLElement | null;
-					scrollMode?: alphaTab.ScrollMode;
-				};
-			};
-			if (settings?.player) {
-				const enabled = !editorHasFocus;
-				settings.player.enablePlayer = enabled;
-				settings.player.enableCursor = enabled;
-				settings.player.enableAnimatedBeatCursor = enabled;
-				settings.player.enableElementHighlighting = enabled;
-				settings.player.enableUserInteraction = enabled;
-				if (!enabled) {
-					if (!savedPlayerScrollRef.current) {
-						savedPlayerScrollRef.current = {
-							scrollElement: settings.player.scrollElement ?? null,
-							scrollMode: settings.player.scrollMode,
-						};
-					}
-					settings.player.scrollElement = undefined;
-					settings.player.scrollMode = alphaTab.ScrollMode.Off;
-				} else if (savedPlayerScrollRef.current) {
-					settings.player.scrollElement =
-						savedPlayerScrollRef.current.scrollElement ?? undefined;
-					settings.player.scrollMode =
-						savedPlayerScrollRef.current.scrollMode ??
-						settings.player.scrollMode;
-					savedPlayerScrollRef.current = null;
-				}
-				api.updateSettings?.();
-				api.render?.();
-			}
-			if (editorHasFocus) {
-				api.stop?.();
-				useAppStore.getState().clearPlaybackHighlights();
-				useAppStore.getState().setPlayerIsPlaying(false);
-				const cursor = cursorRef.current;
-				if (cursor) cursor.classList.add("hidden");
-			}
-		} catch (err) {
-			console.debug("[Preview] Failed to toggle player enable state:", err);
-		}
+		// 不再禁用播放器，允许同时使用编辑器和播放器
 	}, [editorHasFocus]);
 
 	useEffect(() => {
@@ -814,6 +766,55 @@ export default function Preview({
 				// 使用 Selection API 高亮该 beat
 				if (typeof api.highlightPlaybackRange === "function") {
 					api.highlightPlaybackRange(beat, beat);
+				}
+
+				// 🆕 同步播放器光标位置到编辑器光标位置
+				// 这样播放器光标会跟随编辑器光标移动
+				try {
+					// 方法 1: 使用 tickCache.getBeatStart() 获取 beat 的开始 tick 位置
+					if (api.tickCache && typeof api.tickCache.getBeatStart === "function") {
+						const startTick = api.tickCache.getBeatStart(beat);
+						if (startTick !== undefined && startTick !== null && startTick >= 0) {
+							// 只在未播放时更新光标位置（避免干扰正在播放的音乐）
+							const isPlaying = useAppStore.getState().playerIsPlaying;
+							if (!isPlaying) {
+								api.tickPosition = startTick;
+								console.debug(
+									"[Preview] Synced player cursor to editor cursor, tickPosition:",
+									startTick,
+								);
+								// 更新 store 中的播放器光标位置
+								useAppStore.getState().setPlayerCursorPosition({
+									barIndex: editorCursor.barIndex,
+									beatIndex: editorCursor.beatIndex,
+								});
+							}
+						}
+					}
+					// 方法 2: 如果 tickCache 不可用，回退到使用 beat 的属性
+					else {
+						// @ts-expect-error - beat 可能有 playbackStart 属性
+						if (beat.playbackStart !== undefined && beat.playbackStart !== null) {
+							const isPlaying = useAppStore.getState().playerIsPlaying;
+							if (!isPlaying) {
+								// @ts-expect-error
+								api.tickPosition = beat.playbackStart;
+								console.debug(
+									"[Preview] Synced player cursor to editor cursor (fallback), tickPosition:",
+									beat.playbackStart,
+								);
+								useAppStore.getState().setPlayerCursorPosition({
+									barIndex: editorCursor.barIndex,
+									beatIndex: editorCursor.beatIndex,
+								});
+							}
+						}
+					}
+				} catch (err) {
+					console.debug(
+						"[Preview] Failed to sync player cursor position:",
+						err,
+					);
 				}
 
 				// 滚动到该 beat 所在位置（可选）
