@@ -40,6 +40,8 @@ export interface ElectronAPI {
 	revealInFolder: (
 		filePath: string,
 	) => Promise<{ success: boolean; error?: string } | null>;
+	// Read asset (ArrayBuffer / Uint8Array) via main process for packaged app
+	readAsset: (relPath: string) => Promise<Uint8Array>;
 
 	// Auto-update
 	checkForUpdates: () => Promise<{ supported: boolean; message?: string }>;

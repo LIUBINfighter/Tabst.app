@@ -119,7 +119,7 @@ export function TutorialRenderer({ content }: TutorialRendererProps) {
 	};
 
 	return (
-		<div className="prose prose-sm max-w-none">
+		<div className="prose prose-sm max-w-none dark:prose-invert">
 			<ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
 				{content}
 			</ReactMarkdown>

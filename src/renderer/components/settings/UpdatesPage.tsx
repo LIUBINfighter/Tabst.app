@@ -1,3 +1,4 @@
+import DOMPurify from "dompurify";
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "../ui/button";
 
@@ -41,16 +42,57 @@ export function UpdatesPage() {
 			entries.forEach((entry) => {
 				const id = entry.querySelector("id")?.textContent || "";
 				const title = entry.querySelector("title")?.textContent || "";
-				const link = entry.querySelector("link")?.getAttribute("href") || "";
+				const linkAttr =
+					entry.querySelector("link")?.getAttribute("href") || "";
 				const updated = entry.querySelector("updated")?.textContent || "";
-				const content = entry.querySelector("content")?.textContent || "";
+				const rawContent = entry.querySelector("content")?.textContent || "";
+
+				// Security: Validate and sanitize link URL
+				let link = "";
+				try {
+					if (linkAttr) {
+						const url = new URL(linkAttr);
+						// Only allow https://github.com links
+						if (url.protocol === "https:" && url.hostname === "github.com") {
+							link = linkAttr;
+						}
+					}
+				} catch {
+					// Invalid URL, leave link empty
+				}
+
+				// Security: Sanitize HTML content to prevent XSS
+				const sanitizedContent = DOMPurify.sanitize(rawContent, {
+					ALLOWED_TAGS: [
+						"p",
+						"br",
+						"strong",
+						"em",
+						"u",
+						"a",
+						"ul",
+						"ol",
+						"li",
+						"h1",
+						"h2",
+						"h3",
+						"h4",
+						"h5",
+						"h6",
+						"code",
+						"pre",
+						"blockquote",
+					],
+					ALLOWED_ATTR: ["href", "target", "rel"],
+					ALLOWED_URI_REGEXP: /^(https?):\/\/github\.com/,
+				});
 
 				parsedReleases.push({
 					id,
 					title,
 					link,
 					updated,
-					content,
+					content: sanitizedContent,
 				});
 			});
 
@@ -166,7 +208,8 @@ export function UpdatesPage() {
 							{release.content && (
 								<div
 									className="text-xs text-muted-foreground prose prose-sm max-w-none dark:prose-invert prose-headings:text-foreground prose-p:text-muted-foreground prose-a:text-primary prose-strong:text-foreground prose-code:text-foreground prose-pre:bg-muted prose-pre:text-foreground"
-									// biome-ignore lint/security/noDangerouslySetInnerHtml: GitHub releases content from trusted source
+									// Security: Content is sanitized with DOMPurify before rendering
+									// biome-ignore lint/security/noDangerouslySetInnerHtml: Content sanitized with DOMPurify
 									dangerouslySetInnerHTML={{ __html: release.content }}
 								/>
 							)}

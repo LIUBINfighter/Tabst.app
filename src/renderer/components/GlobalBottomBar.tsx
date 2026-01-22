@@ -11,6 +11,7 @@ import {
 import { getNextTutorial, getPrevTutorial } from "../lib/tutorial-loader";
 import { useAppStore } from "../store/appStore";
 import StaffControls from "./StaffControls";
+import { defaultSettingsPages } from "./settings-pages";
 import IconButton from "./ui/icon-button";
 import {
 	Select,
@@ -42,11 +43,13 @@ export default function GlobalBottomBar() {
 	const metronomeVolume = useAppStore((s) => s.metronomeVolume);
 	const setMetronomeVolume = useAppStore((s) => s.setMetronomeVolume);
 
-	// Tutorial navigation
+	// Workspace mode
 	const workspaceMode = useAppStore((s) => s.workspaceMode);
 	const activeTutorialId = useAppStore((s) => s.activeTutorialId);
 	const setActiveTutorialId = useAppStore((s) => s.setActiveTutorialId);
+	const activeSettingsPageId = useAppStore((s) => s.activeSettingsPageId);
 	const isTutorialMode = workspaceMode === "tutorial";
+	const isSettingsMode = workspaceMode === "settings";
 
 	// Calculate previous and next tutorial
 	const prevTutorial = activeTutorialId
@@ -118,8 +121,24 @@ export default function GlobalBottomBar() {
 						</div>
 					)}
 
-					{/* Center/Right: moved controls (only for .atex files, not in tutorial mode) */}
-					{isAtexFile && !isTutorialMode && (
+					{/* Settings mode: show page info */}
+					{isSettingsMode && activeSettingsPageId && (
+						<div className="flex items-center gap-2 text-xs text-muted-foreground">
+							{(() => {
+								const currentPage = defaultSettingsPages.find(
+									(p) => p.id === activeSettingsPageId,
+								);
+								return currentPage ? (
+									<span>{currentPage.title}</span>
+								) : (
+									<span>设置</span>
+								);
+							})()}
+						</div>
+					)}
+
+					{/* Center/Right: moved controls (only for .atex files, not in tutorial/settings mode) */}
+					{isAtexFile && !isTutorialMode && !isSettingsMode && (
 						<div className="flex items-center gap-2">
 							{/* Existing staff controls (leftmost) */}
 							<StaffControls

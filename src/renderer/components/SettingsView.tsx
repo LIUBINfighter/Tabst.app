@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { useAppStore } from "../store/appStore";
 import { AboutPage } from "./settings/AboutPage";
 import { AppearancePage } from "./settings/AppearancePage";
+import { RoadmapPage } from "./settings/RoadmapPage";
 import { UpdatesPage } from "./settings/UpdatesPage";
 import { defaultSettingsPages } from "./settings-pages";
 import TopBar from "./TopBar";
@@ -33,6 +34,8 @@ export default function SettingsView() {
 				return <AppearancePage />;
 			case "updates":
 				return <UpdatesPage />;
+			case "roadmap":
+				return <RoadmapPage />;
 			case "about":
 				return <AboutPage />;
 			default:

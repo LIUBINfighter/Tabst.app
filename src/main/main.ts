@@ -231,11 +231,27 @@ ipcMain.handle("install-update", async () => {
 });
 
 // Fetch GitHub releases RSS feed (bypasses CORS)
+// Security: Hardcoded URL, size limit, timeout protection
 ipcMain.handle("fetch-releases-feed", async () => {
 	return new Promise<{ success: boolean; data?: string; error?: string }>(
 		(resolve) => {
+			// Security: Hardcoded URL to prevent SSRF
 			const url = "https://github.com/LIUBINfighter/Tabst.app/releases.atom";
 			const urlObj = new URL(url);
+
+			// Security: Validate hostname (only allow github.com)
+			if (urlObj.hostname !== "github.com") {
+				resolve({
+					success: false,
+					error: "Invalid hostname",
+				});
+				return;
+			}
+
+			// Security: Maximum response size (5MB)
+			const MAX_RESPONSE_SIZE = 5 * 1024 * 1024;
+			let data = "";
+			let totalSize = 0;
 
 			const options = {
 				hostname: urlObj.hostname,
@@ -247,10 +263,32 @@ ipcMain.handle("fetch-releases-feed", async () => {
 			};
 
 			const req = https.request(options, (res) => {
-				let data = "";
+				// Security: Check Content-Length header
+				const contentLength = res.headers["content-length"];
+				if (
+					contentLength &&
+					Number.parseInt(contentLength, 10) > MAX_RESPONSE_SIZE
+				) {
+					res.destroy();
+					resolve({
+						success: false,
+						error: "Response too large",
+					});
+					return;
+				}
 
 				res.on("data", (chunk) => {
-					data += chunk;
+					totalSize += chunk.length;
+					// Security: Enforce size limit during streaming
+					if (totalSize > MAX_RESPONSE_SIZE) {
+						res.destroy();
+						resolve({
+							success: false,
+							error: "Response too large",
+						});
+						return;
+					}
+					data += chunk.toString("utf-8");
 				});
 
 				res.on("end", () => {
@@ -265,13 +303,15 @@ ipcMain.handle("fetch-releases-feed", async () => {
 				});
 			});
 
-			req.on("error", (err) => {
+			req.on("error", (_err) => {
+				// Security: Don't leak internal error details
 				resolve({
 					success: false,
-					error: err.message || String(err),
+					error: "Network error",
 				});
 			});
 
+			// Security: Request timeout (10 seconds)
 			req.setTimeout(10000, () => {
 				req.destroy();
 				resolve({
