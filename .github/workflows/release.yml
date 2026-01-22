@@ -32,29 +32,31 @@ jobs:
       - name: Check node-linker config
         run: pnpm config get node-linker
 
+      - name: Force git to use HTTPS for GitHub
+        run: |
+          git config --global url."https://github.com/".insteadOf "git@github.com:"
+          git config --global url."https://github.com/".insteadOf "ssh://git@github.com/"
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
       - name: Build (frontend & main)
         run: pnpm build
 
-      - name: Package application
-        run: pnpm package
+      - name: Run electron-builder for Windows (NSIS)
+        run: pnpm dist:win
 
-      - name: Install 7-Zip (needed by Squirrel)
-        shell: powershell
-        run: choco install 7zip -y
-
-      - name: Make (create installers)
-        run: pnpm make
-
-      - name: Create Release and upload ZIP portable assets only
+      - name: Create Draft Release and upload Windows artifacts
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
-          name: ${{ github.ref_name }}
-          files: out/make/**/*.zip
-          body: "Automated release created by workflow (portable ZIP only)"
+          name: ${{ github.ref_name }} (Windows)
+          files: |
+            dist/*.exe
+            dist/*.zip
+            dist/*.blockmap
+            dist/latest.yml
+          body: "Automated release created by workflow"
           draft: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

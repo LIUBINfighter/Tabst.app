@@ -40,6 +40,27 @@ export interface ElectronAPI {
 	revealInFolder: (
 		filePath: string,
 	) => Promise<{ success: boolean; error?: string } | null>;
+
+	// Auto-update
+	checkForUpdates: () => Promise<{ supported: boolean; message?: string }>;
+	installUpdate: () => Promise<{ ok: boolean; message?: string }>;
+	onUpdateEvent: (
+		callback: (event: {
+			type:
+				| "checking"
+				| "available"
+				| "not-available"
+				| "progress"
+				| "downloaded"
+				| "error";
+			version?: string;
+			releaseNotes?: string | null;
+			percent?: number;
+			transferred?: number;
+			total?: number;
+			message?: string;
+		}) => void,
+	) => () => void;
 }
 
 declare global {

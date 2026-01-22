@@ -9,6 +9,8 @@ jobs:
   build-and-release-macos:
     name: Build and package macOS app
     runs-on: macos-latest
+    env:
+      NPM_CONFIG_PYTHON: python3
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -26,7 +28,6 @@ jobs:
       - name: Install build tools
         run: |
           brew install python-setuptools
-          npm config set python python3
 
       - name: Check pnpm version
         run: pnpm -v
@@ -36,6 +37,11 @@ jobs:
 
       - name: Check node-linker config
         run: pnpm config get node-linker
+
+      - name: Force git to use HTTPS for GitHub
+        run: |
+          git config --global url."https://github.com/".insteadOf "git@github.com:"
+          git config --global url."https://github.com/".insteadOf "ssh://git@github.com/"
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -52,14 +58,27 @@ jobs:
       - name: Make macOS DMG
         run: pnpm make --platform=darwin
 
+      - name: Rename macOS artifacts to match naming convention
+        run: |
+          cd out/make
+          VERSION=$(node -p "require('../../package.json').version")
+          # Rename DMG: Tabst-{version}-arm64.dmg -> Tabst-{version}-macos-arm64.dmg
+          if [ -f "Tabst-${VERSION}-arm64.dmg" ]; then
+            mv "Tabst-${VERSION}-arm64.dmg" "Tabst-${VERSION}-macos-arm64.dmg"
+          fi
+          # Rename ZIP: Tabst-darwin-arm64-{version}.zip -> Tabst-{version}-macos-arm64-portable.zip
+          if [ -f "zip/darwin/arm64/Tabst-darwin-arm64-${VERSION}.zip" ]; then
+            mv "zip/darwin/arm64/Tabst-darwin-arm64-${VERSION}.zip" "Tabst-${VERSION}-macos-arm64-portable.zip"
+          fi
+
       - name: Create Release and upload macOS assets
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ github.ref_name }}
           name: ${{ github.ref_name }} (macOS)
           files: |
-            out/make/**/*.dmg
-            out/make/**/*.zip
+            out/make/Tabst-*-macos-*.dmg
+            out/make/Tabst-*-macos-*-portable.zip
           body: "Automated macOS release created by workflow"
           draft: true
         env:

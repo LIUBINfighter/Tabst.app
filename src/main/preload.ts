@@ -45,4 +45,49 @@ contextBridge.exposeInMainWorld("electronAPI", {
 	// Read asset (ArrayBuffer / Uint8Array) via main process for packaged app
 	readAsset: (relPath: string): Promise<Uint8Array> =>
 		ipcRenderer.invoke("read-asset", relPath),
+
+	// Auto-update
+	checkForUpdates: (): Promise<{ supported: boolean; message?: string }> =>
+		ipcRenderer.invoke("check-for-updates"),
+	installUpdate: (): Promise<{ ok: boolean; message?: string }> =>
+		ipcRenderer.invoke("install-update"),
+	onUpdateEvent: (
+		callback: (event: {
+			type:
+				| "checking"
+				| "available"
+				| "not-available"
+				| "progress"
+				| "downloaded"
+				| "error";
+			version?: string;
+			releaseNotes?: string | null;
+			percent?: number;
+			transferred?: number;
+			total?: number;
+			message?: string;
+		}) => void,
+	) => {
+		const listener = (_event: Electron.IpcRendererEvent, payload: unknown) => {
+			callback(
+				payload as {
+					type:
+						| "checking"
+						| "available"
+						| "not-available"
+						| "progress"
+						| "downloaded"
+						| "error";
+					version?: string;
+					releaseNotes?: string | null;
+					percent?: number;
+					transferred?: number;
+					total?: number;
+					message?: string;
+				},
+			);
+		};
+		ipcRenderer.on("update-event", listener);
+		return () => ipcRenderer.removeListener("update-event", listener);
+	},
 });
