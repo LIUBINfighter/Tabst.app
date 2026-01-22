@@ -1,4 +1,32 @@
-import { BrowserWindow, dialog } from "electron";
+import { app, type BrowserWindow } from "electron";
+
+type UpdateEventPayload =
+	| { type: "checking" }
+	| { type: "available"; version: string; releaseNotes?: string | null }
+	| { type: "not-available"; version: string }
+	| {
+			type: "progress";
+			percent: number;
+			transferred: number;
+			total: number;
+	  }
+	| { type: "downloaded"; version: string }
+	| { type: "error"; message: string };
+
+let updateWindow: BrowserWindow | null = null;
+let updaterInitialized = false;
+let updaterInstance: typeof import("electron-updater")["autoUpdater"] | null =
+	null;
+
+function sendUpdateEvent(payload: UpdateEventPayload) {
+	if (updateWindow && !updateWindow.isDestroyed()) {
+		updateWindow.webContents.send("update-event", payload);
+	}
+}
+
+export function registerUpdateWindow(win: BrowserWindow) {
+	updateWindow = win;
+}
 
 /**
  * Initialize auto-updater for the application
@@ -6,17 +34,17 @@ import { BrowserWindow, dialog } from "electron";
  */
 export async function initAutoUpdater(): Promise<void> {
 	// Only enable auto-update for Windows in production builds
-	const isDev =
-		process.env.NODE_ENV === "development" ||
-		!require("electron").app.isPackaged;
+	const isDev = process.env.NODE_ENV === "development" || !app.isPackaged;
 
-	if (process.platform !== "win32" || isDev) {
+	if (process.platform !== "win32" || isDev || updaterInitialized) {
 		return;
 	}
-
 	try {
 		const { autoUpdater } = await import("electron-updater");
 		const log = require("electron-log");
+
+		updaterInstance = autoUpdater;
+		updaterInitialized = true;
 
 		// Configure logger
 		log.transports.file.level = "info";
@@ -25,76 +53,133 @@ export async function initAutoUpdater(): Promise<void> {
 		// Auto-updater settings
 		autoUpdater.autoDownload = true;
 		autoUpdater.allowPrerelease = true; // Allow checking prerelease versions
+		if ("disableWebInstaller" in autoUpdater) {
+			// Avoid web installer mode for NSIS
+			(autoUpdater as { disableWebInstaller: boolean }).disableWebInstaller =
+				true;
+		}
 
-		// Event: Checking for updates
 		autoUpdater.on("checking-for-update", () => {
 			log.info("Auto-updater: Checking for updates...");
+			sendUpdateEvent({ type: "checking" });
 		});
 
-		// Event: Update available
 		autoUpdater.on("update-available", (info) => {
 			log.info("Auto-updater: Update available:", info.version);
+			sendUpdateEvent({
+				type: "available",
+				version: info.version,
+				releaseNotes:
+					typeof info.releaseNotes === "string" ? info.releaseNotes : null,
+			});
 		});
 
-		// Event: Update not available
 		autoUpdater.on("update-not-available", (info) => {
 			log.info(
 				"Auto-updater: Update not available. Current version:",
 				info.version,
 			);
+			sendUpdateEvent({ type: "not-available", version: info.version });
 		});
 
-		// Event: Download progress
 		autoUpdater.on("download-progress", (progressObj) => {
 			log.info(
 				`Auto-updater: Download progress: ${progressObj.percent.toFixed(2)}% (${progressObj.transferred}/${progressObj.total})`,
 			);
+			sendUpdateEvent({
+				type: "progress",
+				percent: progressObj.percent,
+				transferred: progressObj.transferred,
+				total: progressObj.total,
+			});
 		});
 
-		// Event: Update downloaded
 		autoUpdater.on("update-downloaded", (info) => {
 			log.info("Auto-updater: Update downloaded successfully:", info.version);
-
-			const win = BrowserWindow.getAllWindows()[0];
-			if (win) {
-				dialog
-					.showMessageBox(win, {
-						type: "info",
-						buttons: ["Install and Restart", "Later"],
-						defaultId: 0,
-						message:
-							"A new update has been downloaded. Install and restart now?",
-					})
-					.then((result) => {
-						if (result.response === 0) {
-							log.info("Auto-updater: User chose to install and restart");
-							autoUpdater.quitAndInstall(false, true);
-						} else {
-							log.info("Auto-updater: User chose to install later");
-						}
-					})
-					.catch((err) => {
-						log.error("Auto-updater: Error showing dialog:", err);
-					});
-			} else {
-				log.warn("Auto-updater: No window available to show update dialog");
-			}
+			sendUpdateEvent({ type: "downloaded", version: info.version });
 		});
 
-		// Event: Error
 		autoUpdater.on("error", (err) => {
 			log.error("Auto-updater error:", err);
+			sendUpdateEvent({
+				type: "error",
+				message: err?.message ?? String(err),
+			});
 		});
 
 		// Delay check to allow app to finish startup
 		setTimeout(() => {
 			autoUpdater.checkForUpdatesAndNotify().catch((e) => {
+				const message = e instanceof Error ? e.message : String(e);
 				log.error("Auto-updater: checkForUpdatesAndNotify failed:", e);
+				sendUpdateEvent({
+					type: "error",
+					message,
+				});
 			});
 		}, 2000);
 
 		log.info("Auto-updater initialized successfully");
 	} catch (err) {
 		console.warn("Auto-updater not available:", err);
+	}
+}
+
+export async function checkForUpdates(): Promise<{
+	supported: boolean;
+	message?: string;
+}> {
+	const isDev = process.env.NODE_ENV === "development" || !app.isPackaged;
+	if (process.platform !== "win32" || isDev) {
+		return {
+			supported: false,
+			message: "仅支持 Windows 打包版本的更新检查",
+		};
+	}
+
+	if (!updaterInitialized || !updaterInstance) {
+		await initAutoUpdater();
+	}
+
+	if (!updaterInitialized || !updaterInstance) {
+		return {
+			supported: false,
+			message: "自动更新尚未初始化，请稍后再试",
+		};
+	}
+	try {
+		await updaterInstance.checkForUpdates();
+		return { supported: true };
+	} catch (err) {
+		const message = err instanceof Error ? err.message : String(err);
+		sendUpdateEvent({
+			type: "error",
+			message,
+		});
+		return { supported: false, message };
+	}
+}
+
+export async function installUpdate(): Promise<{
+	ok: boolean;
+	message?: string;
+}> {
+	const isDev = process.env.NODE_ENV === "development" || !app.isPackaged;
+	if (process.platform !== "win32" || isDev) {
+		return { ok: false, message: "仅支持 Windows 打包版本安装更新" };
+	}
+
+	if (!updaterInitialized || !updaterInstance) {
+		await initAutoUpdater();
+	}
+	if (!updaterInitialized || !updaterInstance) {
+		return { ok: false, message: "自动更新尚未初始化" };
+	}
+	try {
+		updaterInstance.quitAndInstall(false, true);
+		return { ok: true };
+	} catch (err) {
+		const message = err instanceof Error ? err.message : String(err);
+		return { ok: false, message };
 	}
 }

@@ -1,11 +1,14 @@
 import { ChevronLeft, Settings } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useAppStore } from "../store/appStore";
 import TopBar from "./TopBar";
+import { Button } from "./ui/button";
 import IconButton from "./ui/icon-button";
 
 export default function SettingsView() {
 	const setWorkspaceMode = useAppStore((s) => s.setWorkspaceMode);
+	const [checkingUpdate, setCheckingUpdate] = useState(false);
+	const [updateStatus, setUpdateStatus] = useState<string | null>(null);
 
 	// 键盘快捷键：ESC 返回编辑器
 	useEffect(() => {
@@ -30,6 +33,23 @@ export default function SettingsView() {
 		} catch {}
 	};
 
+	const handleCheckUpdate = async () => {
+		setCheckingUpdate(true);
+		setUpdateStatus("正在检查更新...");
+		try {
+			const result = await window.electronAPI.checkForUpdates();
+			if (!result?.supported) {
+				setUpdateStatus(result?.message ?? "当前环境不支持更新检查");
+			} else {
+				setUpdateStatus("已触发检查，请留意右下角更新提示");
+			}
+		} catch (err) {
+			setUpdateStatus(`检查失败：${String(err)}`);
+		} finally {
+			setCheckingUpdate(false);
+		}
+	};
+
 	return (
 		<div className="flex-1 flex flex-col min-h-0 overflow-hidden">
 			<TopBar
@@ -51,17 +71,33 @@ export default function SettingsView() {
 				<section className="bg-card border border-border rounded p-4">
 					<h3 className="text-sm font-medium mb-2">外观</h3>
 					<div className="flex items-center gap-3">
-						<button
+						<Button
 							type="button"
-							className="px-3 py-1 border rounded"
+							variant="outline"
 							onClick={toggleTheme}
 							aria-label="切换明暗主题"
 						>
 							切换明暗主题
-						</button>
+						</Button>
 						<p className="text-xs text-muted-foreground">
 							当前主题由页面 class 控制
 						</p>
+					</div>
+				</section>
+
+				<section className="bg-card border border-border rounded p-4">
+					<h3 className="text-sm font-medium mb-2">更新</h3>
+					<div className="flex items-center gap-3">
+						<Button
+							type="button"
+							onClick={handleCheckUpdate}
+							disabled={checkingUpdate}
+						>
+							{checkingUpdate ? "检查中..." : "检查更新"}
+						</Button>
+						{updateStatus && (
+							<p className="text-xs text-muted-foreground">{updateStatus}</p>
+						)}
 					</div>
 				</section>
 

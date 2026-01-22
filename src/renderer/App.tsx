@@ -4,6 +4,7 @@ import GlobalBottomBar from "./components/GlobalBottomBar";
 import SettingsView from "./components/SettingsView";
 import { Sidebar } from "./components/Sidebar";
 import TutorialView from "./components/TutorialView";
+import UpdateToast from "./components/UpdateToast";
 import { getAlphaTexHighlight } from "./lib/alphatex-highlight";
 import { createAlphaTexLSPClient } from "./lib/alphatex-lsp";
 import { useAppStore } from "./store/appStore";
@@ -85,6 +86,8 @@ function App() {
 				{/* 全局底部栏（放在主内容流中，保持与 Editor 排列，不再遮挡内容） */}
 				<GlobalBottomBar />
 			</div>
+
+			<UpdateToast />
 		</div>
 	);
 }
