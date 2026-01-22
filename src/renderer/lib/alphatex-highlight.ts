@@ -125,8 +125,8 @@ export async function getAlphaTexHighlight() {
 		{ tag: tags.comment, color: "#6a737d" },
 		{ tag: tags.keyword, color: "#d73a49", fontWeight: "bold" },
 		{ tag: tags.operator, color: "#d73a49" },
-		{ tag: tags.string, color: "#032f62" },
-		{ tag: tags.character, color: "#032f62" },
+		{ tag: tags.string, color: "inherit" },
+		{ tag: tags.character, color: "inherit" },
 		{ tag: tags.number, color: "#005cc5" },
 		{
 			tag: tags.atom,
