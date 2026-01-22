@@ -789,7 +789,10 @@ export default function Preview({
 				let startTick: number | null = null;
 				try {
 					// 方法 1: 使用 tickCache.getBeatStart() 获取 beat 的开始 tick 位置
-					if (api.tickCache && typeof api.tickCache.getBeatStart === "function") {
+					if (
+						api.tickCache &&
+						typeof api.tickCache.getBeatStart === "function"
+					) {
 						const tick = api.tickCache.getBeatStart(beat);
 						if (tick !== undefined && tick !== null && tick >= 0) {
 							startTick = tick;
@@ -798,12 +801,15 @@ export default function Preview({
 					// 方法 2: 如果 tickCache 不可用，回退到使用 beat 的属性
 					if (startTick === null) {
 						// @ts-expect-error - beat 可能有 playbackStart 属性
-						if (beat.playbackStart !== undefined && beat.playbackStart !== null) {
+						if (
+							beat.playbackStart !== undefined &&
+							beat.playbackStart !== null
+						) {
 							// @ts-expect-error
 							startTick = beat.playbackStart;
 						}
 					}
-					
+
 					// 只在未播放时更新光标位置（避免干扰正在播放的音乐）
 					if (startTick !== null) {
 						const isPlaying = useAppStore.getState().playerIsPlaying;
@@ -832,8 +838,9 @@ export default function Preview({
 				const bar = beat.voice?.bar;
 				if (bar && bar.voices?.[0]?.beats?.length > 0) {
 					const firstBeatInBar = bar.voices[0].beats[0];
-					const lastBeatInBar = bar.voices[0].beats[bar.voices[0].beats.length - 1];
-					
+					const lastBeatInBar =
+						bar.voices[0].beats[bar.voices[0].beats.length - 1];
+
 					// 使用 highlightPlaybackRange 高亮整个小节
 					// 标记这是由编辑器光标触发的，避免触发 playbackRangeHighlightChanged 时设置 scoreSelection
 					if (typeof api.highlightPlaybackRange === "function") {
@@ -842,13 +849,13 @@ export default function Preview({
 							"[Preview] Setting isHighlightFromEditorCursorRef to true before highlightPlaybackRange",
 						);
 						isHighlightFromEditorCursorRef.current = true;
-						
+
 						// 记录这次编辑器光标触发的选区信息，用于后续事件识别
 						lastEditorCursorSelectionRef.current = {
 							startBarIndex: bar.index,
 							endBarIndex: bar.index,
 						};
-						
+
 						// 设置新的高亮范围（这会触发 playbackRangeHighlightChanged 事件）
 						console.debug(
 							"[Preview] Calling highlightPlaybackRange for bar",
@@ -859,16 +866,17 @@ export default function Preview({
 							lastBeatInBar.index,
 						);
 						api.highlightPlaybackRange(firstBeatInBar, lastBeatInBar);
-						
+
 						// 检查事件是否已经触发并设置了 scoreSelection
-						const selectionAfterHighlight = useAppStore.getState().scoreSelection;
+						const selectionAfterHighlight =
+							useAppStore.getState().scoreSelection;
 						console.debug(
 							"[Preview] After highlightPlaybackRange, scoreSelection:",
 							selectionAfterHighlight,
 							"isHighlightFromEditorCursorRef:",
 							isHighlightFromEditorCursorRef.current,
 						);
-						
+
 						// 延迟重置标志，确保 playbackRangeHighlightChanged 事件能正确识别
 						// 使用更长的延迟，因为 alphaTab 可能在渲染完成后才触发事件
 						setTimeout(() => {
@@ -881,7 +889,7 @@ export default function Preview({
 								lastEditorCursorSelectionRef.current = null;
 							}, 100);
 						}, 200);
-						
+
 						console.debug(
 							"[Preview] Highlighted entire bar",
 							bar.index,
@@ -892,17 +900,21 @@ export default function Preview({
 							"(from editor cursor)",
 						);
 					}
-					
+
 					// 设置播放范围，使播放完该小节后自动停止
 					try {
 						let barStartTick: number | null = null;
 						let barEndTick: number | null = null;
-						
+
 						// 获取小节的开始和结束 tick
-						if (api.tickCache && typeof api.tickCache.getBeatStart === "function") {
+						if (
+							api.tickCache &&
+							typeof api.tickCache.getBeatStart === "function"
+						) {
 							barStartTick = api.tickCache.getBeatStart(firstBeatInBar);
-							const lastBeatStartTick = api.tickCache.getBeatStart(lastBeatInBar);
-							
+							const lastBeatStartTick =
+								api.tickCache.getBeatStart(lastBeatInBar);
+
 							// 获取最后一个 beat 的结束 tick
 							// 方法 1: 如果有下一个 beat，使用下一个 beat 的开始 tick
 							if (lastBeatInBar.nextBeat) {
@@ -911,16 +923,20 @@ export default function Preview({
 							// 方法 2: 如果没有下一个 beat，使用最后一个 beat 的开始 tick + 持续时间
 							else {
 								// @ts-expect-error - beat 可能有 playbackDuration 属性
-								if (lastBeatInBar.playbackDuration !== undefined && lastBeatInBar.playbackDuration !== null) {
+								if (
+									lastBeatInBar.playbackDuration !== undefined &&
+									lastBeatInBar.playbackDuration !== null
+								) {
 									// @ts-expect-error
-									barEndTick = lastBeatStartTick + lastBeatInBar.playbackDuration;
+									barEndTick =
+										lastBeatStartTick + lastBeatInBar.playbackDuration;
 								} else {
 									// 如果无法获取持续时间，使用最后一个 beat 的开始 tick
 									barEndTick = lastBeatStartTick;
 								}
 							}
 						}
-						
+
 						// 如果无法通过 tickCache 获取，尝试使用 beat 的属性
 						if (barStartTick === null || barEndTick === null) {
 							// @ts-expect-error
@@ -933,7 +949,10 @@ export default function Preview({
 								// @ts-expect-error
 								const lastBeatStart = lastBeatInBar.playbackStart;
 								// @ts-expect-error
-								if (lastBeatInBar.playbackDuration !== undefined && lastBeatInBar.playbackDuration !== null) {
+								if (
+									lastBeatInBar.playbackDuration !== undefined &&
+									lastBeatInBar.playbackDuration !== null
+								) {
 									// @ts-expect-error
 									barEndTick = lastBeatStart + lastBeatInBar.playbackDuration;
 								} else if (lastBeatInBar.nextBeat) {
@@ -947,9 +966,13 @@ export default function Preview({
 								}
 							}
 						}
-						
+
 						// 设置播放范围（总是设置，确保会更新到新位置）
-						if (barStartTick !== null && barEndTick !== null && barEndTick > barStartTick) {
+						if (
+							barStartTick !== null &&
+							barEndTick !== null &&
+							barEndTick > barStartTick
+						) {
 							// @ts-expect-error - playbackRange 可能需要特定的类型
 							api.playbackRange = {
 								startTick: barStartTick,
@@ -970,10 +993,7 @@ export default function Preview({
 							);
 						}
 					} catch (err) {
-						console.debug(
-							"[Preview] Failed to set playback range:",
-							err,
-						);
+						console.debug("[Preview] Failed to set playback range:", err);
 					}
 				}
 
@@ -1014,7 +1034,7 @@ export default function Preview({
 				"[Preview] Editor cursor at invalid position, clearing selection",
 			);
 			useAppStore.getState().clearScoreSelection();
-			
+
 			// 清除播放范围，恢复完整播放
 			try {
 				const api = apiRef.current;
@@ -1149,7 +1169,7 @@ export default function Preview({
 						// 🆕 播放开始时，清除用户手动选择的选区高亮（但保留编辑器光标触发的播放范围）
 						// 这样可以避免播放时编辑器中的蓝色选区高亮干扰视觉
 						useAppStore.getState().clearScoreSelection();
-						
+
 						// 如果有高亮的小节，从该小节的第一个 beat 开始播放
 						const highlightedBar = lastColoredBarsRef.current;
 						if (highlightedBar?.bars?.length > 0 && api.score) {
@@ -1306,14 +1326,17 @@ export default function Preview({
 						{
 							hasStartBeat: !!e.startBeat,
 							hasEndBeat: !!e.endBeat,
-							isHighlightFromEditorCursor: isHighlightFromEditorCursorRef.current,
+							isHighlightFromEditorCursor:
+								isHighlightFromEditorCursorRef.current,
 							currentScoreSelection: useAppStore.getState().scoreSelection,
 						},
 					);
 
 					// 如果没有选区，清除编辑器高亮
 					if (!e.startBeat || !e.endBeat) {
-						console.debug("[Preview] No beats in selection, clearing scoreSelection");
+						console.debug(
+							"[Preview] No beats in selection, clearing scoreSelection",
+						);
 						clearScoreSelection();
 						return;
 					}
@@ -1328,7 +1351,8 @@ export default function Preview({
 					const isFromEditorCursor =
 						isHighlightFromEditorCursorRef.current ||
 						(lastEditorCursorSelectionRef.current &&
-							startBarIndex === lastEditorCursorSelectionRef.current.startBarIndex &&
+							startBarIndex ===
+								lastEditorCursorSelectionRef.current.startBarIndex &&
 							endBarIndex === lastEditorCursorSelectionRef.current.endBarIndex);
 
 					if (isFromEditorCursor) {
@@ -1337,9 +1361,11 @@ export default function Preview({
 							{
 								startBarIndex,
 								endBarIndex,
-								isHighlightFromEditorCursor: isHighlightFromEditorCursorRef.current,
+								isHighlightFromEditorCursor:
+									isHighlightFromEditorCursorRef.current,
 								matchesLastEditorSelection:
-									lastEditorCursorSelectionRef.current?.startBarIndex === startBarIndex,
+									lastEditorCursorSelectionRef.current?.startBarIndex ===
+									startBarIndex,
 							},
 						);
 						// 确保清除选区，防止残留
