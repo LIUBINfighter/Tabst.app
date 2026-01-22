@@ -141,3 +141,8 @@ This is a highly complex integration point. Please strictly follow the rules bel
 - Sidebar Layout: View entry buttons at the top, new command buttons at the bottom to minimize mouse movement distance after creating a file.
 - Bottom Bar Positioning: Control areas are forced to align to the right, leveraging right-hand dominance to optimize interaction experience in unconscious resting zones.
 - Bottom Bar Logical Order: Control arrangement strictly follows "What to display (staff) → How to display (zoom) → How to play (speed) → Playback control (start/stop)" in a left-to-right cascading logic.
+
+## 7.Versioning
+
+1. package.json L4
+2. SettingsView.tsx L105
