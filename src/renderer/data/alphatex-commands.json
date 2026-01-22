@@ -3,8 +3,8 @@
 		{
 			"name": "chord",
 			"label": "\\chord",
-			"detail": "Insert a chord",
-			"documentation": "Insert chord name or power chord information for a given beat.",
+			"detail": "Define chord diagram (top-of-score list)",
+			"documentation": "Define a chord diagram for the list at the top of the score. For inline chord names above each beat, use {ch \"ChordName\"} on that beat.",
 			"insertText": "\\chord \"${1}\""
 		}
 	],
