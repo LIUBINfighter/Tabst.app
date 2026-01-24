@@ -9,6 +9,7 @@ export default function SettingsView() {
 	const setWorkspaceMode = useAppStore((s) => s.setWorkspaceMode);
 	const [checkingUpdate, setCheckingUpdate] = useState(false);
 	const [updateStatus, setUpdateStatus] = useState<string | null>(null);
+	const [appVersion, setAppVersion] = useState<string>("");
 
 	// 键盘快捷键：ESC 返回编辑器
 	useEffect(() => {
@@ -21,6 +22,14 @@ export default function SettingsView() {
 		window.addEventListener("keydown", handleKeyDown);
 		return () => window.removeEventListener("keydown", handleKeyDown);
 	}, [setWorkspaceMode]);
+
+	// 获取应用版本号
+	useEffect(() => {
+		window.electronAPI
+			.getAppVersion()
+			.then((version) => setAppVersion(version))
+			.catch(() => setAppVersion(""));
+	}, []);
 
 	const toggleTheme = () => {
 		const root = document.documentElement;
@@ -102,7 +111,9 @@ export default function SettingsView() {
 				</section>
 
 				<section className="bg-card border border-border rounded p-4">
-					<h3 className="text-sm font-medium mb-2">关于 v0.1.4</h3>
+					<h3 className="text-sm font-medium mb-2">
+						关于{appVersion ? ` v${appVersion}` : ""}
+					</h3>
 					<div className="space-y-2">
 						<p className="text-xs text-muted-foreground">
 							Tabst. Write guitar tabs like markdown. Powered by alphaTab.js.
