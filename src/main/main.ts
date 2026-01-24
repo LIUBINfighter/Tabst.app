@@ -229,6 +229,11 @@ ipcMain.handle("install-update", async () => {
 	return installUpdate();
 });
 
+// Get app version
+ipcMain.handle("get-app-version", async () => {
+	return app.getVersion();
+});
+
 // App state persistence ---------------------------------------------------
 // Keep metadata (id, path, name) of opened/created files and activeFileId
 function getAppStatePath(): string {

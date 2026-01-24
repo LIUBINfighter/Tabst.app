@@ -58,10 +58,16 @@ jobs:
       - name: Make macOS DMG
         run: pnpm make --platform=darwin
 
+      - name: Get version from package.json
+        id: package-version
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
       - name: Rename macOS artifacts to match naming convention
         run: |
           cd out/make
-          VERSION=$(node -p "require('../../package.json').version")
+          VERSION=${{ steps.package-version.outputs.version }}
           # Rename DMG: Tabst-{version}-arm64.dmg -> Tabst-{version}-macos-arm64.dmg
           if [ -f "Tabst-${VERSION}-arm64.dmg" ]; then
             mv "Tabst-${VERSION}-arm64.dmg" "Tabst-${VERSION}-macos-arm64.dmg"
@@ -75,7 +81,7 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ github.ref_name }}
-          name: ${{ github.ref_name }} (macOS)
+          name: ${{ steps.package-version.outputs.version }} (macOS)
           files: |
             out/make/Tabst-*-macos-*.dmg
             out/make/Tabst-*-macos-*-portable.zip

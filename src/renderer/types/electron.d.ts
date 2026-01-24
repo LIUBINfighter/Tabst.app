@@ -44,6 +44,7 @@ export interface ElectronAPI {
 	// Auto-update
 	checkForUpdates: () => Promise<{ supported: boolean; message?: string }>;
 	installUpdate: () => Promise<{ ok: boolean; message?: string }>;
+	getAppVersion: () => Promise<string>;
 	onUpdateEvent: (
 		callback: (event: {
 			type:

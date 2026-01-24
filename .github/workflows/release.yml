@@ -46,11 +46,17 @@ jobs:
       - name: Run electron-builder for Windows (NSIS)
         run: pnpm dist:win
 
+      - name: Get version from package.json
+        id: package-version
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
       - name: Create Draft Release and upload Windows artifacts
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
-          name: ${{ github.ref_name }}
+          name: ${{ steps.package-version.outputs.version }}
           files: |
             dist/*.exe
             dist/*.zip
