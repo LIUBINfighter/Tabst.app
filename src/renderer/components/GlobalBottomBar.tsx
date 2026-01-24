@@ -9,6 +9,7 @@ import {
 	Square,
 } from "lucide-react";
 import { useAppStore } from "../store/appStore";
+import BpmStepper from "./BpmStepper";
 import StaffControls from "./StaffControls";
 import { defaultTutorials } from "./TutorialView";
 import IconButton from "./ui/icon-button";
@@ -39,6 +40,7 @@ export default function GlobalBottomBar() {
 	const setZoomPercent = useAppStore((s) => s.setZoomPercent);
 	const playbackSpeed = useAppStore((s) => s.playbackSpeed);
 	const setPlaybackSpeed = useAppStore((s) => s.setPlaybackSpeed);
+	const playbackBpmMode = useAppStore((s) => s.playbackBpmMode);
 	const metronomeVolume = useAppStore((s) => s.metronomeVolume);
 	const setMetronomeVolume = useAppStore((s) => s.setMetronomeVolume);
 
@@ -58,6 +60,32 @@ export default function GlobalBottomBar() {
 		currentIndex >= 0 && currentIndex < defaultTutorials.length - 1
 			? defaultTutorials[currentIndex + 1]
 			: null;
+
+	// Playback speed control element (BPM mode vs Ratio mode)
+	const playbackSpeedControl = playbackBpmMode ? (
+		<BpmStepper />
+	) : (
+		<Select
+			value={String(playbackSpeed)}
+			onValueChange={(value) => {
+				const v = Number.parseFloat(value);
+				if (Number.isNaN(v)) return;
+				setPlaybackSpeed(v);
+				playerControls?.applyPlaybackSpeed?.(v);
+			}}
+		>
+			<SelectTrigger aria-label="播放速度">
+				<SelectValue />
+			</SelectTrigger>
+			<SelectContent side="top" align="end">
+				{[0.5, 0.75, 1, 1.25, 1.5, 2].map((v) => (
+					<SelectItem key={v} value={String(v)}>
+						{v}x
+					</SelectItem>
+				))}
+			</SelectContent>
+		</Select>
+	);
 
 	return (
 		<TooltipProvider delayDuration={200}>
@@ -166,7 +194,7 @@ export default function GlobalBottomBar() {
 										setZoomPercent(pct);
 										playerControls?.applyZoom?.(pct);
 									}}
-									className="w-10 h-6 text-xs text-center rounded bg-transparent border border-border px-1 input-no-spinner"
+									className="w-8 h-6 text-xs text-center rounded bg-transparent border border-border px-1 input-no-spinner"
 									step={1}
 									min={10}
 									max={400}
@@ -195,28 +223,8 @@ export default function GlobalBottomBar() {
 
 							{/* Playback speed */}
 							<div className="ml-3 flex items-center gap-1 text-xs">
-								<Select
-									value={String(playbackSpeed)}
-									onValueChange={(value) => {
-										const v = Number.parseFloat(value);
-										if (Number.isNaN(v)) return;
-										setPlaybackSpeed(v);
-										playerControls?.applyPlaybackSpeed?.(v);
-									}}
-								>
-									<SelectTrigger aria-label="播放速度">
-										<SelectValue />
-									</SelectTrigger>
-									<SelectContent side="top" align="end">
-										{[0.5, 0.75, 1, 1.25, 1.5, 2].map((v) => (
-											<SelectItem key={v} value={String(v)}>
-												{v}x
-											</SelectItem>
-										))}
-									</SelectContent>
-								</Select>
+								{playbackSpeedControl}
 							</div>
-
 							{/* Metronome toggle */}
 							<div className="ml-2 flex items-center">
 								<Tooltip>
