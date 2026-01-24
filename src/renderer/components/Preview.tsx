@@ -409,17 +409,20 @@ export default function Preview({
 					const score = api?.score;
 					let initialBpm: number | null = null;
 					if (score) {
-						if (
-							score.masterBars?.length &&
-							score.masterBars[0].tempoChanges?.length
-						) {
-							const mc = score.masterBars[0].tempoChanges[0];
-							if (mc && typeof mc.value === "number") initialBpm = mc.value;
-						} else if (
-							typeof (score as unknown as { tempo?: number }).tempo === "number"
-						) {
-							initialBpm =
-								(score as unknown as { tempo?: number }).tempo ?? null;
+						if (score.masterBars?.length) {
+							const mb0 = score.masterBars[0] as unknown as {
+								tempoChanges?: Array<{ value?: number }>;
+							};
+							if (mb0?.tempoChanges?.length) {
+								const mc = mb0.tempoChanges[0];
+								if (mc && typeof mc.value === "number") initialBpm = mc.value;
+							} else if (
+								typeof (score as unknown as { tempo?: number }).tempo ===
+								"number"
+							) {
+								initialBpm =
+									(score as unknown as { tempo?: number }).tempo ?? null;
+							}
 						}
 					}
 					useAppStore.getState().setSongInitialBpm(initialBpm);

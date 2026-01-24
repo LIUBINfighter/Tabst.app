@@ -88,9 +88,7 @@ export default function BpmStepper() {
 							min={1}
 							max={999}
 						/>
-						<span className="text-xs text-muted-foreground ml-0.5">
-							BPM
-						</span>
+						<span className="text-xs text-muted-foreground ml-0.5">BPM</span>
 
 						<Tooltip>
 							<TooltipTrigger asChild>
