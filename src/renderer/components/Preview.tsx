@@ -403,6 +403,32 @@ export default function Preview({
 				if (cursor) cursor.classList.add("hidden");
 				// 渲染完成时回到无高亮状态（避免保留旧的黄色小节高亮导致滚动锁定）
 				useAppStore.getState().clearPlaybackHighlights();
+
+				// 🆕 尝试提取乐谱的初始 BPM（以便 BPM 模式使用）
+				try {
+					const score = api?.score;
+					let initialBpm: number | null = null;
+					if (score) {
+						if (score.masterBars?.length) {
+							const mb0 = score.masterBars[0] as unknown as {
+								tempoChanges?: Array<{ value?: number }>;
+							};
+							if (mb0?.tempoChanges?.length) {
+								const mc = mb0.tempoChanges[0];
+								if (mc && typeof mc.value === "number") initialBpm = mc.value;
+							} else if (
+								typeof (score as unknown as { tempo?: number }).tempo ===
+								"number"
+							) {
+								initialBpm =
+									(score as unknown as { tempo?: number }).tempo ?? null;
+							}
+						}
+					}
+					useAppStore.getState().setSongInitialBpm(initialBpm);
+				} catch (e) {
+					console.debug("[Preview] setSongInitialBpm failed:", e);
+				}
 			});
 
 			// 3. 播放进度（更新光标位置）

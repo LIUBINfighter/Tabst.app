@@ -11,6 +11,11 @@ export const defaultSettingsPages: SettingsPage[] = [
 		description: "主题与界面显示相关设置",
 	},
 	{
+		id: "playback",
+		title: "播放",
+		description: "播放速度与模式相关设置",
+	},
+	{
 		id: "updates",
 		title: "更新",
 		description: "版本检查与更新相关功能",

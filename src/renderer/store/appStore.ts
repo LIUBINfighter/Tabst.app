@@ -82,6 +82,15 @@ interface AppState {
 	setZoomPercent: (v: number) => void;
 	playbackSpeed: number;
 	setPlaybackSpeed: (v: number) => void;
+
+	/** 播放模式：true= BPM 模式, false = 倍速模式 */
+	playbackBpmMode: boolean;
+	setPlaybackBpmMode: (v: boolean) => void;
+
+	/** 由当前加载乐谱解析出的初始 BPM（若可用） */
+	songInitialBpm: number | null;
+	setSongInitialBpm: (v: number | null) => void;
+
 	metronomeVolume: number;
 	setMetronomeVolume: (v: number) => void;
 
@@ -161,6 +170,15 @@ export const useAppStore = create<AppState>((set, get) => ({
 	setZoomPercent: (v) => set({ zoomPercent: v }),
 	playbackSpeed: 1.0,
 	setPlaybackSpeed: (v) => set({ playbackSpeed: v }),
+
+	// 默认为 BPM 模式
+	playbackBpmMode: true,
+	setPlaybackBpmMode: (v) => set({ playbackBpmMode: v }),
+
+	// 初始 BPM（由 Preview 在加载/渲染后填充）
+	songInitialBpm: null,
+	setSongInitialBpm: (v) => set({ songInitialBpm: v }),
+
 	metronomeVolume: 0,
 	setMetronomeVolume: (v) => set({ metronomeVolume: v }),
 	workspaceMode: "editor",
