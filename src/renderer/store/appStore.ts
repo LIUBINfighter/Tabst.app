@@ -9,33 +9,33 @@ export interface FileItem {
 }
 
 /**
- * 乐谱选区信息 - 用于 Preview 和 Editor 之间同步选区
- * 使用 alphaTab 1.8.0 Selection API
+ * Score selection information - for synchronizing selection between Preview and Editor
+ * Uses alphaTab 1.8.0 Selection API
  */
 export interface ScoreSelectionInfo {
-	/** 起始 Beat 的小节索引 (0-based) */
+	/** Start beat's bar index (0-based) */
 	startBarIndex: number;
-	/** 起始 Beat 在小节内的索引 (0-based) */
+	/** Start beat's index within bar (0-based) */
 	startBeatIndex: number;
-	/** 结束 Beat 的小节索引 (0-based) */
+	/** End beat's bar index (0-based) */
 	endBarIndex: number;
-	/** 结束 Beat 在小节内的索引 (0-based) */
+	/** End beat's index within bar (0-based) */
 	endBeatIndex: number;
 }
 
 /**
- * 编辑器光标位置信息 - 用于反向同步到乐谱
+ * Editor cursor position information - for reverse sync to score
  */
 export interface EditorCursorInfo {
-	/** 光标所在行 (0-based) */
+	/** Cursor line (0-based) */
 	line: number;
-	/** 光标所在列 (0-based) */
+	/** Cursor column (0-based) */
 	column: number;
-	/** 对应的小节索引 (0-based)，-1 表示未知 */
+	/** Corresponding bar index (0-based), -1 means unknown */
 	barIndex: number;
-	/** 对应的 Beat 索引 (0-based)，-1 表示未知 */
+	/** Corresponding beat index (0-based), -1 means unknown */
 	beatIndex: number;
-	/** 是否由文档变更触发（例如输入/粘贴） */
+	/** Whether triggered by document change (e.g., input/paste) */
 	fromDocChange?: boolean;
 }
 

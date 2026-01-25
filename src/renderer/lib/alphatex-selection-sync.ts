@@ -1,11 +1,11 @@
 /**
  * AlphaTex Selection Sync
  *
- * 实现乐谱选区与代码编辑器之间的双向同步。
- * 支持 Beat 级别的精确定位。
+ * Implements bidirectional synchronization between score selection and code editor.
+ * Supports beat-level precise positioning.
  *
- * 🆕 使用 alphaTab 内置的 AlphaTexParser 解析 AST，
- * 获取精确的源码位置信息，避免手写解析器的边界情况。
+ * Uses alphaTab's built-in AlphaTexParser to parse AST,
+ * obtaining precise source code position information, avoiding edge cases of handwritten parsers.
  *
  * @see docs/dev/SelectionAPI.md
  */
@@ -24,75 +24,75 @@ import type {
 	ScoreSelectionInfo,
 } from "../store/appStore";
 
-// alphaTab 内部类型别名（已移除未使用的别名）
+// alphaTab internal type aliases (removed unused aliases)
 
 /**
- * 代码中的位置范围
+ * Position range in code
  */
 export interface CodeRange {
-	/** 起始位置 (字符偏移) */
+	/** Start position (character offset) */
 	from: number;
-	/** 结束位置 (字符偏移) */
+	/** End position (character offset) */
 	to: number;
-	/** 起始行 (0-based) */
+	/** Start line (0-based) */
 	startLine: number;
-	/** 起始列 (0-based) */
+	/** Start column (0-based) */
 	startColumn: number;
-	/** 结束行 (0-based) */
+	/** End line (0-based) */
 	endLine: number;
-	/** 结束列 (0-based) */
+	/** End column (0-based) */
 	endColumn: number;
 }
 
 /**
- * Beat 在代码中的位置信息
+ * Beat position information in code
  */
 export interface BeatCodePosition {
-	/** 小节索引 (0-based) */
+	/** Bar index (0-based) */
 	barIndex: number;
-	/** Beat 在小节内的索引 (0-based) */
+	/** Beat index within bar (0-based) */
 	beatIndex: number;
-	/** Beat 起始位置 (代码中的字符偏移) */
+	/** Beat start position (character offset in code) */
 	startOffset: number;
-	/** Beat 结束位置 (代码中的字符偏移) */
+	/** Beat end position (character offset in code) */
 	endOffset: number;
-	/** Beat 起始行 (0-based) */
+	/** Beat start line (0-based) */
 	startLine: number;
-	/** Beat 起始列 (0-based) */
+	/** Beat start column (0-based) */
 	startColumn: number;
-	/** Beat 结束行 (0-based) */
+	/** Beat end line (0-based) */
 	endLine: number;
-	/** Beat 结束列 (0-based) */
+	/** Beat end column (0-based) */
 	endColumn: number;
 }
 
 /**
- * 解析结果
+ * Parse result
  */
 export interface ParseResult {
-	/** 所有 Beat 的位置信息 */
+	/** Position information for all beats */
 	beats: BeatCodePosition[];
-	/** 内容起始偏移 (跳过元数据后) */
+	/** Content start offset (after skipping metadata) */
 	contentStart: number;
 }
 
 // ============================================================================
-// 🆕 基于 alphaTab AST 的解析器 (优先使用)
+// AST-based parser using alphaTab (preferred)
 // ============================================================================
 
 /**
- * 使用 alphaTab 内置的 AlphaTexParser 解析 AST
- * 获取精确的源码位置信息
+ * Parse AST using alphaTab's built-in AlphaTexParser
+ * Get precise source code position information
  *
- * @param text AlphaTex 源代码
- * @returns 解析结果，包含所有 Beat 的位置信息
+ * @param text AlphaTex source code
+ * @returns Parse result containing position information for all beats
  */
 export function parseBeatPositionsAST(text: string): ParseResult {
 	const beats: BeatCodePosition[] = [];
 	let contentStart = 0;
 
 	try {
-		// 使用 alphaTab 的完整 AST 解析模式
+		// Use alphaTab's full AST parsing mode
 		const parser = new alphaTab.importer.alphaTex.AlphaTexParser(text);
 		parser.mode = alphaTab.importer.alphaTex.AlphaTexParseMode.Full;
 		const scoreNode = parser.read();
@@ -101,17 +101,17 @@ export function parseBeatPositionsAST(text: string): ParseResult {
 			return { beats, contentStart };
 		}
 
-		// 追踪当前小节索引（跳过纯元数据的 bar）
+		// Track current bar index (skip bars that are pure metadata)
 		let barIndex = 0;
 
 		for (const barNode of scoreNode.bars) {
-			// 检查是否有实际的 beat 内容
+			// Check if there's actual beat content
 			if (!barNode.beats || barNode.beats.length === 0) {
-				// 没有 beat，可能是纯元数据的 bar，继续但不增加 barIndex
+				// No beats, might be pure metadata bar, continue but don't increment barIndex
 				continue;
 			}
 
-			// 第一个有 beat 的 bar 确定 contentStart
+			// First bar with beats determines contentStart
 			if (contentStart === 0 && barNode.beats.length > 0) {
 				const firstBeat = barNode.beats[0];
 				if (firstBeat.start) {
@@ -119,28 +119,28 @@ export function parseBeatPositionsAST(text: string): ParseResult {
 				}
 			}
 
-			// 遍历 bar 中的每个 beat
+			// Iterate through each beat in bar
 			let beatIndex = 0;
 			for (const beatNode of barNode.beats) {
-				// 只处理有实际内容的 beat（有 notes 或 rest）
+				// Only process beats with actual content (has notes or rest)
 				if (!beatNode.notes && !beatNode.rest) {
-					// 这可能是一个纯时值修饰符，跳过
+					// This might be a pure duration modifier, skip
 					continue;
 				}
 
-				// 获取 beat 的源码位置
-				// 优先使用 notes 或 rest 的位置（更精确）
+				// Get beat's source code position
+				// Prefer notes or rest position (more precise)
 				let startOffset: number;
 				let endOffset: number;
 
 				if (beatNode.notes) {
-					// 有音符列表
+					// Has note list
 					const notesNode = beatNode.notes;
 					startOffset = notesNode.start?.offset ?? beatNode.start?.offset ?? 0;
 					endOffset =
 						notesNode.end?.offset ?? beatNode.end?.offset ?? startOffset;
 				} else if (beatNode.rest) {
-					// 休止符
+					// Rest
 					startOffset =
 						beatNode.rest.start?.offset ?? beatNode.start?.offset ?? 0;
 					endOffset =
@@ -149,27 +149,27 @@ export function parseBeatPositionsAST(text: string): ParseResult {
 					continue;
 				}
 
-				// 如果有时值后缀（如 .4），扩展范围到包含它
+				// If there's a duration suffix (e.g., .4), extend range to include it
 				if (beatNode.durationDot?.end && beatNode.durationValue?.end) {
 					endOffset = beatNode.durationValue.end.offset;
 				}
 
-				// 🆕 关键修复：验证 offset 不超出文本长度
+				// Critical fix: validate offset doesn't exceed text length
 				const textLength = text.length;
 				if (startOffset >= textLength) {
 					continue;
 				}
 				if (endOffset > textLength) {
-					// 截断到文本末尾
+					// Truncate to text end
 					endOffset = textLength;
 				}
 
-				// 验证位置有效性
+				// Validate position validity
 				if (startOffset < 0 || endOffset <= startOffset) {
 					continue;
 				}
 
-				// 计算行列位置（AST 的 line/col 是 1-based，我们需要 0-based）
+				// Calculate line/column positions (AST's line/col is 1-based, we need 0-based)
 				const startLine =
 					(beatNode.notes?.start?.line ?? beatNode.start?.line ?? 1) - 1;
 				const startCol =
@@ -191,7 +191,7 @@ export function parseBeatPositionsAST(text: string): ParseResult {
 				beatIndex++;
 			}
 
-			// 只有当这个 bar 有实际的 beat 时才增加 barIndex
+			// Only increment barIndex if this bar has actual beats
 			if (beatIndex > 0) {
 				barIndex++;
 			}
@@ -203,35 +203,35 @@ export function parseBeatPositionsAST(text: string): ParseResult {
 			"[parseBeatPositionsAST] Failed to parse AST, falling back:",
 			err,
 		);
-		// AST 解析失败，返回空结果，让调用者使用后备解析器
+		// AST parsing failed, return empty result, let caller use fallback parser
 		return { beats: [], contentStart: 0 };
 	}
 }
 
 /**
- * 解析 AlphaTex 代码，建立 Beat 到代码位置的精确映射
+ * Parse AlphaTex code, establish precise mapping from Beat to code positions
  *
- * 优先使用 alphaTab 内置 AST 解析器，如果失败则使用自定义解析器作为后备
+ * Prefer alphaTab's built-in AST parser, use custom parser as fallback if it fails
  *
- * @param text AlphaTex 源代码
- * @returns 解析结果，包含所有 Beat 的位置信息
+ * @param text AlphaTex source code
+ * @returns Parse result containing position information for all beats
  */
 export function parseBeatPositions(text: string): ParseResult {
-	// 优先使用 AST 解析器
+	// Prefer AST parser
 	const astResult = parseBeatPositionsAST(text);
 	if (astResult.beats.length > 0) {
 		return astResult;
 	}
 
-	// 使用后备的自定义解析器
+	// Use fallback custom parser
 	return parseBeatPositionsLegacy(text);
 }
 
 // ============================================================================
-// 后备的自定义解析器 (当 AST 解析失败时使用)
+// Fallback custom parser (used when AST parsing fails)
 // ============================================================================
 
-// 元数据命令列表
+// Metadata command list
 const METADATA_COMMANDS = [
 	"\\title",
 	"\\subtitle",
