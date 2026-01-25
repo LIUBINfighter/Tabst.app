@@ -2,6 +2,7 @@ import {
 	Info,
 	Map as MapIcon,
 	Palette,
+	Play,
 	RefreshCw,
 	Settings,
 } from "lucide-react";
@@ -42,6 +43,16 @@ export function SettingsSidebar() {
 							case "appearance":
 								return (
 									<Palette
+										className={`flex-none h-3.5 w-3.5 ${
+											activeSettingsPageId === p.id
+												? "text-blue-600"
+												: "text-muted-foreground hover:text-blue-600"
+										}`}
+									/>
+								);
+							case "playback":
+								return (
+									<Play
 										className={`flex-none h-3.5 w-3.5 ${
 											activeSettingsPageId === p.id
 												? "text-blue-600"
