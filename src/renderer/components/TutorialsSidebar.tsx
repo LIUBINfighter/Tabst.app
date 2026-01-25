@@ -1,31 +1,10 @@
 import { FileText } from "lucide-react";
 import { useEffect } from "react";
+import { getAllTutorials } from "../lib/tutorial-loader";
 import { useAppStore } from "../store/appStore";
 
-export interface TutorialItem {
-	id: string;
-	title: string;
-	description?: string;
-}
-
 export function TutorialsSidebar() {
-	const defaultTutorials: TutorialItem[] = [
-		{
-			id: "getting-started",
-			title: "快速开始",
-			description: "从零开始了解基础使用",
-		},
-		{
-			id: "editor-basics",
-			title: "编辑器基础",
-			description: "编辑器中常见操作",
-		},
-		{
-			id: "alphaTex-guide",
-			title: "AlphaTeX 教程",
-			description: "AlphaTeX 专用语法介绍",
-		},
-	];
+	const tutorials = getAllTutorials();
 
 	const activeTutorialId = useAppStore((s) => s.activeTutorialId);
 	const setActiveTutorialId = useAppStore((s) => s.setActiveTutorialId);
@@ -33,14 +12,14 @@ export function TutorialsSidebar() {
 
 	useEffect(() => {
 		// Initialize to first tutorial if none selected
-		if (!activeTutorialId) {
-			setActiveTutorialId(defaultTutorials[0].id);
+		if (!activeTutorialId && tutorials.length > 0) {
+			setActiveTutorialId(tutorials[0].id);
 		}
-	}, [activeTutorialId, setActiveTutorialId]);
+	}, [activeTutorialId, setActiveTutorialId, tutorials]);
 
 	return (
 		<div>
-			{defaultTutorials.map((t) => (
+			{tutorials.map((t) => (
 				<button
 					key={t.id}
 					type="button"

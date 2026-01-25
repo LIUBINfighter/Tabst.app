@@ -1,17 +1,62 @@
 // vite.config.ts
 
 import react from "@vitejs/plugin-react";
+import mdx from "@mdx-js/rollup";
+import remarkGfm from "remark-gfm";
 import path from "path";
 import { fileURLToPath } from "url";
 import { defineConfig } from "vite";
+import fs from "fs";
 
 // ESM-friendly __dirname shim
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Plugin to copy docs (README.md, ROADMAP.md) from root to public/docs
+const copyDocsPlugin = () => {
+	const copyDocs = () => {
+		const targetDir = path.join(__dirname, "public", "docs");
+		
+		// Ensure target directory exists
+		if (!fs.existsSync(targetDir)) {
+			fs.mkdirSync(targetDir, { recursive: true });
+		}
+
+		// Copy README.md if exists
+		const readmePath = path.join(__dirname, "README.md");
+		const readmeTarget = path.join(targetDir, "README.md");
+		if (fs.existsSync(readmePath)) {
+			fs.copyFileSync(readmePath, readmeTarget);
+		}
+
+		// Copy ROADMAP.md if exists
+		const roadmapPath = path.join(__dirname, "ROADMAP.md");
+		const roadmapTarget = path.join(targetDir, "ROADMAP.md");
+		if (fs.existsSync(roadmapPath)) {
+			fs.copyFileSync(roadmapPath, roadmapTarget);
+		}
+	};
+
+	return {
+		name: "copy-docs",
+		buildStart() {
+			copyDocs();
+		},
+		configureServer() {
+			// Also copy in dev mode
+			copyDocs();
+		},
+	};
+};
+
 export default defineConfig({
 	plugins: [
+		copyDocsPlugin(),
 		react(),
+		mdx({
+			remarkPlugins: [remarkGfm],
+			providerImportSource: "@mdx-js/react",
+		}),
 		// dev-only middleware: rewrite root requests to the real HTML inside /src/renderer
 		{
 			name: "rewrite-middleware",

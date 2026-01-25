@@ -184,7 +184,6 @@ export default function Preview({
 	useEffect(() => {
 		const host = scrollHostRef.current;
 		if (!host) return;
-
 		const apply = () => {
 			const h = host.getBoundingClientRect().height;
 			const px = Math.max(0, Math.floor(h * 0.6));
@@ -2021,37 +2020,6 @@ export default function Preview({
 					useAppStore.getState().unregisterPlayerControls();
 				} catch (e) {
 					console.debug("Failed to unregister player controls:", e);
-				}
-				apiRef.current.destroy();
-				apiRef.current = null;
-
-				// 🆕 销毁 API 时清除选区高亮（避免旧 API 的选区残留）
-				useAppStore.getState().clearScoreSelection();
-			}
-		} else if (!showPrintPreview && !apiRef.current) {
-			// 关闭打印预览：延迟重新初始化 API，确保 PrintPreview 完全卸载
-			console.log(
-				"[Preview] Scheduling API reinitialization after print preview",
-			);
-			const timer = setTimeout(() => {
-				setReinitTrigger((prev) => prev + 1);
-			}, 150);
-			return () => clearTimeout(timer);
-		}
-	}, [showPrintPreview]);
-
-	// 管理打印预览的生命周期：销毁和重建 alphaTab API 以避免设置污染
-	useEffect(() => {
-		if (showPrintPreview) {
-			// 打开打印预览：销毁当前 API 释放资源（特别是字体缓存）
-			console.log("[Preview] Destroying API for print preview");
-			if (apiRef.current) {
-				// 清理主题观察者
-				const unsubscribeTheme = (
-					apiRef.current as unknown as Record<string, unknown>
-				).__unsubscribeTheme;
-				if (typeof unsubscribeTheme === "function") {
-					unsubscribeTheme();
 				}
 				apiRef.current.destroy();
 				apiRef.current = null;

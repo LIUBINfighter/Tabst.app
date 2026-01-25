@@ -1,4 +1,10 @@
-import { Settings } from "lucide-react";
+import {
+	Info,
+	Map as MapIcon,
+	Palette,
+	RefreshCw,
+	Settings,
+} from "lucide-react";
 import { useEffect } from "react";
 import { useAppStore } from "../store/appStore";
 import { defaultSettingsPages } from "./settings-pages";
@@ -31,13 +37,60 @@ export function SettingsSidebar() {
 							: "hover:bg-blue-500/20 hover:text-blue-600 text-muted-foreground"
 					}`}
 				>
-					<Settings
-						className={`flex-none h-3.5 w-3.5 ${
-							activeSettingsPageId === p.id
-								? "text-blue-600"
-								: "text-muted-foreground hover:text-blue-600"
-						}`}
-					/>
+					{(() => {
+						switch (p.id) {
+							case "appearance":
+								return (
+									<Palette
+										className={`flex-none h-3.5 w-3.5 ${
+											activeSettingsPageId === p.id
+												? "text-blue-600"
+												: "text-muted-foreground hover:text-blue-600"
+										}`}
+									/>
+								);
+							case "updates":
+								return (
+									<RefreshCw
+										className={`flex-none h-3.5 w-3.5 ${
+											activeSettingsPageId === p.id
+												? "text-blue-600"
+												: "text-muted-foreground hover:text-blue-600"
+										}`}
+									/>
+								);
+							case "roadmap":
+								return (
+									<MapIcon
+										className={`flex-none h-3.5 w-3.5 ${
+											activeSettingsPageId === p.id
+												? "text-blue-600"
+												: "text-muted-foreground hover:text-blue-600"
+										}`}
+									/>
+								);
+							case "about":
+								return (
+									<Info
+										className={`flex-none h-3.5 w-3.5 ${
+											activeSettingsPageId === p.id
+												? "text-blue-600"
+												: "text-muted-foreground hover:text-blue-600"
+										}`}
+									/>
+								);
+							default:
+								return (
+									<Settings
+										className={`flex-none h-3.5 w-3.5 ${
+											activeSettingsPageId === p.id
+												? "text-blue-600"
+												: "text-muted-foreground hover:text-blue-600"
+										}`}
+									/>
+								);
+						}
+					})()}
 					<div className="flex-auto min-w-0 h-6 leading-none flex items-center truncate">
 						{p.title}
 					</div>

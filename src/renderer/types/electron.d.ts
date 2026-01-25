@@ -40,11 +40,19 @@ export interface ElectronAPI {
 	revealInFolder: (
 		filePath: string,
 	) => Promise<{ success: boolean; error?: string } | null>;
+	// Read asset (ArrayBuffer / Uint8Array) via main process for packaged app
+	readAsset: (relPath: string) => Promise<Uint8Array>;
 
 	// Auto-update
 	checkForUpdates: () => Promise<{ supported: boolean; message?: string }>;
 	installUpdate: () => Promise<{ ok: boolean; message?: string }>;
 	getAppVersion: () => Promise<string>;
+	// Fetch GitHub releases RSS feed
+	fetchReleasesFeed: () => Promise<{
+		success: boolean;
+		data?: string;
+		error?: string;
+	}>;
 	onUpdateEvent: (
 		callback: (event: {
 			type:
