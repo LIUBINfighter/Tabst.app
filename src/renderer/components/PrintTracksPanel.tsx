@@ -84,8 +84,6 @@ export function PrintTracksPanel({
 	useEffect(() => {
 		if (!api?.score || isInitialized) return;
 
-		console.log("[PrintTracksPanel] 初始化配置");
-
 		const selectedIndices = new Set(api.tracks.map((t) => t.index));
 
 		const configs: TrackConfig[] = api.score.tracks.map((track) => ({
@@ -113,8 +111,6 @@ export function PrintTracksPanel({
 	const applyConfigsToAlphaTab = useCallback((): AlphaTab.model.Track[] => {
 		const score = api?.score;
 		if (!score) return [];
-
-		console.log("[PrintTracksPanel] 应用配置到 AlphaTab");
 
 		// 1. 先应用所有 staff 配置
 		trackConfigs.forEach((config) => {

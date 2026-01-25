@@ -164,8 +164,8 @@ export default function Preview({
 		if (!api) return;
 		try {
 			api.playbackSpeed = playbackSpeed;
-		} catch (err) {
-			console.debug("Failed to apply playback speed:", err);
+		} catch {
+			// Failed to apply playback speed
 		}
 	}, [playbackSpeed]);
 
@@ -175,8 +175,8 @@ export default function Preview({
 		if (!api) return;
 		try {
 			api.metronomeVolume = metronomeVolume;
-		} catch (err) {
-			console.debug("Failed to apply metronome volume:", err);
+		} catch {
+			// Failed to apply metronome volume
 		}
 	}, [metronomeVolume]);
 
@@ -219,7 +219,6 @@ export default function Preview({
 	const _clearBarNumberColor = useCallback((_api: alphaTab.AlphaTabApi) => {
 		const previous = lastColoredBarsRef.current;
 		if (!previous?.bars?.length) return;
-		console.debug("[BarColor] Clearing previous bars:", previous.bars.length);
 
 		// 获取当前主题的所有默认颜色
 		const themeColors = getAlphaTabColorsForTheme();
@@ -509,9 +508,7 @@ export default function Preview({
 				}
 			}
 		}
-		if (fixes > 0) {
-			console.debug("[BarColor] sanitizeAllBarStyles applied fixes:", fixes);
-		}
+		// Applied fixes to bar styles
 		// 注意：不在 sanitize 中调用 render，由调用者决定何时 render
 		return fixes > 0;
 	}, []);
@@ -522,10 +519,7 @@ export default function Preview({
 		(_api: alphaTab.AlphaTabApi) => {
 			const previous = lastColoredBarsRef.current;
 			if (!previous?.bars?.length) return;
-			console.debug(
-				"[BarColor] Restoring previous bars by removing bar number colors:",
-				previous.bars.length,
-			);
+			// Restoring previous bars by removing bar number colors
 
 			const barNumberKeys = [
 				alphaTab.model.BarSubElement.StandardNotationBarNumber,
@@ -551,22 +545,12 @@ export default function Preview({
 					try {
 						// @ts-expect-error - 尝试删除 style，让 alphaTab 使用全局样式
 						bar.style = null;
-						console.debug(
-							"[BarColor] Removed empty bar.style for bar",
-							bar.index,
-						);
 					} catch (_e) {
 						// 如果 alphaTab 不支持删除 style，保留空的 BarStyle
-						console.debug(
-							"[BarColor] Cannot remove bar.style, keeping empty BarStyle",
-						);
 					}
 				}
 			}
 
-			console.debug(
-				"[BarColor] Restored previous bars to use global theme colors",
-			);
 			lastColoredBarsRef.current = null;
 		},
 		[],
@@ -574,14 +558,7 @@ export default function Preview({
 
 	const applyEditorBarNumberColor = useCallback(
 		(api: alphaTab.AlphaTabApi, barIndex: number): boolean => {
-			console.debug("[BarColor] applyEditorBarNumberColor called", {
-				barIndex,
-				hasScore: !!api.score,
-				trackCount: api.score?.tracks?.length ?? 0,
-			});
-
 			if (!api.score?.tracks?.length) {
-				console.debug("[BarColor] No score/tracks, aborting");
 				return false;
 			}
 			const currentScore = api.score ?? null;
@@ -589,7 +566,6 @@ export default function Preview({
 				lastColoredBarsRef.current?.barIndex === barIndex &&
 				lastColoredBarsRef.current?.score === currentScore
 			) {
-				console.debug("[BarColor] Same bar/score, skip");
 				return true;
 			}
 
@@ -649,7 +625,6 @@ export default function Preview({
 				}
 			}
 
-			console.debug("[BarColor] Colored bars count:", bars.length);
 			lastColoredBarsRef.current = { barIndex, bars, score: currentScore };
 
 			// 在 render() 之前再次 sanitize，确保所有颜色值都是有效的（防止序列化错误）
@@ -725,12 +700,6 @@ export default function Preview({
 			return;
 		}
 
-		console.debug("[Preview] Editor cursor received:", {
-			barIndex: editorCursor.barIndex,
-			beatIndex: editorCursor.beatIndex,
-			fromDocChange: editorCursor.fromDocChange,
-		});
-
 		// 从当前乐谱中查找对应的 Beat（先获取新光标所在小节）
 		const score = api.score;
 		const beat = findBeatInScore(
@@ -740,23 +709,9 @@ export default function Preview({
 		);
 
 		if (beat) {
-			console.debug(
-				"[Preview] Editor cursor → Score sync:",
-				`Bar ${editorCursor.barIndex}, Beat ${editorCursor.beatIndex}`,
-			);
-
 			// 🆕 在获取到新光标所在小节之后，立即清除旧的选区高亮
 			// 这样可以在应用新样式和设置新选区之前清除旧状态
-			const currentSelection = useAppStore.getState().scoreSelection;
-			console.debug(
-				"[Preview] Clearing scoreSelection before applying new highlight. Current selection:",
-				currentSelection,
-			);
 			useAppStore.getState().clearScoreSelection();
-			console.debug(
-				"[Preview] scoreSelection cleared. New value:",
-				useAppStore.getState().scoreSelection,
-			);
 
 			try {
 				// 🆕 1. 应用新小节曲谱样式（小节号高亮）
@@ -791,10 +746,6 @@ export default function Preview({
 						const isPlaying = useAppStore.getState().playerIsPlaying;
 						if (!isPlaying) {
 							api.tickPosition = startTick;
-							console.debug(
-								"[Preview] Synced player cursor to editor cursor, tickPosition:",
-								startTick,
-							);
 							// 更新 store 中的播放器光标位置
 							useAppStore.getState().setPlayerCursorPosition({
 								barIndex: editorCursor.barIndex,
@@ -802,11 +753,8 @@ export default function Preview({
 							});
 						}
 					}
-				} catch (err) {
-					console.debug(
-						"[Preview] Failed to sync player cursor position:",
-						err,
-					);
+				} catch {
+					// Failed to sync player cursor position
 				}
 
 				// 🆕 3. 选中整个小节（从第一个 beat 到最后一个 beat）
@@ -821,9 +769,6 @@ export default function Preview({
 					// 标记这是由编辑器光标触发的，避免触发 playbackRangeHighlightChanged 时设置 scoreSelection
 					if (typeof api.highlightPlaybackRange === "function") {
 						// 先标记这是由编辑器光标触发的（在调用 API 之前设置，确保事件处理能识别）
-						console.debug(
-							"[Preview] Setting isHighlightFromEditorCursorRef to true before highlightPlaybackRange",
-						);
 						isHighlightFromEditorCursorRef.current = true;
 
 						// 记录这次编辑器光标触发的选区信息，用于后续事件识别
@@ -833,48 +778,17 @@ export default function Preview({
 						};
 
 						// 设置新的高亮范围（这会触发 playbackRangeHighlightChanged 事件）
-						console.debug(
-							"[Preview] Calling highlightPlaybackRange for bar",
-							bar.index,
-							"from beat",
-							firstBeatInBar.index,
-							"to beat",
-							lastBeatInBar.index,
-						);
 						api.highlightPlaybackRange(firstBeatInBar, lastBeatInBar);
-
-						// 检查事件是否已经触发并设置了 scoreSelection
-						const selectionAfterHighlight =
-							useAppStore.getState().scoreSelection;
-						console.debug(
-							"[Preview] After highlightPlaybackRange, scoreSelection:",
-							selectionAfterHighlight,
-							"isHighlightFromEditorCursorRef:",
-							isHighlightFromEditorCursorRef.current,
-						);
 
 						// 延迟重置标志，确保 playbackRangeHighlightChanged 事件能正确识别
 						// 使用更长的延迟，因为 alphaTab 可能在渲染完成后才触发事件
 						setTimeout(() => {
-							console.debug(
-								"[Preview] Resetting isHighlightFromEditorCursorRef to false after delay",
-							);
 							isHighlightFromEditorCursorRef.current = false;
 							// 延迟清除选区记录，给所有事件处理足够时间
 							setTimeout(() => {
 								lastEditorCursorSelectionRef.current = null;
 							}, 100);
 						}, 200);
-
-						console.debug(
-							"[Preview] Highlighted entire bar",
-							bar.index,
-							"from beat",
-							firstBeatInBar.index,
-							"to beat",
-							lastBeatInBar.index,
-							"(from editor cursor)",
-						);
 					}
 
 					// 设置播放范围，使播放完该小节后自动停止
@@ -945,22 +859,9 @@ export default function Preview({
 								startTick: barStartTick,
 								endTick: barEndTick,
 							};
-							console.debug(
-								"[Preview] Set playback range for bar",
-								bar.index,
-								"from tick",
-								barStartTick,
-								"to tick",
-								barEndTick,
-							);
-						} else {
-							console.debug(
-								"[Preview] Could not determine bar tick range, skipping playbackRange",
-								{ barStartTick, barEndTick },
-							);
 						}
-					} catch (err) {
-						console.debug("[Preview] Failed to set playback range:", err);
+					} catch {
+						// Failed to set playback range
 					}
 				}
 
@@ -992,14 +893,11 @@ export default function Preview({
 						}
 					}
 				}
-			} catch (e) {
-				console.debug("[Preview] Failed to sync editor cursor to score:", e);
+			} catch {
+				// Failed to sync editor cursor to score
 			}
 		} else {
 			// 🆕 编辑器光标在无效位置时，清除选区高亮和播放范围
-			console.debug(
-				"[Preview] Editor cursor at invalid position, clearing selection",
-			);
 			useAppStore.getState().clearScoreSelection();
 
 			// 清除播放范围，恢复完整播放
@@ -1015,8 +913,8 @@ export default function Preview({
 						// 如果不行，可以尝试传递相同的 beat 来"重置"
 					}
 				}
-			} catch (err) {
-				console.debug("[Preview] Failed to clear playback range:", err);
+			} catch {
+				// Failed to clear playback range
 			}
 		}
 	}, [editorCursor, applyEditorBarNumberColor]);
@@ -1043,11 +941,7 @@ export default function Preview({
 
 		// 使用 reinitTrigger 触发重新初始化（例如从打印预览返回时）
 		if (reinitTrigger > 0) {
-			console.log(
-				"[Preview] Reinitializing alphaTab API (trigger:",
-				reinitTrigger,
-				")",
-			);
+			// Reinitializing alphaTab API
 		}
 
 		/**
@@ -1065,8 +959,8 @@ export default function Preview({
 						// ignore if property not available
 					}
 				});
-			} catch (e) {
-				console.debug("[Preview] Soundfont event binding failed:", e);
+			} catch {
+				// Soundfont event binding failed
 			}
 
 			// 2. 渲染完成（处理光标，注意：不要修改播放状态）
@@ -1099,8 +993,8 @@ export default function Preview({
 						}
 					}
 					useAppStore.getState().setSongInitialBpm(initialBpm);
-				} catch (e) {
-					console.debug("[Preview] setSongInitialBpm failed:", e);
+				} catch {
+					// setSongInitialBpm failed
 				}
 			});
 
@@ -1210,10 +1104,6 @@ export default function Preview({
 										) {
 											api.tickPosition = startTick;
 											positionSet = true;
-											console.debug(
-												"[Preview] Set tickPosition from tickCache.getBeatStart() to",
-												startTick,
-											);
 										}
 									}
 
@@ -1227,10 +1117,6 @@ export default function Preview({
 											// @ts-expect-error
 											api.tickPosition = firstBeat.playbackStart;
 											positionSet = true;
-											console.debug(
-												"[Preview] Set tickPosition from beat.playbackStart to",
-												firstBeat.playbackStart,
-											);
 										}
 										// @ts-expect-error
 										else if (
@@ -1240,10 +1126,6 @@ export default function Preview({
 											// @ts-expect-error
 											api.tickPosition = firstBeat.displayStart;
 											positionSet = true;
-											console.debug(
-												"[Preview] Set tickPosition from beat.displayStart to",
-												firstBeat.displayStart,
-											);
 										}
 									}
 								} catch (err) {
@@ -1264,9 +1146,6 @@ export default function Preview({
 									// 然后正常播放（可能不会从该位置开始，但至少会高亮）
 									if (typeof api.highlightPlaybackRange === "function") {
 										api.highlightPlaybackRange(firstBeat, firstBeat);
-										console.debug(
-											"[Preview] Set playback range (position not available), playing from start",
-										);
 									}
 									api.play?.();
 								}
@@ -1306,15 +1185,9 @@ export default function Preview({
 								if (api.render) {
 									api.render();
 								}
-								console.debug(
-									"[Preview] Stop button: cleared bar number highlight and re-rendered",
-								);
 							}
-						} catch (err) {
-							console.debug(
-								"[Preview] Failed to clear bar number highlight:",
-								err,
-							);
+						} catch {
+							// Failed to clear bar number highlight
 						}
 
 						// 7. 清除播放范围和高亮范围
@@ -1332,17 +1205,11 @@ export default function Preview({
 									// 如果 API 不支持，忽略错误
 								}
 							}
-						} catch (err) {
-							console.debug("[Preview] Failed to clear playback range:", err);
+						} catch {
+							// Failed to clear playback range
 						}
-
-						console.debug(
-							"[Preview] Stop button: cleared all selection and playback states",
-						);
 					},
 					refresh: () => {
-						console.log("[Preview] Refresh button: clearing and reloading API");
-
 						// 1. 先停止播放并清除所有状态
 						api.stop?.();
 						useAppStore.getState().clearScoreSelection();
@@ -1366,8 +1233,8 @@ export default function Preview({
 							// 取消注册播放器控制
 							try {
 								useAppStore.getState().unregisterPlayerControls();
-							} catch (e) {
-								console.debug("Failed to unregister player controls:", e);
+							} catch {
+								// Failed to unregister player controls
 							}
 
 							// 销毁 API
@@ -1387,10 +1254,6 @@ export default function Preview({
 
 						// 5. 触发重新初始化（通过增加 reinitTrigger）
 						setReinitTrigger((prev) => prev + 1);
-
-						console.debug(
-							"[Preview] Refresh: API destroyed, reinitialization triggered",
-						);
 					},
 					applyPlaybackSpeed: (speed: number) => {
 						try {
@@ -1408,8 +1271,8 @@ export default function Preview({
 					},
 					applyZoom: (pct: number) => applyZoom(pct),
 				});
-			} catch (err) {
-				console.debug("Failed to register player controls:", err);
+			} catch {
+				// Failed to register player controls
 			}
 
 			// 3.6. 点击曲谱时更新播放器光标位置（不播放也能设置）
@@ -1432,22 +1295,8 @@ export default function Preview({
 					const { setScoreSelection, clearScoreSelection } =
 						useAppStore.getState();
 
-					console.debug(
-						"[Preview] playbackRangeHighlightChanged event fired:",
-						{
-							hasStartBeat: !!e.startBeat,
-							hasEndBeat: !!e.endBeat,
-							isHighlightFromEditorCursor:
-								isHighlightFromEditorCursorRef.current,
-							currentScoreSelection: useAppStore.getState().scoreSelection,
-						},
-					);
-
 					// 如果没有选区，清除编辑器高亮
 					if (!e.startBeat || !e.endBeat) {
-						console.debug(
-							"[Preview] No beats in selection, clearing scoreSelection",
-						);
 						clearScoreSelection();
 						return;
 					}
@@ -1462,14 +1311,6 @@ export default function Preview({
 						startBeatScore !== currentScore ||
 						endBeatScore !== currentScore
 					) {
-						console.debug(
-							"[Preview] Beats belong to different score, clearing scoreSelection",
-							{
-								hasCurrentScore: !!currentScore,
-								startBeatScoreMatches: startBeatScore === currentScore,
-								endBeatScoreMatches: endBeatScore === currentScore,
-							},
-						);
 						clearScoreSelection();
 						return;
 					}
@@ -1489,25 +1330,8 @@ export default function Preview({
 							endBarIndex === lastEditorCursorSelectionRef.current.endBarIndex);
 
 					if (isFromEditorCursor) {
-						console.debug(
-							"[Preview] Selection changed from editor cursor, clearing scoreSelection and skipping update",
-							{
-								startBarIndex,
-								endBarIndex,
-								isHighlightFromEditorCursor:
-									isHighlightFromEditorCursorRef.current,
-								matchesLastEditorSelection:
-									lastEditorCursorSelectionRef.current?.startBarIndex ===
-									startBarIndex,
-							},
-						);
 						// 确保清除选区，防止残留
 						clearScoreSelection();
-						const afterClear = useAppStore.getState().scoreSelection;
-						console.debug(
-							"[Preview] After clearScoreSelection in event handler:",
-							afterClear,
-						);
 						return;
 					}
 
@@ -1535,11 +1359,8 @@ export default function Preview({
 						endBeatIndex,
 					});
 				});
-			} catch (e) {
-				console.debug(
-					"[Preview] playbackRangeHighlightChanged not available (requires alphaTab 1.8.0+):",
-					e,
-				);
+			} catch {
+				// playbackRangeHighlightChanged not available (requires alphaTab 1.8.0+)
 			}
 
 			// 4. 改进的错误处理：保留上一次成功的渲染
@@ -1675,13 +1496,6 @@ export default function Preview({
 						colors,
 					});
 
-					console.log("[Preview] AlphaTab initialization:", {
-						containerWidth: el.offsetWidth,
-						containerHeight: el.offsetHeight,
-						scale: zoomRef.current / 100,
-						layoutMode: alphaTab.LayoutMode[alphaTab.LayoutMode.Page],
-					});
-
 					apiRef.current = new alphaTab.AlphaTabApi(el, settings);
 					bumpApiInstanceId();
 
@@ -1692,8 +1506,8 @@ export default function Preview({
 					try {
 						apiRef.current.playbackSpeed = playbackSpeedRef.current;
 						apiRef.current.metronomeVolume = metronomeVolumeRef.current;
-					} catch (err) {
-						console.debug("Failed to apply initial speed/metronome:", err);
+					} catch {
+						// Failed to apply initial speed/metronome
 					}
 
 					// 4. 附加监听器
@@ -1702,9 +1516,6 @@ export default function Preview({
 					// 5. 设置主题监听器（监听暗色模式变化）
 					const unsubscribeTheme = setupThemeObserver(() => {
 						// 当主题变化时，重建 API 以应用新的颜色配置
-						console.log(
-							"[Preview] Theme changed, rebuilding alphaTab with new colors",
-						);
 
 						if (apiRef.current && latestContentRef.current) {
 							// 使用 void 操作符确保异步操作在后台执行（不阻塞回调）
@@ -1720,10 +1531,7 @@ export default function Preview({
 												showSlash: st.showSlash,
 												showNumbered: st.showNumbered,
 											};
-											console.log(
-												"[Preview] Saved tracks config before rebuild:",
-												trackConfigRef.current,
-											);
+											// Saved tracks config before rebuild
 										}
 									}
 
@@ -1763,11 +1571,8 @@ export default function Preview({
 									try {
 										apiRef.current.playbackSpeed = playbackSpeedRef.current;
 										apiRef.current.metronomeVolume = metronomeVolumeRef.current;
-									} catch (err) {
-										console.debug(
-											"Failed to reapply speed/metronome after rebuild:",
-											err,
-										);
+									} catch {
+										// Failed to reapply speed/metronome after rebuild
 									}
 
 									// 🆕 附加所有监听器（包括 scoreLoaded, error, playback 等）
@@ -1812,9 +1617,6 @@ export default function Preview({
 											syncError,
 										);
 									}
-									console.log(
-										"[Preview] alphaTab rebuilt with new theme colors",
-									);
 								} catch (e) {
 									console.error(
 										"[Preview] Failed to rebuild alphaTab after theme change:",
@@ -1833,19 +1635,12 @@ export default function Preview({
 					// 6. 加载音频字体
 					try {
 						await loadSoundFontFromUrl(apiRef.current, urls.soundFontUrl);
-					} catch (err) {
-						console.debug(
-							"[Preview] Could not load soundfont (this is optional):",
-							err,
-						);
+					} catch {
+						// Could not load soundfont (this is optional)
 					}
 				} // 7. 设置内容
 				if (apiRef.current && latestContentRef.current) {
 					try {
-						console.log(
-							"[Preview] Setting alphaTex content, length:",
-							latestContentRef.current.length,
-						);
 						// Track pending tex call so we can detect parse failures even
 						// if alphaTab doesn't emit an error event in some cases.
 						texSeqRef.current += 1;
@@ -1951,10 +1746,6 @@ export default function Preview({
 
 		if (content) {
 			try {
-				console.log(
-					"[Preview] Updating alphaTex content, length:",
-					content.length,
-				);
 				texSeqRef.current += 1;
 				const seq = texSeqRef.current;
 				pendingTexRef.current = { id: seq, content };
@@ -2006,7 +1797,7 @@ export default function Preview({
 	useEffect(() => {
 		if (showPrintPreview) {
 			// 打开打印预览：销毁当前 API 释放资源（特别是字体缓存）
-			console.log("[Preview] Destroying API for print preview");
+			// Destroying API for print preview
 			if (apiRef.current) {
 				// 清理主题观察者
 				const unsubscribeTheme = (
@@ -2018,8 +1809,8 @@ export default function Preview({
 				// Unregister controls from store so bottom bar won't call destroyed API
 				try {
 					useAppStore.getState().unregisterPlayerControls();
-				} catch (e) {
-					console.debug("Failed to unregister player controls:", e);
+				} catch {
+					// Failed to unregister player controls
 				}
 				apiRef.current.destroy();
 				apiRef.current = null;
@@ -2029,9 +1820,6 @@ export default function Preview({
 			}
 		} else if (!showPrintPreview && !apiRef.current) {
 			// 关闭打印预览：延迟重新初始化 API，确保 PrintPreview 完全卸载
-			console.log(
-				"[Preview] Scheduling API reinitialization after print preview",
-			);
 			const timer = setTimeout(() => {
 				setReinitTrigger((prev) => prev + 1);
 			}, 150);

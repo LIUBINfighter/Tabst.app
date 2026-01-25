@@ -98,7 +98,6 @@ export function parseBeatPositionsAST(text: string): ParseResult {
 		const scoreNode = parser.read();
 
 		if (!scoreNode || !scoreNode.bars) {
-			console.debug("[parseBeatPositionsAST] No bars found in AST");
 			return { beats, contentStart };
 		}
 
@@ -158,9 +157,6 @@ export function parseBeatPositionsAST(text: string): ParseResult {
 				// 🆕 关键修复：验证 offset 不超出文本长度
 				const textLength = text.length;
 				if (startOffset >= textLength) {
-					console.debug(
-						`[parseBeatPositionsAST] Skip beat: startOffset ${startOffset} >= textLength ${textLength}`,
-					);
 					continue;
 				}
 				if (endOffset > textLength) {
@@ -201,9 +197,6 @@ export function parseBeatPositionsAST(text: string): ParseResult {
 			}
 		}
 
-		console.debug(
-			`[parseBeatPositionsAST] Parsed ${beats.length} beats from AST`,
-		);
 		return { beats, contentStart };
 	} catch (err) {
 		console.warn(
@@ -231,7 +224,6 @@ export function parseBeatPositions(text: string): ParseResult {
 	}
 
 	// 使用后备的自定义解析器
-	console.debug("[parseBeatPositions] Using legacy parser");
 	return parseBeatPositionsLegacy(text);
 }
 
@@ -744,12 +736,8 @@ export function mapSelectionToCodeRange(
 	const { beats } = parseBeatPositions(text);
 
 	if (beats.length === 0) {
-		console.debug("[mapSelectionToCodeRange] No beats found");
 		return null;
 	}
-
-	console.debug("[mapSelectionToCodeRange] Selection:", selection);
-	console.debug("[mapSelectionToCodeRange] Available beats:", beats.length);
 
 	// 查找起始 Beat
 	let startBeat = beats.find(
@@ -800,25 +788,14 @@ export function mapSelectionToCodeRange(
 	}
 
 	if (!startBeat || !endBeat) {
-		console.debug("[mapSelectionToCodeRange] Could not find beats");
 		return null;
 	}
-
-	console.debug("[mapSelectionToCodeRange] Found beats:", {
-		startBeat,
-		endBeat,
-	});
 
 	// 🆕 验证范围有效性
 	const from = startBeat.startOffset;
 	const to = endBeat.endOffset;
 
 	if (from < 0 || to < 0 || from >= to || to > text.length) {
-		console.debug("[mapSelectionToCodeRange] Invalid range:", {
-			from,
-			to,
-			textLength: text.length,
-		});
 		return null;
 	}
 
@@ -961,12 +938,8 @@ export const selectionHighlightField = StateField.define<DecorationSet>({
 		if (tr.docChanged) {
 			try {
 				return highlights.map(tr.changes);
-			} catch (err) {
+			} catch {
 				// 映射失败（文档变化太大），清除高亮
-				console.debug(
-					"[SelectionSync] Failed to map highlights, clearing",
-					err,
-				);
 				return Decoration.none;
 			}
 		}
@@ -1053,11 +1026,7 @@ export const playbackBarHighlightField = StateField.define<DecorationSet>({
 		if (tr.docChanged) {
 			try {
 				return highlights.map(tr.changes);
-			} catch (err) {
-				console.debug(
-					"[SelectionSync] Failed to map playback bar highlights, clearing",
-					err,
-				);
+			} catch {
 				return Decoration.none;
 			}
 		}
@@ -1148,18 +1117,12 @@ export function updateEditorSelectionHighlight(
 	text: string,
 	selection: ScoreSelectionInfo | null,
 ): void {
-	console.debug(
-		"[SelectionSync] updateEditorSelectionHighlight called:",
-		selection,
-	);
 	if (!selection) {
-		console.debug("[SelectionSync] Selection is null, clearing highlight");
 		safeDispatch(view, setSelectionHighlightEffect.of(null));
 		return;
 	}
 
 	const codeRange = mapSelectionToCodeRange(text, selection);
-	console.debug("[SelectionSync] Mapped selection to codeRange:", codeRange);
 	safeDispatch(view, setSelectionHighlightEffect.of(codeRange));
 }
 
@@ -1211,13 +1174,6 @@ export function createCursorTrackingExtension(
 			}
 
 			lastEmitted = next;
-			console.debug("[EditorCursor] Emit bar update:", {
-				line: next.line,
-				column: next.column,
-				barIndex: next.barIndex,
-				beatIndex: next.beatIndex,
-				fromDocChange: next.fromDocChange,
-			});
 			onCursorChange(next);
 		});
 	});
@@ -1284,12 +1240,8 @@ export const playbackHighlightField = StateField.define<DecorationSet>({
 		if (tr.docChanged) {
 			try {
 				return highlights.map(tr.changes);
-			} catch (err) {
+			} catch {
 				// 映射失败（文档变化太大），清除高亮
-				console.debug(
-					"[SelectionSync] Failed to map playback highlights, clearing",
-					err,
-				);
 				return Decoration.none;
 			}
 		}

@@ -91,8 +91,10 @@ export default function PrintPreview({
 
 	// 计算打印区域尺寸
 	const marginMm = 15;
-	const { contentWidthMm, contentHeightMm, contentWidthPx, contentHeightPx } =
-		calculateContentDimensions(pageSize, marginMm);
+	const { contentWidthPx, contentHeightPx } = calculateContentDimensions(
+		pageSize,
+		marginMm,
+	);
 
 	/**
 	 * 将 SVG 内容分割成多个页面
@@ -181,27 +183,6 @@ export default function PrintPreview({
 				stretchForce,
 			});
 
-			console.log("[PrintPreview] Initialization params:", {
-				containerWidth: contentWidthPx,
-				pageSize: pageSize.name,
-				pageSizeMm: `${pageSize.width}×${pageSize.height}`,
-				contentSizeMm: `${contentWidthMm}×${contentHeightMm}`,
-				contentSizePx: `${contentWidthPx}×${contentHeightPx}`,
-				scale: (settings.display as { scale: number }).scale,
-				barsPerRow,
-				stretchForce,
-				layoutMode:
-					alphaTab.LayoutMode[
-						(settings.display as { layoutMode: alphaTab.LayoutMode }).layoutMode
-					],
-			});
-
-			console.log("[PrintPreview] AlphaTab settings:", {
-				scale: (settings.display as { scale: number }).scale,
-				layoutMode: (settings.display as { layoutMode: alphaTab.LayoutMode })
-					.layoutMode,
-			});
-
 			// 销毁旧的 API
 			if (apiRef.current) {
 				apiRef.current.destroy();
@@ -213,12 +194,9 @@ export default function PrintPreview({
 				alphaTabContainerRef.current,
 				settings,
 			);
-			console.log("[PrintPreview] AlphaTab API created");
 
 			// 监听渲染完成事件
 			apiRef.current.renderFinished.on(() => {
-				console.log("[PrintPreview] AlphaTab render finished");
-
 				// 渲染完成后进行分页
 				setTimeout(() => {
 					handlePaginate();
@@ -243,18 +221,7 @@ export default function PrintPreview({
 			setError(err instanceof Error ? err.message : "初始化失败");
 			setIsLoading(false);
 		}
-	}, [
-		content,
-		contentWidthPx,
-		handlePaginate,
-		contentWidthMm,
-		contentHeightMm,
-		contentHeightPx,
-		pageSize,
-		zoom,
-		barsPerRow,
-		stretchForce,
-	]);
+	}, [content, contentWidthPx, handlePaginate, zoom, barsPerRow, stretchForce]);
 
 	/**
 	 * 处理打印/导出 PDF
@@ -275,8 +242,6 @@ export default function PrintPreview({
 			fontUrl.startsWith("http") || fontUrl.startsWith("file:")
 				? fontUrl
 				: new URL(fontUrl, window.location.href).toString();
-
-		console.log("[PrintPreview] Print window font URL:", absoluteFontUrl);
 
 		// 生成所有页面的 HTML - pages 已经是完整的 outerHTML
 		const pagesHtml = pages
@@ -379,7 +344,6 @@ export default function PrintPreview({
 		printWindow.onload = () => {
 			// 检查字体是否已加载
 			const fontName = printFontName || "Bravura";
-			console.log("[PrintPreview] Checking font load status:", fontName);
 
 			// 使用 document.fonts API 检查字体加载状态
 			if (printWindow.document.fonts?.check) {
@@ -387,7 +351,6 @@ export default function PrintPreview({
 					const fontLoaded = printWindow.document.fonts.check(
 						`34px "${fontName}"`,
 					);
-					console.log("[PrintPreview] Font loaded:", fontLoaded);
 
 					if (fontLoaded) {
 						// 字体已加载，延迟一点以确保渲染完成
@@ -402,7 +365,6 @@ export default function PrintPreview({
 						// 等待字体加载
 						printWindow.document.fonts.ready
 							.then(() => {
-								console.log("[PrintPreview] All fonts ready");
 								setTimeout(() => {
 									printWindow.focus();
 									printWindow.print();
@@ -463,16 +425,13 @@ export default function PrintPreview({
 
 	// 延迟初始化：确保 Preview 的 API 已完全销毁和资源释放
 	useEffect(() => {
-		console.log("[PrintPreview] Scheduling delayed initialization");
 		const delayedInit = setTimeout(() => {
-			console.log("[PrintPreview] Starting delayed initialization");
 			initAlphaTab();
 		}, 200); // 延迟 200ms 确保 Preview API 完全销毁
 
 		return () => {
 			clearTimeout(delayedInit);
 			if (apiRef.current) {
-				console.log("[PrintPreview] Cleanup: destroying API");
 				apiRef.current.destroy();
 				apiRef.current = null;
 			}
@@ -487,12 +446,6 @@ export default function PrintPreview({
 
 		const loadFont = async () => {
 			try {
-				console.log(
-					"[PrintPreview] Loading print font:",
-					printFontUrl,
-					printFontName,
-				);
-
 				// 使用 FontFace API 加载打印字体
 				const font = new FontFace(
 					printFontName,
@@ -509,7 +462,6 @@ export default function PrintPreview({
 				printFontFaceRef.current = font;
 				if (!cancelled) {
 					setFontLoaded(true);
-					console.log("[PrintPreview] Print Bravura font loaded successfully");
 				}
 			} catch (err) {
 				console.warn("[PrintPreview] Failed to load print Bravura font:", err);
@@ -551,8 +503,6 @@ export default function PrintPreview({
 	// zoom 缩放变化时更新设置并重新渲染
 	useEffect(() => {
 		if (apiRef.current && !isLoadingRef.current) {
-			console.log("[PrintPreview] Zoom changed to:", zoom);
-
 			// 更新 scale 设置
 			if (apiRef.current.settings.display) {
 				(apiRef.current.settings.display as { scale: number }).scale = zoom;
@@ -572,11 +522,6 @@ export default function PrintPreview({
 	// barsPerRow 和 stretchForce 变化时更新设置并重新渲染
 	useEffect(() => {
 		if (apiRef.current && !isLoadingRef.current) {
-			console.log("[PrintPreview] Layout settings changed:", {
-				barsPerRow,
-				stretchForce,
-			});
-
 			// 更新布局设置
 			if (apiRef.current.settings.display) {
 				(apiRef.current.settings.display as { barsPerRow: number }).barsPerRow =
@@ -619,7 +564,6 @@ export default function PrintPreview({
 	// 组件卸载时清理 injected style/FontFace 以及 API
 	useEffect(() => {
 		return () => {
-			console.log("[PrintPreview] Unmount cleanup");
 			try {
 				if (apiRef.current) {
 					apiRef.current.destroy();
