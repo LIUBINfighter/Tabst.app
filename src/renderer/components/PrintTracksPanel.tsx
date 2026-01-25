@@ -34,27 +34,27 @@ interface TrackConfig {
 }
 
 export interface PrintTracksPanelProps {
-	/** AlphaTab API 实例 */
+	/** AlphaTab API instance */
 	api: AlphaTab.AlphaTabApi | null;
-	/** 面板是否打开 */
+	/** Whether panel is open */
 	isOpen: boolean;
-	/** 关闭面板回调 */
+	/** Callback to close panel */
 	onClose: () => void;
-	/** 音轨选择变化回调 */
+	/** Callback when track selection changes */
 	onTracksChange?: (tracks: AlphaTab.model.Track[]) => void;
-	/** 当前缩放值 */
+	/** Current zoom value */
 	zoom?: number;
-	/** 缩放变化回调 */
-	onZoomChange?: (zoom: number) => void /** 每行小节数 */;
+	/** Callback when zoom changes */
+	onZoomChange?: (zoom: number) => void;
+	/** Number of bars per row */
 	barsPerRow?: number;
-	/** 每行小节数变化回调 */
+	/** Callback when bars per row changes */
 	onBarsPerRowChange?: (barsPerRow: number) => void;
-	/** 音符间距拉伸力度 */
+	/** Note spacing stretch force */
 	stretchForce?: number;
-	/** 音符间距拉伸力度变化回调 */
-	onStretchForceChange?: (
-		stretchForce: number,
-	) => void /** 应用配置回调 - 在 render 之前调用，返回选中的音轨列表 */;
+	/** Callback when stretch force changes */
+	onStretchForceChange?: (stretchForce: number) => void;
+	/** Apply configuration callback - called before render, returns selected track list */
 	onApplyStaffOptionsReady?: (applyFn: () => AlphaTab.model.Track[]) => void;
 }
 
@@ -84,8 +84,6 @@ export function PrintTracksPanel({
 	useEffect(() => {
 		if (!api?.score || isInitialized) return;
 
-		console.log("[PrintTracksPanel] 初始化配置");
-
 		const selectedIndices = new Set(api.tracks.map((t) => t.index));
 
 		const configs: TrackConfig[] = api.score.tracks.map((track) => ({
@@ -113,8 +111,6 @@ export function PrintTracksPanel({
 	const applyConfigsToAlphaTab = useCallback((): AlphaTab.model.Track[] => {
 		const score = api?.score;
 		if (!score) return [];
-
-		console.log("[PrintTracksPanel] 应用配置到 AlphaTab");
 
 		// 1. 先应用所有 staff 配置
 		trackConfigs.forEach((config) => {

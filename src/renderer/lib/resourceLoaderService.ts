@@ -32,7 +32,6 @@ export async function getResourceUrls(): Promise<ResourceUrls> {
 		}
 
 		const href = window.location.href;
-		console.log("[ResourceLoaderService] Current page URL:", href);
 
 		try {
 			// 打包环境：Electron 使用 file:// 协议加载 HTML
@@ -42,9 +41,6 @@ export async function getResourceUrls(): Promise<ResourceUrls> {
 			if (href.startsWith("file:")) {
 				// 方案 1：相对路径向上两级（从 dist/src/renderer/ → dist/）
 				const url = new URL(`../../${assetPath}`, href).toString();
-				console.log(
-					`[ResourceLoaderService] File protocol detected, using relative URL: ${url}`,
-				);
 				return url;
 			}
 
@@ -53,9 +49,6 @@ export async function getResourceUrls(): Promise<ResourceUrls> {
 			// 此时用绝对路径 /assets/... 相对于 HTTP 根目录
 			const baseUrl = new URL("/", href);
 			const url = new URL(assetPath, baseUrl).toString();
-			console.log(
-				`[ResourceLoaderService] HTTP protocol detected, using absolute URL: ${url}`,
-			);
 			return url;
 		} catch (err) {
 			console.warn(
@@ -88,13 +81,6 @@ export async function getResourceUrls(): Promise<ResourceUrls> {
 			.DEV === true;
 
 	if (isDev) {
-		console.log("[ResourceLoaderService] Resource URLs:", {
-			workerUrl,
-			bravuraFontUrl,
-			bravuraFontDirectory,
-			soundFontUrl,
-		});
-
 		// 验证 worker 脚本是否可访问（开发环境）
 		try {
 			const response = await fetch(workerUrl, { method: "HEAD" });
@@ -103,7 +89,6 @@ export async function getResourceUrls(): Promise<ResourceUrls> {
 					`[ResourceLoaderService] ⚠️ Worker script may not be accessible: ${workerUrl} (${response.status})`,
 				);
 			} else {
-				console.log("[ResourceLoaderService] ✅ Worker script is accessible");
 			}
 		} catch (error) {
 			console.warn(

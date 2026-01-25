@@ -93,7 +93,7 @@ export default function GlobalBottomBar() {
 			<footer className="h-9 border-t border-border bg-card flex items-center justify-between px-4 text-xs text-muted-foreground flex-shrink-0 w-full">
 				{/* Left: app status */}
 				<div className="flex items-center gap-3">
-					<span className="font-medium">Tabst</span>
+					<span className="font-medium">Tabst@JayBridge</span>
 				</div>
 
 				{/* Right: Controls area */}

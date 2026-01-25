@@ -42,8 +42,6 @@ export function paginateContent(
 	pageHeightPx: number,
 	contentWidthPx: number,
 ): PaginationResult {
-	console.log("[Pagination] Starting pagination...");
-
 	// 获取 alphaTab 渲染的内容容器
 	const svgWrapper = container.querySelector(
 		".at-surface",
@@ -56,7 +54,6 @@ export function paginateContent(
 
 	// 获取所有子元素并解析它们的位置
 	const children = Array.from(svgWrapper.children) as HTMLElement[];
-	console.log("[Pagination] Total children:", children.length);
 
 	if (children.length === 0) {
 		return { pages: [svgWrapper.innerHTML], totalPages: 1 };
@@ -79,25 +76,8 @@ export function paginateContent(
 	// 按 top 值排序
 	elementsInfo.sort((a, b) => a.top - b.top);
 
-	console.log(
-		"[Pagination] Elements info (first 10):",
-		elementsInfo.slice(0, 10).map((e) => ({
-			tagName: e.element.tagName,
-			className: e.element.className,
-			top: e.top,
-			height: e.height,
-			bottom: e.bottom,
-		})),
-	);
-
 	// 检查是否有负的 top 值
 	const minTop = Math.min(...elementsInfo.map((e) => e.top));
-	const maxBottom = Math.max(...elementsInfo.map((e) => e.bottom));
-	console.log("[Pagination] Y-axis range:", {
-		minTop,
-		maxBottom,
-		totalHeight: maxBottom - minTop,
-	});
 
 	// 计算页面高度（像素）
 	const pagesList: string[] = [];
@@ -179,8 +159,6 @@ export function paginateContent(
 		wrapper.innerHTML = svgWrapper.innerHTML;
 		pagesList.push(wrapper.outerHTML);
 	}
-
-	console.log("[Pagination] Pagination complete:", pagesList.length, "pages");
 
 	return {
 		pages: pagesList,

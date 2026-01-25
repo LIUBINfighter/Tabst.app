@@ -80,11 +80,6 @@ export function applyColorsToApi(
 	resources.barSeparatorColor = colors.barSeparatorColor;
 	resources.barNumberColor = colors.barNumberColor;
 	resources.scoreInfoColor = colors.scoreInfoColor;
-
-	console.log(
-		"[ThemeManager] Applied colors to alphaTab:",
-		document.documentElement.classList.contains("dark") ? "dark" : "light",
-	);
 }
 
 /**
@@ -99,12 +94,7 @@ export function updateAlphaTabColorsForTheme(
 		return;
 	}
 
-	const isDarkMode = document.documentElement.classList.contains("dark");
 	const colors = getAlphaTabColorsForTheme();
-
-	console.log(
-		`[ThemeManager] Updating alphaTab colors for ${isDarkMode ? "dark" : "light"} theme`,
-	);
 
 	// 直接修改 resources 对象
 	applyColorsToApi(api, colors);
@@ -114,11 +104,6 @@ export function updateAlphaTabColorsForTheme(
 		// 调用 render() 以应用新的颜色设置
 		// 在修改了 resources 后，render() 会使用新的颜色
 		api.render();
-		console.log("[ThemeManager] Colors updated and rendered");
-	} else {
-		console.log(
-			"[ThemeManager] Colors updated (no score loaded yet, render will happen when score loads)",
-		);
 	}
 }
 
@@ -128,7 +113,6 @@ export function updateAlphaTabColorsForTheme(
  */
 export function setupThemeObserver(onThemeChange: () => void): () => void {
 	const observer = new MutationObserver(() => {
-		console.log("[ThemeManager] Theme class changed, triggering callback");
 		onThemeChange();
 	});
 
@@ -137,11 +121,8 @@ export function setupThemeObserver(onThemeChange: () => void): () => void {
 		attributeFilter: ["class"],
 	});
 
-	console.log("[ThemeManager] Theme observer initialized");
-
 	// 返回清理函数
 	return () => {
 		observer.disconnect();
-		console.log("[ThemeManager] Theme observer disconnected");
 	};
 }

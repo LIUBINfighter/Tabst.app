@@ -29,28 +29,28 @@ import {
 } from "./ui/tooltip";
 
 export interface PrintPreviewProps {
-	/** AlphaTex 内容 */
+	/** AlphaTex content */
 	content: string;
-	/** 文件名（用于显示和 PDF 文件名） */
+	/** File name (for display and PDF file name) */
 	fileName?: string;
-	/** 关闭预览的回调 */
+	/** Callback to close preview */
 	onClose: () => void;
 }
 
-// 页面尺寸和相关常量已在 print-utils.ts 中定义
+// Page size and related constants are defined in print-utils.ts
 
 /**
- * PrintPreview 组件
+ * PrintPreview Component
  *
- * 在一个模态窗口中渲染 alphaTab 曲谱，并提供打印预览和 PDF 导出功能。
- * 使用固定宽度确保 alphaTab 正确换行，然后通过 CSS @page 规则进行打印分页。
+ * Renders alphaTab score in a modal window and provides print preview and PDF export functionality.
+ * Uses fixed width to ensure alphaTab wraps correctly, then uses CSS @page rules for print pagination.
  */
 export default function PrintPreview({
 	content,
 	fileName = "曲谱",
 	onClose,
 }: PrintPreviewProps) {
-	// 状态
+	// State
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const [currentPage, setCurrentPage] = useState(1);
@@ -61,21 +61,21 @@ export default function PrintPreview({
 	const [_fontLoaded, setFontLoaded] = useState(false);
 	const [fontError, setFontError] = useState(false);
 
-	// 打印时使用的专用字体名与 URL（动态，带时间戳）
+	// Dedicated font name and URL for printing (dynamic, with timestamp)
 	const [printFontName, setPrintFontName] = useState<string>("");
 	const [printFontUrl, setPrintFontUrl] = useState<string>("");
 
-	// 音轨选择侧边栏状态
+	// Track selection sidebar state
 	const [isTracksPanelOpen, setIsTracksPanelOpen] = useState(true);
 
-	// 缩放比例状态
+	// Zoom scale state
 	const [zoom, setZoom] = useState(1.0);
 
-	// 布局配置状态
-	const [barsPerRow, setBarsPerRow] = useState(-1); // -1 表示自动模式
-	const [stretchForce, setStretchForce] = useState(1.0); // 音符间距拉伸力度
+	// Layout configuration state
+	const [barsPerRow, setBarsPerRow] = useState(-1); // -1 means auto mode
+	const [stretchForce, setStretchForce] = useState(1.0); // Note spacing stretch force
 
-	// 保存 applyStaffOptions 的引用，供 zoom 变化时使用
+	// Store applyStaffOptions reference for use when zoom changes
 	const applyStaffOptionsRef = useRef<(() => void) | null>(null);
 
 	const printStyleRef = useRef<HTMLStyleElement | null>(null);
@@ -89,13 +89,15 @@ export default function PrintPreview({
 	const pageSizeRef = useRef(pageSize);
 	pageSizeRef.current = pageSize;
 
-	// 计算打印区域尺寸
+	// Calculate print area dimensions
 	const marginMm = 15;
-	const { contentWidthMm, contentHeightMm, contentWidthPx, contentHeightPx } =
-		calculateContentDimensions(pageSize, marginMm);
+	const { contentWidthPx, contentHeightPx } = calculateContentDimensions(
+		pageSize,
+		marginMm,
+	);
 
 	/**
-	 * 将 SVG 内容分割成多个页面
+	 * Split SVG content into multiple pages
 	 */
 	const handlePaginate = useCallback(() => {
 		if (!alphaTabContainerRef.current) {
@@ -103,7 +105,7 @@ export default function PrintPreview({
 			return;
 		}
 
-		// 使用工具函数进行分页
+		// Use utility function for pagination
 		const result = paginateContent(
 			alphaTabContainerRef.current,
 			contentHeightPx,
@@ -117,7 +119,7 @@ export default function PrintPreview({
 	}, [contentHeightPx, contentWidthPx]);
 
 	/**
-	 * 初始化 alphaTab 并渲染曲谱
+	 * Initialize alphaTab and render score
 	 */
 
 	const initAlphaTab = useCallback(async () => {
@@ -129,17 +131,17 @@ export default function PrintPreview({
 
 			const urls = await getResourceUrls();
 
-			// 使用稳定的字体 URL（不再使用时间戳），并使用简洁的打印字体名
+			// Use stable font URL (no longer using timestamp) and concise print font name
 			const fontUrl = urls.bravuraFontUrl;
 			const fontName = `Bravura-Print`;
 			setBravuraFontUrl(fontUrl);
 			setPrintFontName(fontName);
 			setPrintFontUrl(fontUrl);
 
-			// 设置容器宽度
+			// Set container width
 			alphaTabContainerRef.current.style.width = `${contentWidthPx}px`;
 
-			// 注入打印专用 @font-face 及字体覆盖，确保 AlphaTab 在测量时使用该字体名
+			// Inject print-specific @font-face and font overrides to ensure AlphaTab uses this font name when measuring
 			try {
 				if (printStyleRef.current?.parentElement) {
 					printStyleRef.current.parentElement.removeChild(
@@ -148,7 +150,7 @@ export default function PrintPreview({
 					printStyleRef.current = null;
 				}
 				const styleEl = document.createElement("style");
-				// 必须设置 .at 的 font-size: 34px，这是 alphaTab 的 MusicFontSize 常量
+				// Must set .at font-size: 34px, this is alphaTab's MusicFontSize constant
 				styleEl.textContent = `
 					@font-face {
 						font-family: '${fontName}';
@@ -173,7 +175,7 @@ export default function PrintPreview({
 				console.warn("[PrintPreview] Failed to inject print font style:", e);
 			}
 
-			// 使用工具函数创建打印配置
+			// Use utility function to create print configuration
 			const settings = createPrintSettings(urls as ResourceUrls, {
 				scale: 1.0,
 				zoom,
@@ -181,51 +183,27 @@ export default function PrintPreview({
 				stretchForce,
 			});
 
-			console.log("[PrintPreview] Initialization params:", {
-				containerWidth: contentWidthPx,
-				pageSize: pageSize.name,
-				pageSizeMm: `${pageSize.width}×${pageSize.height}`,
-				contentSizeMm: `${contentWidthMm}×${contentHeightMm}`,
-				contentSizePx: `${contentWidthPx}×${contentHeightPx}`,
-				scale: (settings.display as { scale: number }).scale,
-				barsPerRow,
-				stretchForce,
-				layoutMode:
-					alphaTab.LayoutMode[
-						(settings.display as { layoutMode: alphaTab.LayoutMode }).layoutMode
-					],
-			});
-
-			console.log("[PrintPreview] AlphaTab settings:", {
-				scale: (settings.display as { scale: number }).scale,
-				layoutMode: (settings.display as { layoutMode: alphaTab.LayoutMode })
-					.layoutMode,
-			});
-
-			// 销毁旧的 API
+			// Destroy old API
 			if (apiRef.current) {
 				apiRef.current.destroy();
 				apiRef.current = null;
 			}
 
-			// 创建新的 AlphaTab API（使用隔离的设置）
+			// Create new AlphaTab API (using isolated settings)
 			apiRef.current = new alphaTab.AlphaTabApi(
 				alphaTabContainerRef.current,
 				settings,
 			);
-			console.log("[PrintPreview] AlphaTab API created");
 
-			// 监听渲染完成事件
+			// Listen to render finished event
 			apiRef.current.renderFinished.on(() => {
-				console.log("[PrintPreview] AlphaTab render finished");
-
-				// 渲染完成后进行分页
+				// Paginate after rendering completes
 				setTimeout(() => {
 					handlePaginate();
 				}, 200);
 			});
 
-			// 监听错误事件
+			// Listen to error event
 			apiRef.current.error.on((err: unknown) => {
 				console.error("[PrintPreview] AlphaTab error:", err);
 				setError(
@@ -236,49 +214,36 @@ export default function PrintPreview({
 				setIsLoading(false);
 			});
 
-			// 加载内容
+			// Load content
 			apiRef.current.tex(content);
 		} catch (err) {
 			console.error("[PrintPreview] Failed to initialize:", err);
-			setError(err instanceof Error ? err.message : "初始化失败");
+			setError(err instanceof Error ? err.message : "Initialization failed");
 			setIsLoading(false);
 		}
-	}, [
-		content,
-		contentWidthPx,
-		handlePaginate,
-		contentWidthMm,
-		contentHeightMm,
-		contentHeightPx,
-		pageSize,
-		zoom,
-		barsPerRow,
-		stretchForce,
-	]);
+	}, [content, contentWidthPx, handlePaginate, zoom, barsPerRow, stretchForce]);
 
 	/**
-	 * 处理打印/导出 PDF
+	 * Handle print/export PDF
 	 */
 	const handlePrint = useCallback(() => {
 		if (pages.length === 0) return;
 
-		// 创建打印专用窗口
+		// Create print-specific window
 		const printWindow = window.open("", "_blank");
 		if (!printWindow) {
-			alert("无法打开打印窗口，请检查浏览器设置");
+			alert("Unable to open print window, please check browser settings");
 			return;
 		}
 
-		// 🔧 确保字体 URL 是绝对路径（对于新窗口很重要）
+		// Ensure font URL is absolute path (important for new window)
 		const fontUrl = printFontUrl || bravuraFontUrl;
 		const absoluteFontUrl =
 			fontUrl.startsWith("http") || fontUrl.startsWith("file:")
 				? fontUrl
 				: new URL(fontUrl, window.location.href).toString();
 
-		console.log("[PrintPreview] Print window font URL:", absoluteFontUrl);
-
-		// 生成所有页面的 HTML - pages 已经是完整的 outerHTML
+		// Generate HTML for all pages - pages already contain complete outerHTML
 		const pagesHtml = pages
 			.map(
 				(pageContent, index) => `
@@ -289,7 +254,7 @@ export default function PrintPreview({
 			)
 			.join("");
 
-		// 写入打印文档
+		// Write print document
 		printWindow.document.write(`
 			<!DOCTYPE html>
 			<html>
@@ -344,7 +309,7 @@ export default function PrintPreview({
 						display: block;
 					}
 					
-					/* 🔧 音乐符号字体样式 - alphaTab 需要这个来正确渲染 Bravura 字体 */
+					/* Music symbol font style - alphaTab needs this to correctly render Bravura font */
 					.at-surface .at,
 					.at-surface-svg .at {
 						font-family: '${printFontName || "Bravura"}', 'Bravura', 'alphaTab', sans-serif !important;
@@ -375,22 +340,20 @@ export default function PrintPreview({
 		`);
 		printWindow.document.close();
 
-		// 🔧 等待字体和内容加载完成后再打印
+		// Wait for font and content to load before printing
 		printWindow.onload = () => {
-			// 检查字体是否已加载
+			// Check if font is loaded
 			const fontName = printFontName || "Bravura";
-			console.log("[PrintPreview] Checking font load status:", fontName);
 
-			// 使用 document.fonts API 检查字体加载状态
+			// Use document.fonts API to check font loading status
 			if (printWindow.document.fonts?.check) {
 				const checkFontAndPrint = () => {
 					const fontLoaded = printWindow.document.fonts.check(
 						`34px "${fontName}"`,
 					);
-					console.log("[PrintPreview] Font loaded:", fontLoaded);
 
 					if (fontLoaded) {
-						// 字体已加载，延迟一点以确保渲染完成
+						// Font loaded, delay slightly to ensure rendering completes
 						setTimeout(() => {
 							printWindow.focus();
 							printWindow.print();
@@ -399,10 +362,9 @@ export default function PrintPreview({
 							};
 						}, 100);
 					} else {
-						// 等待字体加载
+						// Wait for font to load
 						printWindow.document.fonts.ready
 							.then(() => {
-								console.log("[PrintPreview] All fonts ready");
 								setTimeout(() => {
 									printWindow.focus();
 									printWindow.print();
@@ -413,7 +375,7 @@ export default function PrintPreview({
 							})
 							.catch((err: unknown) => {
 								console.warn("[PrintPreview] Font loading failed:", err);
-								// 即使字体加载失败也尝试打印
+								// Try printing even if font loading fails
 								printWindow.focus();
 								printWindow.print();
 								printWindow.onafterprint = () => {
@@ -423,10 +385,10 @@ export default function PrintPreview({
 					}
 				};
 
-				// 立即检查，如果未加载则等待
+				// Check immediately, wait if not loaded
 				checkFontAndPrint();
 			} else {
-				// 不支持 document.fonts API，使用简单延迟
+				// document.fonts API not supported, use simple delay
 				console.warn(
 					"[PrintPreview] document.fonts API not available, using delay",
 				);
@@ -451,7 +413,7 @@ export default function PrintPreview({
 	]);
 
 	/**
-	 * 导航到指定页面
+	 * Navigate to specified page
 	 */
 	const navigateToPage = useCallback(
 		(page: number) => {
@@ -461,25 +423,22 @@ export default function PrintPreview({
 		[totalPages],
 	);
 
-	// 延迟初始化：确保 Preview 的 API 已完全销毁和资源释放
+	// Delayed initialization: ensure Preview's API is fully destroyed and resources released
 	useEffect(() => {
-		console.log("[PrintPreview] Scheduling delayed initialization");
 		const delayedInit = setTimeout(() => {
-			console.log("[PrintPreview] Starting delayed initialization");
 			initAlphaTab();
-		}, 200); // 延迟 200ms 确保 Preview API 完全销毁
+		}, 200); // Delay 200ms to ensure Preview API is fully destroyed
 
 		return () => {
 			clearTimeout(delayedInit);
 			if (apiRef.current) {
-				console.log("[PrintPreview] Cleanup: destroying API");
 				apiRef.current.destroy();
 				apiRef.current = null;
 			}
 		};
 	}, [initAlphaTab]);
 
-	// 字体加载监测和回退机制（使用打印专用字体名）
+	// Font loading monitoring and fallback mechanism (using print-specific font name)
 	useEffect(() => {
 		if (!printFontUrl || !printFontName) return;
 
@@ -487,19 +446,13 @@ export default function PrintPreview({
 
 		const loadFont = async () => {
 			try {
-				console.log(
-					"[PrintPreview] Loading print font:",
-					printFontUrl,
-					printFontName,
-				);
-
-				// 使用 FontFace API 加载打印字体
+				// Use FontFace API to load print font
 				const font = new FontFace(
 					printFontName,
 					`url(${printFontUrl}) format('woff2')`,
 				);
 
-				// 设置超时
+				// Set timeout
 				const timeoutPromise = new Promise((_, reject) =>
 					setTimeout(() => reject(new Error("Font loading timeout")), 5000),
 				);
@@ -509,7 +462,6 @@ export default function PrintPreview({
 				printFontFaceRef.current = font;
 				if (!cancelled) {
 					setFontLoaded(true);
-					console.log("[PrintPreview] Print Bravura font loaded successfully");
 				}
 			} catch (err) {
 				console.warn("[PrintPreview] Failed to load print Bravura font:", err);
@@ -521,22 +473,22 @@ export default function PrintPreview({
 
 		return () => {
 			cancelled = true;
-			// 不立即删除 font，因为可能会被其他页面重用，但如果我们确实要移除，请手动删除
+			// Don't immediately delete font as it may be reused by other pages, but manually delete if we really need to remove it
 		};
 	}, [printFontUrl, printFontName]);
 
-	// 使用 ref 追踪 isLoading 状态
+	// Use ref to track isLoading state
 	const isLoadingRef = useRef(isLoading);
 	isLoadingRef.current = isLoading;
 
-	// 页面尺寸变化时重新渲染
+	// Re-render when page size changes
 	useEffect(() => {
 		if (
 			apiRef.current &&
 			!isLoadingRef.current &&
 			alphaTabContainerRef.current
 		) {
-			// 重新计算宽度并渲染
+			// Recalculate width and render
 			const { contentWidthPx: newWidthPx } = calculateContentDimensions(
 				pageSize,
 				15,
@@ -548,17 +500,15 @@ export default function PrintPreview({
 		}
 	}, [pageSize]);
 
-	// zoom 缩放变化时更新设置并重新渲染
+	// Update settings and re-render when zoom changes
 	useEffect(() => {
 		if (apiRef.current && !isLoadingRef.current) {
-			console.log("[PrintPreview] Zoom changed to:", zoom);
-
-			// 更新 scale 设置
+			// Update scale settings
 			if (apiRef.current.settings.display) {
 				(apiRef.current.settings.display as { scale: number }).scale = zoom;
 				apiRef.current.updateSettings();
 
-				// 在渲染之前应用 staff 显示选项
+				// Apply staff display options before rendering
 				if (applyStaffOptionsRef.current) {
 					applyStaffOptionsRef.current();
 				}
@@ -569,15 +519,10 @@ export default function PrintPreview({
 		}
 	}, [zoom]);
 
-	// barsPerRow 和 stretchForce 变化时更新设置并重新渲染
+	// Update settings and re-render when barsPerRow and stretchForce change
 	useEffect(() => {
 		if (apiRef.current && !isLoadingRef.current) {
-			console.log("[PrintPreview] Layout settings changed:", {
-				barsPerRow,
-				stretchForce,
-			});
-
-			// 更新布局设置
+			// Update layout settings
 			if (apiRef.current.settings.display) {
 				(apiRef.current.settings.display as { barsPerRow: number }).barsPerRow =
 					barsPerRow;
@@ -586,7 +531,7 @@ export default function PrintPreview({
 				).stretchForce = stretchForce;
 				apiRef.current.updateSettings();
 
-				// 在渲染之前应用 staff 显示选项
+				// Apply staff display options before rendering
 				if (applyStaffOptionsRef.current) {
 					applyStaffOptionsRef.current();
 				}
@@ -597,7 +542,7 @@ export default function PrintPreview({
 		}
 	}, [barsPerRow, stretchForce]);
 
-	// 键盘快捷键
+	// Keyboard shortcuts
 	useEffect(() => {
 		const handleKeyDown = (e: KeyboardEvent) => {
 			if (e.key === "Escape") {
@@ -616,10 +561,9 @@ export default function PrintPreview({
 		return () => window.removeEventListener("keydown", handleKeyDown);
 	}, [onClose, currentPage, navigateToPage, handlePrint]);
 
-	// 组件卸载时清理 injected style/FontFace 以及 API
+	// Cleanup injected style/FontFace and API on component unmount
 	useEffect(() => {
 		return () => {
-			console.log("[PrintPreview] Unmount cleanup");
 			try {
 				if (apiRef.current) {
 					apiRef.current.destroy();
@@ -643,7 +587,7 @@ export default function PrintPreview({
 		};
 	}, []);
 
-	// 当前页面的 HTML
+	// Current page HTML
 	const currentPageHtml = pages[currentPage - 1] || "";
 
 	return (
@@ -822,11 +766,11 @@ export default function PrintPreview({
 							top: 0,
 							left: 0,
 							width: `${contentWidthPx}px`,
-							zIndex: -100, // 放在最底层
-							opacity: 0, // 完全透明
-							pointerEvents: "none", // 不响应鼠标事件
-							fontSize: "16px", // 强制设置基础字号
-							lineHeight: "normal", // 防止继承异常行高
+							zIndex: -100, // Place at bottom layer
+							opacity: 0, // Fully transparent
+							pointerEvents: "none", // Don't respond to mouse events
+							fontSize: "16px", // Force set base font size
+							lineHeight: "normal", // Prevent inheriting abnormal line height
 						}}
 					/>
 
@@ -864,8 +808,8 @@ export default function PrintPreview({
 					stretchForce={stretchForce}
 					onStretchForceChange={setStretchForce}
 					onTracksChange={() => {
-						// 音轨变化后需要等待重新渲染，然后重新分页
-						// renderFinished 事件会自动触发 paginateContent
+						// After track changes, wait for re-render, then re-paginate
+						// renderFinished event will automatically trigger paginateContent
 					}}
 					onApplyStaffOptionsReady={(applyFn) => {
 						applyStaffOptionsRef.current = applyFn;

@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { useAppStore } from "../store/appStore";
 import { AboutPage } from "./settings/AboutPage";
 import { AppearancePage } from "./settings/AppearancePage";
+import { PlaybackPage } from "./settings/PlaybackPage";
 import { RoadmapPage } from "./settings/RoadmapPage";
 import { UpdatesPage } from "./settings/UpdatesPage";
 import { defaultSettingsPages } from "./settings-pages";
@@ -32,6 +33,8 @@ export default function SettingsView() {
 		switch (pageId) {
 			case "appearance":
 				return <AppearancePage />;
+			case "playback":
+				return <PlaybackPage />;
 			case "updates":
 				return <UpdatesPage />;
 			case "roadmap":
