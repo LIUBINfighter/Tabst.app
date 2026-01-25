@@ -49,8 +49,9 @@ jobs:
       - name: Get version from package.json
         id: package-version
         run: |
-          VERSION=$(node -p "require('./package.json').version")
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          $version = node -p "require('./package.json').version"
+          echo "version=$version" >> $env:GITHUB_OUTPUT
+        shell: pwsh
 
       - name: Create Draft Release and upload Windows artifacts
         uses: softprops/action-gh-release@v2
