@@ -4,7 +4,13 @@ import { Compartment, EditorState } from "@codemirror/state";
 import type { ViewUpdate } from "@codemirror/view";
 import { basicSetup, EditorView } from "codemirror";
 import { ChevronRight, Edit } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+	useCallback,
+	useEffect,
+	useLayoutEffect,
+	useRef,
+	useState,
+} from "react";
 import { alphatexAbbreviations } from "../lib/alphatex-abbreviations";
 import { createAlphaTexBarlinesExtension } from "../lib/alphatex-barlines";
 import { createAlphaTexAutocomplete } from "../lib/alphatex-completion";
@@ -265,6 +271,18 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 				viewRef.current.destroy();
 				viewRef.current = null;
 			}
+			// Clear any残留的 DOM 元素 - 使用 requestAnimationFrame 确保在下一帧清理
+			if (editorRef.current) {
+				// 立即清空，确保 DOM 被清理
+				const container = editorRef.current;
+				// 查找并移除所有 CodeMirror 相关的 DOM 元素
+				const cmEditor = container.querySelector(".cm-editor");
+				if (cmEditor) {
+					cmEditor.remove();
+				}
+				// 也清空 innerHTML 作为备用
+				container.innerHTML = "";
+			}
 			if (focusCleanupRef.current) {
 				focusCleanupRef.current();
 				focusCleanupRef.current = null;
@@ -296,6 +314,10 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 					if (viewRef.current && needsRemount) {
 						viewRef.current.destroy();
 						viewRef.current = null;
+					}
+					// Clear any残留的 DOM 元素
+					if (editorRef.current) {
+						editorRef.current.innerHTML = "";
 					}
 
 					const themeExtension = createThemeExtension(isDark);
@@ -482,6 +504,10 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 				viewRef.current.destroy();
 				viewRef.current = null;
 			}
+			// Clear any残留的 DOM 元素
+			if (editorRef.current) {
+				editorRef.current.innerHTML = "";
+			}
 			if (focusCleanupRef.current) {
 				focusCleanupRef.current();
 				focusCleanupRef.current = null;
@@ -497,6 +523,58 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 			}
 		};
 	}, []);
+
+	// Cleanup editor when no active file - use useLayoutEffect to ensure cleanup before render
+	useLayoutEffect(() => {
+		if (!activeFileId || !activeFile) {
+			// 先保存编辑器 DOM 引用，因为 destroy() 会清除它
+			const editorDom = viewRef.current?.dom
+				? viewRef.current.dom.closest(".cm-editor")
+				: null;
+
+			if (viewRef.current) {
+				viewRef.current.destroy();
+				viewRef.current = null;
+			}
+
+			// Clear any残留的 DOM 元素
+			if (editorRef.current) {
+				// 查找并移除所有 CodeMirror 相关的 DOM 元素
+				const cmEditor = editorRef.current.querySelector(".cm-editor");
+				if (cmEditor) {
+					cmEditor.remove();
+				}
+				// 也清空 innerHTML 作为备用
+				editorRef.current.innerHTML = "";
+			}
+
+			// 额外检查：如果编辑器 DOM 被挂载到了其他地方，也清理它
+			// 这可能是由于 React 的 ref 更新时机问题导致的
+			if (editorDom?.parentElement) {
+				editorDom.remove();
+			}
+
+			// 最后检查：在整个组件树中查找并清理任何残留的编辑器 DOM
+			// 这可以处理编辑器被意外挂载到组件外部的情况
+			if (editorRef.current) {
+				const container = editorRef.current;
+				// 向上查找父元素，确保清理整个编辑器容器
+				let parent = container.parentElement;
+				while (parent) {
+					const cmEditorInParent = parent.querySelector(".cm-editor");
+					if (cmEditorInParent) {
+						cmEditorInParent.remove();
+					}
+					// 如果父元素本身就是编辑器容器，也清理它
+					if (parent.classList.contains("cm-editor")) {
+						parent.remove();
+						break;
+					}
+					parent = parent.parentElement;
+				}
+			}
+		}
+	}, [activeFileId, activeFile]);
 
 	if (!activeFile) {
 		return (
