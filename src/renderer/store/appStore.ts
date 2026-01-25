@@ -35,6 +35,8 @@ export interface EditorCursorInfo {
 	barIndex: number;
 	/** 对应的 Beat 索引 (0-based)，-1 表示未知 */
 	beatIndex: number;
+	/** 是否由文档变更触发（例如输入/粘贴） */
+	fromDocChange?: boolean;
 }
 
 /**
@@ -65,11 +67,16 @@ interface AppState {
 	// 🆕 播放器光标位置 - 暂停时也保留，用于显示黄色小节高亮
 	playerCursorPosition: PlaybackBeatInfo | null;
 
+	// 🆕 编辑器焦点状态（用于控制 player enable）
+	editorHasFocus: boolean;
+	setEditorHasFocus: (hasFocus: boolean) => void;
+
 	// 🆕 Player UI / remote controls
 	playerControls: {
 		play?: () => void;
 		pause?: () => void;
 		stop?: () => void;
+		refresh?: () => void;
 		applyZoom?: (percent: number) => void;
 		applyPlaybackSpeed?: (speed: number) => void;
 		setMetronomeVolume?: (volume: number) => void;
@@ -93,6 +100,12 @@ interface AppState {
 
 	metronomeVolume: number;
 	setMetronomeVolume: (v: number) => void;
+
+	// 🆕 alphaTab API / score 生命周期标识
+	apiInstanceId: number;
+	scoreVersion: number;
+	bumpApiInstanceId: () => void;
+	bumpScoreVersion: () => void;
 
 	// 工作区模式：editor | tutorial | settings
 	workspaceMode: "editor" | "tutorial" | "settings";
@@ -161,6 +174,8 @@ export const useAppStore = create<AppState>((set, get) => ({
 	editorCursor: null,
 	playbackBeat: null,
 	playerCursorPosition: null,
+	editorHasFocus: false,
+	setEditorHasFocus: (hasFocus) => set({ editorHasFocus: hasFocus }),
 	playerControls: null,
 	registerPlayerControls: (controls) => set({ playerControls: controls }),
 	unregisterPlayerControls: () => set({ playerControls: null }),
@@ -181,6 +196,12 @@ export const useAppStore = create<AppState>((set, get) => ({
 
 	metronomeVolume: 0,
 	setMetronomeVolume: (v) => set({ metronomeVolume: v }),
+	apiInstanceId: 0,
+	scoreVersion: 0,
+	bumpApiInstanceId: () =>
+		set((state) => ({ apiInstanceId: state.apiInstanceId + 1 })),
+	bumpScoreVersion: () =>
+		set((state) => ({ scoreVersion: state.scoreVersion + 1 })),
 	workspaceMode: "editor",
 	setWorkspaceMode: (mode: "editor" | "tutorial" | "settings") =>
 		set({ workspaceMode: mode }),

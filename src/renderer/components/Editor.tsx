@@ -37,6 +37,7 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 	const saveTimerRef = useRef<number | null>(null);
 	const lspClientRef = useRef<AlphaTexLSPClient | null>(null);
 	const lastContentRef = useRef<string>("");
+	const focusCleanupRef = useRef<(() => void) | null>(null);
 
 	// Track current file path to detect language changes
 	const currentFilePathRef = useRef<string>("");
@@ -264,6 +265,11 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 				viewRef.current.destroy();
 				viewRef.current = null;
 			}
+			if (focusCleanupRef.current) {
+				focusCleanupRef.current();
+				focusCleanupRef.current = null;
+				useAppStore.getState().setEditorHasFocus(false);
+			}
 			if (lspClientRef.current) {
 				lspClientRef.current.close?.();
 				lspClientRef.current = null;
@@ -317,6 +323,21 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 							state,
 							parent: editorRef.current,
 						});
+						if (focusCleanupRef.current) {
+							focusCleanupRef.current();
+							focusCleanupRef.current = null;
+						}
+						const dom = viewRef.current.dom;
+						const handleFocusIn = () =>
+							useAppStore.getState().setEditorHasFocus(true);
+						const handleFocusOut = () =>
+							useAppStore.getState().setEditorHasFocus(false);
+						dom.addEventListener("focusin", handleFocusIn);
+						dom.addEventListener("focusout", handleFocusOut);
+						focusCleanupRef.current = () => {
+							dom.removeEventListener("focusin", handleFocusIn);
+							dom.removeEventListener("focusout", handleFocusOut);
+						};
 						currentFilePathRef.current = filePath;
 						lastContentRef.current = content;
 					}
@@ -424,6 +445,10 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 		const language = activeFile ? getLanguageForFile(activeFile.path) : "";
 		if (language !== "alphatex") return;
 
+		console.debug(
+			"[Editor] scoreSelection changed, updating highlight:",
+			_scoreSelection,
+		);
 		const content = activeFile?.content ?? "";
 		updateEditorSelectionHighlight(view, content, _scoreSelection);
 	}, [_scoreSelection, activeFile, getLanguageForFile]);
@@ -456,6 +481,11 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 			if (viewRef.current) {
 				viewRef.current.destroy();
 				viewRef.current = null;
+			}
+			if (focusCleanupRef.current) {
+				focusCleanupRef.current();
+				focusCleanupRef.current = null;
+				useAppStore.getState().setEditorHasFocus(false);
 			}
 			if (lspClientRef.current) {
 				lspClientRef.current.close?.();

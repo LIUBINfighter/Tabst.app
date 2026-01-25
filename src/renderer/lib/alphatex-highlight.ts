@@ -60,6 +60,28 @@ const alphaTexParser = StreamLanguage.define({
 			return "comment";
 		}
 
+		// Duration modifiers like :8 :4 :16 (inline-code highlight)
+		if (stream.match(/:(128|64|32|16|8|4|2|1)/)) {
+			// Optional dotted duration (e.g. :8.)
+			if (stream.peek() === ".") {
+				const nextChar = stream.string[stream.pos + 1] ?? "";
+				if (!/[0-9]/.test(nextChar)) {
+					stream.next();
+				}
+			}
+			// Optional modifier block (e.g. :8{tu 3})
+			if (stream.peek() === "{") {
+				stream.next();
+				while (!stream.eol() && stream.peek() !== "}") {
+					stream.next();
+				}
+				if (stream.peek() === "}") {
+					stream.next();
+				}
+			}
+			return "atom";
+		}
+
 		// Commands and tags starting with backslash
 		if (stream.eat("\\")) {
 			stream.eatWhile(/[-\w]/);
@@ -103,9 +125,17 @@ export async function getAlphaTexHighlight() {
 		{ tag: tags.comment, color: "#6a737d" },
 		{ tag: tags.keyword, color: "#d73a49", fontWeight: "bold" },
 		{ tag: tags.operator, color: "#d73a49" },
-		{ tag: tags.string, color: "#032f62" },
-		{ tag: tags.character, color: "#032f62" },
+		{ tag: tags.string, color: "inherit" },
+		{ tag: tags.character, color: "inherit" },
 		{ tag: tags.number, color: "#005cc5" },
+		{
+			tag: tags.atom,
+			color: "#f59e0b",
+			backgroundColor: "rgba(245, 158, 11, 0.12)",
+			borderRadius: "3px",
+			fontFamily:
+				"var(--font-mono, ui-monospace, SFMono-Regular, SFMono, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace)",
+		},
 		{ tag: tags.function(tags.variableName), color: "#6f42c1" },
 		{ tag: tags.tagName, color: "#22863a" },
 		{ tag: tags.attributeName, color: "#6f42c1" },
