@@ -1,0 +1,9 @@
+{
+	"settings": "Settings",
+	"preview": "Preview",
+	"close": "Close",
+	"loadTutorialFailed": "Failed to load tutorial",
+	"loading": "Loading…",
+	"loadFailed": "Load failed: {{reason}}",
+	"selectOrCreateFile": "Select or create a file to start editing"
+}

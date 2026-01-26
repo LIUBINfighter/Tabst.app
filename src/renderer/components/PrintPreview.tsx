@@ -8,6 +8,7 @@ import {
 	X,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { createPrintSettings } from "../lib/alphatab-config";
 import { paginateContent } from "../lib/pagination";
 import {
@@ -47,10 +48,12 @@ export interface PrintPreviewProps {
  */
 export default function PrintPreview({
 	content,
-	fileName = "曲谱",
+	fileName: fileNameProp,
 	onClose,
 }: PrintPreviewProps) {
-	// State
+	const { t } = useTranslation("print");
+	const fileName = fileNameProp ?? t("defaultFileName");
+
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const [currentPage, setCurrentPage] = useState(1);
@@ -232,7 +235,7 @@ export default function PrintPreview({
 		// Create print-specific window
 		const printWindow = window.open("", "_blank");
 		if (!printWindow) {
-			alert("Unable to open print window, please check browser settings");
+			alert(t("unableToOpenPrintWindow"));
 			return;
 		}
 
@@ -260,7 +263,7 @@ export default function PrintPreview({
 			<html>
 			<head>
 				<meta charset="utf-8">
-				<title>${fileName} - 打印</title>
+				<title>${fileName} - ${t("print")}</title>
 				<style>
 					/* 加载打印专用 Bravura 音乐字体 */
 					@font-face {
@@ -410,6 +413,7 @@ export default function PrintPreview({
 		bravuraFontUrl,
 		printFontName,
 		printFontUrl,
+		t,
 	]);
 
 	/**
@@ -636,7 +640,9 @@ export default function PrintPreview({
 				<TopBar
 					className="px-4"
 					title={
-						<span className="text-sm font-medium">{fileName} - 打印预览</span>
+						<span className="text-sm font-medium">
+							{fileName} - {t("printPreview")}
+						</span>
 					}
 					trailing={
 						<div className="flex items-center gap-4">
@@ -687,7 +693,11 @@ export default function PrintPreview({
 							{/* 音轨选择按钮（使用 IconButton 与主预览一致） */}
 							<IconButton
 								active={isTracksPanelOpen}
-								title={isTracksPanelOpen ? "关闭音轨选择" : "打开音轨选择"}
+								title={
+									isTracksPanelOpen
+										? t("closeTracksPanel")
+										: t("openTracksPanel")
+								}
 								onClick={() => setIsTracksPanelOpen(!isTracksPanelOpen)}
 								disabled={isLoading || !apiRef.current?.score}
 							>
@@ -700,30 +710,28 @@ export default function PrintPreview({
 								onClick={handlePrint}
 								disabled={isLoading || !!error || pages.length === 0}
 							>
-								<Printer className="h-3 w-3 mr-1" /> 打印 / 导出 PDF
+								<Printer className="h-3 w-3 mr-1" /> {t("printExport")}
 							</Button>
-							{/* 字体加载状态提示 */}
 							{fontError && (
 								<span
 									className="text-xs text-amber-600"
-									title="字体加载失败，使用回退字体"
+									title={t("fontLoadFailed")}
 								>
 									⚠️ 字体
 								</span>
 							)}
-							{/* 关闭按钮 - 放在最右侧，红色高亮样式 */}
 							<Tooltip>
 								<TooltipTrigger asChild>
 									<IconButton
 										className="hover:bg-red-500/20 hover:text-red-600"
 										onClick={onClose}
-										aria-label="关闭"
+										aria-label={t("close")}
 									>
 										<X className="h-4 w-4" />
 									</IconButton>
 								</TooltipTrigger>
 								<TooltipContent side="bottom">
-									<p>关闭</p>
+									<p>{t("close")}</p>
 								</TooltipContent>
 							</Tooltip>
 						</div>
@@ -741,7 +749,7 @@ export default function PrintPreview({
 							<div className="flex flex-col items-center gap-4">
 								<Loader2 className="h-8 w-8 animate-spin text-primary" />
 								<span className="text-sm text-muted-foreground">
-									正在生成打印预览...
+									{t("generating")}
 								</span>
 							</div>
 						</div>
@@ -751,7 +759,7 @@ export default function PrintPreview({
 					{error && (
 						<div className="flex items-center justify-center h-full">
 							<div className="bg-destructive/10 text-destructive p-6 rounded-lg max-w-md">
-								<h3 className="font-medium mb-2">生成预览失败</h3>
+								<h3 className="font-medium mb-2">{t("generateFailed")}</h3>
 								<p className="text-sm">{error}</p>
 							</div>
 						</div>
@@ -819,7 +827,7 @@ export default function PrintPreview({
 
 			{/* 底部快捷键提示 */}
 			<div className="h-8 border-t border-border flex items-center justify-center px-4 bg-card text-xs text-muted-foreground shrink-0">
-				<span>Esc 关闭 | ← → 翻页 | Ctrl+P 打印</span>
+				<span>{t("shortcuts")}</span>
 			</div>
 		</div>
 	);

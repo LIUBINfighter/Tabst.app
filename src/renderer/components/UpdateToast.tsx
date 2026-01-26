@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "./ui/button";
 
 interface UpdateEvent {
@@ -27,6 +28,7 @@ type ToastStatus =
 	| "error";
 
 export default function UpdateToast() {
+	const { t } = useTranslation("updates");
 	const [status, setStatus] = useState<ToastStatus>("idle");
 	const [version, setVersion] = useState<string | null>(null);
 	const [progress, setProgress] = useState(0);
@@ -39,35 +41,35 @@ export default function UpdateToast() {
 				switch (event.type) {
 					case "checking":
 						setStatus("checking");
-						setMessage("正在检查更新...");
+						setMessage(t("toast.checking"));
 						setVisible(true);
 						break;
 					case "available":
 						setStatus("available");
 						setVersion(event.version ?? null);
-						setMessage("发现新版本，准备下载...");
+						setMessage(t("toast.availableMessage"));
 						setVisible(true);
 						break;
 					case "progress":
 						setStatus("downloading");
 						setProgress(event.percent ?? 0);
-						setMessage("更新下载中...");
+						setMessage(t("toast.downloadingMessage"));
 						setVisible(true);
 						break;
 					case "downloaded":
 						setStatus("downloaded");
 						setVersion(event.version ?? null);
-						setMessage("更新已下载完成");
+						setMessage(t("toast.downloaded"));
 						setVisible(true);
 						break;
 					case "not-available":
 						setStatus("not-available");
-						setMessage("当前已是最新版本");
+						setMessage(t("toast.latest"));
 						setVisible(true);
 						break;
 					case "error":
 						setStatus("error");
-						setMessage(event.message ?? "更新失败，请稍后重试");
+						setMessage(event.message ?? t("toast.error"));
 						setVisible(true);
 						break;
 					default:
@@ -81,7 +83,7 @@ export default function UpdateToast() {
 				unsubscribe();
 			}
 		};
-	}, []);
+	}, [t]);
 
 	const canDismiss = useMemo(
 		() => status !== "downloading" && status !== "checking",
@@ -94,14 +96,14 @@ export default function UpdateToast() {
 		<div className="fixed bottom-4 right-4 z-50 w-80 rounded-lg border border-border bg-card p-4 shadow-lg">
 			<div className="flex items-start justify-between gap-3">
 				<div className="space-y-1">
-					<p className="text-sm font-medium">更新提示</p>
+					<p className="text-sm font-medium">{t("toast.title")}</p>
 					<p className="text-xs text-muted-foreground">
-						{version ? `版本：${version}` : ""}
+						{version ? t("toast.version", { version }) : ""}
 					</p>
 				</div>
 				{canDismiss && (
 					<Button variant="ghost" size="sm" onClick={() => setVisible(false)}>
-						关闭
+						{t("toast.close")}
 					</Button>
 				)}
 			</div>
@@ -124,7 +126,7 @@ export default function UpdateToast() {
 
 			{status === "available" && (
 				<div className="mt-3 text-xs text-muted-foreground">
-					正在准备下载更新，请稍候…
+					{t("toast.preparing")}
 				</div>
 			)}
 
@@ -135,17 +137,17 @@ export default function UpdateToast() {
 							window.electronAPI.installUpdate();
 						}}
 					>
-						安装并重启
+						{t("toast.installRestart")}
 					</Button>
 					<Button variant="secondary" onClick={() => setVisible(false)}>
-						稍后
+						{t("toast.later")}
 					</Button>
 				</div>
 			)}
 
 			{status === "not-available" && (
 				<div className="mt-3 text-xs text-muted-foreground">
-					如果刚发布新版本，请稍等后再检查。
+					{t("toast.waitHint")}
 				</div>
 			)}
 

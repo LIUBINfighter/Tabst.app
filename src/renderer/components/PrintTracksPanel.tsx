@@ -8,6 +8,7 @@
 import type * as AlphaTab from "@coderline/alphatab";
 import { Check, Eye, EyeOff, Layers } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "./ui/button";
 
 /**
@@ -74,7 +75,7 @@ export function PrintTracksPanel({
 	onStretchForceChange,
 	onApplyStaffOptionsReady,
 }: PrintTracksPanelProps) {
-	// 音轨配置（Source of Truth，纯数据）
+	const { t } = useTranslation("print");
 	const [trackConfigs, setTrackConfigs] = useState<TrackConfig[]>([]);
 
 	// 标记是否已初始化
@@ -351,17 +352,16 @@ export function PrintTracksPanel({
 			<div className="h-12 border-b border-border flex items-center justify-between px-3 shrink-0">
 				<div className="flex items-center gap-2">
 					<Layers className="h-4 w-4" />
-					<span className="text-sm font-medium">打印设置</span>
+					<span className="text-sm font-medium">{t("panelTitle")}</span>
 				</div>
 			</div>
 
 			{/* Content */}
 			<div className="flex-1 overflow-y-auto p-2">
-				{/* 缩放控制 */}
 				<div className="mb-3 p-3 bg-muted/30 rounded-md space-y-2">
 					<div className="flex items-center justify-between">
 						<span className="text-xs font-medium text-muted-foreground">
-							缩放比例
+							{t("zoomLabel")}
 						</span>
 						<span className="text-xs font-mono text-primary">
 							{Math.round(zoom * 100)}%
@@ -378,16 +378,16 @@ export function PrintTracksPanel({
 							onChange={(e) =>
 								onZoomChange?.(Number.parseFloat(e.target.value))
 							}
-							title="调整曲谱缩放比例"
+							title={t("zoomTitle")}
 						/>
 						<Button
 							variant="ghost"
 							size="sm"
 							className="h-6 px-2 text-xs"
 							onClick={() => onZoomChange?.(1.0)}
-							title="重置为100%"
+							title={t("resetTo100")}
 						>
-							重置
+							{t("reset")}
 						</Button>
 					</div>
 					<div className="flex justify-between text-xs text-muted-foreground">
@@ -395,14 +395,13 @@ export function PrintTracksPanel({
 						<span>100%</span>
 					</div>
 				</div>
-				{/* 每行小节数控制 */}
 				<div className="mb-3 p-3 bg-muted/30 rounded-md space-y-2">
 					<div className="flex items-center justify-between">
 						<span className="text-xs font-medium text-muted-foreground">
-							每行小节数
+							{t("barsPerRow")}
 						</span>
 						<span className="text-xs font-mono text-primary">
-							{barsPerRow === -1 ? "自动" : barsPerRow}
+							{barsPerRow === -1 ? t("auto") : barsPerRow}
 						</span>
 					</div>
 					<div className="flex items-center gap-2">
@@ -416,29 +415,28 @@ export function PrintTracksPanel({
 							onChange={(e) =>
 								onBarsPerRowChange?.(Number.parseInt(e.target.value, 10))
 							}
-							title="设置每行显示的小节数，-1为自动模式"
+							title={t("barsPerRowTitle")}
 						/>
 						<Button
 							variant="ghost"
 							size="sm"
 							className="h-6 px-2 text-xs"
 							onClick={() => onBarsPerRowChange?.(-1)}
-							title="重置为自动"
+							title={t("resetAuto")}
 						>
-							自动
+							{t("auto")}
 						</Button>
 					</div>
 					<div className="flex justify-between text-xs text-muted-foreground">
-						<span>自动</span>
+						<span>{t("auto")}</span>
 						<span>8</span>
 					</div>
 				</div>
 
-				{/* 音符间距拉伸控制 */}
 				<div className="mb-3 p-3 bg-muted/30 rounded-md space-y-2">
 					<div className="flex items-center justify-between">
 						<span className="text-xs font-medium text-muted-foreground">
-							音符间距
+							{t("noteSpacing")}
 						</span>
 						<span className="text-xs font-mono text-primary">
 							{stretchForce.toFixed(1)}×
@@ -455,28 +453,27 @@ export function PrintTracksPanel({
 							onChange={(e) =>
 								onStretchForceChange?.(Number.parseFloat(e.target.value))
 							}
-							title="调整音符之间的间距，值越大间距越宽"
+							title={t("noteSpacingTitle")}
 						/>
 						<Button
 							variant="ghost"
 							size="sm"
 							className="h-6 px-2 text-xs"
 							onClick={() => onStretchForceChange?.(1.0)}
-							title="重置为标准"
+							title={t("resetStandard")}
 						>
-							重置
+							{t("reset")}
 						</Button>
 					</div>
 					<div className="flex justify-between text-xs text-muted-foreground">
-						<span>紧凑</span>
-						<span>标准</span>
-						<span>宽松</span>
+						<span>{t("compact")}</span>
+						<span>{t("standard")}</span>
+						<span>{t("loose")}</span>
 					</div>
 				</div>
-				{/* 音轨列表标题 */}
 				<div className="flex items-center justify-between mb-2 px-1">
 					<span className="text-xs font-medium text-muted-foreground">
-						音轨选择
+						{t("trackSelect")}
 					</span>
 					<div className="flex items-center gap-1">
 						<Button
@@ -484,25 +481,25 @@ export function PrintTracksPanel({
 							size="sm"
 							className="h-6 px-2 text-xs"
 							onClick={selectAllTracks}
-							title="全选"
+							title={t("selectAll")}
 						>
-							全选
+							{t("selectAll")}
 						</Button>
 						<Button
 							variant="ghost"
 							size="sm"
 							className="h-6 px-2 text-xs"
 							onClick={deselectAllTracks}
-							title="仅第一个"
+							title={t("firstOnly")}
 						>
-							清除
+							{t("clear")}
 						</Button>
 					</div>
 				</div>
 
 				{trackConfigs.length === 0 ? (
 					<div className="flex items-center justify-center h-32 text-sm text-muted-foreground">
-						暂无音轨
+						{t("noTracks")}
 					</div>
 				) : (
 					<div className="space-y-1">
@@ -518,10 +515,9 @@ export function PrintTracksPanel({
 				)}
 			</div>
 
-			{/* Footer */}
 			<div className="h-10 border-t border-border flex items-center justify-between px-3 text-xs text-muted-foreground shrink-0">
 				<span>
-					已选择 {selectedCount} / {totalCount} 音轨
+					{t("selectedCount", { n: selectedCount, total: totalCount })}
 				</span>
 				<Button
 					variant="ghost"
@@ -529,7 +525,7 @@ export function PrintTracksPanel({
 					className="h-7 px-2"
 					onClick={onClose}
 				>
-					完成
+					{t("done")}
 				</Button>
 			</div>
 		</div>
@@ -547,6 +543,71 @@ interface TrackItemProps {
 		staffIndex: number,
 		option: StaffDisplayOption,
 	) => void;
+}
+
+function PrintTrackStaffRow({
+	index,
+	staffIdx,
+	staffConfig,
+	onToggleStaffOption,
+}: {
+	index: number;
+	staffIdx: number;
+	staffConfig: StaffConfig;
+	onToggleStaffOption: (
+		trackIndex: number,
+		staffIndex: number,
+		option: StaffDisplayOption,
+	) => void;
+}) {
+	const { t } = useTranslation("print");
+	return (
+		<div className="flex items-center gap-1 pl-7 text-xs">
+			<span className="text-muted-foreground w-12 shrink-0">
+				{t("staffLabel", { n: staffIdx + 1 })}
+			</span>
+			<div className="flex gap-1">
+				<StaffOptionButton
+					label={t("staffShort.standard")}
+					icon="𝅘𝅥"
+					isActive={staffConfig.showStandardNotation}
+					onClick={() =>
+						onToggleStaffOption(
+							index,
+							staffConfig.staffIndex,
+							"showStandardNotation",
+						)
+					}
+					title={t("staff.standard")}
+				/>
+				<StaffOptionButton
+					label={t("staffShort.tab")}
+					isActive={staffConfig.showTablature}
+					onClick={() =>
+						onToggleStaffOption(index, staffConfig.staffIndex, "showTablature")
+					}
+					title={t("staff.tab")}
+				/>
+				<StaffOptionButton
+					label={t("staffShort.slash")}
+					icon="𝄍"
+					isActive={staffConfig.showSlash}
+					onClick={() =>
+						onToggleStaffOption(index, staffConfig.staffIndex, "showSlash")
+					}
+					title={t("staff.slash")}
+				/>
+				<StaffOptionButton
+					label={t("staffShort.numbered")}
+					isActive={staffConfig.showNumbered}
+					onClick={() =>
+						onToggleStaffOption(index, staffConfig.staffIndex, "showNumbered")
+					}
+					title={t("staff.numbered")}
+				/>
+			</div>
+		</div>
+	);
 }
 
 function TrackItem({
@@ -603,66 +664,13 @@ function TrackItem({
 			{isSelected && staves.length > 0 && (
 				<div className="px-2 pb-2 pt-1 space-y-1">
 					{staves.map((staffConfig, staffIdx) => (
-						<div
+						<PrintTrackStaffRow
 							key={`staff-${index}-${staffConfig.staffIndex}`}
-							className="flex items-center gap-1 pl-7 text-xs"
-						>
-							<span className="text-muted-foreground w-12 shrink-0">
-								谱表 {staffIdx + 1}:
-							</span>
-							<div className="flex gap-1">
-								<StaffOptionButton
-									label="五线"
-									icon="𝅘𝅥"
-									isActive={staffConfig.showStandardNotation}
-									onClick={() =>
-										onToggleStaffOption(
-											index,
-											staffConfig.staffIndex,
-											"showStandardNotation",
-										)
-									}
-									title="标准记谱法"
-								/>
-								<StaffOptionButton
-									label="TAB"
-									isActive={staffConfig.showTablature}
-									onClick={() =>
-										onToggleStaffOption(
-											index,
-											staffConfig.staffIndex,
-											"showTablature",
-										)
-									}
-									title="六线谱"
-								/>
-								<StaffOptionButton
-									label="/"
-									icon="𝄍"
-									isActive={staffConfig.showSlash}
-									onClick={() =>
-										onToggleStaffOption(
-											index,
-											staffConfig.staffIndex,
-											"showSlash",
-										)
-									}
-									title="斜线记谱法"
-								/>
-								<StaffOptionButton
-									label="123"
-									isActive={staffConfig.showNumbered}
-									onClick={() =>
-										onToggleStaffOption(
-											index,
-											staffConfig.staffIndex,
-											"showNumbered",
-										)
-									}
-									title="简谱"
-								/>
-							</div>
-						</div>
+							index={index}
+							staffIdx={staffIdx}
+							staffConfig={staffConfig}
+							onToggleStaffOption={onToggleStaffOption}
+						/>
 					))}
 				</div>
 			)}

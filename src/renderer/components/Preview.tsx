@@ -2,6 +2,7 @@
 import * as alphaTab from "@coderline/alphatab";
 import { FileText, Printer } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { createPreviewSettings } from "../lib/alphatab-config";
 import { formatFullError } from "../lib/alphatab-error";
 import { loadBravuraFont, loadSoundFontFromUrl } from "../lib/assets";
@@ -71,6 +72,7 @@ export default function Preview({
 	content,
 	className,
 }: PreviewProps) {
+	const { t } = useTranslation(["common", "errors", "print"]);
 	const containerRef = useRef<HTMLDivElement>(null);
 	const scrollHostRef = useRef<HTMLDivElement>(null);
 	const apiRef = useRef<alphaTab.AlphaTabApi | null>(null);
@@ -1837,7 +1839,11 @@ export default function Preview({
 							icon={
 								<FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
 							}
-							title={<span className="sr-only">{fileName ?? "预览"}</span>}
+							title={
+								<span className="sr-only">
+									{fileName ?? t("common:preview")}
+								</span>
+							}
 							trailing={
 								<>
 									{/* 打印按钮 */}
@@ -1852,7 +1858,7 @@ export default function Preview({
 												</IconButton>
 											</TooltipTrigger>
 											<TooltipContent side="bottom">
-												<p>打印预览</p>
+												<p>{t("print:printPreview")}</p>
 											</TooltipContent>
 										</Tooltip>
 									</div>
@@ -1875,13 +1881,13 @@ export default function Preview({
 							<div className="bg-destructive/10 text-destructive px-3 py-2 text-xs border-t border-destructive/20 flex items-start gap-2">
 								<span className="font-semibold shrink-0">⚠️</span>
 								<div className="flex-1 min-w-0">
-									<div className="font-medium">AlphaTex 解析错误</div>
+									<div className="font-medium">{t("errors:parseError")}</div>
 									<div className="mt-0.5 text-destructive/80 break-words">
 										{parseError}
 									</div>
 									{restorePerformed && lastValidScoreRef.current && (
 										<div className="mt-1 text-destructive/60 text-[11px]">
-											已恢复到上一次成功的乐谱
+											{t("errors:restored")}
 										</div>
 									)}
 								</div>
@@ -1889,7 +1895,7 @@ export default function Preview({
 									type="button"
 									onClick={() => setParseError(null)}
 									className="shrink-0 text-destructive/60 hover:text-destructive text-lg leading-none"
-									title="关闭错误提示"
+									title={t("errors:dismissTooltip")}
 								>
 									×
 								</button>

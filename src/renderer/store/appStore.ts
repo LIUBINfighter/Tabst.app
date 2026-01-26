@@ -1,5 +1,18 @@
 import { create } from "zustand";
+import i18n, { LOCALE_STORAGE_KEY, type Locale } from "../i18n";
 import type { StaffDisplayOptions } from "../lib/staff-config";
+
+/**
+ * 获取初始语言设置
+ * 优先从 i18n.language 读取（它已经从 localStorage 初始化过了）
+ * 这确保 appStore.locale 与 i18n.language 保持同步
+ */
+function getInitialLocale(): Locale {
+	// i18n 在此模块导入时已经初始化完成，直接读取它的语言设置
+	const lng = i18n.language;
+	if (lng === "en" || lng === "zh-cn") return lng;
+	return "zh-cn";
+}
 
 export interface FileItem {
 	id: string;
@@ -125,6 +138,10 @@ interface AppState {
 	activeSettingsPageId: string | null;
 	setActiveSettingsPageId: (id: string | null) => void;
 
+	// i18n 语言
+	locale: "en" | "zh-cn";
+	setLocale: (locale: "en" | "zh-cn") => void;
+
 	// Actions
 	addFile: (file: FileItem) => void;
 	removeFile: (id: string) => void;
@@ -212,6 +229,25 @@ export const useAppStore = create<AppState>((set, get) => ({
 
 	activeSettingsPageId: null,
 	setActiveSettingsPageId: (id) => set({ activeSettingsPageId: id }),
+
+	// 使用 getInitialLocale() 确保与 i18n.language 同步
+	locale: getInitialLocale(),
+	setLocale: (locale) => {
+		const currentLocale = get().locale;
+		// 如果语言没有变化，直接返回
+		if (currentLocale === locale) return;
+
+		// 先更新 store（单一数据源），然后同步到 i18n
+		set({ locale });
+		// 同步更新 i18n
+		i18n.changeLanguage(locale).catch((err) => {
+			console.error("Failed to change language:", err);
+		});
+		// 持久化到 localStorage（仅用于下次启动时恢复）
+		try {
+			localStorage.setItem(LOCALE_STORAGE_KEY, locale);
+		} catch {}
+	},
 
 	addFile: (file) => {
 		set((state) => {
@@ -411,6 +447,10 @@ export const useAppStore = create<AppState>((set, get) => ({
 
 	initialize: async () => {
 		try {
+			// 注意：语言设置不需要在这里恢复
+			// appStore.locale 的初始值已通过 getInitialLocale() 从 i18n.language 同步
+			// i18n 在导入时已从 localStorage 初始化，因此 appStore.locale 已经是正确的值
+
 			// 检查 electronAPI 是否可用
 			if (
 				typeof window !== "undefined" &&

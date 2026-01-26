@@ -1,5 +1,6 @@
 import { Minus, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useAppStore } from "../store/appStore";
 import IconButton from "./ui/icon-button";
 import {
@@ -10,6 +11,7 @@ import {
 } from "./ui/tooltip";
 
 export default function BpmStepper() {
+	const { t } = useTranslation("toolbar");
 	const songInitialBpm = useAppStore((s) => s.songInitialBpm);
 	const playbackSpeed = useAppStore((s) => s.playbackSpeed);
 	const setPlaybackSpeed = useAppStore((s) => s.setPlaybackSpeed);
@@ -17,7 +19,6 @@ export default function BpmStepper() {
 
 	const [inputBpm, setInputBpm] = useState<number | null>(null);
 
-	// 初始化/同步输入值为 live BPM
 	useEffect(() => {
 		if (!songInitialBpm) {
 			setInputBpm(null);
@@ -30,7 +31,6 @@ export default function BpmStepper() {
 	const applyTargetBpm = (target: number) => {
 		if (!songInitialBpm) return;
 		const newSpeed = target / songInitialBpm;
-		// clamp to reasonable bounds
 		const clamped = Math.max(0.25, Math.min(2.0, newSpeed));
 		setPlaybackSpeed(clamped);
 		try {
@@ -57,18 +57,18 @@ export default function BpmStepper() {
 								<IconButton
 									compact
 									onClick={() => onInc(-1)}
-									aria-label="减少 1 BPM"
+									aria-label={t("bpm.decrease")}
 								>
 									<Minus className="h-4 w-4" />
 								</IconButton>
 							</TooltipTrigger>
 							<TooltipContent side="top">
-								<p>减少 1 BPM</p>
+								<p>{t("bpm.decrease")}</p>
 							</TooltipContent>
 						</Tooltip>
 
 						<input
-							aria-label="BPM 值"
+							aria-label={t("bpm.ariaLabel")}
 							type="number"
 							value={inputBpm ?? ""}
 							onChange={(e) => {
@@ -88,25 +88,29 @@ export default function BpmStepper() {
 							min={1}
 							max={999}
 						/>
-						<span className="text-xs text-muted-foreground ml-0.5">BPM</span>
+						<span className="text-xs text-muted-foreground ml-0.5">
+							{t("bpm.label")}
+						</span>
 
 						<Tooltip>
 							<TooltipTrigger asChild>
 								<IconButton
 									compact
 									onClick={() => onInc(1)}
-									aria-label="增加 1 BPM"
+									aria-label={t("bpm.increase")}
 								>
 									<Plus className="h-4 w-4" />
 								</IconButton>
 							</TooltipTrigger>
 							<TooltipContent side="top">
-								<p>增加 1 BPM</p>
+								<p>{t("bpm.increase")}</p>
 							</TooltipContent>
 						</Tooltip>
 					</>
 				) : (
-					<div className="text-xs text-muted-foreground">无法读取原始 BPM</div>
+					<span className="text-xs text-muted-foreground">
+						{t("bpm.label")}
+					</span>
 				)}
 			</div>
 		</TooltipProvider>

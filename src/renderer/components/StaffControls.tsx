@@ -1,4 +1,5 @@
 import { FileText, Hash, Music, Slash } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import type { StaffDisplayOptions } from "../lib/staff-config";
 import IconButton from "./ui/icon-button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
@@ -12,6 +13,7 @@ export default function StaffControls({
 	firstStaffOptions,
 	toggleFirstStaffOpt,
 }: StaffControlsProps) {
+	const { t } = useTranslation("print");
 	if (!firstStaffOptions) return null;
 
 	return (
@@ -26,7 +28,7 @@ export default function StaffControls({
 					</IconButton>
 				</TooltipTrigger>
 				<TooltipContent side="top">
-					<p>标准记谱法（五线谱）</p>
+					<p>{t("staff.standard")}</p>
 				</TooltipContent>
 			</Tooltip>
 
@@ -40,7 +42,7 @@ export default function StaffControls({
 					</IconButton>
 				</TooltipTrigger>
 				<TooltipContent side="top">
-					<p>六线谱（TAB）</p>
+					<p>{t("staff.tab")}</p>
 				</TooltipContent>
 			</Tooltip>
 
@@ -54,7 +56,7 @@ export default function StaffControls({
 					</IconButton>
 				</TooltipTrigger>
 				<TooltipContent side="top">
-					<p>斜线记谱法（节拍）</p>
+					<p>{t("staff.slash")}</p>
 				</TooltipContent>
 			</Tooltip>
 
@@ -68,7 +70,7 @@ export default function StaffControls({
 					</IconButton>
 				</TooltipTrigger>
 				<TooltipContent side="top">
-					<p>简谱（数字谱）</p>
+					<p>{t("staff.numbered")}</p>
 				</TooltipContent>
 			</Tooltip>
 		</div>

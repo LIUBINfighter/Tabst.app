@@ -11,6 +11,7 @@ import {
 	useRef,
 	useState,
 } from "react";
+import { useTranslation } from "react-i18next";
 import { alphatexAbbreviations } from "../lib/alphatex-abbreviations";
 import { createAlphaTexBarlinesExtension } from "../lib/alphatex-barlines";
 import { createAlphaTexAutocomplete } from "../lib/alphatex-completion";
@@ -38,6 +39,7 @@ interface EditorProps {
 }
 
 export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
+	const { t } = useTranslation(["sidebar", "common"]);
 	const editorRef = useRef<HTMLDivElement | null>(null);
 	const viewRef = useRef<EditorView | null>(null);
 	const saveTimerRef = useRef<number | null>(null);
@@ -577,7 +579,7 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 			<div className="flex-1 flex items-center justify-center">
 				<div className="flex flex-col items-center gap-6">
 					<p className="text-sm text-muted-foreground">
-						选择或创建一个文件开始编辑
+						{t("common:selectOrCreateFile")}
 					</p>
 					<div className="flex flex-col gap-2 items-center">
 						{onExpandSidebar && (
@@ -587,7 +589,7 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 								className="h-7 px-2 text-muted-foreground"
 								onClick={onExpandSidebar}
 							>
-								打开侧边栏
+								{t("expandSidebar")}
 							</Button>
 						)}
 						<Button
@@ -596,7 +598,7 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 							className="h-7 px-2 text-muted-foreground"
 							onClick={() => setWorkspaceMode("tutorial")}
 						>
-							打开教程
+							{t("openTutorial")}
 						</Button>
 						<Button
 							variant="ghost"
@@ -604,7 +606,7 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 							className="h-7 px-2 text-muted-foreground"
 							onClick={() => setWorkspaceMode("settings")}
 						>
-							打开设置
+							{t("openSettings")}
 						</Button>
 					</div>
 				</div>
@@ -631,7 +633,7 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 										size="icon"
 										className="h-8 w-8"
 										onClick={onExpandSidebar}
-										aria-label="展开侧边栏"
+										aria-label={t("expandSidebar")}
 									>
 										<ChevronRight className="h-4 w-4" />
 									</Button>
@@ -652,7 +654,7 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 					{/* Right: Preview */}
 					<div className="w-1/2 flex flex-col bg-card min-h-0 overflow-y-auto overflow-x-hidden">
 						<Preview
-							fileName={`${activeFile.name} 预览`}
+							fileName={`${activeFile.name} ${t("common:preview")}`}
 							content={activeFile.content}
 						/>
 					</div>
@@ -662,7 +664,10 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 					<TopBar
 						leading={
 							showExpandSidebar ? (
-								<IconButton title="展开侧边栏" onClick={onExpandSidebar}>
+								<IconButton
+									title={t("expandSidebar")}
+									onClick={onExpandSidebar}
+								>
 									<ChevronRight className="h-4 w-4" />
 								</IconButton>
 							) : undefined

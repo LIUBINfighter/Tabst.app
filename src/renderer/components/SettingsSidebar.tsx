@@ -7,10 +7,12 @@ import {
 	Settings,
 } from "lucide-react";
 import { useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { useAppStore } from "../store/appStore";
 import { defaultSettingsPages } from "./settings-pages";
 
 export function SettingsSidebar() {
+	const { t } = useTranslation("settings");
 	const activeSettingsPageId = useAppStore((s) => s.activeSettingsPageId);
 	const setActiveSettingsPageId = useAppStore((s) => s.setActiveSettingsPageId);
 	const setWorkspaceMode = useAppStore((s) => s.setWorkspaceMode);
@@ -103,7 +105,7 @@ export function SettingsSidebar() {
 						}
 					})()}
 					<div className="flex-auto min-w-0 h-6 leading-none flex items-center truncate">
-						{p.title}
+						{t(p.id)}
 					</div>
 				</button>
 			))}

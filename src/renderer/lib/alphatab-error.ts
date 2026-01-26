@@ -4,6 +4,8 @@
  * 用于处理和格式化 AlphaTab 产生的错误信息
  */
 
+import i18n from "../i18n";
+
 /**
  * AlphaTab 诊断信息类型
  */
@@ -35,7 +37,7 @@ export type AlphaTabErrorLike = {
  */
 export function formatDiagnosticsArray(
 	arr: unknown[] | undefined,
-	name = "Diagnostics",
+	name: string = i18n.t("errors:diagnostics"),
 ): string {
 	if (!arr || !Array.isArray(arr) || arr.length === 0) return "";
 	try {
@@ -87,34 +89,31 @@ export function formatDiagnosticsArray(
  * @returns 格式化后的错误消息字符串
  */
 export function formatAlphaTabError(err: unknown): string {
-	if (!err) return "未知错误";
+	const unknownErr = i18n.t("errors:unknown");
+	if (!err) return unknownErr;
 
 	const e = err as AlphaTabErrorLike;
-	let errorMessage = e.message || e.error || e.toString?.() || "未知错误";
+	let errorMessage = e.message || e.error || e.toString?.() || unknownErr;
 
-	// 添加 lexer diagnostics
 	if (e.lexerDiagnostics) {
-		errorMessage += `\n\nLexer diagnostics:\n${e.lexerDiagnostics}`;
+		errorMessage += `\n\n${i18n.t("errors:lexerDiagnostics")}:\n${e.lexerDiagnostics}`;
 	}
 
-	// 添加 parser diagnostics
 	if (Array.isArray(e.parserDiagnostics)) {
-		errorMessage += `\n\n${formatDiagnosticsArray(e.parserDiagnostics, "Parser diagnostics")}`;
+		errorMessage += `\n\n${formatDiagnosticsArray(e.parserDiagnostics, i18n.t("errors:parserDiagnostics"))}`;
 	}
 
-	// 添加 semantic diagnostics
 	if (Array.isArray(e.semanticDiagnostics)) {
-		errorMessage += `\n\n${formatDiagnosticsArray(e.semanticDiagnostics, "Semantic diagnostics")}`;
+		errorMessage += `\n\n${formatDiagnosticsArray(e.semanticDiagnostics, i18n.t("errors:semanticDiagnostics"))}`;
 	}
 
-	// Fallback: some versions include a 'diagnostics' key
 	if (Array.isArray(e.diagnostics as unknown[])) {
-		errorMessage += `\n\n${formatDiagnosticsArray(e.diagnostics as unknown[], "Diagnostics")}`;
+		errorMessage += `\n\n${formatDiagnosticsArray(e.diagnostics as unknown[], i18n.t("errors:diagnostics"))}`;
 	} else if (e.diagnostics) {
 		try {
-			errorMessage += `\n\nDiagnostics:\n${JSON.stringify(e.diagnostics, null, 2)}`;
+			errorMessage += `\n\n${i18n.t("errors:diagnostics")}:\n${JSON.stringify(e.diagnostics, null, 2)}`;
 		} catch {
-			// ignore stringify errors
+			// ignore
 		}
 	}
 
@@ -125,7 +124,7 @@ export function formatAlphaTabError(err: unknown): string {
  * 从错误对象中提取错误类型
  */
 export function getErrorType(err: unknown): string {
-	if (!err) return "未知错误";
+	if (!err) return i18n.t("errors:unknown");
 	const e = err as AlphaTabErrorLike;
 	return String(e.type ?? e.errorType ?? "AlphaTex");
 }

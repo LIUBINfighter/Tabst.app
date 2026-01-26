@@ -1,0 +1,10 @@
+{
+	"unknown": "未知错误",
+	"lexerDiagnostics": "Lexer diagnostics",
+	"parserDiagnostics": "Parser diagnostics",
+	"semanticDiagnostics": "Semantic diagnostics",
+	"diagnostics": "Diagnostics",
+	"parseError": "AlphaTex 解析错误",
+	"restored": "已恢复到上一次成功的乐谱",
+	"dismissTooltip": "关闭错误提示"
+}

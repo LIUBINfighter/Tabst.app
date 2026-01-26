@@ -1,6 +1,7 @@
-import { ChevronLeft, ChevronRight, FileText } from "lucide-react";
+import { ChevronLeft, ChevronRight, FileText, X } from "lucide-react";
 import type { MDXModule } from "mdx/types";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
 	getNextTutorial,
 	getPrevTutorial,
@@ -25,6 +26,7 @@ export default function TutorialView({
 	onExpandSidebar,
 	onCollapseSidebar,
 }: TutorialViewProps) {
+	const { t } = useTranslation(["sidebar", "common"]);
 	const setWorkspaceMode = useAppStore((s) => s.setWorkspaceMode);
 	const activeTutorialId = useAppStore((s) => s.activeTutorialId);
 	const setActiveTutorialId = useAppStore((s) => s.setActiveTutorialId);
@@ -73,10 +75,12 @@ export default function TutorialView({
 			})
 			.catch((err) => {
 				console.error("Failed to load tutorial:", err);
-				setError(err instanceof Error ? err.message : "加载教程失败");
+				setError(
+					err instanceof Error ? err.message : t("common:loadTutorialFailed"),
+				);
 				setLoading(false);
 			});
-	}, [activeTutorialId]);
+	}, [activeTutorialId, t]);
 
 	// 键盘快捷键：ESC 返回编辑器，左右箭头键翻页
 	useEffect(() => {
@@ -102,20 +106,51 @@ export default function TutorialView({
 				leading={
 					showExpandSidebar
 						? onExpandSidebar && (
-								<IconButton title="展开侧边栏" onClick={onExpandSidebar}>
-									<ChevronRight className="h-4 w-4" />
-								</IconButton>
+								<div className="flex items-center gap-1">
+									<IconButton
+										title={t("expandSidebar")}
+										onClick={onExpandSidebar}
+									>
+										<ChevronRight className="h-4 w-4" />
+									</IconButton>
+									<IconButton
+										className="hover:bg-red-500/20 hover:text-red-600"
+										title={t("common:close")}
+										aria-label={t("common:close")}
+										onClick={() => {
+											setWorkspaceMode("editor");
+											setActiveTutorialId(null);
+										}}
+									>
+										<X className="h-4 w-4" />
+									</IconButton>
+								</div>
 							)
 						: onCollapseSidebar && (
-								<IconButton title="收起侧边栏" onClick={onCollapseSidebar}>
-									<ChevronLeft className="h-4 w-4" />
-								</IconButton>
+								<div className="flex items-center gap-1">
+									<IconButton
+										title={t("collapseSidebar")}
+										onClick={onCollapseSidebar}
+									>
+										<ChevronLeft className="h-4 w-4" />
+									</IconButton>
+									<IconButton
+										destructive
+										title={t("common:close")}
+										onClick={() => {
+											setWorkspaceMode("editor");
+											setActiveTutorialId(null);
+										}}
+									>
+										<X className="h-4 w-4" />
+									</IconButton>
+								</div>
 							)
 				}
 				icon={
 					<FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
 				}
-				title="教程"
+				title={t("tutorial")}
 			/>
 
 			<div className="flex-1 p-4 overflow-auto">
@@ -123,7 +158,9 @@ export default function TutorialView({
 				<div className="mx-auto w-full max-w-[900px]">
 					{loading && (
 						<div className="flex items-center justify-center h-full">
-							<p className="text-sm text-muted-foreground">加载中...</p>
+							<p className="text-sm text-muted-foreground">
+								{t("common:loading")}
+							</p>
 						</div>
 					)}
 

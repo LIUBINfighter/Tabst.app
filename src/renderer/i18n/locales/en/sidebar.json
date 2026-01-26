@@ -1,0 +1,18 @@
+{
+	"collapseSidebar": "Collapse sidebar",
+	"expandSidebar": "Expand sidebar",
+	"openFile": "Open file",
+	"newAtex": "New .atex",
+	"newMd": "New .md",
+	"toggleTheme": "Toggle light/dark theme",
+	"noFiles": "No files",
+	"rename": "Rename",
+	"renameFile": "Rename file",
+	"showInExplorer": "Show in file manager",
+	"tutorial": "Tutorial",
+	"openTutorial": "Open tutorial",
+	"enterTutorial": "Enter tutorial",
+	"exitTutorial": "Exit tutorial",
+	"openSettings": "Open settings",
+	"settings": "Settings"
+}

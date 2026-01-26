@@ -1,5 +1,7 @@
 import DOMPurify from "dompurify";
+import moment from "moment";
 import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "../ui/button";
 
 interface ReleaseEntry {
@@ -11,6 +13,7 @@ interface ReleaseEntry {
 }
 
 export function UpdatesPage() {
+	const { t } = useTranslation("updates");
 	const [checkingUpdate, setCheckingUpdate] = useState(false);
 	const [updateStatus, setUpdateStatus] = useState<string | null>(null);
 	const [releases, setReleases] = useState<ReleaseEntry[]>([]);
@@ -29,13 +32,11 @@ export function UpdatesPage() {
 			const parser = new DOMParser();
 			const xmlDoc = parser.parseFromString(result.data, "text/xml");
 
-			// 检查解析错误
-			const parseError = xmlDoc.querySelector("parsererror");
-			if (parseError) {
+			const parseErr = xmlDoc.querySelector("parsererror");
+			if (parseErr) {
 				throw new Error("Failed to parse XML");
 			}
 
-			// 解析 Atom feed
 			const entries = xmlDoc.querySelectorAll("entry");
 			const parsedReleases: ReleaseEntry[] = [];
 
@@ -47,21 +48,16 @@ export function UpdatesPage() {
 				const updated = entry.querySelector("updated")?.textContent || "";
 				const rawContent = entry.querySelector("content")?.textContent || "";
 
-				// Security: Validate and sanitize link URL
 				let link = "";
 				try {
 					if (linkAttr) {
 						const url = new URL(linkAttr);
-						// Only allow https://github.com links
 						if (url.protocol === "https:" && url.hostname === "github.com") {
 							link = linkAttr;
 						}
 					}
-				} catch {
-					// Invalid URL, leave link empty
-				}
+				} catch {}
 
-				// Security: Sanitize HTML content to prevent XSS
 				const sanitizedContent = DOMPurify.sanitize(rawContent, {
 					ALLOWED_TAGS: [
 						"p",
@@ -98,29 +94,28 @@ export function UpdatesPage() {
 
 			setReleases(parsedReleases);
 		} catch (err) {
-			setError(`加载失败：${String(err)}`);
+			setError(t("loadFailed", { reason: String(err) }));
 		} finally {
 			setLoading(false);
 		}
-	}, []);
+	}, [t]);
 
 	useEffect(() => {
-		// 自动加载一次
 		void fetchReleases();
 	}, [fetchReleases]);
 
 	const handleCheckUpdate = async () => {
 		setCheckingUpdate(true);
-		setUpdateStatus("正在检查更新...");
+		setUpdateStatus(t("checkingUpdate"));
 		try {
 			const result = await window.electronAPI.checkForUpdates();
 			if (!result?.supported) {
-				setUpdateStatus(result?.message ?? "当前环境不支持更新检查");
+				setUpdateStatus(result?.message ?? t("unsupported"));
 			} else {
-				setUpdateStatus("已触发检查，请留意右下角更新提示");
+				setUpdateStatus(t("triggered"));
 			}
 		} catch (err) {
-			setUpdateStatus(`检查失败：${String(err)}`);
+			setUpdateStatus(t("checkFailed", { reason: String(err) }));
 		} finally {
 			setCheckingUpdate(false);
 		}
@@ -128,12 +123,8 @@ export function UpdatesPage() {
 
 	const formatDate = (dateString: string) => {
 		try {
-			const date = new Date(dateString);
-			return date.toLocaleDateString("zh-CN", {
-				year: "numeric",
-				month: "long",
-				day: "numeric",
-			});
+			const m = moment(dateString);
+			return m.isValid() ? m.format("LL") : dateString;
 		} catch {
 			return dateString;
 		}
@@ -142,14 +133,14 @@ export function UpdatesPage() {
 	return (
 		<div className="space-y-4">
 			<section className="bg-card border border-border rounded p-4">
-				<h3 className="text-sm font-medium mb-2">检查更新</h3>
+				<h3 className="text-sm font-medium mb-2">{t("checkUpdate")}</h3>
 				<div className="flex items-center gap-3">
 					<Button
 						type="button"
 						onClick={handleCheckUpdate}
 						disabled={checkingUpdate}
 					>
-						{checkingUpdate ? "检查中..." : "检查更新"}
+						{checkingUpdate ? t("checking") : t("checkUpdate")}
 					</Button>
 					{updateStatus && (
 						<p className="text-xs text-muted-foreground">{updateStatus}</p>
@@ -159,7 +150,7 @@ export function UpdatesPage() {
 
 			<section className="bg-card border border-border rounded p-4">
 				<div className="flex items-center justify-between mb-4">
-					<h3 className="text-sm font-medium">更新日志</h3>
+					<h3 className="text-sm font-medium">{t("changelog")}</h3>
 					<Button
 						type="button"
 						variant="outline"
@@ -167,18 +158,20 @@ export function UpdatesPage() {
 						onClick={fetchReleases}
 						disabled={loading}
 					>
-						{loading ? "加载中..." : "刷新"}
+						{loading ? t("loading") : t("refresh")}
 					</Button>
 				</div>
 
 				{error && <div className="text-xs text-destructive mb-4">{error}</div>}
 
 				{loading && releases.length === 0 && (
-					<div className="text-xs text-muted-foreground">加载中...</div>
+					<div className="text-xs text-muted-foreground">{t("loading")}</div>
 				)}
 
 				{!loading && releases.length === 0 && !error && (
-					<div className="text-xs text-muted-foreground">暂无更新日志</div>
+					<div className="text-xs text-muted-foreground">
+						{t("noChangelog")}
+					</div>
 				)}
 
 				<div className="space-y-4">
@@ -196,7 +189,7 @@ export function UpdatesPage() {
 										rel="noopener noreferrer"
 										className="text-xs text-primary hover:underline shrink-0"
 									>
-										查看 →
+										{t("viewRelease")}
 									</a>
 								)}
 							</div>
@@ -208,8 +201,7 @@ export function UpdatesPage() {
 							{release.content && (
 								<div
 									className="text-xs text-muted-foreground prose prose-sm max-w-none dark:prose-invert prose-headings:text-foreground prose-p:text-muted-foreground prose-a:text-primary prose-strong:text-foreground prose-code:text-foreground prose-pre:bg-muted prose-pre:text-foreground"
-									// Security: Content is sanitized with DOMPurify before rendering
-									// biome-ignore lint/security/noDangerouslySetInnerHtml: Content sanitized with DOMPurify
+									// biome-ignore lint/security/noDangerouslySetInnerHtml: sanitized with DOMPurify
 									dangerouslySetInnerHTML={{ __html: release.content }}
 								/>
 							)}

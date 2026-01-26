@@ -1,0 +1,30 @@
+{
+	"play": "播放",
+	"pause": "暂停",
+	"stop": "停止",
+	"refresh": "刷新",
+	"zoomIn": "放大",
+	"zoomOut": "缩小",
+	"zoomPercent": "缩放百分比",
+	"playbackSpeed": "播放速度",
+	"metronome": {
+		"label": "节拍器",
+		"enable": "开启节拍器",
+		"disable": "关闭节拍器"
+	},
+	"tutorial": {
+		"prev": "前一页",
+		"next": "后一页",
+		"prevWithTitle": "前一页：{{title}}",
+		"nextWithTitle": "后一页：{{title}}",
+		"prevTooltip": "前一页：{{title}} (← 键)",
+		"nextTooltip": "后一页：{{title}} (→ 键)",
+		"keyboardHint": "使用 ← → 键翻页"
+	},
+	"bpm": {
+		"label": "BPM",
+		"decrease": "减少 1 BPM",
+		"increase": "增加 1 BPM",
+		"ariaLabel": "BPM 值"
+	}
+}

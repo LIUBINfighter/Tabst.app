@@ -1,0 +1,29 @@
+{
+	"checkUpdate": "Check for updates",
+	"checking": "Checking...",
+	"changelog": "Changelog",
+	"refresh": "Refresh",
+	"loading": "Loading...",
+	"noChangelog": "No changelog",
+	"loadFailed": "Load failed: {{reason}}",
+	"checkingUpdate": "Checking for updates...",
+	"unsupported": "Update check not supported in this environment",
+	"triggered": "Check triggered, watch for update toast",
+	"checkFailed": "Check failed: {{reason}}",
+	"viewRelease": "View →",
+	"toast": {
+		"title": "Update",
+		"version": "Version: {{version}}",
+		"close": "Close",
+		"checking": "Checking for updates…",
+		"availableMessage": "New version found, preparing to download…",
+		"downloadingMessage": "Downloading update…",
+		"downloaded": "Update downloaded",
+		"latest": "Already up to date",
+		"error": "Update failed, please try again later",
+		"preparing": "Preparing download, please wait…",
+		"installRestart": "Install and restart",
+		"later": "Later",
+		"waitHint": "If a new version was just released, please check again later."
+	}
+}
