@@ -73,7 +73,8 @@ export function CodeBlock({ language, children, className }: CodeBlockProps) {
 				wrapLongLines={true}
 				lineProps={{
 					style: {
-						whiteSpace: finalLanguage === "markdown" ? "pre-wrap" : "pre",
+						// 所有语言都使用 pre-wrap，避免出现右侧多余溢出/截断感
+						whiteSpace: "pre-wrap",
 						wordBreak: "break-word",
 					},
 				}}
