@@ -68,8 +68,16 @@ const allComponents = {
 		children?: React.ReactNode;
 		className?: string;
 	}) => {
-		// 内联代码
+		// 如果没有 className，区分内联 vs 块级：包含换行视为块级代码
+		const text = String(children || "");
 		if (!className) {
+			if (text.includes("\n")) {
+				return (
+					<mdxComponents.CodeBlock>
+						{String(children || "").replace(/\n$/, "")}
+					</mdxComponents.CodeBlock>
+				);
+			}
 			return (
 				<code className="px-1.5 py-0.5 bg-muted rounded text-sm font-mono before:content-none after:content-none break-words whitespace-normal">
 					{children}

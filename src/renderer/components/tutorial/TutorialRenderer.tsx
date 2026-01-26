@@ -16,12 +16,9 @@ export function TutorialRenderer({ content }: TutorialRendererProps) {
 		pre: ({ children }) => <>{children}</>,
 
 		// 代码块
-		code({ node, className, children, ...props }) {
-			// 检查是否是内联代码（通过检查是否有 className）
-			const isInline = !className;
-
-			// 内联代码
-			if (isInline) {
+		code({ node, inline, className, children, ...props }) {
+			// 使用 ReactMarkdown 提供的 `inline` 来判断是否为内联代码
+			if (inline) {
 				return (
 					<code
 						className="px-1.5 py-0.5 bg-muted rounded text-sm font-mono before:content-none after:content-none break-words whitespace-normal"
@@ -32,9 +29,11 @@ export function TutorialRenderer({ content }: TutorialRendererProps) {
 				);
 			}
 
-			// 代码块
+			// 块级代码（有时没有 language 类），尽量从 className 提取语言以便高亮
+			const detectedLanguage = className?.replace(/language-/, "") || undefined;
+
 			return (
-				<CodeBlock className={className} {...props}>
+				<CodeBlock className={className} language={detectedLanguage} {...props}>
 					{String(children).replace(/\n$/, "")}
 				</CodeBlock>
 			);
