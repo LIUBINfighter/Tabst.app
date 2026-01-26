@@ -1,0 +1,353 @@
+# Bar Metadata
+
+The following metadata tags are affecting things on bar (and masterbar) level.
+Time signatures, clefs, repeats, such kind of things.
+
+## `\ts`
+
+```markdown
+// [1]: Specifies a common (4/4) time signature using the special C symbol
+\ts common
+// [2]:
+\ts (numerator denominator)
+```
+
+**Description:** Defines the time signature for this and subsequent bars.
+
+AlphaTab does not yet support polytempo notation where instruments might use different time signatures. Therefore be sure to only specify the timesignatures once as part of the first track/staff or ensure they are consistent across the whole document.
+
+**Parameters:**
+
+| Overload | Name | Description | Type | Required |
+|----------|------|-------------|------|----------|
+| `[1]` |  `common` | Specifies a common (4/4) time signature using the special C symbol | `common` | yes  |
+| `[2]` |  `numerator` | The time signature numerator | `Number` | yes  |
+| `[2]` |  `denominator` | The time signature denominator | `Number` | yes  |
+
+**Parameter Values:**
+
+| Overload | Name | Values |
+|----------|------|--------|
+| `[1]` | `common` | `common` - Specifies a common (4/4) time signature using the special C symbol |
+
+**Example:**
+
+```alphatex
+\ts 3 4 | \ts 4 4 | \ts 6 8 | \ts common
+```
+
+## `\ro`
+
+```markdown
+\ro ()
+```
+
+**Description:** Start a repeat
+
+**Example:**
+
+```alphatex
+\ro 1.3 2.3 3.3 4.3 | 5.3 6.3 7.3 8.3 | \rc 2 1.3 2.3 3.3 4.3 |
+\ro \rc 3 1.3 2.3 3.3 4.3
+```
+
+## `\rc`
+
+```markdown
+\rc repeats
+```
+
+**Description:** Marks the end of a repeat.
+
+**Parameters:**
+
+| Name | Description | Type | Required |
+|------|-------------|------|----------|
+|  `repeats` | The number of repeats which should be played | `Number` | yes  |
+
+**Example:**
+
+```alphatex
+\ro 1.3 2.3 3.3 4.3 | 5.3 6.3 7.3 8.3 | \rc 2 1.3 2.3 3.3 4.3 |
+\ro \rc 3 1.3 2.3 3.3 4.3
+```
+
+## `\ae`
+
+```markdown
+\ae (ending)
+```
+
+**Description:** Specifies on which repeats a bar should be played (to build alternate endings).
+
+**Parameters:**
+
+| Name | Description | Type | Required |
+|------|-------------|------|----------|
+|  `ending` | The repeats on which the bar should be played | `Number[]` | yes  |
+
+**Example:**
+
+```alphatex
+\ro 1.3 2.3 3.3 4.3 | \ae (1 2 3) 5.3 6.3 7.3 8.3 | \ae 4 
+c 4 5.3 8.3 7.3 6.3
+```
+
+## `\ks`
+
+```
+\ks key
+```
+
+**Description:** Specifies the key signature for this and subsequent bars.
+
+**Parameters:**
+
+| Name | Description | Type | Required |
+|------|-------------|------|----------|
+|  `key` | The key signature | `Ident` | yes  |
+
+**Parameter Values:**
+
+- cb, gb, db, ab, eb, bb, f, c, g, d, a, e, b, f#, c#, cbmajor, abminor, gbmajor, ebminor, dbmajor, bbminor, abmajor, fminor, ebmajor, cminor, bbmajor, gminor, fmajor, dminor, cmajor, aminor, gmajor, eminor, dmajor, bminor, amajor, f#minor, emajor, c#minor, bmajor, g#minor, f#major, d#minor, f#, c#major, a#minor, c#
+
+**Example:**
+
+```alphatex
+\ks Cb | \ks C | \ks C# |
+\ks Aminor | \ks Dmajor | \ks Bminor
+```
+
+## `\clef`
+
+```
+\clef clef
+```
+
+**Description:** Changes the clef for this and subsequent bars.
+
+**Parameters:**
+
+| Name | Description | Type | Required |
+|------|-------------|------|----------|
+|  `clef` | The clef | `Ident\|Number` | yes  |
+
+**Parameter Values:**
+
+- neutral, c3, c4, f4, g2, n, alto, tenor, bass, treble
+
+**Example:**
+
+```alphatex
+\clef G2 | \clef F4 | \clef C3 | \clef C4 | \clef N |
+\clef Treble | \clef Bass | \clef Tenor | \clef Alto | \clef Neutral |
+```
+
+## `\ottava`
+
+```
+\ottava ottava
+```
+
+**Description:** Changes the clef ottave for this and subsequent bars.
+
+**Parameters:**
+
+| Name | Description | Type | Required |
+|------|-------------|------|----------|
+|  `ottava` | The clef ottava | `Ident` | yes  |
+
+**Parameter Values:**
+
+- 15ma (Quindicesima +2 octaves), 8va (Ottava +1 octave), regular (Regular), 8vb (Ottava Bassa -1 octave), 15mb (Quindicesima bassa -2 octaves)
+
+**Example:**
+
+```alphatex
+\clef F4 \ottava 15ma | | \ottava regular | | \clef C3 \ottava 8vb | |
+```
+
+## `\tempo`
+
+```markdown
+// [1]: 
+\tempo (tempo label)
+// [2]: 
+\tempo (tempo label position hide)
+```
+
+**Description:** Adds a tempo change to the bar.
+
+A bar can have multiple tempo changes. They can either be relatively positioned using this metadata tag or applied via the `tempo` property as beat effect.
+
+Tempo changes affect the whole song and not only an individual track. To avoid unexpected side effects, we recomment to specify the tempo changes only once on the first track/staff.
+
+**Parameters:**
+
+| Overload | Name | Description | Type | Required |
+|----------|------|-------------|------|----------|
+| `[1]` |  `tempo` | The new tempo in BPM | `Number` | yes  |
+| `[1]` |  `label` | A textual label for the tempo | `String` | no `""` |
+| `[2]` |  `tempo` | The new tempo in BPM | `Number` | yes  |
+| `[2]` |  `label` | A textual label for the tempo | `String` | yes `""` |
+| `[2]` |  `position` | A relative (ratio) position where within the bar the tempo change should happen | `Number` | no `0` |
+| `[2]` |  `hide` | If specified the tempo change is not visually shown | `hide` | no  |
+
+**Parameter Values:**
+
+| Overload | Name | Values |
+|----------|------|--------|
+| `[2]` | `hide` | hide - If specified the tempo change is not visually shown |
+
+**Example:**
+
+```alphatex
+\tempo 30
+C4 D4 E4 F4 |
+\tempo (120 "Moderate")
+\tempo (60 "" 0.5 hide)
+C4 D4 E4 F4 |
+```
+
+## `\tf`
+
+```
+\tf tripletFeel
+```
+
+**Description:** Changes the triplet feel (aka. swing) play style.
+
+**Parameters:**
+
+| Name | Description | Type | Required |
+|------|-------------|------|----------|
+|  `tripletFeel` | The triplet feel style | `Ident\|Number` | yes  |
+
+**Parameter Values:**
+
+- none (No triplet feel), triplet16th (Triplet 16th), triplet8th (Triplet 8th), dotted16th (Dotted 16th), dotted8th (Dotted 8th), scottish16th (Scottish 16th), scottish8th (Scottish 8th)
+
+**Example:**
+
+```alphatex
+\tf none 3.3*4 |
+\tf triplet16th 3.3*4 | \tf triplet8th 3.3*4 |
+\tf dotted16th 3.3*4 | \tf dotted8th 3.3*4 |
+\tf scottish16th 3.3*4 | \tf scottish8th 3.3*4 |
+```
+
+## `\ac`
+
+```
+\ac ()
+```
+
+**Description:** Marks the bar as an anacrusis (pick-up) bar.
+
+By default bars follow a strict timing defined by the time signature and tempo. Anacrusis (aka. pickup bars) do not follow this rule. The length of those bars is defined by the actual beats/notes in the bar.
+
+**Example:**
+
+```alphatex
+\ks D \ts 24 16 \ac r.16 6.3 7.3 9.3 7.3 6.3 | r.16 5.4 7.4 9.4 7.4 5.4 6.3.4{d} 9.6.16 10.6 12.6 10.6 9.6 14.6.4{d} r.16
+```
+
+## `\section`
+
+```
+// [1]: 
+\section text
+// [2]: 
+\section (marker text)
+```
+
+**Description:** Starts a new section
+
+**Parameters:**
+
+| Overload | Name | Description | Type | Required |
+|----------|------|-------------|------|----------|
+| `[1]` |  `text` | The text/description of the new section | `String` | yes  |
+| `[2]` |  `marker` | The marker for the section, typically a single letter | `String` | yes  |
+| `[2]` |  `text` | The text/description of the new section | `String` | yes  |
+
+**Example:**
+
+```alphatex
+\section "Intro" // simple section
+1.1 1.1 1.1 1.1 | 1.1 1.1 1.1 1.1 |
+\section "S" "Solo" // with marker and section name differently
+1.1 1.1 1.1 1.1
+```
+
+## `\jump`
+
+```
+\jump direction
+```
+
+**Description:** Adds a direction/jump instruction to the bar.
+
+**Parameters:**
+
+| Name | Description | Type | Required |
+|------|-------------|------|----------|
+|  `direction` | The direction to add | `Ident` | yes  |
+
+**Parameter Values:**
+
+- fine (Fine (Target)), segno (Segno (Target)), segnoSegno (SegnoSegno (Target)), coda (Coda (Target)), doubleCoda (DoubleCoda (Target)), daCapo (DaCapo (Jump)), daCapoAlCoda (DaCapoAlCoda (Jump)), daCapoAlDoubleCoda (DaCapoAlDoubleCoda (Jump)), daCapoAlFine (DaCapoAlFine (Jump)), dalSegno (DalSegno (Jump)), dalSegnoAlCoda (DalSegnoAlCoda (Jump)), dalSegnoAlDoubleCoda (DalSegnoAlDoubleCoda (Jump)), dalSegnoAlFine (DalSegnoAlFine (Jump)), dalSegnoSegno (DalSegnoSegno (Jump)), dalSegnoSegnoAlCoda (DalSegnoSegnoAlCoda (Jump)), dalSegnoSegnoAlDoubleCoda (DalSegnoSegnoAlDoubleCoda (Jump)), dalSegnoSegnoAlFine (DalSegnoSegnoAlFine (Jump)), daCoda (DaCoda (Jump)), daDoubleCoda (DaDoubleCoda (Jump))
+
+**Example:**
+
+```alphatex
+\ro \rc 2 3.3*4 | 
+    3.3*4 | 
+    \jump Segno 3.3*4 |
+    \ro 
+c 2 3.3*4 | 
+    \jump DaCoda 3.3*4 |
+    3.3*4 | 3.3*4
+    \jump DalSegnoAlCoda 3.3*4 |
+    3.3*4 |
+    \jump Coda 3.3*4 |
+    3.3*4 |
+    3.3*4
+    
+```
+
+## `\ft`
+
+```
+\ft ()
+```
+
+**Description:** Marks the bar as a free-time bar where players are free to vary the timing.
+
+**Example:**
+
+```alphatex
+:2 
+C4*2 |
+\ft C4*2 |
+\ft C4*2 |
+C4*2 |
+```
+
+## `\simile`
+
+```
+\simile mark
+```
+
+**Description:** Adds a simile mark to the bar indicating that the content of the last, or previous two bars should be repeated.
+
+**Parameters:**
+
+| Name | Description | Type | Required |
+|------|-------------|------|----------|
+|  `mark` | The mark to add | `none\|simple\|firstOfDouble\|secondOfDouble` | yes  |
+
+**Parameter Values:**
+
+- none (No simile mark is applied), simple (A simple simile mark. The previous bar is repeated.), firstOfDouble (A double simile mark. This value is assigned to the first bar of the 2 repeat bars.), secondOfDouble (A double simile mark. This value is assigned to the second bar of the 2 repeat bars.)

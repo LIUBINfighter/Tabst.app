@@ -1,0 +1,494 @@
+# Beat Properties
+
+The properties defined on beat level result in a variety of effects and annotations
+shown in the music sheet. Historically these properties are heavily abbreviated to
+reduce the text that needs to be written to apply them.
+
+In future alphaTab will likely change to a more verbose, but clearer alternative.
+
+## `f`
+
+```markdown
+f ()
+```
+
+**Description:** Adds a fade-in effect to the beat. Applies to all notes.
+
+**Example:**
+
+```alphatex
+(0.1 2.2 2.3 2.4 0.5).2 { f }
+```
+
+## `fo`
+
+```markdown
+fo ()
+```
+
+**Description:** Adds a fade-out effect to the beat. Applies to all notes.
+
+**Example:**
+
+```alphatex
+(0.1 2.2 2.3 2.4 0.5).1 { fo }
+```
+
+## `vs`
+
+```markdown
+vs ()
+```
+
+**Description:** Adds a volume-swell effect to the beat. Applies to all notes.
+
+**Example:**
+
+```alphatex
+(0.1 2.2 2.3 2.4 0.5).1 { vs }
+```
+
+## `v`
+
+```markdown
+v ()
+```
+
+**Description:** Adds a slight vibrato effect to the beat. Applies to all notes.
+
+**Example:**
+
+```alphatex
+(0.1 2.2 2.3 2.4 0.5).1 { v }
+```
+
+## `vw`
+
+```markdown
+vw ()
+```
+
+**Description:** Adds a wide vibrato effect to the beat. Applies to all notes.
+
+**Example:**
+
+```alphatex
+(0.1 2.2 2.3 2.4 0.5).1 { vw }
+```
+
+## `s`
+
+```markdown
+s ()
+```
+
+**Description:** Adds a bass slap annotation to the beat.
+
+**Example:**
+
+```alphatex
+\track {instrument "Electric Bass Finger"}
+(3 4) 3.4.8 {s} (5.1 5.2).4 {p}  3.4.8 {s} (5.1 5.2).4 {p}
+```
+
+## `p`
+
+```markdown
+p ()
+```
+
+**Description:** Adds a bass pop annotation to the beat.
+
+**Example:**
+
+```alphatex
+\track {instrument "Electric Bass Finger"}
+(3 4) 3.4.8 {s} (5.1 5.2).4 {p}  3.4.8 {s} (5.1 5.2).4 {p}
+```
+
+## `tt`
+
+```markdown
+tt ()
+```
+
+**Description:** Adds a guitar or bass tapping annotation to the beat.
+
+**Example:**
+
+```alphatex
+\track {instrument "Electric Bass Finger"}
+:8 {tu 3}
+18.1 {tt h} 10.1 {h} 14.1
+18.1 {tt h} 10.1 {h} 14.1
+18.1 {tt h} 10.1 {h} 14.1
+18.1 {tt h} 10.1 {h} 14.1
+```
+
+## `d`
+
+```markdown
+d ()
+```
+
+**Description:** Marks the beat with a single augmentation dot.
+
+**Example:**
+
+```alphatex
+(0.1 2.2 2.3 2.4 0.5).1 { d }
+```
+
+## `dd`
+
+```markdown
+dd ()
+```
+
+**Description:** Marks the beat with a double augmentation dot.
+
+**Example:**
+
+```alphatex
+(0.1 2.2 2.3 2.4 0.5).1 { dd }
+```
+
+## `su`
+
+```markdown
+su ()
+```
+
+**Description:** Adds an upwards pick-stroke annotation to the beat.
+
+**Example:**
+
+```alphatex
+0.1 { su }
+```
+
+## `sd`
+
+```markdown
+sd ()
+```
+
+**Description:** Adds an downwards pick-stroke annotation to the beat.
+
+**Example:**
+
+```alphatex
+0.1 { sd }
+```
+
+## `cre`
+
+```markdown
+cre ()
+```
+
+**Description:** Adds a crescendo effect to the beat.
+
+**Example:**
+
+```alphatex
+3.3 { cre } -.3 { cre }
+```
+
+## `dec`
+
+```markdown
+dec ()
+```
+
+**Description:** Adds a decrescendo (diminuendo) effect to the beat.
+
+**Example:**
+
+```alphatex
+3.3 { dec } -.3 { dec }
+```
+
+## `spd`
+
+```markdown
+spd ()
+```
+
+**Description:** Add a sustain pedal down-press to the beat.
+
+**Example:**
+
+```alphatex
+C4 {spd} C4 {sph} C4 {sph} C4 {spu} |
+C4 {spd} C4 {sph} C4 {sph} C4 {spe}
+```
+
+## `sph`
+
+```markdown
+sph ()
+```
+
+**Description:** Add a sustain pedal hold to the beat.
+
+**Example:**
+
+```alphatex
+C4 {spd} C4 {sph} C4 {sph} C4 {spu} |
+C4 {spd} C4 {sph} C4 {sph} C4 {spe}
+```
+
+## `spu`
+
+```markdown
+spu ()
+```
+
+**Description:** Add a sustain pedal up (release) to the beat.
+
+**Example:**
+
+```alphatex
+C4 {spd} C4 {sph} C4 {sph} C4 {spu} |
+C4 {spd} C4 {sph} C4 {sph} C4 {spe}
+```
+
+## `spe`
+
+```markdown
+spe ()
+```
+
+**Description:** Add a sustain pedal up (release) to the end of the beat.
+
+**Example:**
+
+```alphatex
+C4 {spd} C4 {sph} C4 {sph} C4 {spu} |
+C4 {spd} C4 {sph} C4 {sph} C4 {spe}
+```
+
+## `slashed`
+
+```markdown
+slashed ()
+```
+
+**Description:** Marks the beat to be displayed with slash notation.
+
+**Example:**
+
+```alphatex
+(0.1 2.2 2.3 2.4 0.5).2  (0.1 2.2 2.3 2.4 0.5).2 { slashed }
+```
+
+## `ds`
+
+```markdown
+ds ()
+```
+
+**Description:** Marks the beat to be a dead-slap beat.
+
+As no notes should be on such a beat, simply use () to indicate the empty beat which is not a rest.
+
+
+**Example:**
+
+```alphatex
+().4 {ds} ().4 {ds}
+```
+
+## `glpf`
+
+```markdown
+glpf ()
+```
+
+**Description:** Adds a golpe finger-tap effect to the beat.
+
+**Example:**
+
+```alphatex
+3.3{glpf} 3.3{glpt}
+```
+
+## `glpt`
+
+```markdown
+glpt ()
+```
+
+**Description:** Adds a golpe thumb-tap effect to the beat.
+
+**Example:**
+
+```alphatex
+3.3{glpf} 3.3{glpt}
+```
+
+## `waho`
+
+```markdown
+waho ()
+```
+
+**Description:** Adds a Wah-pedal opening effect to the beat.
+
+**Example:**
+
+```alphatex
+3.3 3.3{waho} 3.3 3.3 {wahc}
+```
+
+## `wahc`
+
+```markdown
+wahc ()
+```
+
+**Description:** Adds a Wah-pedal close effect to the beat.
+
+**Example:**
+
+```alphatex
+3.3 3.3{waho} 3.3 3.3 {wahc}
+```
+
+## `legatoOrigin`
+
+```markdown
+legatoOrigin ()
+```
+
+**Description:** Adds a legato from this beat to the next one.
+
+**Example:**
+
+```alphatex
+3.3.4{ legatoOrigin } 10.3.4
+```
+
+## `tu`
+
+```markdown
+// [1]: 
+tu simple
+// [2]: 
+tu (numerator denominator)
+```
+
+**Description:** Adds a tuplet to the beat duration.
+
+There are some built-in simple tuplet variants or you can specify the exact division.
+
+**Parameters:**
+
+| Overload | Name | Description | Type | Required |
+|----------|------|-------------|------|----------|
+| `[1]` |  `simple` | The simple tuplet | `Number` | yes  |
+| `[2]` |  `numerator` | The tuplet numerator | `Number` | yes  |
+| `[2]` |  `denominator` | The tuplet denominator | `Number` | yes  |
+
+**Parameter Values:**
+
+| Overload | Name | Values |
+|----------|------|--------|
+| `[1]` | `simple` | 3 — 3:2 Tuplet; 5 — 5:4 Tuplet; 6 — 6:4 Tuplet; 7 — 7:4 Tuplet; 9 — 9:8 Tuplet; 10 — 10:8 Tuplet; 12 — 12:8 Tuplet |
+
+**Example:**
+
+```alphatex
+C4 {tu 3} * 3 |
+C4 {tu 5} * 5 |
+C4 {tu 5 2} * 5
+```
+
+## `txt`
+
+```markdown
+txt text
+```
+
+**Description:** Adds a text annotation to the beat.
+
+**Parameters:**
+
+| Name | Description | Type | Required |
+|------|-------------|------|----------|
+|  `text` | The text to show above the beat | `String` | yes  |
+
+**Example:**
+
+```alphatex
+C4 {txt "This is a C4 Note"}
+```
+
+## `lyrics`
+
+```markdown
+// [1]: 
+lyrics text
+// [2]: 
+lyrics (line text)
+```
+
+**Description:** Adds a lyric text to the beat.
+
+This is an alternative way of applying the exact lyrics to beats instead of using the `\lyrics` metadata where a special syntax is used to spread the text across beats.
+
+**Parameters:**
+
+| Overload | Name | Description | Type | Required |
+|----------|------|-------------|------|----------|
+| `[1]` |  `text` | The lyrics to show | `String` | yes  |
+| `[2]` |  `line` | The line number (e.g. for multiple verses) | `Number` | yes  |
+| `[2]` |  `text` | The lyrics to show | `String` | yes  |
+
+**Example:**
+
+```alphatex
+C4 {txt "This is a C4 Note"}
+```
+
+## `timer`
+
+```markdown
+timer ()
+```
+
+**Description:** Adds a timestamp marker to the beat.
+
+Timers are showing the exact timestamp when a beat is played the first time (respecting aspects like repeats).
+
+
+**Example:**
+
+```alphatex
+\tempo 120
+3.3.4 { timer } 3.3.4*3 |
+\ro 3.3.4 { timer } 3.3.4*3 |
+3.3.4 { timer } 3.3.4*3 |
+\jump fine 3.3.4 { timer } 3.3.4*3 |
+\ae (1) 3.3.4 { timer } 3.3.4*3 |
+\ae (2 3) \rc 3 3.3.4 { timer } 3.3.4*3 |
+3.3.4 { timer } 3.3.4*3 |
+\jump DaCapoAlFine 3.3.4 { timer } 3.3.4*3 |
+3.3.4 { timer } 3.3.4*3
+```
+
+## `tu`
+
+```markdown
+// [1]: 
+tu simple
+// [2]: 
+tu (numerator denominator)
+```
+
+**Description:** Adds a tuplet to the beat duration.
+
+**Example:**
+
+The file was successfully updated.

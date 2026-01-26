@@ -1,0 +1,204 @@
+# Structural Metadata
+
+For some songs you might want to define that the song has multiple tracks, staves or voices.
+
+* Multiple tracks are used when multiple instruments are playing together in one song.
+* Multiple staves are typically used to write grand staff piano notation (left hand/right hand) or
+  splitup voices for readability.
+* Multiple voices are typically used to write notation where multiple independent timings and pitches are played.
+  This can be if multiple vocals are singing together (hence the name voices), or special playing techniques (playing a base rhythm and melody on the same instrument).
+
+In AlphaTex new tracks, staves and voices are started with their respective metadata tags specified at the start of a bar:
+
+* `\track`
+* `\staff`
+* `\voice`
+
+alphaTab refers to these kind of metadata tags as "structural" tags as they define the general structure of the song.
+
+The initial track, staff or voice is implicitly started. Only on the "second" item you need to specify the tags. For clarity
+it is encouraged to also specify the initial item if there are multiple tracks, staves or voices.
+
+## `\\track`
+
+```markdown
+\track (name shortName)
+```
+
+**Description:** Start a new track
+
+**Parameters:**
+
+| Name | Description | Type | Required |
+|------|-------------|------|----------|
+|  `name` | The full name of the track | `String` | no  |
+|  `shortName` | The short name of the track | `String` | no `/*computed from name*/` |
+
+**Example:**
+
+```alphatex
+\track "First Track" "frst"
+    C4 D4 E4 F4
+\track
+    C5 D5 E5 F5
+```
+
+**Properties:**
+
+### `color`
+
+```markdown
+color colorCode
+```
+
+**Description:** The data model holds information about the color of the track which might be used by user interfaces to visually differenciate them. This data mainly originates from the Guitar Pro file format where colors are used to differenciate the tracks in the track picker and some other visualizations. It does not have an impact on the color of the music notation but can be used in a custom UI.
+
+**Parameters:**
+
+| Name | Description | Type | Required |
+|------|-------------|------|----------|
+|  `colorCode` | The colorCode in any supported color format | `String` | yes  |
+
+**Example:**
+
+```alphatex
+\track { color "#FF0000" }
+1.1 2.1 3.1 4.1
+```
+
+### `systemsLayout`
+
+```markdown
+systemsLayout (numberOfBars)
+```
+
+**Description:** Defines the number of bars to display per system.
+
+The `systemsLayout` and `defaultSystemsLayout` allow configuring the system layout. The system layout defines how many bars should be displayed per system (line) if enabled via the `systemsLayoutMode` setting.
+
+**Parameters:**
+
+| Name | Description | Type | Required |
+|------|-------------|------|----------|
+|  `numberOfBars` | Defines for every system (line) the number of bars it should contain | `Number[]` | no  |
+
+**Example:**
+
+```alphatex
+\title "Single Track"
+\track { systemsLayout (2 3 2) }
+:1 c4 | c4 | c4 | c4 | c4 | c4 | c4
+```
+
+### `defaultSystemsLayout`
+
+```markdown
+defaultSystemsLayout numberOfBars
+```
+
+**Description:** Defines the default number of bars to display per system.
+
+**Parameters:**
+
+| Name | Description | Type | Required |
+|------|-------------|------|----------|
+|  `numberOfBars` | Defines for every system (line) the number of bars it should contain | `Number` | yes  |
+
+**Example:**
+
+```alphatex
+\title "Single Track"
+\track { defaultSystemsLayout 2 }
+    :1 c4 | c4 | c4 | c4 | c4 | c4 | c4
+```
+
+### `solo`
+
+```markdown
+solo ()
+```
+
+**Description:** Set the track to be played solo.
+
+**Example:**
+
+```alphatex
+\track { solo }
+1.1 2.1 3.1 4.1
+\track 
+10.1 11.1 12.1 13.1
+```
+
+### `mute`
+
+```markdown
+mute ()
+```
+
+**Description:** Set the track to be muted.
+
+**Example:**
+
+```alphatex
+\track 
+1.1 2.1 3.1 4.1
+\track { mute }
+10.1 11.1 12.1 13.1
+```
+
+### `volume`
+
+```markdown
+volume value
+```
+
+**Description:** Set the track volume.
+
+**Parameters:**
+
+| Name | Description | Type | Required |
+|------|-------------|------|----------|
+|  `value` | The volume to set (0-16) | `Number` | yes  |
+
+**Example:**
+
+```alphatex
+\track { volume 0 }
+1.1 2.1 3.1 4.1
+\track { volume 16 }
+10.1 11.1 12.1 13.1
+```
+
+### `balance`
+
+```markdown
+balance value
+```
+
+**Description:** Set the track balance.
+
+**Parameters:**
+
+| Name | Description | Type | Required |
+|------|-------------|------|----------|
+|  `value` | The balance to set (0-16; 8 is centered) | `Number` | yes  |
+
+**Example:**
+
+```alphatex
+\track { volume 0 }
+1.1 2.1 3.1 4.1
+\track { volume 16 }
+10.1 11.1 12.1 13.1
+```
+
+### `instrument`
+
+```markdown
+// [1]: Set the midi instrument as midi program number
+instrument program
+// [2]: Set the midi instrument as midi program name
+instrument programName
+// [3]: Set the instrument to percussion
+instrument percussion
+```

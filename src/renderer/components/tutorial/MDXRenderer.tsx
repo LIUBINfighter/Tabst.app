@@ -23,7 +23,9 @@ const allComponents = {
 		<h4 className="text-base font-medium mt-3 mb-2">{children}</h4>
 	),
 	p: ({ children }: { children?: React.ReactNode }) => (
-		<p className="text-sm text-foreground mb-4 leading-relaxed">{children}</p>
+		<p className="text-sm text-foreground mb-4 leading-relaxed break-words whitespace-normal">
+			{children}
+		</p>
 	),
 	ul: ({ children }: { children?: React.ReactNode }) => (
 		<ul className="list-disc list-inside mb-4 space-y-2 text-sm">{children}</ul>
@@ -44,7 +46,7 @@ const allComponents = {
 	a: ({ href, children }: { href?: string; children?: React.ReactNode }) => (
 		<a
 			href={href}
-			className="text-primary hover:underline"
+			className="text-primary hover:underline break-words whitespace-normal"
 			target={href?.startsWith("http") ? "_blank" : undefined}
 			rel={href?.startsWith("http") ? "noopener noreferrer" : undefined}
 		>
@@ -66,10 +68,18 @@ const allComponents = {
 		children?: React.ReactNode;
 		className?: string;
 	}) => {
-		// 内联代码
+		// 如果没有 className，区分内联 vs 块级：包含换行视为块级代码
+		const text = String(children || "");
 		if (!className) {
+			if (text.includes("\n")) {
+				return (
+					<mdxComponents.CodeBlock>
+						{String(children || "").replace(/\n$/, "")}
+					</mdxComponents.CodeBlock>
+				);
+			}
 			return (
-				<code className="px-1.5 py-0.5 bg-muted rounded text-sm font-mono before:content-none after:content-none">
+				<code className="px-1.5 py-0.5 bg-muted rounded text-sm font-mono before:content-none after:content-none break-words whitespace-normal">
 					{children}
 				</code>
 			);

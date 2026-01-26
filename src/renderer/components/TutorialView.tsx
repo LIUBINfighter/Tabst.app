@@ -1,4 +1,4 @@
-import { ChevronLeft, FileText } from "lucide-react";
+import { ChevronLeft, ChevronRight, FileText } from "lucide-react";
 import type { MDXModule } from "mdx/types";
 import { useEffect, useState } from "react";
 import {
@@ -14,7 +14,17 @@ import { MDXRenderer } from "./tutorial/MDXRenderer";
 import { TutorialRenderer } from "./tutorial/TutorialRenderer";
 import IconButton from "./ui/icon-button";
 
-export default function TutorialView() {
+export interface TutorialViewProps {
+	showExpandSidebar?: boolean;
+	onExpandSidebar?: () => void;
+	onCollapseSidebar?: () => void;
+}
+
+export default function TutorialView({
+	showExpandSidebar,
+	onExpandSidebar,
+	onCollapseSidebar,
+}: TutorialViewProps) {
 	const setWorkspaceMode = useAppStore((s) => s.setWorkspaceMode);
 	const activeTutorialId = useAppStore((s) => s.activeTutorialId);
 	const setActiveTutorialId = useAppStore((s) => s.setActiveTutorialId);
@@ -90,12 +100,17 @@ export default function TutorialView() {
 		<div className="flex-1 flex flex-col min-h-0 overflow-hidden">
 			<TopBar
 				leading={
-					<IconButton
-						onClick={() => setWorkspaceMode("editor")}
-						title="返回编辑器"
-					>
-						<ChevronLeft className="h-4 w-4" />
-					</IconButton>
+					showExpandSidebar
+						? onExpandSidebar && (
+								<IconButton title="展开侧边栏" onClick={onExpandSidebar}>
+									<ChevronRight className="h-4 w-4" />
+								</IconButton>
+							)
+						: onCollapseSidebar && (
+								<IconButton title="收起侧边栏" onClick={onCollapseSidebar}>
+									<ChevronLeft className="h-4 w-4" />
+								</IconButton>
+							)
 				}
 				icon={
 					<FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
@@ -104,32 +119,37 @@ export default function TutorialView() {
 			/>
 
 			<div className="flex-1 p-4 overflow-auto">
-				{loading && (
-					<div className="flex items-center justify-center h-full">
-						<p className="text-sm text-muted-foreground">加载中...</p>
-					</div>
-				)}
+				{/* Content container: center with a generous max width to avoid right overflow */}
+				<div className="mx-auto w-full max-w-[900px]">
+					{loading && (
+						<div className="flex items-center justify-center h-full">
+							<p className="text-sm text-muted-foreground">加载中...</p>
+						</div>
+					)}
 
-				{error && (
-					<div className="bg-destructive/10 border border-destructive rounded p-4">
-						<p className="text-sm text-destructive">{error}</p>
-					</div>
-				)}
+					{error && (
+						<div className="bg-destructive/10 border border-destructive rounded p-4">
+							<p className="text-sm text-destructive">{error}</p>
+						</div>
+					)}
 
-				{/* 如果加载了 MDX 模块，使用 MDX 渲染器 */}
-				{!loading && !error && mdxModule && <MDXRenderer module={mdxModule} />}
+					{/* 如果加载了 MDX 模块，使用 MDX 渲染器 */}
+					{!loading && !error && mdxModule && (
+						<MDXRenderer module={mdxModule} />
+					)}
 
-				{/* 否则使用 Markdown 渲染器 */}
-				{!loading && !error && !mdxModule && content && (
-					<TutorialRenderer content={content} />
-				)}
+					{/* 否则使用 Markdown 渲染器 */}
+					{!loading && !error && !mdxModule && content && (
+						<TutorialRenderer content={content} />
+					)}
 
-				{!loading && !error && !mdxModule && !content && metadata && (
-					<div>
-						<h2 className="text-lg font-semibold mb-2">{metadata.title}</h2>
-						<p className="text-sm text-muted-foreground">教程内容为空</p>
-					</div>
-				)}
+					{!loading && !error && !mdxModule && !content && metadata && (
+						<div>
+							<h2 className="text-lg font-semibold mb-2">{metadata.title}</h2>
+							<p className="text-sm text-muted-foreground">教程内容为空</p>
+						</div>
+					)}
+				</div>
 			</div>
 		</div>
 	);

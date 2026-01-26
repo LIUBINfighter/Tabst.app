@@ -1,0 +1,211 @@
+# Note Properties
+
+The properties defined on note level result in a variety of effects and annotations
+shown in the music sheet. Historically these properties are heavily abbreviated to
+reduce the text that needs to be written to apply them.
+
+In future alphaTab will likely change to a more verbose, but clearer alternative.
+
+## `nh`
+
+```markdown
+nh ()
+```
+
+**Description:** Applies a natural harmonic effect to the note (for fretted instruments).
+
+**Example:**
+
+```alphatex
+:8 3.3{nh} 3.3{ah} 3.3{ph} 3.3{th} 3.3{sh}
+```
+
+## `ah`
+
+```markdown
+ah value
+```
+
+**Description:** Applies an artificial harmonic effect to the note (for fretted instruments).
+
+**Parameters:**
+
+| Name | Description | Type | Required |
+|------|-------------|------|----------|
+|  `value` | The harmonic value determines a relative fret-offset changing the note pitch when played. See upstream docs for detailed mappings. | `Number` | no  |
+
+**Example:**
+
+```alphatex
+C4 {volume 8} D4 E4 {tempo 16} F4
+```
+
+## `th`
+
+```markdown
+th value
+```
+
+**Description:** Applies a tapped harmonic effect to the note (for fretted instruments).
+
+**Example:**
+
+```alphatex
+:8 3.3{nh} 3.3{ah} 3.3{ph} 3.3{th} 3.3{sh}
+```
+
+## `ph`
+
+```markdown
+ph value
+```
+
+**Description:** Applies a pinch harmonic effect to the note (for fretted instruments).
+
+**Example:**
+
+```alphatex
+:8 3.3{nh} 3.3{ah} 3.3{ph} 3.3{th} 3.3{sh}
+```
+
+## `sh`
+
+```markdown
+sh value
+```
+
+**Description:** Applies a semi harmonic effect to the note (for fretted instruments).
+
+**Example:**
+
+```alphatex
+:8 3.3{nh} 3.3{ah} 3.3{ph} 3.3{th} 3.3{sh}
+```
+
+## `fh`
+
+```markdown
+fh value
+```
+
+**Description:** Applies a feedback harmonic effect to the note (for fretted instruments).
+
+**Example:**
+
+```alphatex
+:8 3.3{fh} 3.3{ah} 3.3{ph} 3.3{th} 3.3{sh}
+```
+
+## `v`
+
+```markdown
+v ()
+```
+
+**Description:** Adds a slight vibrato effect to the note.
+
+**Example:**
+
+```alphatex
+3.3{v}
+```
+
+## `vw`
+
+```markdown
+vw ()
+```
+
+**Description:** Adds a wide vibrato effect to the note.
+
+**Example:**
+
+```alphatex
+3.3{vw}
+```
+
+## `sl`
+
+```markdown
+sl ()
+```
+
+**Description:** Adds a legato slide effect to the note.
+
+**Example:**
+
+```alphatex
+3.3{sl} 4.3 3.3{ss} 4.3 |
+3.3{sib} 3.3{sia} 3.3{sou} 3.3{sod} |
+3.3{sib sou} 3.3{sib sod} 3.3{sia sod} 3.3{sia sou} |
+x.3{psd} 3.3 |
+x.3{psu} 3.3 |
+```
+
+## `ss`
+
+```markdown
+ss ()
+```
+
+**Description:** Adds a shift slide effect to the note.
+
+**Example:**
+
+```alphatex
+3.3{sl} 4.3 3.3{ss} 4.3 |
+3.3{sib} 3.3{sia} 3.3{sou} 3.3{sod} |
+3.3{sib sou} 3.3{sib sod} 3.3{sia sod} 3.3{sia sou} |
+x.3{psd} 3.3 |
+x.3{psu} 3.3 |
+```
+
+## `sib`
+
+```markdown
+sib ()
+```
+
+**Description:** Adds a slide effect into the note from below.
+
+**Example:**
+
+```alphatex
+3.3{sl} 4.3 3.3{ss} 4.3 |
+3.3{sib} 3.3{sia} 3.3{sou} 3.3{sod} |
+3.3{sib sou} 3.3{sib sod} 3.3{sia sod} 3.3{sia sou} |
+x.3{psd} 3.3 |
+x.3{psu} 3.3 |
+```
+
+## `sia`
+
+```markdown
+sia ()
+```
+
+**Description:** Adds a slide effect into the note from above.
+
+**Example:**
+
+```alphatex
+3.3{sl} 4.3 3.3{ss} 4.3 |
+3.3{sib} 3.3{sia} 3.3{sou} 3.3{sod} |
+3.3{sib sou} 3.3{sib sod} 3.3{sia sod} 3.3{sia sou} |
+x.3{psd} 3.3 |
+x.3{psu} 3.3 |
+```
+
+## `sou`
+
+```markdown
+sou ()
+```
+
+**Description:** Adds a slide effect out from note upwards.
+
+**Example:**
+
+```alphatex
+3.3{sou} 4.3 3.3{ss} 4.3 |
+```
