@@ -14,6 +14,12 @@ import TopBar from "./TopBar";
 import { MDXRenderer } from "./tutorial/MDXRenderer";
 import { TutorialRenderer } from "./tutorial/TutorialRenderer";
 import IconButton from "./ui/icon-button";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipProvider,
+	TooltipTrigger,
+} from "./ui/tooltip";
 
 export interface TutorialViewProps {
 	showExpandSidebar?: boolean;
@@ -101,93 +107,115 @@ export default function TutorialView({
 	}, [setWorkspaceMode, setActiveTutorialId, prevTutorial, nextTutorial]);
 
 	return (
-		<div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-			<TopBar
-				leading={
-					showExpandSidebar
-						? onExpandSidebar && (
-								<div className="flex items-center gap-1">
-									<IconButton
-										title={t("expandSidebar")}
-										onClick={onExpandSidebar}
-									>
-										<ChevronRight className="h-4 w-4" />
-									</IconButton>
-									<IconButton
-										className="hover:bg-red-500/20 hover:text-red-600"
-										title={t("common:close")}
-										aria-label={t("common:close")}
-										onClick={() => {
-											setWorkspaceMode("editor");
-											setActiveTutorialId(null);
-										}}
-									>
-										<X className="h-4 w-4" />
-									</IconButton>
-								</div>
-							)
-						: onCollapseSidebar && (
-								<div className="flex items-center gap-1">
-									<IconButton
-										title={t("collapseSidebar")}
-										onClick={onCollapseSidebar}
-									>
-										<ChevronLeft className="h-4 w-4" />
-									</IconButton>
-									<IconButton
-										destructive
-										title={t("common:close")}
-										onClick={() => {
-											setWorkspaceMode("editor");
-											setActiveTutorialId(null);
-										}}
-									>
-										<X className="h-4 w-4" />
-									</IconButton>
-								</div>
-							)
-				}
-				icon={
-					<FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-				}
-				title={t("tutorial")}
-			/>
+		<TooltipProvider delayDuration={200}>
+			<div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+				<TopBar
+					leading={
+						showExpandSidebar
+							? onExpandSidebar && (
+									<div className="flex items-center gap-1">
+										<Tooltip>
+											<TooltipTrigger asChild>
+												<IconButton onClick={onExpandSidebar}>
+													<ChevronRight className="h-4 w-4" />
+												</IconButton>
+											</TooltipTrigger>
+											<TooltipContent side="bottom">
+												<p>{t("expandSidebar")}</p>
+											</TooltipContent>
+										</Tooltip>
+										<Tooltip>
+											<TooltipTrigger asChild>
+												<IconButton
+													className="hover:bg-red-500/20 hover:text-red-600"
+													aria-label={t("common:close")}
+													onClick={() => {
+														setWorkspaceMode("editor");
+														setActiveTutorialId(null);
+													}}
+												>
+													<X className="h-4 w-4" />
+												</IconButton>
+											</TooltipTrigger>
+											<TooltipContent side="bottom">
+												<p>{t("common:close")}</p>
+											</TooltipContent>
+										</Tooltip>
+									</div>
+								)
+							: onCollapseSidebar && (
+									<div className="flex items-center gap-1">
+										<Tooltip>
+											<TooltipTrigger asChild>
+												<IconButton onClick={onCollapseSidebar}>
+													<ChevronLeft className="h-4 w-4" />
+												</IconButton>
+											</TooltipTrigger>
+											<TooltipContent side="bottom">
+												<p>{t("collapseSidebar")}</p>
+											</TooltipContent>
+										</Tooltip>
+										<Tooltip>
+											<TooltipTrigger asChild>
+												<IconButton
+													destructive
+													onClick={() => {
+														setWorkspaceMode("editor");
+														setActiveTutorialId(null);
+													}}
+												>
+													<X className="h-4 w-4" />
+												</IconButton>
+											</TooltipTrigger>
+											<TooltipContent side="bottom">
+												<p>{t("common:close")}</p>
+											</TooltipContent>
+										</Tooltip>
+									</div>
+								)
+					}
+					icon={
+						<FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+					}
+					title={t("tutorial")}
+				/>
 
-			<div className="flex-1 p-4 overflow-auto">
-				{/* Content container: center with a generous max width to avoid right overflow */}
-				<div className="mx-auto w-full max-w-[900px]">
-					{loading && (
-						<div className="flex items-center justify-center h-full">
-							<p className="text-sm text-muted-foreground">
-								{t("common:loading")}
-							</p>
-						</div>
-					)}
+				<div className="flex-1 p-4 overflow-auto">
+					{/* Content container: center with a generous max width to avoid right overflow */}
+					<div className="mx-auto w-full max-w-[900px]">
+						{loading && (
+							<div className="flex items-center justify-center h-full">
+								<p className="text-sm text-muted-foreground">
+									{t("common:loading")}
+								</p>
+							</div>
+						)}
 
-					{error && (
-						<div className="bg-destructive/10 border border-destructive rounded p-4">
-							<p className="text-sm text-destructive">{error}</p>
-						</div>
-					)}
+						{error && (
+							<div className="bg-destructive/10 border border-destructive rounded p-4">
+								<p className="text-sm text-destructive">{error}</p>
+							</div>
+						)}
 
-					{/* 如果加载了 MDX 模块，使用 MDX 渲染器 */}
-					{!loading && !error && mdxModule && (
-						<MDXRenderer module={mdxModule} />
-					)}
+						{/* 如果加载了 MDX 模块，使用 MDX 渲染器 */}
+						{!loading && !error && mdxModule && (
+							<MDXRenderer module={mdxModule} />
+						)}
 
-					{/* 否则使用 Markdown 渲染器 */}
-					{!loading && !error && !mdxModule && content && (
-						<TutorialRenderer content={content} />
-					)}
+						{/* 否则使用 Markdown 渲染器 */}
+						{!loading && !error && !mdxModule && content && (
+							<TutorialRenderer content={content} />
+						)}
 
-					{!loading && !error && !mdxModule && !content && metadata && (
-						<div>
-							<h2 className="text-lg font-semibold mb-2">{metadata.title}</h2>
-							<p className="text-sm text-muted-foreground">教程内容为空</p>
-						</div>
-					)}
+						{!loading && !error && !mdxModule && !content && metadata && (
+							<div>
+								<h2 className="text-lg font-semibold mb-2">{metadata.title}</h2>
+								<p className="text-sm text-muted-foreground">教程内容为空</p>
+							</div>
+						)}
+					</div>
 				</div>
 			</div>
-		</div>
+		</TooltipProvider>
 	);
 }

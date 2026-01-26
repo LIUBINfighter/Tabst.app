@@ -1891,14 +1891,20 @@ export default function Preview({
 										</div>
 									)}
 								</div>
-								<button
-									type="button"
-									onClick={() => setParseError(null)}
-									className="shrink-0 text-destructive/60 hover:text-destructive text-lg leading-none"
-									title={t("errors:dismissTooltip")}
-								>
-									×
-								</button>
+								<Tooltip>
+									<TooltipTrigger asChild>
+										<button
+											type="button"
+											onClick={() => setParseError(null)}
+											className="shrink-0 text-destructive/60 hover:text-destructive text-lg leading-none"
+										>
+											×
+										</button>
+									</TooltipTrigger>
+									<TooltipContent side="left">
+										<p>{t("errors:dismissTooltip")}</p>
+									</TooltipContent>
+								</Tooltip>
 							</div>
 						)}
 					</>

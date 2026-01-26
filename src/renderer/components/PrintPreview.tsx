@@ -691,18 +691,24 @@ export default function PrintPreview({
 								</div>
 							)}
 							{/* 音轨选择按钮（使用 IconButton 与主预览一致） */}
-							<IconButton
-								active={isTracksPanelOpen}
-								title={
-									isTracksPanelOpen
-										? t("closeTracksPanel")
-										: t("openTracksPanel")
-								}
-								onClick={() => setIsTracksPanelOpen(!isTracksPanelOpen)}
-								disabled={isLoading || !apiRef.current?.score}
-							>
-								<Layers className="h-5 w-5" />
-							</IconButton>
+							<Tooltip>
+								<TooltipTrigger asChild>
+									<IconButton
+										active={isTracksPanelOpen}
+										onClick={() => setIsTracksPanelOpen(!isTracksPanelOpen)}
+										disabled={isLoading || !apiRef.current?.score}
+									>
+										<Layers className="h-5 w-5" />
+									</IconButton>
+								</TooltipTrigger>
+								<TooltipContent side="bottom">
+									<p>
+										{isTracksPanelOpen
+											? t("closeTracksPanel")
+											: t("openTracksPanel")}
+									</p>
+								</TooltipContent>
+							</Tooltip>
 							<Button
 								size="sm"
 								className="px-2 print-btn h-8 text-xs"

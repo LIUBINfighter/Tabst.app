@@ -188,7 +188,7 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 						</Tooltip>
 					)}
 
-					{workspaceMode !== "tutorial" && (
+					{workspaceMode === "editor" && (
 						<>
 							<Tooltip>
 								<TooltipTrigger asChild>

@@ -32,6 +32,12 @@ import Preview from "./Preview";
 import TopBar from "./TopBar";
 import { Button } from "./ui/button";
 import IconButton from "./ui/icon-button";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipProvider,
+	TooltipTrigger,
+} from "./ui/tooltip";
 
 interface EditorProps {
 	showExpandSidebar?: boolean;
@@ -660,26 +666,32 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 					</div>
 				</div>
 			) : (
-				<div className="flex-1 flex flex-col min-h-0 overflow-hidden relative">
-					<TopBar
-						leading={
-							showExpandSidebar ? (
-								<IconButton
-									title={t("expandSidebar")}
-									onClick={onExpandSidebar}
-								>
-									<ChevronRight className="h-4 w-4" />
-								</IconButton>
-							) : undefined
-						}
-						icon={
-							<Edit className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-						}
-						title={activeFile.name}
-					/>
-					{/* Host for CodeMirror */}
-					<div ref={editorRef} className="h-full" />
-				</div>
+				<TooltipProvider delayDuration={200}>
+					<div className="flex-1 flex flex-col min-h-0 overflow-hidden relative">
+						<TopBar
+							leading={
+								showExpandSidebar ? (
+									<Tooltip>
+										<TooltipTrigger asChild>
+											<IconButton onClick={onExpandSidebar}>
+												<ChevronRight className="h-4 w-4" />
+											</IconButton>
+										</TooltipTrigger>
+										<TooltipContent side="bottom">
+											<p>{t("expandSidebar")}</p>
+										</TooltipContent>
+									</Tooltip>
+								) : undefined
+							}
+							icon={
+								<Edit className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+							}
+							title={activeFile.name}
+						/>
+						{/* Host for CodeMirror */}
+						<div ref={editorRef} className="h-full" />
+					</div>
+				</TooltipProvider>
 			)}
 		</div>
 	);
