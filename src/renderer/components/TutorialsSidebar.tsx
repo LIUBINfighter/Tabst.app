@@ -1,10 +1,10 @@
 import { FileText } from "lucide-react";
 import { useEffect } from "react";
-import { getAllTutorials } from "../lib/tutorial-loader";
+import { getReleasedTutorials } from "../lib/tutorial-loader";
 import { useAppStore } from "../store/appStore";
 
 export function TutorialsSidebar() {
-	const tutorials = getAllTutorials();
+	const tutorials = getReleasedTutorials();
 
 	const activeTutorialId = useAppStore((s) => s.activeTutorialId);
 	const setActiveTutorialId = useAppStore((s) => s.setActiveTutorialId);

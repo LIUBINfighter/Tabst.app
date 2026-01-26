@@ -1,4 +1,4 @@
-import { ChevronLeft, FileText } from "lucide-react";
+import { ChevronLeft, ChevronRight, FileText } from "lucide-react";
 import type { MDXModule } from "mdx/types";
 import { useEffect, useState } from "react";
 import {
@@ -14,7 +14,17 @@ import { MDXRenderer } from "./tutorial/MDXRenderer";
 import { TutorialRenderer } from "./tutorial/TutorialRenderer";
 import IconButton from "./ui/icon-button";
 
-export default function TutorialView() {
+export interface TutorialViewProps {
+	showExpandSidebar?: boolean;
+	onExpandSidebar?: () => void;
+	onCollapseSidebar?: () => void;
+}
+
+export default function TutorialView({
+	showExpandSidebar,
+	onExpandSidebar,
+	onCollapseSidebar,
+}: TutorialViewProps) {
 	const setWorkspaceMode = useAppStore((s) => s.setWorkspaceMode);
 	const activeTutorialId = useAppStore((s) => s.activeTutorialId);
 	const setActiveTutorialId = useAppStore((s) => s.setActiveTutorialId);
@@ -90,12 +100,17 @@ export default function TutorialView() {
 		<div className="flex-1 flex flex-col min-h-0 overflow-hidden">
 			<TopBar
 				leading={
-					<IconButton
-						onClick={() => setWorkspaceMode("editor")}
-						title="返回编辑器"
-					>
-						<ChevronLeft className="h-4 w-4" />
-					</IconButton>
+					showExpandSidebar
+						? onExpandSidebar && (
+								<IconButton title="展开侧边栏" onClick={onExpandSidebar}>
+									<ChevronRight className="h-4 w-4" />
+								</IconButton>
+							)
+						: onCollapseSidebar && (
+								<IconButton title="收起侧边栏" onClick={onCollapseSidebar}>
+									<ChevronLeft className="h-4 w-4" />
+								</IconButton>
+							)
 				}
 				icon={
 					<FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />

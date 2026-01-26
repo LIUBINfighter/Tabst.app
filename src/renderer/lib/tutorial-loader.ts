@@ -62,6 +62,23 @@ export function getTutorialMetadata(id: string): TutorialMetadata | undefined {
 }
 
 /**
+ * 判断教程是否已发布（仅显式标注为 'release' 时视为已发布）
+ */
+export function isReleased(t: TutorialMetadata): boolean {
+	// 缺省视为草稿（未标注不可见），只有显式标注为 'release' 才显示
+	return t.status === "release";
+}
+
+/**
+ * 获取已发布的教程（按 order 排序）
+ */
+export function getReleasedTutorials(): TutorialMetadata[] {
+	return [...tutorialsRegistry]
+		.filter(isReleased)
+		.sort((a, b) => a.order - b.order);
+}
+
+/**
  * 获取所有教程（按 order 排序）
  */
 export function getAllTutorials(): TutorialMetadata[] {
@@ -69,19 +86,19 @@ export function getAllTutorials(): TutorialMetadata[] {
 }
 
 /**
- * 获取前一个教程
+ * 获取前一个教程（基于已发布列表）
  */
 export function getPrevTutorial(currentId: string): TutorialMetadata | null {
-	const all = getAllTutorials();
+	const all = getReleasedTutorials();
 	const currentIndex = all.findIndex((t) => t.id === currentId);
 	return currentIndex > 0 ? all[currentIndex - 1] : null;
 }
 
 /**
- * 获取下一个教程
+ * 获取下一个教程（基于已发布列表）
  */
 export function getNextTutorial(currentId: string): TutorialMetadata | null {
-	const all = getAllTutorials();
+	const all = getReleasedTutorials();
 	const currentIndex = all.findIndex((t) => t.id === currentId);
 	return currentIndex >= 0 && currentIndex < all.length - 1
 		? all[currentIndex + 1]
