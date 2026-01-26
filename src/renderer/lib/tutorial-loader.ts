@@ -9,14 +9,24 @@ import { tutorialsRegistry } from "../data/tutorials";
 export async function loadTutorialComponent(
 	id: string,
 ): Promise<MDXModule | null> {
-	try {
-		// 尝试加载 MDX 文件
-		const module = await import(`../data/tutorials/${id}.mdx`);
-		return module as MDXModule;
-	} catch (_error) {
-		// MDX 文件不存在，返回 null（让调用者处理回退）
-		return null;
+	// 按语言优先级尝试加载：en -> zh-cn -> 根目录（兼容旧路径）
+	const candidates = [
+		`../data/tutorials/en/${id}.mdx`,
+		`../data/tutorials/zh-cn/${id}.mdx`,
+		`../data/tutorials/${id}.mdx`,
+	];
+
+	for (const path of candidates) {
+		try {
+			const module = await import(path);
+			return module as MDXModule;
+		} catch {
+			// 继续尝试下一个路径
+		}
 	}
+
+	// 未找到任何文件
+	return null;
 }
 
 /**
@@ -24,15 +34,24 @@ export async function loadTutorialComponent(
  * 使用 Vite 的 ?raw 导入来加载 Markdown 文件
  */
 export async function loadTutorial(id: string): Promise<string> {
-	try {
-		// 动态导入 Markdown 文件内容
-		// Vite 会将 ?raw 后缀的文件作为字符串导入
-		const module = await import(`../data/tutorials/${id}.md?raw`);
-		return module.default;
-	} catch (error) {
-		console.error(`Failed to load tutorial: ${id}`, error);
-		throw new Error(`教程文件未找到: ${id}`);
+	// 按语言优先级尝试加载原始 Markdown 文本：en -> zh-cn -> 根目录
+	const candidates = [
+		`../data/tutorials/en/${id}.md?raw`,
+		`../data/tutorials/zh-cn/${id}.md?raw`,
+		`../data/tutorials/${id}.md?raw`,
+	];
+
+	for (const path of candidates) {
+		try {
+			const module = await import(path);
+			return module.default;
+		} catch (_e) {
+			// 继续尝试下一个路径
+		}
 	}
+
+	console.error(`Failed to load tutorial: ${id}`);
+	throw new Error(`教程文件未找到: ${id}`);
 }
 
 /**

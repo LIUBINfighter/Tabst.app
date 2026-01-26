@@ -1,0 +1,20 @@
+# Diagnostics
+
+alphaTab provides an alphaTex language server via the NPM package [`@coderline/alphatab-language-server`](https://www.npmjs.com/package/@coderline/alphatab-language-server).
+The language server is written in TypeScript and made available as JavaScript executable. 
+
+> [!INFO]
+> To learn more about Language Servers and the Language Server Protocol head over to the website of Microsoft: 
+> https://microsoft.github.io/language-server-protocol/
+
+The language server is implemented using [`vscode-languageserver-node`](https://github.com/microsoft/vscode-languageserver-node) providing a base framework for creating language servers running in Node.js and in Browsers.
+
+Below you can find a description of the individual features provided by the language server and package. 
+
+## Diagnostics
+
+The core feature of the language server is to listen for [document changes](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_synchronization) and parse the code of the documents. 
+
+The language server provides [Pull Diagnostics](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_pullDiagnostics) but will not [Publish Diagnostics](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_publishDiagnostics).
+
+...
