@@ -14,8 +14,6 @@ The importer is the main component for loading alphaTex into a full [data model]
 The most basic usage of it is:
 
 ```js
-
-
 // create importer
 const importer = new alphaTab.importer.AlphaTabImporter();
 importer.initFromString(`
@@ -45,8 +43,6 @@ providing access to all diagnostics.
 These exceptions mainly exist for cases where the importer or parser is not used directly. The diagnostics are also available on the importer directly. 
 
 ```js
-
-
 function printDiagnostic(a:alphaTab.importer.alphaTex.AlphaTexDiagnostic) {
     const severityText = alphaTab.importer.alphaTex.AlphaTexDiagnosticsSeverity[a.severity];
 
@@ -106,8 +102,6 @@ for only partially parsed code.
 The following code should give an idea on how to access the AST by printing the whole hiearchy of nodes to the console: 
 
 ```js
-
-
 const importer = new alphaTab.importer.AlphaTexImporter();
 importer.initFromString(`
 \\title "Hello World"
@@ -261,7 +255,7 @@ visitNode('', astNode, 0);
 
 The output of the above code is: 
 
-```
+```markdown
  Score (Ln 1, Col 1 -> Ln 3, Col 11)
    bars[0]: Bar (Ln 2, Col 5 -> Ln 3, Col 11)
      metaData[0]: Meta (Ln 2, Col 5 -> Ln 2, Col 24)
@@ -301,8 +295,6 @@ The next lower level below the importer is the parser available via `alphaTab.im
 The usage is fairly simple and the output will give you again access to the AST: 
 
 ```ts
-
-
 const parser = alphaTab.importer.alphaTex.AlphaTexParser(`
 \\title "Hello World"
 C4 * 4
