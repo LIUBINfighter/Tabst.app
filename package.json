@@ -23,6 +23,7 @@
 		"make": "pnpm build && electron-forge make",
 		"mix": "node scripts/codemix.js",
 		"generate:commands": "node scripts/generate-alphatex-commands.js --output src/renderer/data/alphatex-commands.generated.json",
+		"vendor:alphatex": "node scripts/vendor-alphatex.cjs",
 		"mix:main": "node scripts/codemix.js main",
 		"mix:render": "node scripts/codemix.js render",
 		"mix:doc": "node scripts/codemix.js doc",
