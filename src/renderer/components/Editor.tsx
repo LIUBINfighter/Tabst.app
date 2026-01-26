@@ -29,6 +29,7 @@ import { whitespaceDecoration } from "../lib/whitespace-decoration";
 import type { EditorCursorInfo } from "../store/appStore";
 import { useAppStore } from "../store/appStore";
 import Preview from "./Preview";
+import QuoteCard from "./QuoteCard";
 import TopBar from "./TopBar";
 import { Button } from "./ui/button";
 import IconButton from "./ui/icon-button";
@@ -614,6 +615,10 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 						>
 							{t("openSettings")}
 						</Button>
+					</div>
+					{/* Quote card below OpenSettings button */}
+					<div className="w-full flex items-center justify-center">
+						<QuoteCard />
 					</div>
 				</div>
 			</div>
