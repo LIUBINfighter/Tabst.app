@@ -16,7 +16,19 @@ export function TutorialRenderer({ content }: TutorialRendererProps) {
 		pre: ({ children }) => <>{children}</>,
 
 		// 代码块
-		code({ node, inline, className, children, ...props }) {
+		code({
+			node,
+			inline,
+			className,
+			children,
+			...props
+		}: {
+			node?: any;
+			inline?: boolean;
+			className?: string;
+			children?: any;
+			[key: string]: any;
+		}) {
 			// 使用 ReactMarkdown 提供的 `inline` 来判断是否为内联代码
 			if (inline) {
 				return (
