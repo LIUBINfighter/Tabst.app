@@ -60,7 +60,7 @@ export function CodeBlock({ language, children, className }: CodeBlockProps) {
 	const cleanedTheme = removeBackgroundFromTheme(theme);
 
 	return (
-		<div className="not-prose my-4 overflow-hidden rounded-md border border-border bg-muted/30 code-block-no-text-bg">
+		<div className="not-prose my-4 overflow-x-auto rounded-md border border-border bg-muted/30 code-block-no-text-bg">
 			<SyntaxHighlighter
 				language={detectedLanguage}
 				style={cleanedTheme}

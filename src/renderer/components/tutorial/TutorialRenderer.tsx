@@ -24,7 +24,7 @@ export function TutorialRenderer({ content }: TutorialRendererProps) {
 			if (isInline) {
 				return (
 					<code
-						className="px-1.5 py-0.5 bg-muted rounded text-sm font-mono before:content-none after:content-none"
+						className="px-1.5 py-0.5 bg-muted rounded text-sm font-mono before:content-none after:content-none break-words whitespace-normal"
 						{...props}
 					>
 						{children}
@@ -82,14 +82,14 @@ export function TutorialRenderer({ content }: TutorialRendererProps) {
 			// 如果包含图片，使用 div 而不是 p（因为 <figure> 不能是 <p> 的子元素）
 			if (hasImage) {
 				return (
-					<div className="text-sm text-foreground mb-4 leading-relaxed">
+					<div className="text-sm text-foreground mb-4 leading-relaxed break-words">
 						{children}
 					</div>
 				);
 			}
 
 			return (
-				<p className="text-sm text-foreground mb-4 leading-relaxed">
+				<p className="text-sm text-foreground mb-4 leading-relaxed break-words whitespace-normal">
 					{children}
 				</p>
 			);
@@ -119,9 +119,17 @@ export function TutorialRenderer({ content }: TutorialRendererProps) {
 		a: ({ href, children }) => (
 			<a
 				href={href}
-				className="text-primary hover:underline"
-				target={href?.startsWith("http") ? "_blank" : undefined}
-				rel={href?.startsWith("http") ? "noopener noreferrer" : undefined}
+				className="text-primary hover:underline break-words whitespace-normal"
+				target={
+					typeof href === "string" && href.startsWith("http")
+						? "_blank"
+						: undefined
+				}
+				rel={
+					typeof href === "string" && href.startsWith("http")
+						? "noopener noreferrer"
+						: undefined
+				}
 			>
 				{children}
 			</a>
