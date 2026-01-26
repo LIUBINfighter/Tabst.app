@@ -7,6 +7,9 @@
 
 Write guitar tabs like markdown.
 
+<img width="2560" height="1406" alt="image" src="https://github.com/user-attachments/assets/d58323a0-44bb-4468-87c7-281c898a5ab6" />
+
+
 ## Features
 
 Write. Play. Share.
