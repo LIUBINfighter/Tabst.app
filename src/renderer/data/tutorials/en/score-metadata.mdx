@@ -1,0 +1,36 @@
+# Score Metadata
+
+This page lists all metadata tags which affect the overall song.
+
+It is recommended that these tags are specified at the very beginning of the file.
+
+## `\\title`
+
+```markdown
+\title (value template textAlign)
+```
+
+**Description:** Set the title of the song.
+
+**Parameters:**
+
+| Name | Description | Type | Required |
+|------|-------------|------|----------|
+|  `value` | The value to set | `String` | yes  |
+|  `template` | The template used to render the text | `String` | no  |
+|  `textAlign` | The alignment of the text on the music sheet | `left\|center\|right` | no  |
+
+**Parameter Values:**
+
+| Name | Values |
+|------|--------|
+| `textAlign` | left — Left-align the text; center — Center-align the text; right — Right-align the text |
+
+**Example:**
+
+```alphatex
+\title ("Song Title" "Title: %TITLE%" left)
+C4
+```
+
+...

@@ -1,0 +1,45 @@
+# Staff Metadata
+
+This page describes all the metadata tags which affect the "staff" level of the data model.
+
+To avoid any unexpected side-effects, these values should be specified on the first bar.
+
+Some of these tags are simply historically metadata tags. They might become staff properties in future.
+
+## `\\tuning`
+
+```markdown
+// [1]: 
+\tuning mode
+// [2]: 
+\tuning (strings)
+```
+
+**Description:** Defines the number of strings and their tuning for stringed (and fretted) instruments.
+
+**Parameters:**
+
+| Overload | Name | Description | Type | Required |
+|----------|------|-------------|------|----------|
+| `[1]` |  `mode` | A built-in standard mode for tunings | `piano\|none\|voice` | yes  |
+| `[2]` |  `strings` | The tuning values as pitched notes | `Ident[]` | no  |
+
+**Parameter Values:**
+
+| Overload | Name | Values |
+|----------|------|--------|
+| `[1]` | `mode` | piano — Indicates piano (not stringed); none — not stringed; voice — vocal voice |
+
+**Example:**
+
+```alphatex
+\track "Track 1"
+  \staff {tabs}
+  \tuning (A1 D2 A2 D3 G3 B3 E4) { hide label "Special Guitar Tuning" }
+  4.1 3.1 2.1 1.1
+\track "Track 2"
+  \tuning piano
+  C4 D4 E4 F4
+```
+
+...
