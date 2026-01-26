@@ -23,11 +23,11 @@ export function TutorialRenderer({ content }: TutorialRendererProps) {
 			children,
 			...props
 		}: {
-			node?: any;
+			node?: unknown;
 			inline?: boolean;
 			className?: string;
-			children?: any;
-			[key: string]: any;
+			children?: React.ReactNode;
+			[key: string]: unknown;
 		}) {
 			// 使用 ReactMarkdown 提供的 `inline` 来判断是否为内联代码
 			if (inline) {
