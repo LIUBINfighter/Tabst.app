@@ -1,0 +1,106 @@
+# Bars
+
+# Document Structure
+
+
+
+An alphaTex file is simply a list of bars and every bar has metadata and contents. For organizational reasons we commend
+that metadata tags describing the general song information are added to the start of the file, and external media synchronization points are 
+added on the end of the file: 
+
+```title=General File Structure
+/* Song Metadata */
+/* Song Contents */
+/* Sync Points */
+```
+
+:::note
+Before alphaTex 1.7 the 3 sections needed to be separated by a `.` This was improved in 1.7 and the separation dots should now be omitted.
+
+```title=Pre 1.7 General File Structure
+/* Song Metadata */
+.
+/* Song Contents */
+.
+/* Sync Points */
+```
+:::
+
+# Bars
+
+Bars (aka. measures) are starting with an optional list of metadata tags followed by the beats contained
+in the bar. See [Bar Metadata](https://alphatab.net/docs/alphatex/bar-metadata) for details on the tags which can be applied here.
+
+A bar is completed by a pipe `|` symbol
+
+
+```alphatex
+// bar 1 metadata tags
+\\clef G2 \\ks 
+    // bar 1 contents
+    Cb C4 
+|  
+// bar 2 metadata tags
+\\ks A
+    // bar 2 contents
+    C4
+```
+
+
+## Beats
+
+Beats group a number of notes played at the same time. The general parts of a beat are 
+
+* `duration-change content duration effects multiplier`
+
+
+
+```alphatex
+:4
+    C4
+    (C4 D4).8
+    (C4 D4) { f }
+    C4.16 * 2
+    C4.4
+```
+
+
+### Duration change (optional)
+
+A duration change allows easy changing of the duration for all following beats. The syntax is:
+
+`:Duration` where `Duration` is a number describing the new duration:
+* `:-4` a Quadruple Whole Note
+* `:-2` a Double Note 
+* `:1` a Whole Note
+* `:2` a Half Note
+* `:4` a Quarter Note 
+* `:8` a 8th Note 
+* `:16` a 16th Note
+* `:32` a 32th Note
+* `:64` a 64th Note
+* `:128` a 128th Note 
+* `:256` a 256th Note 
+
+Optionally you can specify some properties afterwards the duration to specify tuplets.  
+
+`:4 {tu 3 2}`
+
+See [Tuplet Effect](https://alphatab.net/docs/alphatex/beat-properties#tu) for more details.
+
+
+```alphatex
+:16 // 16th notes from here
+    3.3
+    4.3 
+    5.3
+    6.3
+:4 { tu 3 } // quarter notes triplets
+    3.3
+    4.3
+    5.3
+:8 
+    3.3 * 3
+```
+
+...

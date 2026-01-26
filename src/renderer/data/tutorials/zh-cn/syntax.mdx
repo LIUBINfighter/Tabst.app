@@ -71,8 +71,8 @@ They are used to add effects to notes and beats, what notations should be visibl
 Properties are always wrapped into curly braces. A property starts with an identifier describing the property, optionally followed by its values as value list. 
 
 Examples: 
-* `\track "Track Name" { color "#FF0000"}`
-* `\staff {score}`
+* `\\track \"Track Name\" { color \"#FF0000\"}`
+* `\\staff {score}`
 * `C4 {b (0 4) v txt "Bend with Vibrato"}`
 
 Property identifiers are case-insensitive.
@@ -81,14 +81,14 @@ Property identifiers are case-insensitive.
 
 Metadata tags are the most similar construct to LaTeX. Metadata are used to describe various elements within the data model.
 
-The main syntax of metadata tags is: `\tag parameters {properties}`.
+The main syntax of metadata tags is: `\\tag parameters {properties}`.
 Both the `parameters` and `{properties}` are optional from a syntax perspective. Depending on the `tag` values might be expected to be specified.
 
 Examples:
 
-* `\title "Song Title"`
-* `\track "Track Name" {color '#FF0000'}`
-* `\ts (3 4)`
+* `\\title \"Song Title\"`
+* `\\track \"Track Name\" {color '#FF0000'}`
+* `\\ts (3 4)`
 
 Metadata tags identifiers are case-insensitive.
 

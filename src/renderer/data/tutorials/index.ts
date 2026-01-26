@@ -27,6 +27,8 @@ export const tutorialsRegistry: TutorialMetadata[] = [
 		order: 3,
 	},
 	// Vendor: alphaTab AlphaTeX reference (sourced from alphaTab docs)
+	// NOTE: vendor AlphaTeX MDX files are stored under `en/` and `zh-cn/` subfolders.
+	// The loader prefers `en/` then `zh-cn/` and falls back to the root `tutorials/` folder for compatibility.
 	{
 		id: "vendor-alphatex-introduction",
 		title: "Introduction",

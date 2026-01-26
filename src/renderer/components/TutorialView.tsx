@@ -104,32 +104,37 @@ export default function TutorialView() {
 			/>
 
 			<div className="flex-1 p-4 overflow-auto">
-				{loading && (
-					<div className="flex items-center justify-center h-full">
-						<p className="text-sm text-muted-foreground">加载中...</p>
-					</div>
-				)}
+				{/* Content container: center with a generous max width to avoid right overflow */}
+				<div className="mx-auto w-full max-w-[900px]">
+					{loading && (
+						<div className="flex items-center justify-center h-full">
+							<p className="text-sm text-muted-foreground">加载中...</p>
+						</div>
+					)}
 
-				{error && (
-					<div className="bg-destructive/10 border border-destructive rounded p-4">
-						<p className="text-sm text-destructive">{error}</p>
-					</div>
-				)}
+					{error && (
+						<div className="bg-destructive/10 border border-destructive rounded p-4">
+							<p className="text-sm text-destructive">{error}</p>
+						</div>
+					)}
 
-				{/* 如果加载了 MDX 模块，使用 MDX 渲染器 */}
-				{!loading && !error && mdxModule && <MDXRenderer module={mdxModule} />}
+					{/* 如果加载了 MDX 模块，使用 MDX 渲染器 */}
+					{!loading && !error && mdxModule && (
+						<MDXRenderer module={mdxModule} />
+					)}
 
-				{/* 否则使用 Markdown 渲染器 */}
-				{!loading && !error && !mdxModule && content && (
-					<TutorialRenderer content={content} />
-				)}
+					{/* 否则使用 Markdown 渲染器 */}
+					{!loading && !error && !mdxModule && content && (
+						<TutorialRenderer content={content} />
+					)}
 
-				{!loading && !error && !mdxModule && !content && metadata && (
-					<div>
-						<h2 className="text-lg font-semibold mb-2">{metadata.title}</h2>
-						<p className="text-sm text-muted-foreground">教程内容为空</p>
-					</div>
-				)}
+					{!loading && !error && !mdxModule && !content && metadata && (
+						<div>
+							<h2 className="text-lg font-semibold mb-2">{metadata.title}</h2>
+							<p className="text-sm text-muted-foreground">教程内容为空</p>
+						</div>
+					)}
+				</div>
 			</div>
 		</div>
 	);

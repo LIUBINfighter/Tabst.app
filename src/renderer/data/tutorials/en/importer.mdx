@@ -1,0 +1,29 @@
+# Importer
+
+When importing alphaTex into alphaTab it directly loads the provided code and, if successful, provides the loaded [data model](https://alphatab.net/docs/reference/score).
+Using the alphatex importer and parser more directly, allows access to more detailed information like the abstract syntax tree. 
+
+This information can be very useful when building certain tooling and integrations. The [alphaTab language server](https://alphatab.net/docs/alphatex/lsp) itself also uses these components.
+
+> [!NOTE]
+> The code samples here are written in TypeScript but the APIs are similar on C# and Kotlin and can easily be mapped by adjusting the naming conventions. 
+
+## Importer
+
+The importer is the main component for loading alphaTex into a full [data model](https://alphatab.net/docs/reference/score). It is available via `alphaTab.importers.AlphaTexImporter`. 
+The most basic usage of it is:
+
+```js
+// create importer
+const importer = new alphaTab.importer.AlphaTabImporter();
+importer.initFromString(`
+\\title "Hello World"
+C4 * 4
+`, new alphaTab.Settings());
+// load score
+const score = importer.readScore();
+
+console.log(score.title); // will print "Hello World"
+```
+
+...

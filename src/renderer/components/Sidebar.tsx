@@ -186,55 +186,59 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 						</Tooltip>
 					)}
 
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<Button
-								variant="ghost"
-								size="icon"
-								className="h-8 w-8 hover:bg-blue-500/20 hover:text-blue-600"
-								onClick={handleOpenFile}
-							>
-								<FolderOpen className="h-4 w-4" />
-							</Button>
-						</TooltipTrigger>
-						<TooltipContent side="bottom">
-							<p>打开文件</p>
-						</TooltipContent>
-					</Tooltip>
+					{workspaceMode !== "tutorial" && (
+						<>
+							<Tooltip>
+								<TooltipTrigger asChild>
+									<Button
+										variant="ghost"
+										size="icon"
+										className="h-8 w-8 hover:bg-blue-500/20 hover:text-blue-600"
+										onClick={handleOpenFile}
+									>
+										<FolderOpen className="h-4 w-4" />
+									</Button>
+								</TooltipTrigger>
+								<TooltipContent side="bottom">
+									<p>打开文件</p>
+								</TooltipContent>
+							</Tooltip>
 
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<Button
-								variant="ghost"
-								size="icon"
-								className="h-8 w-8 hover:bg-blue-500/20 hover:text-blue-600"
-								onClick={() => handleNewFileWithExt(".atex")}
-							>
-								<span className="sr-only">新建 .atex 文件</span>
-								<FileMusic className="h-4 w-4" />
-							</Button>
-						</TooltipTrigger>
-						<TooltipContent side="bottom">
-							<p>新建 .atex</p>
-						</TooltipContent>
-					</Tooltip>
+							<Tooltip>
+								<TooltipTrigger asChild>
+									<Button
+										variant="ghost"
+										size="icon"
+										className="h-8 w-8 hover:bg-blue-500/20 hover:text-blue-600"
+										onClick={() => handleNewFileWithExt(".atex")}
+									>
+										<span className="sr-only">新建 .atex 文件</span>
+										<FileMusic className="h-4 w-4" />
+									</Button>
+								</TooltipTrigger>
+								<TooltipContent side="bottom">
+									<p>新建 .atex</p>
+								</TooltipContent>
+							</Tooltip>
 
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<Button
-								variant="ghost"
-								size="icon"
-								className="h-8 w-8 hover:bg-blue-500/20 hover:text-blue-600"
-								onClick={() => handleNewFileWithExt(".md")}
-							>
-								<span className="sr-only">新建 .md 文件</span>
-								<FileDown className="h-4 w-4" />
-							</Button>
-						</TooltipTrigger>
-						<TooltipContent side="bottom">
-							<p>新建 .md</p>
-						</TooltipContent>
-					</Tooltip>
+							<Tooltip>
+								<TooltipTrigger asChild>
+									<Button
+										variant="ghost"
+										size="icon"
+										className="h-8 w-8 hover:bg-blue-500/20 hover:text-blue-600"
+										onClick={() => handleNewFileWithExt(".md")}
+									>
+										<span className="sr-only">新建 .md 文件</span>
+										<FileDown className="h-4 w-4" />
+									</Button>
+								</TooltipTrigger>
+								<TooltipContent side="bottom">
+									<p>新建 .md</p>
+								</TooltipContent>
+							</Tooltip>
+						</>
+					)}
 
 					<Tooltip>
 						<TooltipTrigger asChild>

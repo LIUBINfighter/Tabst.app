@@ -1,0 +1,39 @@
+# Bar Metadata
+
+The following metadata tags are affecting things on bar (and masterbar) level.
+Time signatures, clefs, repeats, such kind of things.
+
+## `\\ts`
+
+```markdown
+// [1]: Specifies a common (4/4) time signature using the special C symbol
+\ts common
+// [2]:
+\ts (numerator denominator)
+```
+
+**Description:** Defines the time signature for this and subsequent bars.
+
+AlphaTab does not yet support polytempo notation where instruments might use different time signatures. Therefore be sure to only specify the timesignatures once as part of the first track/staff or ensure they are consistent across the whole document.
+
+**Parameters:**
+
+| Overload | Name | Description | Type | Required |
+|----------|------|-------------|------|----------|
+| `[1]` |  `common` | Specifies a common (4/4) time signature using the special C symbol | `common` | yes  |
+| `[2]` |  `numerator` | The time signature numerator | `Number` | yes  |
+| `[2]` |  `denominator` | The time signature denominator | `Number` | yes  |
+
+**Parameter Values:**
+
+| Overload | Name | Values |
+|----------|------|--------|
+| `[1]` | `common` | `common` - Specifies a common (4/4) time signature using the special C symbol |
+
+**Example:**
+
+```alphatex
+\ts 3 4 | \ts 4 4 | \ts 6 8 | \ts common
+```
+
+...
