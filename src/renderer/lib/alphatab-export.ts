@@ -75,14 +75,12 @@ export async function exportToWav(
 	try {
 		const chunks: Float32Array[] = [];
 		const chunkDurationMs = 100;
-		let totalTime = 0;
 
 		while (true) {
 			const chunk = await exporter.render(chunkDurationMs);
 			if (!chunk) break;
 
 			chunks.push(chunk.samples);
-			totalTime = chunk.currentTime;
 
 			if (onProgress && chunk.endTime > 0) {
 				onProgress(chunk.currentTime / chunk.endTime);
