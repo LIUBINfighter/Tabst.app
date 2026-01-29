@@ -78,6 +78,7 @@ export default function Preview({
 	content,
 	className,
 }: PreviewProps) {
+
 	const { t } = useTranslation(["common", "errors", "print", "toolbar"]);
 	const containerRef = useRef<HTMLDivElement>(null);
 	const scrollHostRef = useRef<HTMLDivElement>(null);
