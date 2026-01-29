@@ -1868,9 +1868,9 @@ export default function Preview({
 													<Music className="h-4 w-4" />
 												</IconButton>
 											</TooltipTrigger>
-										<TooltipContent side="bottom">
-														<p>{t("toolbar:export.midi")}</p>
-													</TooltipContent>
+											<TooltipContent side="bottom">
+												<p>{t("toolbar:export.midi")}</p>
+											</TooltipContent>
 										</Tooltip>
 										{/* 导出 WAV */}
 										<Tooltip>
@@ -1890,9 +1890,9 @@ export default function Preview({
 													<FileDown className="h-4 w-4" />
 												</IconButton>
 											</TooltipTrigger>
-										<TooltipContent side="bottom">
-														<p>{t("toolbar:export.wav")}</p>
-													</TooltipContent>
+											<TooltipContent side="bottom">
+												<p>{t("toolbar:export.wav")}</p>
+											</TooltipContent>
 										</Tooltip>
 										{/* 导出 GP */}
 										<Tooltip>
@@ -1912,9 +1912,9 @@ export default function Preview({
 													<FileMusic className="h-4 w-4" />
 												</IconButton>
 											</TooltipTrigger>
-										<TooltipContent side="bottom">
-														<p>{t("toolbar:export.gp")}</p>
-													</TooltipContent>
+											<TooltipContent side="bottom">
+												<p>{t("toolbar:export.gp")}</p>
+											</TooltipContent>
 										</Tooltip>
 										{/* 打印按钮 */}
 										<Tooltip>
