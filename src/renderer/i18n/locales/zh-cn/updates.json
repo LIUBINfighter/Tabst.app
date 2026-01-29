@@ -1,0 +1,29 @@
+{
+	"checkUpdate": "检查更新",
+	"checking": "检查中...",
+	"changelog": "更新日志",
+	"refresh": "刷新",
+	"loading": "加载中...",
+	"noChangelog": "暂无更新日志",
+	"loadFailed": "加载失败：{{reason}}",
+	"checkingUpdate": "正在检查更新...",
+	"unsupported": "当前环境不支持更新检查",
+	"triggered": "已触发检查，请留意右下角更新提示",
+	"checkFailed": "检查失败：{{reason}}",
+	"viewRelease": "查看 →",
+	"toast": {
+		"title": "更新提示",
+		"version": "版本：{{version}}",
+		"close": "关闭",
+		"checking": "正在检查更新...",
+		"availableMessage": "发现新版本，准备下载...",
+		"downloadingMessage": "更新下载中...",
+		"downloaded": "更新已下载完成",
+		"latest": "当前已是最新版本",
+		"error": "更新失败，请稍后重试",
+		"preparing": "正在准备下载更新，请稍候…",
+		"installRestart": "安装并重启",
+		"later": "稍后",
+		"waitHint": "如果刚发布新版本，请稍等后再检查。"
+	}
+}

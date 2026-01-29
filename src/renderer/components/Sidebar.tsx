@@ -11,6 +11,7 @@ import {
 	Sun,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { type FileItem, useAppStore } from "../store/appStore";
 import { SettingsSidebar } from "./SettingsSidebar";
 import { TutorialsSidebar } from "./TutorialsSidebar";
@@ -33,6 +34,7 @@ export interface SidebarProps {
 const ALLOWED_EXTENSIONS = [".md", ".atex"];
 
 export function Sidebar({ onCollapse }: SidebarProps) {
+	const { t } = useTranslation("sidebar");
 	const files = useAppStore((s) => s.files);
 	const activeFileId = useAppStore((s) => s.activeFileId);
 	const addFile = useAppStore((s) => s.addFile);
@@ -176,17 +178,17 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 									className="h-8 w-8 hover:bg-blue-500/20 hover:text-blue-600"
 									onClick={onCollapse}
 								>
-									<span className="sr-only">收起侧边栏</span>
+									<span className="sr-only">{t("collapseSidebar")}</span>
 									<ChevronLeft className="h-4 w-4" />
 								</Button>
 							</TooltipTrigger>
 							<TooltipContent side="bottom">
-								<p>收起侧边栏</p>
+								<p>{t("collapseSidebar")}</p>
 							</TooltipContent>
 						</Tooltip>
 					)}
 
-					{workspaceMode !== "tutorial" && (
+					{workspaceMode === "editor" && (
 						<>
 							<Tooltip>
 								<TooltipTrigger asChild>
@@ -200,7 +202,7 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 									</Button>
 								</TooltipTrigger>
 								<TooltipContent side="bottom">
-									<p>打开文件</p>
+									<p>{t("openFile")}</p>
 								</TooltipContent>
 							</Tooltip>
 
@@ -212,12 +214,12 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 										className="h-8 w-8 hover:bg-blue-500/20 hover:text-blue-600"
 										onClick={() => handleNewFileWithExt(".atex")}
 									>
-										<span className="sr-only">新建 .atex 文件</span>
+										<span className="sr-only">{t("newAtex")}</span>
 										<FileMusic className="h-4 w-4" />
 									</Button>
 								</TooltipTrigger>
 								<TooltipContent side="bottom">
-									<p>新建 .atex</p>
+									<p>{t("newAtex")}</p>
 								</TooltipContent>
 							</Tooltip>
 
@@ -229,12 +231,12 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 										className="h-8 w-8 hover:bg-blue-500/20 hover:text-blue-600"
 										onClick={() => handleNewFileWithExt(".md")}
 									>
-										<span className="sr-only">新建 .md 文件</span>
+										<span className="sr-only">{t("newMd")}</span>
 										<FileDown className="h-4 w-4" />
 									</Button>
 								</TooltipTrigger>
 								<TooltipContent side="bottom">
-									<p>新建 .md</p>
+									<p>{t("newMd")}</p>
 								</TooltipContent>
 							</Tooltip>
 						</>
@@ -248,13 +250,13 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 								className="h-8 w-8 hover:bg-blue-500/20 hover:text-blue-600"
 								onClick={handleToggleTheme}
 							>
-								<span className="sr-only">切换主题</span>
+								<span className="sr-only">{t("toggleTheme")}</span>
 								<Sun className="h-4 w-4 block dark:hidden" />
 								<Moon className="h-4 w-4 hidden dark:block" />
 							</Button>
 						</TooltipTrigger>
 						<TooltipContent side="bottom">
-							<p>明暗切换</p>
+							<p>{t("toggleTheme")}</p>
 						</TooltipContent>
 					</Tooltip>
 				</div>
@@ -268,7 +270,7 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 							<SettingsSidebar />
 						) : files.length === 0 ? (
 							<div className="p-3 text-xs text-muted-foreground text-center">
-								暂无文件
+								{t("noFiles")}
 							</div>
 						) : (
 							files.map((file) => {
@@ -356,9 +358,9 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 														? "text-blue-600"
 														: "text-muted-foreground hover:text-blue-600 focus-visible:text-blue-600"
 												}`}
-												aria-label="重命名"
+												aria-label={t("rename")}
 											>
-												<span className="sr-only">重命名文件</span>
+												<span className="sr-only">{t("renameFile")}</span>
 												<Edit className="h-3 w-3" />
 											</button>
 											<button
@@ -376,9 +378,9 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 														? "text-blue-600"
 														: "text-muted-foreground hover:text-blue-600 focus-visible:text-blue-600"
 												}`}
-												aria-label="在文件管理器中显示"
+												aria-label={t("showInExplorer")}
 											>
-												<span className="sr-only">在文件管理器中显示</span>
+												<span className="sr-only">{t("showInExplorer")}</span>
 												<FolderOpen className="h-3.5 w-3.5" />
 											</button>
 										</div>
@@ -414,13 +416,17 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 										setActiveTutorialId(null);
 									}
 								}}
-								aria-label="教程"
+								aria-label={t("tutorial")}
 							>
 								<FileQuestion className="h-4 w-4" />
 							</IconButton>
 						</TooltipTrigger>
 						<TooltipContent side="top">
-							<p>{workspaceMode === "tutorial" ? "退出教程" : "进入教程"}</p>
+							<p>
+								{workspaceMode === "tutorial"
+									? t("exitTutorial")
+									: t("enterTutorial")}
+							</p>
 						</TooltipContent>
 					</Tooltip>
 					<Tooltip>
@@ -428,13 +434,13 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 							<IconButton
 								active={workspaceMode === "settings"}
 								onClick={handleOpenSettings}
-								aria-label="设置"
+								aria-label={t("settings")}
 							>
 								<Settings className="h-4 w-4" />
 							</IconButton>
 						</TooltipTrigger>
 						<TooltipContent side="top">
-							<p>设置</p>
+							<p>{t("settings")}</p>
 						</TooltipContent>
 					</Tooltip>
 				</div>

@@ -1,0 +1,10 @@
+{
+	"unknown": "Unknown error",
+	"lexerDiagnostics": "Lexer diagnostics",
+	"parserDiagnostics": "Parser diagnostics",
+	"semanticDiagnostics": "Semantic diagnostics",
+	"diagnostics": "Diagnostics",
+	"parseError": "AlphaTex parse error",
+	"restored": "Restored to last valid score",
+	"dismissTooltip": "Dismiss error"
+}

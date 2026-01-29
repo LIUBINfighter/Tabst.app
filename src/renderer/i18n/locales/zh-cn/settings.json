@@ -1,0 +1,24 @@
+{
+	"title": "设置",
+	"backToEditor": "返回编辑器",
+	"appearance": "外观",
+	"appearanceDesc": "主题与界面显示相关设置",
+	"playback": "播放",
+	"playbackDesc": "播放速度与模式相关设置",
+	"updates": "更新",
+	"updatesDesc": "版本检查与更新相关功能",
+	"roadmap": "路线图",
+	"roadmapDesc": "功能规划与开发计划",
+	"about": "关于",
+	"aboutDesc": "应用信息与相关链接",
+	"appearanceSection": {
+		"title": "外观",
+		"toggleTheme": "切换明暗主题",
+		"themeHint": "当前主题由页面 class 控制",
+		"language": "语言",
+		"languageHint": "应用界面语言",
+		"languageEn": "English",
+		"languageZh": "简体中文"
+	},
+	"playbackPlaceholder": "自定义播放器正在开发中"
+}

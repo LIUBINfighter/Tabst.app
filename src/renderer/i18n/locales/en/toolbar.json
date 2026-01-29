@@ -1,0 +1,30 @@
+{
+	"play": "Play",
+	"pause": "Pause",
+	"stop": "Stop",
+	"refresh": "Refresh",
+	"zoomIn": "Zoom in",
+	"zoomOut": "Zoom out",
+	"zoomPercent": "Zoom percentage",
+	"playbackSpeed": "Playback speed",
+	"metronome": {
+		"label": "Metronome",
+		"enable": "Enable metronome",
+		"disable": "Disable metronome"
+	},
+	"tutorial": {
+		"prev": "Previous",
+		"next": "Next",
+		"prevWithTitle": "Previous: {{title}}",
+		"nextWithTitle": "Next: {{title}}",
+		"prevTooltip": "Previous: {{title}} (← key)",
+		"nextTooltip": "Next: {{title}} (→ key)",
+		"keyboardHint": "Use ← → keys to navigate"
+	},
+	"bpm": {
+		"label": "BPM",
+		"decrease": "Decrease 1 BPM",
+		"increase": "Increase 1 BPM",
+		"ariaLabel": "BPM value"
+	}
+}

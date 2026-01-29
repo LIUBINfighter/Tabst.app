@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { TutorialRenderer } from "../tutorial/TutorialRenderer";
 
 export function AboutPage() {
+	const { t } = useTranslation(["settings", "common"]);
 	const [readmeContent, setReadmeContent] = useState<string | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
@@ -12,19 +14,22 @@ export function AboutPage() {
 				setLoading(true);
 				setError(null);
 				const data = await window.electronAPI.readAsset("docs/README.md");
-				// Convert Uint8Array to string
 				const decoder = new TextDecoder("utf-8");
 				const content = decoder.decode(data);
 				setReadmeContent(content);
 			} catch (err) {
-				setError(err instanceof Error ? err.message : String(err));
+				setError(
+					err instanceof Error
+						? t("common:loadFailed", { reason: err.message })
+						: t("common:loadFailed", { reason: String(err) }),
+				);
 			} finally {
 				setLoading(false);
 			}
 		};
 
 		void loadReadme();
-	}, []);
+	}, [t]);
 
 	return (
 		<div className="space-y-4">
@@ -52,12 +57,14 @@ export function AboutPage() {
 				<h3 className="text-sm font-medium mb-4">README</h3>
 				{loading && (
 					<div className="flex items-center justify-center py-8">
-						<p className="text-sm text-muted-foreground">加载中...</p>
+						<p className="text-sm text-muted-foreground">
+							{t("common:loading")}
+						</p>
 					</div>
 				)}
 				{error && (
 					<div className="bg-destructive/10 border border-destructive rounded p-4">
-						<p className="text-sm text-destructive">加载失败：{error}</p>
+						<p className="text-sm text-destructive">{error}</p>
 					</div>
 				)}
 				{!loading && !error && readmeContent && (

@@ -87,7 +87,13 @@ function App() {
 						onCollapseSidebar={() => setSidebarCollapsed(true)}
 					/>
 				)}
-				{workspaceMode === "settings" && <SettingsView />}
+				{workspaceMode === "settings" && (
+					<SettingsView
+						showExpandSidebar={sidebarCollapsed}
+						onExpandSidebar={() => setSidebarCollapsed(false)}
+						onCollapseSidebar={() => setSidebarCollapsed(true)}
+					/>
+				)}
 
 				{/* 全局底部栏（放在主内容流中，保持与 Editor 排列，不再遮挡内容） */}
 				<GlobalBottomBar />

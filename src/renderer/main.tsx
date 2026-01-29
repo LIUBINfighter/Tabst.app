@@ -1,5 +1,7 @@
 import ReactDOM from "react-dom/client";
+import { I18nextProvider } from "react-i18next";
 import App from "./App";
+import i18n from "./i18n";
 import "./index.css";
 
 const rootElement = document.getElementById("root");
@@ -25,6 +27,8 @@ if (!rootElement) throw new Error("Failed to find the root element");
 // 暂时注释 React.StrictMode（可能引发双重渲染导致重复初始化），如需调试请还原并改进 useEffect 的清理逻辑
 ReactDOM.createRoot(rootElement).render(
 	// <React.StrictMode>
-	<App />,
+	<I18nextProvider i18n={i18n}>
+		<App />
+	</I18nextProvider>,
 	// </React.StrictMode>
 );

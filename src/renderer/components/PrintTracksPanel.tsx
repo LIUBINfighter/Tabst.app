@@ -8,7 +8,14 @@
 import type * as AlphaTab from "@coderline/alphatab";
 import { Check, Eye, EyeOff, Layers } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "./ui/button";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipProvider,
+	TooltipTrigger,
+} from "./ui/tooltip";
 
 /**
  * 谱表配置（纯数据，不依赖 AlphaTab 对象）
@@ -74,7 +81,7 @@ export function PrintTracksPanel({
 	onStretchForceChange,
 	onApplyStaffOptionsReady,
 }: PrintTracksPanelProps) {
-	// 音轨配置（Source of Truth，纯数据）
+	const { t } = useTranslation("print");
 	const [trackConfigs, setTrackConfigs] = useState<TrackConfig[]>([]);
 
 	// 标记是否已初始化
@@ -346,193 +353,238 @@ export function PrintTracksPanel({
 	if (!isOpen) return null;
 
 	return (
-		<div className="w-72 border-l border-border bg-card flex flex-col h-full shrink-0">
-			{/* Header */}
-			<div className="h-12 border-b border-border flex items-center justify-between px-3 shrink-0">
-				<div className="flex items-center gap-2">
-					<Layers className="h-4 w-4" />
-					<span className="text-sm font-medium">打印设置</span>
-				</div>
-			</div>
-
-			{/* Content */}
-			<div className="flex-1 overflow-y-auto p-2">
-				{/* 缩放控制 */}
-				<div className="mb-3 p-3 bg-muted/30 rounded-md space-y-2">
-					<div className="flex items-center justify-between">
-						<span className="text-xs font-medium text-muted-foreground">
-							缩放比例
-						</span>
-						<span className="text-xs font-mono text-primary">
-							{Math.round(zoom * 100)}%
-						</span>
-					</div>
+		<TooltipProvider delayDuration={200}>
+			<div className="w-72 border-l border-border bg-card flex flex-col h-full shrink-0">
+				{/* Header */}
+				<div className="h-12 border-b border-border flex items-center justify-between px-3 shrink-0">
 					<div className="flex items-center gap-2">
-						<input
-							type="range"
-							className="flex-1 h-2 bg-muted rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-primary [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-primary [&::-moz-range-thumb]:border-0"
-							min="0.5"
-							max="1.0"
-							step="0.1"
-							value={zoom}
-							onChange={(e) =>
-								onZoomChange?.(Number.parseFloat(e.target.value))
-							}
-							title="调整曲谱缩放比例"
-						/>
-						<Button
-							variant="ghost"
-							size="sm"
-							className="h-6 px-2 text-xs"
-							onClick={() => onZoomChange?.(1.0)}
-							title="重置为100%"
-						>
-							重置
-						</Button>
-					</div>
-					<div className="flex justify-between text-xs text-muted-foreground">
-						<span>50%</span>
-						<span>100%</span>
-					</div>
-				</div>
-				{/* 每行小节数控制 */}
-				<div className="mb-3 p-3 bg-muted/30 rounded-md space-y-2">
-					<div className="flex items-center justify-between">
-						<span className="text-xs font-medium text-muted-foreground">
-							每行小节数
-						</span>
-						<span className="text-xs font-mono text-primary">
-							{barsPerRow === -1 ? "自动" : barsPerRow}
-						</span>
-					</div>
-					<div className="flex items-center gap-2">
-						<input
-							type="range"
-							className="flex-1 h-2 bg-muted rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-primary [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-primary [&::-moz-range-thumb]:border-0"
-							min="-1"
-							max="8"
-							step="1"
-							value={barsPerRow}
-							onChange={(e) =>
-								onBarsPerRowChange?.(Number.parseInt(e.target.value, 10))
-							}
-							title="设置每行显示的小节数，-1为自动模式"
-						/>
-						<Button
-							variant="ghost"
-							size="sm"
-							className="h-6 px-2 text-xs"
-							onClick={() => onBarsPerRowChange?.(-1)}
-							title="重置为自动"
-						>
-							自动
-						</Button>
-					</div>
-					<div className="flex justify-between text-xs text-muted-foreground">
-						<span>自动</span>
-						<span>8</span>
+						<Layers className="h-4 w-4" />
+						<span className="text-sm font-medium">{t("panelTitle")}</span>
 					</div>
 				</div>
 
-				{/* 音符间距拉伸控制 */}
-				<div className="mb-3 p-3 bg-muted/30 rounded-md space-y-2">
-					<div className="flex items-center justify-between">
+				{/* Content */}
+				<div className="flex-1 overflow-y-auto p-2">
+					<div className="mb-3 p-3 bg-muted/30 rounded-md space-y-2">
+						<div className="flex items-center justify-between">
+							<span className="text-xs font-medium text-muted-foreground">
+								{t("zoomLabel")}
+							</span>
+							<span className="text-xs font-mono text-primary">
+								{Math.round(zoom * 100)}%
+							</span>
+						</div>
+						<div className="flex items-center gap-2">
+							<Tooltip>
+								<TooltipTrigger asChild>
+									<input
+										type="range"
+										className="flex-1 h-2 bg-muted rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-primary [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-primary [&::-moz-range-thumb]:border-0"
+										min="0.5"
+										max="1.0"
+										step="0.1"
+										value={zoom}
+										onChange={(e) =>
+											onZoomChange?.(Number.parseFloat(e.target.value))
+										}
+									/>
+								</TooltipTrigger>
+								<TooltipContent side="top">
+									<p>{t("zoomTitle")}</p>
+								</TooltipContent>
+							</Tooltip>
+							<Tooltip>
+								<TooltipTrigger asChild>
+									<Button
+										variant="ghost"
+										size="sm"
+										className="h-6 px-2 text-xs"
+										onClick={() => onZoomChange?.(1.0)}
+									>
+										{t("reset")}
+									</Button>
+								</TooltipTrigger>
+								<TooltipContent side="top">
+									<p>{t("resetTo100")}</p>
+								</TooltipContent>
+							</Tooltip>
+						</div>
+						<div className="flex justify-between text-xs text-muted-foreground">
+							<span>50%</span>
+							<span>100%</span>
+						</div>
+					</div>
+					<div className="mb-3 p-3 bg-muted/30 rounded-md space-y-2">
+						<div className="flex items-center justify-between">
+							<span className="text-xs font-medium text-muted-foreground">
+								{t("barsPerRow")}
+							</span>
+							<span className="text-xs font-mono text-primary">
+								{barsPerRow === -1 ? t("auto") : barsPerRow}
+							</span>
+						</div>
+						<div className="flex items-center gap-2">
+							<Tooltip>
+								<TooltipTrigger asChild>
+									<input
+										type="range"
+										className="flex-1 h-2 bg-muted rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-primary [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-primary [&::-moz-range-thumb]:border-0"
+										min="-1"
+										max="8"
+										step="1"
+										value={barsPerRow}
+										onChange={(e) =>
+											onBarsPerRowChange?.(Number.parseInt(e.target.value, 10))
+										}
+									/>
+								</TooltipTrigger>
+								<TooltipContent side="top">
+									<p>{t("barsPerRowTitle")}</p>
+								</TooltipContent>
+							</Tooltip>
+							<Tooltip>
+								<TooltipTrigger asChild>
+									<Button
+										variant="ghost"
+										size="sm"
+										className="h-6 px-2 text-xs"
+										onClick={() => onBarsPerRowChange?.(-1)}
+									>
+										{t("auto")}
+									</Button>
+								</TooltipTrigger>
+								<TooltipContent side="top">
+									<p>{t("resetAuto")}</p>
+								</TooltipContent>
+							</Tooltip>
+						</div>
+						<div className="flex justify-between text-xs text-muted-foreground">
+							<span>{t("auto")}</span>
+							<span>8</span>
+						</div>
+					</div>
+
+					<div className="mb-3 p-3 bg-muted/30 rounded-md space-y-2">
+						<div className="flex items-center justify-between">
+							<span className="text-xs font-medium text-muted-foreground">
+								{t("noteSpacing")}
+							</span>
+							<span className="text-xs font-mono text-primary">
+								{stretchForce.toFixed(1)}×
+							</span>
+						</div>
+						<div className="flex items-center gap-2">
+							<Tooltip>
+								<TooltipTrigger asChild>
+									<input
+										type="range"
+										className="flex-1 h-2 bg-muted rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-primary [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-primary [&::-moz-range-thumb]:border-0"
+										min="0.5"
+										max="2.0"
+										step="0.1"
+										value={stretchForce}
+										onChange={(e) =>
+											onStretchForceChange?.(Number.parseFloat(e.target.value))
+										}
+									/>
+								</TooltipTrigger>
+								<TooltipContent side="top">
+									<p>{t("noteSpacingTitle")}</p>
+								</TooltipContent>
+							</Tooltip>
+							<Tooltip>
+								<TooltipTrigger asChild>
+									<Button
+										variant="ghost"
+										size="sm"
+										className="h-6 px-2 text-xs"
+										onClick={() => onStretchForceChange?.(1.0)}
+									>
+										{t("reset")}
+									</Button>
+								</TooltipTrigger>
+								<TooltipContent side="top">
+									<p>{t("resetStandard")}</p>
+								</TooltipContent>
+							</Tooltip>
+						</div>
+						<div className="flex justify-between text-xs text-muted-foreground">
+							<span>{t("compact")}</span>
+							<span>{t("standard")}</span>
+							<span>{t("loose")}</span>
+						</div>
+					</div>
+					<div className="flex items-center justify-between mb-2 px-1">
 						<span className="text-xs font-medium text-muted-foreground">
-							音符间距
+							{t("trackSelect")}
 						</span>
-						<span className="text-xs font-mono text-primary">
-							{stretchForce.toFixed(1)}×
-						</span>
+						<div className="flex items-center gap-1">
+							<Tooltip>
+								<TooltipTrigger asChild>
+									<Button
+										variant="ghost"
+										size="sm"
+										className="h-6 px-2 text-xs"
+										onClick={selectAllTracks}
+									>
+										{t("selectAll")}
+									</Button>
+								</TooltipTrigger>
+								<TooltipContent side="top">
+									<p>{t("selectAll")}</p>
+								</TooltipContent>
+							</Tooltip>
+							<Tooltip>
+								<TooltipTrigger asChild>
+									<Button
+										variant="ghost"
+										size="sm"
+										className="h-6 px-2 text-xs"
+										onClick={deselectAllTracks}
+									>
+										{t("clear")}
+									</Button>
+								</TooltipTrigger>
+								<TooltipContent side="top">
+									<p>{t("firstOnly")}</p>
+								</TooltipContent>
+							</Tooltip>
+						</div>
 					</div>
-					<div className="flex items-center gap-2">
-						<input
-							type="range"
-							className="flex-1 h-2 bg-muted rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-primary [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-primary [&::-moz-range-thumb]:border-0"
-							min="0.5"
-							max="2.0"
-							step="0.1"
-							value={stretchForce}
-							onChange={(e) =>
-								onStretchForceChange?.(Number.parseFloat(e.target.value))
-							}
-							title="调整音符之间的间距，值越大间距越宽"
-						/>
-						<Button
-							variant="ghost"
-							size="sm"
-							className="h-6 px-2 text-xs"
-							onClick={() => onStretchForceChange?.(1.0)}
-							title="重置为标准"
-						>
-							重置
-						</Button>
-					</div>
-					<div className="flex justify-between text-xs text-muted-foreground">
-						<span>紧凑</span>
-						<span>标准</span>
-						<span>宽松</span>
-					</div>
+
+					{trackConfigs.length === 0 ? (
+						<div className="flex items-center justify-center h-32 text-sm text-muted-foreground">
+							{t("noTracks")}
+						</div>
+					) : (
+						<div className="space-y-1">
+							{trackConfigs.map((config) => (
+								<TrackItem
+									key={config.index}
+									config={config}
+									onToggleSelection={toggleTrackSelection}
+									onToggleStaffOption={toggleStaffOption}
+								/>
+							))}
+						</div>
+					)}
 				</div>
-				{/* 音轨列表标题 */}
-				<div className="flex items-center justify-between mb-2 px-1">
-					<span className="text-xs font-medium text-muted-foreground">
-						音轨选择
+
+				<div className="h-10 border-t border-border flex items-center justify-between px-3 text-xs text-muted-foreground shrink-0">
+					<span>
+						{t("selectedCount", { n: selectedCount, total: totalCount })}
 					</span>
-					<div className="flex items-center gap-1">
-						<Button
-							variant="ghost"
-							size="sm"
-							className="h-6 px-2 text-xs"
-							onClick={selectAllTracks}
-							title="全选"
-						>
-							全选
-						</Button>
-						<Button
-							variant="ghost"
-							size="sm"
-							className="h-6 px-2 text-xs"
-							onClick={deselectAllTracks}
-							title="仅第一个"
-						>
-							清除
-						</Button>
-					</div>
+					<Button
+						variant="ghost"
+						size="sm"
+						className="h-7 px-2"
+						onClick={onClose}
+					>
+						{t("done")}
+					</Button>
 				</div>
-
-				{trackConfigs.length === 0 ? (
-					<div className="flex items-center justify-center h-32 text-sm text-muted-foreground">
-						暂无音轨
-					</div>
-				) : (
-					<div className="space-y-1">
-						{trackConfigs.map((config) => (
-							<TrackItem
-								key={config.index}
-								config={config}
-								onToggleSelection={toggleTrackSelection}
-								onToggleStaffOption={toggleStaffOption}
-							/>
-						))}
-					</div>
-				)}
 			</div>
-
-			{/* Footer */}
-			<div className="h-10 border-t border-border flex items-center justify-between px-3 text-xs text-muted-foreground shrink-0">
-				<span>
-					已选择 {selectedCount} / {totalCount} 音轨
-				</span>
-				<Button
-					variant="ghost"
-					size="sm"
-					className="h-7 px-2"
-					onClick={onClose}
-				>
-					完成
-				</Button>
-			</div>
-		</div>
+		</TooltipProvider>
 	);
 }
 
@@ -547,6 +599,71 @@ interface TrackItemProps {
 		staffIndex: number,
 		option: StaffDisplayOption,
 	) => void;
+}
+
+function PrintTrackStaffRow({
+	index,
+	staffIdx,
+	staffConfig,
+	onToggleStaffOption,
+}: {
+	index: number;
+	staffIdx: number;
+	staffConfig: StaffConfig;
+	onToggleStaffOption: (
+		trackIndex: number,
+		staffIndex: number,
+		option: StaffDisplayOption,
+	) => void;
+}) {
+	const { t } = useTranslation("print");
+	return (
+		<div className="flex items-center gap-1 pl-7 text-xs">
+			<span className="text-muted-foreground w-12 shrink-0">
+				{t("staffLabel", { n: staffIdx + 1 })}
+			</span>
+			<div className="flex gap-1">
+				<StaffOptionButton
+					label={t("staffShort.standard")}
+					icon="𝅘𝅥"
+					isActive={staffConfig.showStandardNotation}
+					onClick={() =>
+						onToggleStaffOption(
+							index,
+							staffConfig.staffIndex,
+							"showStandardNotation",
+						)
+					}
+					title={t("staff.standard")}
+				/>
+				<StaffOptionButton
+					label={t("staffShort.tab")}
+					isActive={staffConfig.showTablature}
+					onClick={() =>
+						onToggleStaffOption(index, staffConfig.staffIndex, "showTablature")
+					}
+					title={t("staff.tab")}
+				/>
+				<StaffOptionButton
+					label={t("staffShort.slash")}
+					icon="𝄍"
+					isActive={staffConfig.showSlash}
+					onClick={() =>
+						onToggleStaffOption(index, staffConfig.staffIndex, "showSlash")
+					}
+					title={t("staff.slash")}
+				/>
+				<StaffOptionButton
+					label={t("staffShort.numbered")}
+					isActive={staffConfig.showNumbered}
+					onClick={() =>
+						onToggleStaffOption(index, staffConfig.staffIndex, "showNumbered")
+					}
+					title={t("staff.numbered")}
+				/>
+			</div>
+		</div>
+	);
 }
 
 function TrackItem({
@@ -603,66 +720,13 @@ function TrackItem({
 			{isSelected && staves.length > 0 && (
 				<div className="px-2 pb-2 pt-1 space-y-1">
 					{staves.map((staffConfig, staffIdx) => (
-						<div
+						<PrintTrackStaffRow
 							key={`staff-${index}-${staffConfig.staffIndex}`}
-							className="flex items-center gap-1 pl-7 text-xs"
-						>
-							<span className="text-muted-foreground w-12 shrink-0">
-								谱表 {staffIdx + 1}:
-							</span>
-							<div className="flex gap-1">
-								<StaffOptionButton
-									label="五线"
-									icon="𝅘𝅥"
-									isActive={staffConfig.showStandardNotation}
-									onClick={() =>
-										onToggleStaffOption(
-											index,
-											staffConfig.staffIndex,
-											"showStandardNotation",
-										)
-									}
-									title="标准记谱法"
-								/>
-								<StaffOptionButton
-									label="TAB"
-									isActive={staffConfig.showTablature}
-									onClick={() =>
-										onToggleStaffOption(
-											index,
-											staffConfig.staffIndex,
-											"showTablature",
-										)
-									}
-									title="六线谱"
-								/>
-								<StaffOptionButton
-									label="/"
-									icon="𝄍"
-									isActive={staffConfig.showSlash}
-									onClick={() =>
-										onToggleStaffOption(
-											index,
-											staffConfig.staffIndex,
-											"showSlash",
-										)
-									}
-									title="斜线记谱法"
-								/>
-								<StaffOptionButton
-									label="123"
-									isActive={staffConfig.showNumbered}
-									onClick={() =>
-										onToggleStaffOption(
-											index,
-											staffConfig.staffIndex,
-											"showNumbered",
-										)
-									}
-									title="简谱"
-								/>
-							</div>
-						</div>
+							index={index}
+							staffIdx={staffIdx}
+							staffConfig={staffConfig}
+							onToggleStaffOption={onToggleStaffOption}
+						/>
 					))}
 				</div>
 			)}
@@ -689,20 +753,26 @@ function StaffOptionButton({
 	title,
 }: StaffOptionButtonProps) {
 	return (
-		<button
-			type="button"
-			className={`h-5 px-1.5 text-xs rounded transition-colors ${
-				isActive
-					? "bg-primary text-primary-foreground"
-					: "bg-muted text-muted-foreground hover:bg-muted/80"
-			}`}
-			onClick={(e) => {
-				e.stopPropagation();
-				onClick();
-			}}
-			title={title}
-		>
-			{icon || label}
-		</button>
+		<Tooltip>
+			<TooltipTrigger asChild>
+				<button
+					type="button"
+					className={`h-5 px-1.5 text-xs rounded transition-colors ${
+						isActive
+							? "bg-primary text-primary-foreground"
+							: "bg-muted text-muted-foreground hover:bg-muted/80"
+					}`}
+					onClick={(e) => {
+						e.stopPropagation();
+						onClick();
+					}}
+				>
+					{icon || label}
+				</button>
+			</TooltipTrigger>
+			<TooltipContent side="top">
+				<p>{title}</p>
+			</TooltipContent>
+		</Tooltip>
 	);
 }

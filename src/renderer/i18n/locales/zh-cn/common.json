@@ -1,0 +1,9 @@
+{
+	"settings": "设置",
+	"preview": "预览",
+	"close": "关闭",
+	"loadTutorialFailed": "加载教程失败",
+	"loading": "加载中...",
+	"loadFailed": "加载失败：{{reason}}",
+	"selectOrCreateFile": "选择或创建一个文件开始编辑"
+}

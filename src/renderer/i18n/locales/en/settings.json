@@ -1,0 +1,24 @@
+{
+	"title": "Settings",
+	"backToEditor": "Back to editor",
+	"appearance": "Appearance",
+	"appearanceDesc": "Theme and display",
+	"playback": "Playback",
+	"playbackDesc": "Speed and mode",
+	"updates": "Updates",
+	"updatesDesc": "Version check and updates",
+	"roadmap": "Roadmap",
+	"roadmapDesc": "Plans and development",
+	"about": "About",
+	"aboutDesc": "App info and links",
+	"appearanceSection": {
+		"title": "Appearance",
+		"toggleTheme": "Toggle light/dark theme",
+		"themeHint": "Theme is controlled by page class",
+		"language": "Language",
+		"languageHint": "App UI language",
+		"languageEn": "English",
+		"languageZh": "Simplified Chinese"
+	},
+	"playbackPlaceholder": "Custom player coming soon"
+}

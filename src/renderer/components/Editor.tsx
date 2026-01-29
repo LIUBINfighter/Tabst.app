@@ -11,6 +11,7 @@ import {
 	useRef,
 	useState,
 } from "react";
+import { useTranslation } from "react-i18next";
 import { alphatexAbbreviations } from "../lib/alphatex-abbreviations";
 import { createAlphaTexBarlinesExtension } from "../lib/alphatex-barlines";
 import { createAlphaTexAutocomplete } from "../lib/alphatex-completion";
@@ -28,9 +29,16 @@ import { whitespaceDecoration } from "../lib/whitespace-decoration";
 import type { EditorCursorInfo } from "../store/appStore";
 import { useAppStore } from "../store/appStore";
 import Preview from "./Preview";
+import QuoteCard from "./QuoteCard";
 import TopBar from "./TopBar";
 import { Button } from "./ui/button";
 import IconButton from "./ui/icon-button";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipProvider,
+	TooltipTrigger,
+} from "./ui/tooltip";
 
 interface EditorProps {
 	showExpandSidebar?: boolean;
@@ -38,6 +46,7 @@ interface EditorProps {
 }
 
 export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
+	const { t } = useTranslation(["sidebar", "common"]);
 	const editorRef = useRef<HTMLDivElement | null>(null);
 	const viewRef = useRef<EditorView | null>(null);
 	const saveTimerRef = useRef<number | null>(null);
@@ -577,7 +586,7 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 			<div className="flex-1 flex items-center justify-center">
 				<div className="flex flex-col items-center gap-6">
 					<p className="text-sm text-muted-foreground">
-						选择或创建一个文件开始编辑
+						{t("common:selectOrCreateFile")}
 					</p>
 					<div className="flex flex-col gap-2 items-center">
 						{onExpandSidebar && (
@@ -587,7 +596,7 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 								className="h-7 px-2 text-muted-foreground"
 								onClick={onExpandSidebar}
 							>
-								打开侧边栏
+								{t("expandSidebar")}
 							</Button>
 						)}
 						<Button
@@ -596,7 +605,7 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 							className="h-7 px-2 text-muted-foreground"
 							onClick={() => setWorkspaceMode("tutorial")}
 						>
-							打开教程
+							{t("openTutorial")}
 						</Button>
 						<Button
 							variant="ghost"
@@ -604,8 +613,12 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 							className="h-7 px-2 text-muted-foreground"
 							onClick={() => setWorkspaceMode("settings")}
 						>
-							打开设置
+							{t("openSettings")}
 						</Button>
+					</div>
+					{/* Quote card below OpenSettings button */}
+					<div className="w-full flex items-center justify-center">
+						<QuoteCard />
 					</div>
 				</div>
 			</div>
@@ -631,7 +644,7 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 										size="icon"
 										className="h-8 w-8"
 										onClick={onExpandSidebar}
-										aria-label="展开侧边栏"
+										aria-label={t("expandSidebar")}
 									>
 										<ChevronRight className="h-4 w-4" />
 									</Button>
@@ -652,29 +665,38 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 					{/* Right: Preview */}
 					<div className="w-1/2 flex flex-col bg-card min-h-0 overflow-y-auto overflow-x-hidden">
 						<Preview
-							fileName={`${activeFile.name} 预览`}
+							fileName={`${activeFile.name} ${t("common:preview")}`}
 							content={activeFile.content}
 						/>
 					</div>
 				</div>
 			) : (
-				<div className="flex-1 flex flex-col min-h-0 overflow-hidden relative">
-					<TopBar
-						leading={
-							showExpandSidebar ? (
-								<IconButton title="展开侧边栏" onClick={onExpandSidebar}>
-									<ChevronRight className="h-4 w-4" />
-								</IconButton>
-							) : undefined
-						}
-						icon={
-							<Edit className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-						}
-						title={activeFile.name}
-					/>
-					{/* Host for CodeMirror */}
-					<div ref={editorRef} className="h-full" />
-				</div>
+				<TooltipProvider delayDuration={200}>
+					<div className="flex-1 flex flex-col min-h-0 overflow-hidden relative">
+						<TopBar
+							leading={
+								showExpandSidebar ? (
+									<Tooltip>
+										<TooltipTrigger asChild>
+											<IconButton onClick={onExpandSidebar}>
+												<ChevronRight className="h-4 w-4" />
+											</IconButton>
+										</TooltipTrigger>
+										<TooltipContent side="bottom">
+											<p>{t("expandSidebar")}</p>
+										</TooltipContent>
+									</Tooltip>
+								) : undefined
+							}
+							icon={
+								<Edit className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+							}
+							title={activeFile.name}
+						/>
+						{/* Host for CodeMirror */}
+						<div ref={editorRef} className="h-full" />
+					</div>
+				</TooltipProvider>
 			)}
 		</div>
 	);
