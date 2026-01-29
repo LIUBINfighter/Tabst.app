@@ -26,5 +26,10 @@
 		"decrease": "Decrease 1 BPM",
 		"increase": "Increase 1 BPM",
 		"ariaLabel": "BPM value"
+	},
+	"export": {
+		"midi": "Export MIDI",
+		"wav": "Export WAV",
+		"gp": "Export GP"
 	}
 }

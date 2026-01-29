@@ -26,5 +26,10 @@
 		"decrease": "减少 1 BPM",
 		"increase": "增加 1 BPM",
 		"ariaLabel": "BPM 值"
+	},
+	"export": {
+		"midi": "导出 MIDI",
+		"wav": "导出 WAV",
+		"gp": "导出 GP"
 	}
 }
