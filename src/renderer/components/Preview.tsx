@@ -1,10 +1,16 @@
 // @ts-nocheck
 import * as alphaTab from "@coderline/alphatab";
-import { FileText, Printer } from "lucide-react";
+import { FileDown, FileMusic, FileText, Music, Printer } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { createPreviewSettings } from "../lib/alphatab-config";
 import { formatFullError } from "../lib/alphatab-error";
+import {
+	exportToGp7,
+	exportToMidi,
+	exportToWav,
+	getDefaultExportFilename,
+} from "../lib/alphatab-export";
 import { loadBravuraFont, loadSoundFontFromUrl } from "../lib/assets";
 import type { ResourceUrls } from "../lib/resourceLoaderService";
 import { getResourceUrls } from "../lib/resourceLoaderService";
@@ -1846,8 +1852,71 @@ export default function Preview({
 							}
 							trailing={
 								<>
-									{/* 打印按钮 */}
+									{/* 导出按钮组 */}
 									<div className="ml-2 flex items-center gap-1">
+										{/* 导出 MIDI */}
+										<Tooltip>
+											<TooltipTrigger asChild>
+												<IconButton
+													onClick={() => {
+														const api = apiRef.current;
+														if (!api?.score) return;
+														exportToMidi(api);
+													}}
+													disabled={!apiRef.current?.score}
+												>
+													<Music className="h-4 w-4" />
+												</IconButton>
+											</TooltipTrigger>
+											<TooltipContent side="bottom">
+												<p>导出 MIDI</p>
+											</TooltipContent>
+										</Tooltip>
+										{/* 导出 WAV */}
+										<Tooltip>
+											<TooltipTrigger asChild>
+												<IconButton
+													onClick={async () => {
+														const api = apiRef.current;
+														if (!api?.score) return;
+														const filename = getDefaultExportFilename(
+															fileName,
+															"wav",
+														);
+														await exportToWav(api, filename);
+													}}
+													disabled={!apiRef.current?.score}
+												>
+													<FileDown className="h-4 w-4" />
+												</IconButton>
+											</TooltipTrigger>
+											<TooltipContent side="bottom">
+												<p>导出 WAV</p>
+											</TooltipContent>
+										</Tooltip>
+										{/* 导出 GP */}
+										<Tooltip>
+											<TooltipTrigger asChild>
+												<IconButton
+													onClick={() => {
+														const api = apiRef.current;
+														if (!api?.score) return;
+														const filename = getDefaultExportFilename(
+															fileName,
+															"gp",
+														);
+														exportToGp7(api, filename);
+													}}
+													disabled={!apiRef.current?.score}
+												>
+													<FileMusic className="h-4 w-4" />
+												</IconButton>
+											</TooltipTrigger>
+											<TooltipContent side="bottom">
+												<p>导出 GP</p>
+											</TooltipContent>
+										</Tooltip>
+										{/* 打印按钮 */}
 										<Tooltip>
 											<TooltipTrigger asChild>
 												<IconButton
