@@ -34,13 +34,15 @@ export function AboutPage() {
 	return (
 		<div className="space-y-4">
 			<section className="bg-card border border-border rounded p-4">
-				<h3 className="text-sm font-medium mb-2">关于 v0.1.4</h3>
+				<h3 className="text-sm font-medium mb-2">
+					{t("settings:aboutHeader", { version: "0.1.4" })}
+				</h3>
 				<div className="space-y-2">
 					<p className="text-xs text-muted-foreground">
-						Tabst. Write guitar tabs like markdown. Powered by alphaTab.js.
+						{t("settings:aboutTagline1")}
 					</p>
 					<p className="text-xs text-muted-foreground">
-						高效编写 alphaTex，播放乐谱，分享 PDF/GP。
+						{t("settings:aboutTagline2")}
 					</p>
 					<a
 						href="https://github.com/LIUBINfighter/Tabst.app"
@@ -48,13 +50,23 @@ export function AboutPage() {
 						rel="noopener noreferrer"
 						className="text-xs text-primary hover:underline inline-block"
 					>
-						GitHub →
+						{t("settings:githubLink")}
 					</a>
 				</div>
 			</section>
 
+			<section className="bg-card border border-border rounded p-4 flex items-center justify-center">
+				<img
+					src="/assets/alphaTab.svg"
+					alt={t("settings:alphatabLogoAlt")}
+					className="h-32 w-auto"
+				/>
+			</section>
+
 			<section className="bg-card border border-border rounded p-4">
-				<h3 className="text-sm font-medium mb-4">README</h3>
+				<h3 className="text-sm font-medium mb-4">
+					{t("settings:readmeTitle")}
+				</h3>
 				{loading && (
 					<div className="flex items-center justify-center py-8">
 						<p className="text-sm text-muted-foreground">
