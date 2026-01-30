@@ -7,6 +7,20 @@ export function AboutPage() {
 	const [readmeContent, setReadmeContent] = useState<string | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
+	const [version, setVersion] = useState<string | null>(null);
+
+	useEffect(() => {
+		let mounted = true;
+		void window.electronAPI
+			.getAppVersion()
+			.then((v) => {
+				if (mounted) setVersion(v);
+			})
+			.catch(() => {});
+		return () => {
+			mounted = false;
+		};
+	}, []);
 
 	useEffect(() => {
 		const loadReadme = async () => {
@@ -35,7 +49,9 @@ export function AboutPage() {
 		<div className="space-y-4">
 			<section className="bg-card border border-border rounded p-4">
 				<h3 className="text-sm font-medium mb-2">
-					{t("settings:aboutHeader", { version: "0.1.4" })}
+					{version
+						? t("settings:aboutHeader", { version })
+						: t("settings:about")}
 				</h3>
 				<div className="space-y-2">
 					<p className="text-xs text-muted-foreground">
