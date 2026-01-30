@@ -73,7 +73,9 @@ export function AboutPage() {
 
 			<section className="bg-card border border-border rounded p-4">
 				<div className="flex flex-col items-center space-y-2">
-					<h4 className="text-sm font-medium">{t("settings:specialThanks")}</h4>
+					<h4 className="text-sm font-medium self-start">
+						{t("settings:specialThanks")}
+					</h4>
 					<img
 						src="/assets/alphaTab.svg"
 						alt={t("settings:alphatabLogoAlt")}
