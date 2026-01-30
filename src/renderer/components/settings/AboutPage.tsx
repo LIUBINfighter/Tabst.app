@@ -71,12 +71,46 @@ export function AboutPage() {
 				</div>
 			</section>
 
-			<section className="bg-card border border-border rounded p-4 flex items-center justify-center">
-				<img
-					src="/assets/alphaTab.svg"
-					alt={t("settings:alphatabLogoAlt")}
-					className="h-32 w-auto"
-				/>
+			<section className="bg-card border border-border rounded p-4">
+				<div className="flex flex-col items-center space-y-2">
+					<h4 className="text-sm font-medium">{t("settings:specialThanks")}</h4>
+					<img
+						src="/assets/alphaTab.svg"
+						alt={t("settings:alphatabLogoAlt")}
+						className="h-32 w-auto"
+					/>
+					<p className="text-xs text-muted-foreground text-center">
+						{t("settings:alphatabCaptionLine1")}
+					</p>
+					<p className="text-xs text-muted-foreground text-center">
+						<a
+							href="https://github.com/CoderLine/alphaTab"
+							target="_blank"
+							rel="noopener noreferrer"
+							className="text-xs text-primary hover:underline"
+						>
+							{t("settings:alphatabLinkGithub")}
+						</a>
+						<span className="mx-2 text-muted-foreground">|</span>
+						<a
+							href="https://alphatab.net/"
+							target="_blank"
+							rel="noopener noreferrer"
+							className="text-xs text-primary hover:underline"
+						>
+							{t("settings:alphatabLinkWebsite")}
+						</a>
+						<span className="mx-2 text-muted-foreground">|</span>
+						<a
+							href="https://alphatab.net/docs/alphatex/introduction"
+							target="_blank"
+							rel="noopener noreferrer"
+							className="text-xs text-primary hover:underline"
+						>
+							{t("settings:alphatabLinkAlphaTex")}
+						</a>
+					</p>
+				</div>
 			</section>
 
 			<section className="bg-card border border-border rounded p-4">
