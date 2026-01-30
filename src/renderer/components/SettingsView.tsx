@@ -83,23 +83,6 @@ export default function SettingsView({
 												<p>{t("sidebar:expandSidebar")}</p>
 											</TooltipContent>
 										</Tooltip>
-										<Tooltip>
-											<TooltipTrigger asChild>
-												<IconButton
-													className="hover:bg-red-500/20 hover:text-red-600"
-													aria-label={t("common:close")}
-													onClick={() => {
-														setWorkspaceMode("editor");
-														setActiveSettingsPageId(null);
-													}}
-												>
-													<X className="h-4 w-4" />
-												</IconButton>
-											</TooltipTrigger>
-											<TooltipContent side="bottom">
-												<p>{t("common:close")}</p>
-											</TooltipContent>
-										</Tooltip>
 									</div>
 								)
 							: onCollapseSidebar && (
@@ -114,24 +97,28 @@ export default function SettingsView({
 												<p>{t("sidebar:collapseSidebar")}</p>
 											</TooltipContent>
 										</Tooltip>
-										<Tooltip>
-											<TooltipTrigger asChild>
-												<IconButton
-													destructive
-													onClick={() => {
-														setWorkspaceMode("editor");
-														setActiveSettingsPageId(null);
-													}}
-												>
-													<X className="h-4 w-4" />
-												</IconButton>
-											</TooltipTrigger>
-											<TooltipContent side="bottom">
-												<p>{t("common:close")}</p>
-											</TooltipContent>
-										</Tooltip>
 									</div>
 								)
+					}
+					trailing={
+						<div className="flex items-center gap-1">
+							<Tooltip>
+								<TooltipTrigger asChild>
+									<IconButton
+										destructive
+										onClick={() => {
+											setWorkspaceMode("editor");
+											setActiveSettingsPageId(null);
+										}}
+									>
+										<X className="h-4 w-4" />
+									</IconButton>
+								</TooltipTrigger>
+								<TooltipContent side="bottom">
+									<p>{t("common:close")}</p>
+								</TooltipContent>
+							</Tooltip>
+						</div>
 					}
 					icon={
 						<Settings className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
