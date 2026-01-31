@@ -1,12 +1,20 @@
-# Tabst
+<h1 align="center">
+  <samp>Tabst</samp>
+</h1>
 
-![CI](https://img.shields.io/github/actions/workflow/status/LIUBINfighter/Tabst.app/ci.yml?branch=main)
-![Release](https://img.shields.io/github/v/release/LIUBINfighter/Tabst.app)
-![Downloads (Total)](https://img.shields.io/github/downloads/LIUBINfighter/Tabst.app/total)
-![Downloads (Latest)](https://img.shields.io/github/downloads/LIUBINfighter/Tabst.app/latest/total)
+<h3 align="center">Write guitar tabs like markdown.</h3>
 
-Write guitar tabs like markdown.
 
+
+<div align="center">
+<img width="2560" height="1406" alt="image" src="https://github.com/user-attachments/assets/d58323a0-44bb-4468-87c7-281c898a5ab6" />
+</div>
+
+  ![CI](https://img.shields.io/github/actions/workflow/status/LIUBINfighter/Tabst.app/ci.yml?branch=main) 
+  ![Release](https://img.shields.io/github/v/release/LIUBINfighter/Tabst.app) 
+  ![Downloads (Total)](https://img.shields.io/github/downloads/LIUBINfighter/Tabst.app/total) 
+  ![Downloads (Latest)](https://img.shields.io/github/downloads/LIUBINfighter/Tabst.app/latest/total)
+  
 ## Features
 
 Write. Play. Share.
@@ -46,7 +54,7 @@ MCP Server
 - [context7](https://context7.com/)
 - [shadcn/ui](https://ui.shadcn.com/)
 
-## Installation
+## Install Deps
 
 ```powershell
 pnpm install
