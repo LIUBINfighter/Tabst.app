@@ -79,11 +79,9 @@ interface AppState {
 
 	// 🆕 播放器光标位置 - 暂停时也保留，用于显示黄色小节高亮
 	playerCursorPosition: PlaybackBeatInfo | null;
-
 	// 🆕 编辑器焦点状态（用于控制 player enable）
 	editorHasFocus: boolean;
 	setEditorHasFocus: (hasFocus: boolean) => void;
-
 	// 🆕 Player UI / remote controls
 	playerControls: {
 		play?: () => void;
@@ -102,7 +100,6 @@ interface AppState {
 	setZoomPercent: (v: number) => void;
 	playbackSpeed: number;
 	setPlaybackSpeed: (v: number) => void;
-
 	/** 播放模式：true= BPM 模式, false = 倍速模式 */
 	playbackBpmMode: boolean;
 	setPlaybackBpmMode: (v: boolean) => void;
@@ -119,7 +116,6 @@ interface AppState {
 	scoreVersion: number;
 	bumpApiInstanceId: () => void;
 	bumpScoreVersion: () => void;
-
 	// 工作区模式：editor | tutorial | settings
 	workspaceMode: "editor" | "tutorial" | "settings";
 	setWorkspaceMode: (mode: "editor" | "tutorial" | "settings") => void;
@@ -133,7 +129,6 @@ interface AppState {
 	// 教程选择（用于侧边栏与教程视图间同步）
 	activeTutorialId: string | null;
 	setActiveTutorialId: (id: string | null) => void;
-
 	// 设置页选择（用于侧边栏与设置视图间同步）
 	activeSettingsPageId: string | null;
 	setActiveSettingsPageId: (id: string | null) => void;
@@ -141,7 +136,6 @@ interface AppState {
 	// i18n 语言
 	locale: "en" | "zh-cn";
 	setLocale: (locale: "en" | "zh-cn") => void;
-
 	// Actions
 	addFile: (file: FileItem) => void;
 	removeFile: (id: string) => void;
