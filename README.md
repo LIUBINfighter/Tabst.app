@@ -4,16 +4,17 @@
 
 <h3 align="center">Write guitar tabs like markdown.</h3>
 
+[中文README](./README.zh.md)
 
+[![DOI](https://zenodo.org/badge/1133258569.svg)](https://doi.org/10.5281/zenodo.18447447)
+![CI](https://img.shields.io/github/actions/workflow/status/LIUBINfighter/Tabst.app/ci.yml?branch=main)
+![Release](https://img.shields.io/github/v/release/LIUBINfighter/Tabst.app)
+![Downloads (Total)](https://img.shields.io/github/downloads/LIUBINfighter/Tabst.app/total)
+![Downloads (Latest)](https://img.shields.io/github/downloads/LIUBINfighter/Tabst.app/latest/total)
 
 <div align="center">
 <img width="2560" height="1406" alt="image" src="https://github.com/user-attachments/assets/d58323a0-44bb-4468-87c7-281c898a5ab6" />
 </div>
-
-  ![CI](https://img.shields.io/github/actions/workflow/status/LIUBINfighter/Tabst.app/ci.yml?branch=main) 
-  ![Release](https://img.shields.io/github/v/release/LIUBINfighter/Tabst.app) 
-  ![Downloads (Total)](https://img.shields.io/github/downloads/LIUBINfighter/Tabst.app/total) 
-  ![Downloads (Latest)](https://img.shields.io/github/downloads/LIUBINfighter/Tabst.app/latest/total)
   
 ## Features
 
