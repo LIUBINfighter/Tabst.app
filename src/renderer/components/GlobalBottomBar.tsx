@@ -1,6 +1,7 @@
 import {
 	ChevronLeft,
 	ChevronRight,
+	Layers,
 	Minus,
 	Music2,
 	Pause,
@@ -31,11 +32,15 @@ import {
 } from "./ui/tooltip";
 
 export default function GlobalBottomBar() {
-	const { t } = useTranslation(["toolbar", "settings", "common"]);
+	const { t } = useTranslation(["toolbar", "settings", "common", "print"]);
 	const activeFile = useAppStore((state) => state.getActiveFile());
 	const firstStaffOptions = useAppStore((state) => state.firstStaffOptions);
 	const requestStaffToggle = useAppStore((state) => state.requestStaffToggle);
 	const isAtexFile = activeFile?.path.endsWith(".atex") ?? false;
+
+	// Tracks panel state
+	const isTracksPanelOpen = useAppStore((s) => s.isTracksPanelOpen);
+	const toggleTracksPanel = useAppStore((s) => s.toggleTracksPanel);
 
 	// Playback / zoom state & controls from store
 	const playerIsPlaying = useAppStore((s) => s.playerIsPlaying);
@@ -344,6 +349,25 @@ export default function GlobalBottomBar() {
 								</TooltipTrigger>
 								<TooltipContent side="top">
 									<p>{t("toolbar:refresh")}</p>
+								</TooltipContent>
+							</Tooltip>
+
+							<Tooltip>
+								<TooltipTrigger asChild>
+									<IconButton
+										active={isTracksPanelOpen}
+										onClick={toggleTracksPanel}
+										aria-label={t("print:trackSelect")}
+									>
+										<Layers className="h-4 w-4" />
+									</IconButton>
+								</TooltipTrigger>
+								<TooltipContent side="top">
+									<p>
+										{isTracksPanelOpen
+											? t("print:closeTracksPanel")
+											: t("print:openTracksPanel")}
+									</p>
 								</TooltipContent>
 							</Tooltip>
 						</div>

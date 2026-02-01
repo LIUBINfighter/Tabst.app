@@ -26,6 +26,7 @@ import {
 import { useAppStore } from "../store/appStore";
 import PrintPreview from "./PrintPreview";
 import TopBar from "./TopBar";
+import TracksPanel from "./TracksPanel";
 import IconButton from "./ui/icon-button";
 import {
 	Tooltip,
@@ -130,6 +131,9 @@ export default function Preview({
 	const _scoreVersion = useAppStore((s) => s.scoreVersion);
 	const bumpApiInstanceId = useAppStore((s) => s.bumpApiInstanceId);
 	const bumpScoreVersion = useAppStore((s) => s.bumpScoreVersion);
+	// Tracks panel state
+	const isTracksPanelOpen = useAppStore((s) => s.isTracksPanelOpen);
+	const setTracksPanelOpen = useAppStore((s) => s.setTracksPanelOpen);
 	// Store latest playback speed/metronome volume in ref to avoid triggering API rebuild useEffect
 	const playbackSpeedRef = useRef(playbackSpeed);
 	const metronomeVolumeRef = useRef(metronomeVolume);
@@ -1944,6 +1948,12 @@ export default function Preview({
 							<div
 								ref={cursorRef}
 								className="pointer-events-none absolute z-20 bg-amber-300/40 rounded-sm hidden"
+							/>
+							{/* 音轨选择面板（浮动） */}
+							<TracksPanel
+								api={apiRef.current}
+								isOpen={isTracksPanelOpen}
+								onClose={() => setTracksPanelOpen(false)}
 							/>
 						</div>
 						{parseError && (
