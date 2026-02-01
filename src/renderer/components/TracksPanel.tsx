@@ -7,8 +7,9 @@
 
 import type * as AlphaTab from "@coderline/alphatab";
 import { Check, Eye, EyeOff, Layers, X } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useAppStore } from "../store/appStore";
 import { Button } from "./ui/button";
 import {
 	Tooltip,
@@ -63,6 +64,12 @@ export function TracksPanel({
 	const { t } = useTranslation("print");
 	const [trackConfigs, setTrackConfigs] = useState<TrackConfig[]>([]);
 
+	// 订阅 store 的 firstStaffOptions 以保持同步
+	const firstStaffOptions = useAppStore((s) => s.firstStaffOptions);
+	const setFirstStaffOptions = useAppStore((s) => s.setFirstStaffOptions);
+	// 防止循环更新的标志
+	const isUpdatingFromStoreRef = useRef(false);
+
 	// 初始化：从 API 读取初始状态
 	useEffect(() => {
 		if (!api?.score) {
@@ -90,6 +97,49 @@ export function TracksPanel({
 
 		setTrackConfigs(configs);
 	}, [api, api?.score]);
+
+	// 监听 store 的 firstStaffOptions 变化，同步到本地状态（来自底栏 StaffControls 的更改）
+	useEffect(() => {
+		if (!firstStaffOptions || isUpdatingFromStoreRef.current) return;
+		if (trackConfigs.length === 0) return;
+
+		// 只更新第一个音轨的第一个谱表配置
+		setTrackConfigs((prev) => {
+			if (prev.length === 0) return prev;
+			const first = prev[0];
+			if (!first.staves.length) return prev;
+
+			const currentStaff = first.staves[0];
+			// 检查是否有变化
+			if (
+				currentStaff.showStandardNotation ===
+					firstStaffOptions.showStandardNotation &&
+				currentStaff.showTablature === firstStaffOptions.showTablature &&
+				currentStaff.showSlash === firstStaffOptions.showSlash &&
+				currentStaff.showNumbered === firstStaffOptions.showNumbered
+			) {
+				return prev;
+			}
+
+			const newStaves: StaffConfig[] = first.staves.map((s, idx) =>
+				idx === 0
+					? {
+							...s,
+							showStandardNotation:
+								firstStaffOptions.showStandardNotation ??
+								s.showStandardNotation,
+							showTablature: firstStaffOptions.showTablature ?? s.showTablature,
+							showSlash: firstStaffOptions.showSlash ?? s.showSlash,
+							showNumbered: firstStaffOptions.showNumbered ?? s.showNumbered,
+						}
+					: s,
+			);
+
+			return prev.map((cfg, idx) =>
+				idx === 0 ? { ...cfg, staves: newStaves } : cfg,
+			);
+		});
+	}, [firstStaffOptions, trackConfigs.length]);
 
 	// 切换音轨选择
 	const toggleTrackSelection = useCallback(
@@ -224,6 +274,24 @@ export function TracksPanel({
 		});
 	}, [api, onTracksChange]);
 
+	// 同步第一个音轨的第一个谱表配置到 store
+	const syncFirstStaffToStore = useCallback(
+		(staffConfig: StaffConfig) => {
+			isUpdatingFromStoreRef.current = true;
+			setFirstStaffOptions({
+				showStandardNotation: staffConfig.showStandardNotation,
+				showTablature: staffConfig.showTablature,
+				showSlash: staffConfig.showSlash,
+				showNumbered: staffConfig.showNumbered,
+			});
+			// 延迟重置标志，确保 useEffect 不会响应这次更新
+			setTimeout(() => {
+				isUpdatingFromStoreRef.current = false;
+			}, 0);
+		},
+		[setFirstStaffOptions],
+	);
+
 	// 切换谱表显示选项
 	const toggleStaffOption = useCallback(
 		(trackIndex: number, staffIndex: number, option: StaffDisplayOption) => {
@@ -269,6 +337,12 @@ export function TracksPanel({
 						}
 					}
 
+					// 如果是第一个音轨的第一个谱表，同步到 store
+					if (trackIndex === 0 && staffIndex === 0) {
+						const updatedStaff = { ...currentStaff, [option]: newValue };
+						syncFirstStaffToStore(updatedStaff);
+					}
+
 					return { ...cfg, staves: newStaves };
 				});
 
@@ -278,7 +352,7 @@ export function TracksPanel({
 				return newConfigs;
 			});
 		},
-		[api],
+		[api, syncFirstStaffToStore],
 	);
 
 	// 计算选中数量
