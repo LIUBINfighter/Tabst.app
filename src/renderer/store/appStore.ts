@@ -68,6 +68,11 @@ interface AppState {
 	// 当前选中的文件
 	activeFileId: string | null;
 
+	// 🆕 音轨面板显示状态
+	isTracksPanelOpen: boolean;
+	setTracksPanelOpen: (open: boolean) => void;
+	toggleTracksPanel: () => void;
+
 	// 🆕 乐谱选区状态 - 用于 Preview ↔ Editor 双向同步
 	scoreSelection: ScoreSelectionInfo | null;
 
@@ -181,6 +186,10 @@ interface AppState {
 export const useAppStore = create<AppState>((set, get) => ({
 	files: [],
 	activeFileId: null,
+	isTracksPanelOpen: false,
+	setTracksPanelOpen: (open) => set({ isTracksPanelOpen: open }),
+	toggleTracksPanel: () =>
+		set((state) => ({ isTracksPanelOpen: !state.isTracksPanelOpen })),
 	scoreSelection: null,
 	editorCursor: null,
 	playbackBeat: null,

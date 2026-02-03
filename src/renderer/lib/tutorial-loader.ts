@@ -3,6 +3,32 @@ import type { TutorialMetadata } from "../data/tutorials";
 import { tutorialsRegistry } from "../data/tutorials";
 
 /**
+ * 使用 import.meta.glob 预声明所有教程模块，确保打包后（app.asar）也能正确加载。
+ * 动态 import(\`...\${id}.mdx\`) 在 Vite 构建时无法被正确解析，会导致生产环境 ERR_FILE_NOT_FOUND。
+ */
+const mdxGlob = import.meta.glob<MDXModule>("../data/tutorials/**/*.mdx");
+const mdGlob = import.meta.glob<string>("../data/tutorials/**/*.md", {
+	query: "?raw",
+	import: "default",
+});
+
+function getMdxCandidates(id: string): string[] {
+	return [
+		`../data/tutorials/en/${id}.mdx`,
+		`../data/tutorials/zh-cn/${id}.mdx`,
+		`../data/tutorials/${id}.mdx`,
+	];
+}
+
+function getMdCandidates(id: string): string[] {
+	return [
+		`../data/tutorials/en/${id}.md`,
+		`../data/tutorials/zh-cn/${id}.md`,
+		`../data/tutorials/${id}.md`,
+	];
+}
+
+/**
  * 加载 MDX 教程组件
  * 优先尝试加载 .mdx 文件，如果不存在则回退到 .md
  */
@@ -10,22 +36,13 @@ export async function loadTutorialComponent(
 	id: string,
 ): Promise<MDXModule | null> {
 	// 按语言优先级尝试加载：en -> zh-cn -> 根目录（兼容旧路径）
-	const candidates = [
-		`../data/tutorials/en/${id}.mdx`,
-		`../data/tutorials/zh-cn/${id}.mdx`,
-		`../data/tutorials/${id}.mdx`,
-	];
-
-	for (const path of candidates) {
-		try {
-			const module = await import(path);
+	for (const p of getMdxCandidates(id)) {
+		const loader = mdxGlob[p];
+		if (loader) {
+			const module = await loader();
 			return module as MDXModule;
-		} catch {
-			// 继续尝试下一个路径
 		}
 	}
-
-	// 未找到任何文件
 	return null;
 }
 
@@ -35,21 +52,13 @@ export async function loadTutorialComponent(
  */
 export async function loadTutorial(id: string): Promise<string> {
 	// 按语言优先级尝试加载原始 Markdown 文本：en -> zh-cn -> 根目录
-	const candidates = [
-		`../data/tutorials/en/${id}.md?raw`,
-		`../data/tutorials/zh-cn/${id}.md?raw`,
-		`../data/tutorials/${id}.md?raw`,
-	];
-
-	for (const path of candidates) {
-		try {
-			const module = await import(path);
-			return module.default;
-		} catch (_e) {
-			// 继续尝试下一个路径
+	for (const p of getMdCandidates(id)) {
+		const loader = mdGlob[p];
+		if (loader) {
+			const content = await loader();
+			return content;
 		}
 	}
-
 	console.error(`Failed to load tutorial: ${id}`);
 	throw new Error(`教程文件未找到: ${id}`);
 }
