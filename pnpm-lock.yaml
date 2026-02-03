@@ -169,8 +169,8 @@ importers:
         specifier: ^3.2.0
         version: 3.2.0
       '@types/node':
-        specifier: ^25.0.10
-        version: 25.1.0
+        specifier: ^25.2.0
+        version: 25.2.0
       '@types/react':
         specifier: ^19.2.8
         version: 19.2.10
@@ -179,7 +179,7 @@ importers:
         version: 19.2.3(@types/react@19.2.10)
       '@vitejs/plugin-react':
         specifier: ^5.1.3
-        version: 5.1.3(vite@7.3.1(@types/node@25.1.0)(jiti@1.21.7)(terser@5.46.0))
+        version: 5.1.3(vite@7.3.1(@types/node@25.2.0)(jiti@1.21.7)(terser@5.46.0))
       autoprefixer:
         specifier: ^10.4.12
         version: 10.4.24(postcss@8.5.6)
@@ -218,7 +218,7 @@ importers:
         version: 8.5.6
       shadcn:
         specifier: ^3.7.0
-        version: 3.8.0(@types/node@25.1.0)(hono@4.11.7)(typescript@5.9.3)
+        version: 3.8.0(@types/node@25.2.0)(hono@4.11.7)(typescript@5.9.3)
       tailwindcss:
         specifier: ^3.4.18
         version: 3.4.19
@@ -230,7 +230,7 @@ importers:
         version: 8.54.0(eslint@9.39.2(jiti@1.21.7))(typescript@5.9.3)
       vite:
         specifier: ^7.3.1
-        version: 7.3.1(@types/node@25.1.0)(jiti@1.21.7)(terser@5.46.0)
+        version: 7.3.1(@types/node@25.2.0)(jiti@1.21.7)(terser@5.46.0)
 
 packages:
 
@@ -1830,14 +1830,14 @@ packages:
   '@types/mute-stream@0.0.4':
     resolution: {integrity: sha512-CPM9nzrCPPJHQNA9keH9CVkVI+WR5kMa+7XEs5jcGQ0VoAGnLv242w8lIVgwAEfmE4oufJRaTc9PNLQl0ioAow==}
 
-  '@types/node@22.19.7':
-    resolution: {integrity: sha512-MciR4AKGHWl7xwxkBa6xUGxQJ4VBOmPTF7sL+iGzuahOFaO0jHCsuEfS80pan1ef4gWId1oWOweIhrDEYLuaOw==}
+  '@types/node@22.19.8':
+    resolution: {integrity: sha512-ebO/Yl+EAvVe8DnMfi+iaAyIqYdK0q/q0y0rw82INWEKJOBe6b/P3YWE8NW7oOlF/nXFNrHwhARrN/hdgDkraA==}
 
-  '@types/node@24.10.9':
-    resolution: {integrity: sha512-ne4A0IpG3+2ETuREInjPNhUGis1SFjv1d5asp8MzEAGtOZeTeHVDOYqOgqfhvseqg/iXty2hjBf1zAOb7RNiNw==}
+  '@types/node@24.10.10':
+    resolution: {integrity: sha512-+0/4J266CBGPUq/ELg7QUHhN25WYjE0wYTPSQJn1xeu8DOlIOPxXxrNGiLmfAWl7HMMgWFWXpt9IDjMWrF5Iow==}
 
-  '@types/node@25.1.0':
-    resolution: {integrity: sha512-t7frlewr6+cbx+9Ohpl0NOTKXZNV9xHRmNOvql47BFJKcEG1CxtxlPEEe+gR9uhVWM4DwhnvTF110mIL4yP9RA==}
+  '@types/node@25.2.0':
+    resolution: {integrity: sha512-DZ8VwRFUNzuqJ5khrvwMXHmvPe+zGayJhr2CDNiKB1WBE1ST8Djl00D0IC4vvNmHMdj6DlbYRIaFE7WHjlDl5w==}
 
   '@types/plist@3.0.5':
     resolution: {integrity: sha512-E6OCaRmAe4WDmWNsL/9RMqdkkzDCY1etutkflWk4c+AcjDU07Pcz1fQwTX0TQz+Pxqn9i4L1TU3UFpjnrcDgxA==}
@@ -7129,32 +7129,32 @@ snapshots:
       '@inquirer/core': 9.2.1
       '@inquirer/type': 2.0.0
 
-  '@inquirer/confirm@5.1.21(@types/node@25.1.0)':
+  '@inquirer/confirm@5.1.21(@types/node@25.2.0)':
     dependencies:
-      '@inquirer/core': 10.3.2(@types/node@25.1.0)
-      '@inquirer/type': 3.0.10(@types/node@25.1.0)
+      '@inquirer/core': 10.3.2(@types/node@25.2.0)
+      '@inquirer/type': 3.0.10(@types/node@25.2.0)
     optionalDependencies:
-      '@types/node': 25.1.0
+      '@types/node': 25.2.0
 
-  '@inquirer/core@10.3.2(@types/node@25.1.0)':
+  '@inquirer/core@10.3.2(@types/node@25.2.0)':
     dependencies:
       '@inquirer/ansi': 1.0.2
       '@inquirer/figures': 1.0.15
-      '@inquirer/type': 3.0.10(@types/node@25.1.0)
+      '@inquirer/type': 3.0.10(@types/node@25.2.0)
       cli-width: 4.1.0
       mute-stream: 2.0.0
       signal-exit: 4.1.0
       wrap-ansi: 6.2.0
       yoctocolors-cjs: 2.1.3
     optionalDependencies:
-      '@types/node': 25.1.0
+      '@types/node': 25.2.0
 
   '@inquirer/core@9.2.1':
     dependencies:
       '@inquirer/figures': 1.0.15
       '@inquirer/type': 2.0.0
       '@types/mute-stream': 0.0.4
-      '@types/node': 22.19.7
+      '@types/node': 22.19.8
       '@types/wrap-ansi': 3.0.0
       ansi-escapes: 4.3.2
       cli-width: 4.1.0
@@ -7236,9 +7236,9 @@ snapshots:
     dependencies:
       mute-stream: 1.0.0
 
-  '@inquirer/type@3.0.10(@types/node@25.1.0)':
+  '@inquirer/type@3.0.10(@types/node@25.2.0)':
     optionalDependencies:
-      '@types/node': 25.1.0
+      '@types/node': 25.2.0
 
   '@isaacs/balanced-match@4.0.1': {}
 
@@ -7967,7 +7967,7 @@ snapshots:
 
   '@types/appdmg@0.5.5':
     dependencies:
-      '@types/node': 25.1.0
+      '@types/node': 25.2.0
     optional: true
 
   '@types/babel__core@7.20.5':
@@ -7995,7 +7995,7 @@ snapshots:
     dependencies:
       '@types/http-cache-semantics': 4.2.0
       '@types/keyv': 3.1.4
-      '@types/node': 25.1.0
+      '@types/node': 25.2.0
       '@types/responselike': 1.0.3
 
   '@types/debug@4.1.12':
@@ -8025,11 +8025,11 @@ snapshots:
   '@types/fs-extra@11.0.4':
     dependencies:
       '@types/jsonfile': 6.1.4
-      '@types/node': 25.1.0
+      '@types/node': 25.2.0
 
   '@types/fs-extra@9.0.13':
     dependencies:
-      '@types/node': 25.1.0
+      '@types/node': 25.2.0
 
   '@types/hast@3.0.4':
     dependencies:
@@ -8041,11 +8041,11 @@ snapshots:
 
   '@types/jsonfile@6.1.4':
     dependencies:
-      '@types/node': 25.1.0
+      '@types/node': 25.2.0
 
   '@types/keyv@3.1.4':
     dependencies:
-      '@types/node': 25.1.0
+      '@types/node': 25.2.0
 
   '@types/mdast@4.0.4':
     dependencies:
@@ -8057,23 +8057,23 @@ snapshots:
 
   '@types/mute-stream@0.0.4':
     dependencies:
-      '@types/node': 25.1.0
+      '@types/node': 25.2.0
 
-  '@types/node@22.19.7':
+  '@types/node@22.19.8':
     dependencies:
       undici-types: 6.21.0
 
-  '@types/node@24.10.9':
+  '@types/node@24.10.10':
     dependencies:
       undici-types: 7.16.0
 
-  '@types/node@25.1.0':
+  '@types/node@25.2.0':
     dependencies:
       undici-types: 7.16.0
 
   '@types/plist@3.0.5':
     dependencies:
-      '@types/node': 25.1.0
+      '@types/node': 25.2.0
       xmlbuilder: 15.1.1
     optional: true
 
@@ -8093,7 +8093,7 @@ snapshots:
 
   '@types/responselike@1.0.3':
     dependencies:
-      '@types/node': 25.1.0
+      '@types/node': 25.2.0
 
   '@types/statuses@2.0.6': {}
 
@@ -8113,7 +8113,7 @@ snapshots:
 
   '@types/yauzl@2.10.3':
     dependencies:
-      '@types/node': 25.1.0
+      '@types/node': 25.2.0
     optional: true
 
   '@typescript-eslint/eslint-plugin@8.54.0(@typescript-eslint/parser@8.54.0(eslint@9.39.2(jiti@1.21.7))(typescript@5.9.3))(eslint@9.39.2(jiti@1.21.7))(typescript@5.9.3)':
@@ -8209,7 +8209,7 @@ snapshots:
 
   '@ungap/structured-clone@1.3.0': {}
 
-  '@vitejs/plugin-react@5.1.3(vite@7.3.1(@types/node@25.1.0)(jiti@1.21.7)(terser@5.46.0))':
+  '@vitejs/plugin-react@5.1.3(vite@7.3.1(@types/node@25.2.0)(jiti@1.21.7)(terser@5.46.0))':
     dependencies:
       '@babel/core': 7.29.0
       '@babel/plugin-transform-react-jsx-self': 7.27.1(@babel/core@7.29.0)
@@ -8217,7 +8217,7 @@ snapshots:
       '@rolldown/pluginutils': 1.0.0-rc.2
       '@types/babel__core': 7.20.5
       react-refresh: 0.18.0
-      vite: 7.3.1(@types/node@25.1.0)(jiti@1.21.7)(terser@5.46.0)
+      vite: 7.3.1(@types/node@25.2.0)(jiti@1.21.7)(terser@5.46.0)
     transitivePeerDependencies:
       - supports-color
 
@@ -9327,7 +9327,7 @@ snapshots:
   electron@40.1.0:
     dependencies:
       '@electron/get': 2.0.3
-      '@types/node': 24.10.9
+      '@types/node': 24.10.10
       extract-zip: 2.0.1
     transitivePeerDependencies:
       - supports-color
@@ -10599,7 +10599,7 @@ snapshots:
 
   jest-worker@27.5.1:
     dependencies:
-      '@types/node': 25.1.0
+      '@types/node': 25.2.0
       merge-stream: 2.0.0
       supports-color: 8.1.1
 
@@ -11353,9 +11353,9 @@ snapshots:
 
   ms@2.1.3: {}
 
-  msw@2.12.7(@types/node@25.1.0)(typescript@5.9.3):
+  msw@2.12.7(@types/node@25.2.0)(typescript@5.9.3):
     dependencies:
-      '@inquirer/confirm': 5.1.21(@types/node@25.1.0)
+      '@inquirer/confirm': 5.1.21(@types/node@25.2.0)
       '@mswjs/interceptors': 0.40.0
       '@open-draft/deferred-promise': 2.2.0
       '@types/statuses': 2.0.6
@@ -12320,7 +12320,7 @@ snapshots:
 
   setprototypeof@1.2.0: {}
 
-  shadcn@3.8.0(@types/node@25.1.0)(hono@4.11.7)(typescript@5.9.3):
+  shadcn@3.8.0(@types/node@25.2.0)(hono@4.11.7)(typescript@5.9.3):
     dependencies:
       '@antfu/ni': 25.0.0
       '@babel/core': 7.28.6
@@ -12342,7 +12342,7 @@ snapshots:
       fuzzysort: 3.1.0
       https-proxy-agent: 7.0.6
       kleur: 4.1.5
-      msw: 2.12.7(@types/node@25.1.0)(typescript@5.9.3)
+      msw: 2.12.7(@types/node@25.2.0)(typescript@5.9.3)
       node-fetch: 3.3.2
       open: 11.0.0
       ora: 8.2.0
@@ -13015,7 +13015,7 @@ snapshots:
       '@types/unist': 3.0.3
       vfile-message: 4.0.3
 
-  vite@7.3.1(@types/node@25.1.0)(jiti@1.21.7)(terser@5.46.0):
+  vite@7.3.1(@types/node@25.2.0)(jiti@1.21.7)(terser@5.46.0):
     dependencies:
       esbuild: 0.27.2
       fdir: 6.5.0(picomatch@4.0.3)
@@ -13024,7 +13024,7 @@ snapshots:
       rollup: 4.57.1
       tinyglobby: 0.2.15
     optionalDependencies:
-      '@types/node': 25.1.0
+      '@types/node': 25.2.0
       fsevents: 2.3.3
       jiti: 1.21.7
       terser: 5.46.0
