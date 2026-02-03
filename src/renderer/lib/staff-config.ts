@@ -36,6 +36,13 @@ export const DEFAULT_STAFF_OPTIONS: StaffDisplayOptions = {
 };
 
 /**
+ * 带 staff 索引的谱表配置（用于多音轨/打印等场景，与 StaffDisplayOptions 对齐）
+ */
+export type StaffConfigWithIndex = {
+	staffIndex: number;
+} & Required<StaffDisplayOptions>;
+
+/**
  * 获取第一个 Staff 的当前显示选项
  */
 export function getFirstStaffOptions(

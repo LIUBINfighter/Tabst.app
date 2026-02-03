@@ -127,6 +127,7 @@ export function useAlphaTab(options: UseAlphaTabOptions): UseAlphaTabReturn {
 	}, [suspended]);
 
 	// Init API once per container mount (or when reinitTrigger / themeReinitKey changes); skip when suspended
+	// biome-ignore lint/correctness/useExhaustiveDependencies: reinitTrigger and themeReinitKey are intentional deps to force API re-init
 	useEffect(() => {
 		if (!containerRef.current || suspended) return;
 

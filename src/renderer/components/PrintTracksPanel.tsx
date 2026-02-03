@@ -9,6 +9,7 @@ import type * as AlphaTab from "@coderline/alphatab";
 import { Check, Eye, EyeOff, Layers } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import type { StaffConfigWithIndex } from "../lib/staff-config";
 import { Button } from "./ui/button";
 import {
 	Tooltip,
@@ -17,17 +18,8 @@ import {
 	TooltipTrigger,
 } from "./ui/tooltip";
 
-/**
- * 谱表配置（纯数据，不依赖 AlphaTab 对象）
- */
-interface StaffConfig {
-	staffIndex: number; // stable staff identifier
-	showStandardNotation: boolean;
-	showTablature: boolean;
-	showSlash: boolean;
-	showNumbered: boolean;
-}
-
+/** 谱表配置（与 lib/staff-config 的 StaffDisplayOptions 对齐） */
+type StaffConfig = StaffConfigWithIndex;
 type StaffDisplayOption = keyof Omit<StaffConfig, "staffIndex">;
 
 /**

@@ -30,9 +30,9 @@ export function SidebarCommands({
 	const { t } = useTranslation("sidebar");
 	const workspaceMode = useAppStore((s) => s.workspaceMode);
 	const setWorkspaceMode = useAppStore((s) => s.setWorkspaceMode);
-	const setActiveTutorialId = useAppStore((s) => s.setActiveTutorialId);
+	const _setActiveTutorialId = useAppStore((s) => s.setActiveTutorialId);
 
-	const handleOpenSettings = () => {
+	const _handleOpenSettings = () => {
 		try {
 			const newMode = workspaceMode === "settings" ? "editor" : "settings";
 			setWorkspaceMode(newMode);

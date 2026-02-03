@@ -3,13 +3,15 @@ import * as alphaTab from "@coderline/alphatab";
 import { FileText } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { usePreviewBarHighlight } from "../hooks/usePreviewBarHighlight";
+import { usePreviewErrorRecovery } from "../hooks/usePreviewErrorRecovery";
+import { usePreviewSelectionSync } from "../hooks/usePreviewSelectionSync";
 import {
 	applyEditorBarNumberColor as applyEditorBarNumberColorLib,
 	applyThemeColorsToPreviousBars as applyThemeColorsToPreviousBarsLib,
 	type LastColoredBars,
 	sanitizeAllBarStyles as sanitizeAllBarStylesLib,
 } from "../lib/alphatab-bar-highlight";
-import { findBeatInScore } from "../lib/alphatab-beat-utils";
 import { createPreviewSettings } from "../lib/alphatab-config";
 import { formatFullError } from "../lib/alphatab-error";
 import { loadBravuraFont, loadSoundFontFromUrl } from "../lib/assets";
@@ -24,7 +26,6 @@ import {
 	getAlphaTabColorsForTheme,
 	setupThemeObserver,
 } from "../lib/themeManager";
-import { usePreviewBarHighlight } from "../hooks/usePreviewBarHighlight";
 import { useAppStore } from "../store/appStore";
 import PreviewToolbar from "./PreviewToolbar";
 import PrintPreview from "./PrintPreview";
@@ -62,24 +63,19 @@ export default function Preview({
 		showTablature?: boolean;
 		showStandardNotation?: boolean;
 	} | null>(null);
-	// Store last successfully parsed score and content for error recovery
-	const lastValidScoreRef = useRef<{
-		score: alphaTab.model.Score;
-		content: string;
-	} | null>(null);
-	// Track whether the last load was from user content (not restore/rebuild)
-	const lastLoadWasUserContentRef = useRef<boolean>(false);
-	// Error state for displaying parse error messages
-	const [parseError, setParseError] = useState<string | null>(null);
-	// Pending tex call tracking to detect parse failure on updates
-	const pendingTexRef = useRef<{ id: number; content: string } | null>(null);
-	const pendingTexTimerRef = useRef<number | null>(null);
-	const texSeqRef = useRef(0);
-	// Timeout duration (ms) for detecting parse delays (adjustable)
-	const TEX_TIMEOUT_MS = 3000;
-	// Track whether automatic recovery occurred (for UI display)
-	const restorePerformedRef = useRef(false);
-	const [restorePerformed, setRestorePerformed] = useState(false);
+	// Error recovery: parse timeout + last valid score restore
+	const errorRecovery = usePreviewErrorRecovery();
+	const {
+		parseError,
+		setParseError,
+		restorePerformed,
+		lastValidScoreRef,
+		scheduleTexTimeout,
+		clearTexTimeout,
+		onError: onErrorRecovery,
+		onScoreLoadedMatch,
+		markLoadAsUserContent,
+	} = errorRecovery;
 	// Store latest content for async callbacks and theme rebuild
 	const latestContentRef = useRef<string>(content ?? "");
 	// Print preview state and reinitialization trigger
@@ -226,6 +222,18 @@ export default function Preview({
 		pendingBarColorRef,
 	);
 
+	usePreviewSelectionSync({
+		apiRef,
+		containerRef,
+		scrollHostRef,
+		editorCursor,
+		applyEditorBarNumberColor,
+		pendingBarColorRef,
+		isEditorCursorFromScoreRef,
+		isHighlightFromEditorCursorRef,
+		lastEditorCursorSelectionRef,
+	});
+
 	/**
 	 * Apply tracks display configuration to the first track
 	 * Read saved configuration from trackConfigRef, use defaults if not available
@@ -249,244 +257,6 @@ export default function Preview({
 		},
 		[setFirstStaffOptions],
 	);
-
-	/**
-	 * Listen to editor cursor changes and sync to score selection
-	 * Implements clicking editor code to locate corresponding position in score
-	 */
-	useEffect(() => {
-		const api = apiRef.current;
-		if (!api || !editorCursor) return;
-
-		// Check if position is invalid (in metadata area)
-		if (editorCursor.barIndex < 0) {
-			return;
-		}
-
-		// Prevent loop: if current cursor was triggered by score selection, skip
-		if (isEditorCursorFromScoreRef.current) {
-			isEditorCursorFromScoreRef.current = false;
-			return;
-		}
-
-		// Find corresponding Beat in current score (first get the bar where new cursor is located)
-		const score = api.score;
-		const beat = findBeatInScore(
-			score,
-			editorCursor.barIndex,
-			editorCursor.beatIndex,
-		);
-
-		if (beat) {
-			// Clear old selection highlight immediately after getting new cursor bar
-			// This clears old state before applying new styles and setting new selection
-			useAppStore.getState().clearScoreSelection();
-
-			try {
-				// 1. Apply new bar score style (bar number highlight)
-				if (!applyEditorBarNumberColor(api, editorCursor.barIndex)) {
-					pendingBarColorRef.current = editorCursor.barIndex;
-				}
-
-				// 2. Sync player cursor position to editor cursor position
-				// Player cursor will follow editor cursor movement
-				let startTick: number | null = null;
-				try {
-					// Method 1: Use tickCache.getBeatStart() to get beat start tick position
-					if (
-						api.tickCache &&
-						typeof api.tickCache.getBeatStart === "function"
-					) {
-						const tick = api.tickCache.getBeatStart(beat);
-						if (tick !== undefined && tick !== null && tick >= 0) {
-							startTick = tick;
-						}
-					}
-					// Method 2: If tickCache unavailable, fallback to using beat properties
-					if (startTick === null) {
-						if (
-							beat.playbackStart !== undefined &&
-							beat.playbackStart !== null
-						) {
-							startTick = beat.playbackStart;
-						}
-					}
-					if (startTick !== null) {
-						const isPlaying = useAppStore.getState().playerIsPlaying;
-						if (!isPlaying) {
-							api.tickPosition = startTick;
-							// Update player cursor position in store
-							useAppStore.getState().setPlayerCursorPosition({
-								barIndex: editorCursor.barIndex,
-								beatIndex: editorCursor.beatIndex,
-							});
-						}
-					}
-				} catch {
-					// Failed to sync player cursor position
-				}
-
-				// 3. Select entire bar (from first beat to last beat)
-				// Playback will automatically stop after this bar
-				const bar = beat.voice?.bar;
-				if (bar && bar.voices?.[0]?.beats?.length > 0) {
-					const firstBeatInBar = bar.voices[0].beats[0];
-					const lastBeatInBar =
-						bar.voices[0].beats[bar.voices[0].beats.length - 1];
-
-					// Use highlightPlaybackRange to highlight entire bar
-					// Mark as triggered by editor cursor to avoid setting scoreSelection when playbackRangeHighlightChanged fires
-					if (typeof api.highlightPlaybackRange === "function") {
-						// Mark as triggered by editor cursor (set before API call to ensure event handler can identify)
-						isHighlightFromEditorCursorRef.current = true;
-
-						// Record selection info triggered by this editor cursor for subsequent event identification
-						lastEditorCursorSelectionRef.current = {
-							startBarIndex: bar.index,
-							endBarIndex: bar.index,
-						};
-
-						// Set new highlight range (this triggers playbackRangeHighlightChanged event)
-						api.highlightPlaybackRange(firstBeatInBar, lastBeatInBar);
-
-						// Delay reset flag to ensure playbackRangeHighlightChanged event can correctly identify
-						// Use longer delay as alphaTab may trigger event after rendering completes
-						setTimeout(() => {
-							isHighlightFromEditorCursorRef.current = false;
-							// Delay clearing selection record to give all event handlers enough time
-							setTimeout(() => {
-								lastEditorCursorSelectionRef.current = null;
-							}, 100);
-						}, 200);
-					}
-
-					// Set playback range so playback automatically stops after this bar
-					try {
-						let barStartTick: number | null = null;
-						let barEndTick: number | null = null;
-
-						// Get bar start and end ticks
-						if (
-							api.tickCache &&
-							typeof api.tickCache.getBeatStart === "function"
-						) {
-							barStartTick = api.tickCache.getBeatStart(firstBeatInBar);
-							const lastBeatStartTick =
-								api.tickCache.getBeatStart(lastBeatInBar);
-
-							// Get last beat end tick
-							// Method 1: If there's a next beat, use next beat's start tick
-							if (lastBeatInBar.nextBeat) {
-								barEndTick = api.tickCache.getBeatStart(lastBeatInBar.nextBeat);
-							}
-							// Method 2: If no next beat, use last beat's start tick + duration
-							else {
-								if (
-									lastBeatInBar.playbackDuration !== undefined &&
-									lastBeatInBar.playbackDuration !== null
-								) {
-									barEndTick =
-										lastBeatStartTick + lastBeatInBar.playbackDuration;
-								} else {
-									// If duration unavailable, use last beat's start tick
-									barEndTick = lastBeatStartTick;
-								}
-							}
-						}
-
-						// If unable to get via tickCache, try using beat properties
-						if (barStartTick === null || barEndTick === null) {
-							if (firstBeatInBar.playbackStart !== undefined) {
-								barStartTick = firstBeatInBar.playbackStart;
-							}
-							if (lastBeatInBar.playbackStart !== undefined) {
-								const lastBeatStart = lastBeatInBar.playbackStart;
-								if (
-									lastBeatInBar.playbackDuration !== undefined &&
-									lastBeatInBar.playbackDuration !== null
-								) {
-									barEndTick = lastBeatStart + lastBeatInBar.playbackDuration;
-								} else if (lastBeatInBar.nextBeat) {
-									if (lastBeatInBar.nextBeat.playbackStart !== undefined) {
-										// @ts-expect-error
-										barEndTick = lastBeatInBar.nextBeat.playbackStart;
-									}
-								} else {
-									barEndTick = lastBeatStart;
-								}
-							}
-						}
-
-						// Set playback range (always set to ensure update to new position)
-						if (
-							barStartTick !== null &&
-							barEndTick !== null &&
-							barEndTick > barStartTick
-						) {
-							// @ts-expect-error - playbackRange may need specific type
-							api.playbackRange = {
-								startTick: barStartTick,
-								endTick: barEndTick,
-							};
-						}
-					} catch {
-						// Failed to set playback range
-					}
-				}
-
-				// Scroll to beat position (optional)
-				// Don't auto-scroll for docChanged from input, keep current view
-				if (!editorCursor.fromDocChange) {
-					const bb = api.boundsLookup?.findBeat?.(beat);
-					// Actual scroll container: prefer scrollHost (has overflow-auto), fallback to inner container
-					const scrollHost = scrollHostRef.current;
-					const container = scrollHost ?? containerRef.current;
-
-					if (bb && container) {
-						const visual = bb.visualBounds;
-						const containerRect = container.getBoundingClientRect();
-
-						// Check if beat is in visible area
-						const beatTop = visual.y;
-						const beatBottom = visual.y + visual.h;
-						const scrollTop = (container as HTMLElement).scrollTop ?? 0;
-						const viewportTop = scrollTop;
-						const viewportBottom = scrollTop + containerRect.height;
-
-						// If beat not in visible area, scroll to it
-						if (beatTop < viewportTop || beatBottom > viewportBottom) {
-							container.scrollTo({
-								top: Math.max(0, beatTop - containerRect.height / 3),
-								behavior: "smooth",
-							});
-						}
-					}
-				}
-			} catch {
-				// Failed to sync editor cursor to score
-			}
-		} else {
-			// When editor cursor is at invalid position, clear selection highlight and playback range
-			useAppStore.getState().clearScoreSelection();
-
-			// Clear playback range, restore full playback
-			try {
-				const api = apiRef.current;
-				if (api) {
-					// @ts-expect-error
-					api.playbackRange = null;
-					// Clear highlight range
-					if (typeof api.highlightPlaybackRange === "function") {
-						// Pass null or undefined to clear highlight
-						// Note: alphaTab may not support passing null, need to check API
-						// If not, can try passing same beat to "reset"
-					}
-				}
-			} catch {
-				// Failed to clear playback range
-			}
-		}
-	}, [editorCursor, applyEditorBarNumberColor]);
 
 	// Handle staff toggle requests from GlobalBottomBar
 	useEffect(() => {
@@ -815,11 +585,7 @@ export default function Preview({
 						}
 
 						// 4. 清除 pending tex 相关计时器
-						if (pendingTexTimerRef.current) {
-							clearTimeout(pendingTexTimerRef.current);
-							pendingTexTimerRef.current = null;
-						}
-						pendingTexRef.current = null;
+						clearTexTimeout();
 
 						// 5. 触发重新初始化（通过增加 reinitTrigger）
 						setReinitTrigger((prev) => prev + 1);
@@ -935,37 +701,9 @@ export default function Preview({
 			// 4. 改进的错误处理：保留上一次成功的渲染
 			api.error.on((err: unknown) => {
 				console.error("[Preview] alphaTab error:", err);
-				console.error("[Preview] Error type:", typeof err, err);
-				console.error("[Preview] Error keys:", err ? Object.keys(err) : "null");
-
-				// 使用工具函数格式化错误
 				const fullError = formatFullError(err);
 				console.error("[Preview] Setting error state:", fullError);
-				setParseError(fullError);
-
-				// 清除 pending tex 请求
-				if (pendingTexTimerRef.current) {
-					clearTimeout(pendingTexTimerRef.current);
-					pendingTexTimerRef.current = null;
-				}
-				pendingTexRef.current = null;
-				// 如果有上一次成功的乐谱，恢复渲染
-				if (lastValidScoreRef.current?.score && apiRef.current) {
-					try {
-						console.info("[Preview] Restoring last valid score after error");
-						// 标记：这次 renderScore 是恢复操作，避免在 scoreLoaded 中清除 parseError
-						lastLoadWasUserContentRef.current = false;
-						// 记录恢复状态以便 UI 显示真实恢复发生过
-						restorePerformedRef.current = true;
-						setRestorePerformed(true);
-						apiRef.current.renderScore(lastValidScoreRef.current.score, [0]);
-					} catch (restoreErr) {
-						console.error(
-							"[Preview] Failed to restore last valid score:",
-							restoreErr,
-						);
-					}
-				}
+				onErrorRecovery(apiRef.current, fullError);
 			});
 
 			// 5. 处理 scoreLoaded 事件：保存成功的乐谱并清除错误
@@ -989,32 +727,7 @@ export default function Preview({
 							);
 						}
 						const currentContent = latestContentRef.current ?? "";
-						// 如果当前有 pending 请求，并且内容匹配，则将其视为成功解析，保存为 lastValid
-						if (
-							pendingTexRef.current &&
-							pendingTexRef.current.content === currentContent
-						) {
-							lastValidScoreRef.current = {
-								score: score,
-								content: currentContent,
-							};
-							// 清除错误与 pending 状态
-							setParseError(null);
-							if (pendingTexTimerRef.current) {
-								clearTimeout(pendingTexTimerRef.current);
-								pendingTexTimerRef.current = null;
-							}
-							pendingTexRef.current = null;
-							// 如果之前有自动恢复过，清除该标记
-							if (restorePerformedRef.current) {
-								restorePerformedRef.current = false;
-								setRestorePerformed(false);
-							}
-						} else {
-							console.info(
-								"[Preview] scoreLoaded does not match pending content; ignoring for lastValid",
-							);
-						}
+						onScoreLoadedMatch(score, currentContent);
 						// 🆕 统一调用 applyTracksConfig，无论是首次还是重建
 						if (apiRef.current) applyTracksConfig(apiRef.current);
 						// 🆕 如果有挂起的小节号高亮请求，scoreLoaded 后执行
@@ -1025,8 +738,6 @@ export default function Preview({
 							);
 							pendingBarColorRef.current = null;
 						}
-						// Reset load flag after handling a scoreLoaded to avoid stale state
-						lastLoadWasUserContentRef.current = false;
 					}
 				} catch (e) {
 					console.error("[Preview] Failed to apply tracks config", e);
@@ -1151,34 +862,11 @@ export default function Preview({
 									await loadSoundFontFromUrl(apiRef.current, urls.soundFontUrl);
 
 									// 重新设置乐谱内容
-									// 这会触发 scoreLoaded，从而调用 applyTracksConfig 恢复配置
 									try {
-										// track pending as we do elsewhere
-										texSeqRef.current += 1;
-										const seq = texSeqRef.current;
-										pendingTexRef.current = {
-											id: seq,
-											content: currentContent,
-										};
-										if (pendingTexTimerRef.current) {
-											clearTimeout(pendingTexTimerRef.current);
-										}
-										pendingTexTimerRef.current = window.setTimeout(() => {
-											if (pendingTexRef.current?.id === seq) {
-												const msg = "AlphaTex 解析超时（theme 重建）";
-												console.warn(
-													"[Preview] tex timeout (theme rebuild), seq:",
-													seq,
-													"msg:",
-													msg,
-												);
-												// 🆕 主题重建时的超时不显示错误 UI，因为内容通常是有效的
-												// 仅在控制台记录警告
-											}
-										}, TEX_TIMEOUT_MS);
-
-										// 标记：这次 load 是用户内容（theme 重建更新）
-										lastLoadWasUserContentRef.current = true;
+										scheduleTexTimeout(currentContent, {
+											setErrorOnTimeout: false,
+										});
+										markLoadAsUserContent(true);
 										apiRef.current.tex(currentContent);
 									} catch (syncError) {
 										console.error(
@@ -1210,35 +898,8 @@ export default function Preview({
 				} // 7. 设置内容
 				if (apiRef.current && latestContentRef.current) {
 					try {
-						// Track pending tex call so we can detect parse failures even
-						// if alphaTab doesn't emit an error event in some cases.
-						texSeqRef.current += 1;
-						const seq = texSeqRef.current;
-						pendingTexRef.current = {
-							id: seq,
-							content: latestContentRef.current,
-						};
-						// 仍保留之前的解析错误，直到新的解析成功或明确失败
-						if (pendingTexTimerRef.current) {
-							clearTimeout(pendingTexTimerRef.current);
-						}
-						// If no scoreLoaded event occurs for this tex within timeout, mark as parse timeout (do NOT restore immediately)
-						pendingTexTimerRef.current = window.setTimeout(() => {
-							if (pendingTexRef.current?.id === seq) {
-								const msg = "AlphaTex 解析超时（未加载新乐谱）";
-								console.warn(
-									"[Preview] tex timeout (content update), seq:",
-									seq,
-									"msg:",
-									msg,
-								);
-								// 标记解析超时，但不要直接恢复旧乐谱 — 留待后续的 scoreLoaded 或 error 去处理
-								setParseError(`${msg}（等待解析结果或检查语法）`);
-							}
-						}, TEX_TIMEOUT_MS);
-
-						// 标记：这次 load 是用户内容
-						lastLoadWasUserContentRef.current = true;
+						scheduleTexTimeout(latestContentRef.current);
+						markLoadAsUserContent(true);
 						apiRef.current.tex(latestContentRef.current);
 					} catch (syncError) {
 						// 同步错误：记录到控制台，但不要修改 parseError UI state.
@@ -1253,15 +914,9 @@ export default function Preview({
 						);
 					}
 				} else if (apiRef.current && !latestContentRef.current) {
-					// clear pending and errors
-					if (pendingTexTimerRef.current) {
-						clearTimeout(pendingTexTimerRef.current);
-						pendingTexTimerRef.current = null;
-					}
-					pendingTexRef.current = null;
+					clearTexTimeout();
 					setParseError(null);
-					// 标记：这次 load 是用户内容（清空）
-					lastLoadWasUserContentRef.current = true;
+					markLoadAsUserContent(true);
 					apiRef.current.tex("");
 				}
 			} catch (err) {
@@ -1287,12 +942,7 @@ export default function Preview({
 				// 🆕 销毁 API 时清除选区高亮（避免旧 API 的选区残留）
 				useAppStore.getState().clearScoreSelection();
 			}
-			// 清除 pending tex 相关计时器
-			if (pendingTexTimerRef.current) {
-				clearTimeout(pendingTexTimerRef.current);
-				pendingTexTimerRef.current = null;
-			}
-			pendingTexRef.current = null;
+			clearTexTimeout();
 		};
 	}, [
 		applyTracksConfig,
@@ -1303,6 +953,12 @@ export default function Preview({
 		bumpApiInstanceId,
 		sanitizeAllBarStyles,
 		applyThemeColorsToPreviousBars,
+		scheduleTexTimeout,
+		markLoadAsUserContent,
+		clearTexTimeout,
+		onErrorRecovery,
+		onScoreLoadedMatch,
+		setParseError,
 	]);
 
 	// 内容更新：仅调用 tex，不销毁 API，避免闪烁
@@ -1315,27 +971,8 @@ export default function Preview({
 
 		if (content) {
 			try {
-				texSeqRef.current += 1;
-				const seq = texSeqRef.current;
-				pendingTexRef.current = { id: seq, content };
-				if (pendingTexTimerRef.current) {
-					clearTimeout(pendingTexTimerRef.current);
-				}
-				pendingTexTimerRef.current = window.setTimeout(() => {
-					if (pendingTexRef.current?.id === seq) {
-						const msg = "AlphaTex 解析超时（未加载新乐谱）";
-						console.warn(
-							"[Preview] tex timeout (content update), seq:",
-							seq,
-							"msg:",
-							msg,
-						);
-						// 标记解析超时，但不要直接恢复旧乐谱 — 以免在切换文件时回退到上一个文件
-						setParseError(`${msg}（等待解析结果或检查语法）`);
-					}
-				}, TEX_TIMEOUT_MS);
-
-				lastLoadWasUserContentRef.current = true;
+				scheduleTexTimeout(content);
+				markLoadAsUserContent(true);
 				api.tex(content);
 			} catch (syncError) {
 				console.error("[Preview] Synchronous error in tex():", syncError);
@@ -1347,20 +984,22 @@ export default function Preview({
 				);
 			}
 		} else {
-			if (pendingTexTimerRef.current) {
-				clearTimeout(pendingTexTimerRef.current);
-				pendingTexTimerRef.current = null;
-			}
-			pendingTexRef.current = null;
+			clearTexTimeout();
 			setParseError(null);
-			lastLoadWasUserContentRef.current = true;
+			markLoadAsUserContent(true);
 			try {
 				api.tex("");
 			} catch (emptyErr) {
 				console.error("[Preview] Failed to clear score:", emptyErr);
 			}
 		}
-	}, [content]);
+	}, [
+		content,
+		scheduleTexTimeout,
+		markLoadAsUserContent,
+		clearTexTimeout,
+		setParseError,
+	]);
 
 	// 管理打印预览的生命周期：销毁和重建 alphaTab API 以避免设置污染
 	useEffect(() => {
