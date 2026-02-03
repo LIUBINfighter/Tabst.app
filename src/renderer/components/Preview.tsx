@@ -1,16 +1,17 @@
 // @ts-nocheck
 import * as alphaTab from "@coderline/alphatab";
-import { FileDown, FileMusic, FileText, Music, Printer } from "lucide-react";
+import { FileText } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import {
+	applyEditorBarNumberColor as applyEditorBarNumberColorLib,
+	applyThemeColorsToPreviousBars as applyThemeColorsToPreviousBarsLib,
+	type LastColoredBars,
+	sanitizeAllBarStyles as sanitizeAllBarStylesLib,
+} from "../lib/alphatab-bar-highlight";
+import { findBeatInScore } from "../lib/alphatab-beat-utils";
 import { createPreviewSettings } from "../lib/alphatab-config";
 import { formatFullError } from "../lib/alphatab-error";
-import {
-	exportToGp7,
-	exportToMidi,
-	exportToWav,
-	getDefaultExportFilename,
-} from "../lib/alphatab-export";
 import { loadBravuraFont, loadSoundFontFromUrl } from "../lib/assets";
 import type { ResourceUrls } from "../lib/resourceLoaderService";
 import { getResourceUrls } from "../lib/resourceLoaderService";
@@ -24,48 +25,15 @@ import {
 	setupThemeObserver,
 } from "../lib/themeManager";
 import { useAppStore } from "../store/appStore";
+import PreviewToolbar from "./PreviewToolbar";
 import PrintPreview from "./PrintPreview";
 import TopBar from "./TopBar";
-import IconButton from "./ui/icon-button";
 import {
 	Tooltip,
 	TooltipContent,
 	TooltipProvider,
 	TooltipTrigger,
 } from "./ui/tooltip";
-
-/**
- * Find the Beat object in the score by barIndex and beatIndex
- */
-function findBeatInScore(
-	score: alphaTab.model.Score | null | undefined,
-	barIndex: number,
-	beatIndex: number,
-): alphaTab.model.Beat | null {
-	if (!score?.tracks?.length) return null;
-
-	// Iterate through all staves of the first track
-	const track = score.tracks[0];
-	for (const staff of track.staves) {
-		for (const bar of staff.bars) {
-			if (bar.index === barIndex) {
-				// Found matching bar, search for beat
-				for (const voice of bar.voices) {
-					for (const beat of voice.beats) {
-						if (beat.index === beatIndex) {
-							return beat;
-						}
-					}
-				}
-				// If exact beatIndex not found, return the first beat of the bar
-				if (bar.voices[0]?.beats?.length > 0) {
-					return bar.voices[0].beats[0];
-				}
-			}
-		}
-	}
-	return null;
-}
 
 export interface PreviewProps {
 	fileName?: string;
@@ -222,340 +190,15 @@ export default function Preview({
 		}
 	}, []);
 
-	const _clearBarNumberColor = useCallback((_api: alphaTab.AlphaTabApi) => {
-		const previous = lastColoredBarsRef.current;
-		if (!previous?.bars?.length) return;
-
-		// Get all default colors for current theme
-		const themeColors = getAlphaTabColorsForTheme();
-		const barNumberColor = alphaTab.model.Color.fromJson(
-			themeColors.barNumberColor,
-		);
-		const _mainGlyphColor = alphaTab.model.Color.fromJson(
-			themeColors.mainGlyphColor,
-		);
-		const staffLineColor = alphaTab.model.Color.fromJson(
-			themeColors.staffLineColor,
-		);
-		const barSeparatorColor = alphaTab.model.Color.fromJson(
-			themeColors.barSeparatorColor,
-		);
-
-		for (const bar of previous.bars) {
-			const style = bar.style;
-			if (!style?.colors) continue;
-
-			// Backup original colors for error recovery
-			const backup = Array.from(style.colors.entries());
-			try {
-				// Restore bar number colors
-				style.colors.set(
-					alphaTab.model.BarSubElement.StandardNotationBarNumber,
-					barNumberColor,
-				);
-				style.colors.set(
-					alphaTab.model.BarSubElement.GuitarTabsBarNumber,
-					barNumberColor,
-				);
-				style.colors.set(
-					alphaTab.model.BarSubElement.SlashBarNumber,
-					barNumberColor,
-				);
-				style.colors.set(
-					alphaTab.model.BarSubElement.NumberedBarNumber,
-					barNumberColor,
-				);
-
-				// Restore staff line colors
-				style.colors.set(
-					alphaTab.model.BarSubElement.StandardNotationStaffLine,
-					staffLineColor,
-				);
-				style.colors.set(
-					alphaTab.model.BarSubElement.GuitarTabsStaffLine,
-					staffLineColor,
-				);
-
-				// Restore bar separator colors (using bar lines)
-				style.colors.set(
-					alphaTab.model.BarSubElement.StandardNotationBarLines,
-					barSeparatorColor,
-				);
-				style.colors.set(
-					alphaTab.model.BarSubElement.GuitarTabsBarLines,
-					barSeparatorColor,
-				);
-
-				// Check for undefined values to prevent serialization errors
-				for (const [k, v] of style.colors.entries()) {
-					if (v === undefined || v === null) {
-						console.warn("[BarColor] Found undefined color value for key", k);
-						throw new Error("Invalid color value");
-					}
-					if (typeof v?.toString !== "function") {
-						console.warn(
-							"[BarColor] Color value missing toString for key",
-							k,
-							v,
-						);
-						throw new Error("Invalid color object");
-					}
-				}
-			} catch (err) {
-				console.error(
-					"[BarColor] Failed to restore bar colors, reverting:",
-					err,
-				);
-				// Restore backup
-				style.colors.clear?.();
-				for (const [k, v] of backup) {
-					style.colors.set(k, v);
-				}
-			}
-		}
-		lastColoredBarsRef.current = null;
-	}, []);
-
-	// Helper function: safely set color, ensuring both key and value are valid
-	const safeSetColor = useCallback(
-		(
-			colors: Map<number, alphaTab.model.Color | null>,
-			key: number | undefined,
-			value: alphaTab.model.Color | undefined,
-		): boolean => {
-			if (key === undefined || key === null || typeof key !== "number") {
-				console.warn("[BarColor] Invalid key for safeSetColor:", key);
-				return false;
-			}
-			if (!value || value === undefined || value === null) {
-				console.warn("[BarColor] Invalid value for safeSetColor, key:", key);
-				return false;
-			}
-			if (typeof value.toString !== "function") {
-				console.warn(
-					"[BarColor] Value missing toString for safeSetColor, key:",
-					key,
-				);
-				return false;
-			}
-			try {
-				// Test if toString can be called normally
-				value.toString();
-				colors.set(key, value);
-				return true;
-			} catch (e) {
-				console.error("[BarColor] Failed to set color, key:", key, "error:", e);
-				return false;
-			}
-		},
+	// Bar highlight: use lib and keep lastColoredBars in ref for callbacks
+	const sanitizeAllBarStyles = useCallback(
+		(api: alphaTab.AlphaTabApi) => sanitizeAllBarStylesLib(api),
 		[],
 	);
 
-	const sanitizeAllBarStyles = useCallback((api: alphaTab.AlphaTabApi) => {
-		if (!api.score) return false;
-		let fixes = 0;
-		const themeColors = getAlphaTabColorsForTheme();
-
-		// Validate and create all Color objects
-		let barNumberColor: alphaTab.model.Color | null = null;
-		let mainGlyphColor: alphaTab.model.Color | null = null;
-		let staffLineColor: alphaTab.model.Color | null = null;
-		let barSeparatorColor: alphaTab.model.Color | null = null;
-
-		try {
-			barNumberColor = alphaTab.model.Color.fromJson(
-				themeColors.barNumberColor,
-			);
-			mainGlyphColor = alphaTab.model.Color.fromJson(
-				themeColors.mainGlyphColor,
-			);
-			staffLineColor = alphaTab.model.Color.fromJson(
-				themeColors.staffLineColor,
-			);
-			barSeparatorColor = alphaTab.model.Color.fromJson(
-				themeColors.barSeparatorColor,
-			);
-
-			// Validate all Color objects are valid
-			if (!barNumberColor || typeof barNumberColor.toString !== "function") {
-				throw new Error("Invalid barNumberColor");
-			}
-			if (!mainGlyphColor || typeof mainGlyphColor.toString !== "function") {
-				throw new Error("Invalid mainGlyphColor");
-			}
-			if (!staffLineColor || typeof staffLineColor.toString !== "function") {
-				throw new Error("Invalid staffLineColor");
-			}
-			if (
-				!barSeparatorColor ||
-				typeof barSeparatorColor.toString !== "function"
-			) {
-				throw new Error("Invalid barSeparatorColor");
-			}
-		} catch (err) {
-			console.error(
-				"[BarColor] Failed to create Color objects in sanitizeAllBarStyles:",
-				err,
-			);
-			return false;
-		}
-
-		for (const track of api.score.tracks ?? []) {
-			for (const staff of track.staves ?? []) {
-				for (const bar of staff.bars ?? []) {
-					const style = bar.style;
-					if (!style?.colors) continue;
-
-					// Create new Map, keeping only valid key-value pairs
-					const validEntries: Array<[number, alphaTab.model.Color]> = [];
-
-					for (const [k, v] of Array.from(style.colors.entries())) {
-						try {
-							// Check if key is valid
-							if (k === undefined || k === null || typeof k !== "number") {
-								console.warn("[BarColor] Invalid key in colors map:", k);
-								fixes++;
-								continue;
-							}
-
-							// Check if value is valid
-							if (v === undefined || v === null) {
-								console.warn(
-									"[BarColor] Found undefined/null color value for key",
-									k,
-								);
-								fixes++;
-								continue;
-							}
-
-							// If string, try to parse
-							if (typeof v === "string") {
-								try {
-									const parsed = alphaTab.model.Color.fromJson(v);
-									if (parsed && typeof parsed.toString === "function") {
-										validEntries.push([k, parsed]);
-										fixes++;
-									} else {
-										console.warn("[BarColor] Failed to parse color string:", v);
-										fixes++;
-									}
-									continue;
-								} catch (_e) {
-									console.warn(
-										"[BarColor] Color.fromJson failed for string:",
-										v,
-									);
-									fixes++;
-									continue;
-								}
-							}
-
-							// Check if toString method exists
-							if (typeof v?.toString !== "function") {
-								console.warn(
-									"[BarColor] Color value missing toString for key",
-									k,
-									"value:",
-									v,
-								);
-								// Try using fallback
-								let fallback = mainGlyphColor;
-								const keyName = Object.keys(alphaTab.model.BarSubElement).find(
-									(n) => alphaTab.model.BarSubElement[n] === k,
-								);
-								if (keyName) {
-									if (keyName.includes("BarNumber")) fallback = barNumberColor;
-									else if (keyName.includes("StaffLines"))
-										fallback = staffLineColor;
-									else if (keyName.includes("BarSeparator"))
-										fallback = barSeparatorColor;
-								}
-								validEntries.push([k, fallback]);
-								fixes++;
-								continue;
-							}
-
-							// Verify toString method can be called normally
-							try {
-								v.toString();
-								validEntries.push([k, v as alphaTab.model.Color]);
-							} catch (e) {
-								console.warn("[BarColor] toString() failed for key", k, ":", e);
-								// Use fallback
-								let fallback = mainGlyphColor;
-								const keyName = Object.keys(alphaTab.model.BarSubElement).find(
-									(n) => alphaTab.model.BarSubElement[n] === k,
-								);
-								if (keyName) {
-									if (keyName.includes("BarNumber")) fallback = barNumberColor;
-									else if (keyName.includes("StaffLines"))
-										fallback = staffLineColor;
-									else if (keyName.includes("BarSeparator"))
-										fallback = barSeparatorColor;
-								}
-								validEntries.push([k, fallback]);
-								fixes++;
-							}
-						} catch (err) {
-							console.error(
-								"[BarColor] Error validating color for key",
-								k,
-								err,
-							);
-							fixes++;
-						}
-					}
-
-					// Clear and reset valid key-value pairs
-					style.colors.clear?.();
-					for (const [k, v] of validEntries) {
-						style.colors.set(k, v);
-					}
-				}
-			}
-		}
-		// Applied fixes to bar styles
-		// Note: do not call render in sanitize, let caller decide when to render
-		return fixes > 0;
-	}, []);
-
-	// Simplified approach: only remove bar number colors, let other elements use global theme colors
-	// If colors Map is empty, try to delete entire bar.style (let alphaTab use global styles)
 	const applyThemeColorsToPreviousBars = useCallback(
 		(_api: alphaTab.AlphaTabApi) => {
-			const previous = lastColoredBarsRef.current;
-			if (!previous?.bars?.length) return;
-
-			const barNumberKeys = [
-				alphaTab.model.BarSubElement.StandardNotationBarNumber,
-				alphaTab.model.BarSubElement.GuitarTabsBarNumber,
-				alphaTab.model.BarSubElement.SlashBarNumber,
-				alphaTab.model.BarSubElement.NumberedBarNumber,
-			];
-
-			for (const bar of previous.bars) {
-				if (!bar?.style?.colors) continue;
-
-				const style = bar.style;
-
-				// Only remove bar number related colors
-				for (const key of barNumberKeys) {
-					style.colors.delete(key);
-				}
-
-				// If colors Map is empty, try to delete entire style (let alphaTab use global theme colors)
-				if (style.colors.size === 0) {
-					// Note: need to confirm if alphaTab supports bar.style = null/undefined
-					// If not supported, keep empty BarStyle (should not affect rendering since Map is empty)
-					try {
-						// @ts-expect-error - Try to delete style, let alphaTab use global styles
-						bar.style = null;
-					} catch (_e) {
-						// If alphaTab doesn't support deleting style, keep empty BarStyle
-					}
-				}
-			}
-
+			applyThemeColorsToPreviousBarsLib(_api, lastColoredBarsRef.current);
 			lastColoredBarsRef.current = null;
 		},
 		[],
@@ -563,90 +206,15 @@ export default function Preview({
 
 	const applyEditorBarNumberColor = useCallback(
 		(api: alphaTab.AlphaTabApi, barIndex: number): boolean => {
-			if (!api.score?.tracks?.length) {
-				return false;
-			}
-			const currentScore = api.score ?? null;
-			if (
-				lastColoredBarsRef.current?.barIndex === barIndex &&
-				lastColoredBarsRef.current?.score === currentScore
-			) {
-				return true;
-			}
-
-			// Sanitize global bar styles before modification to prevent serialization crashes
-			sanitizeAllBarStyles(api);
-
-			// First apply theme colors to previous bars (avoid residual special styles)
-			applyThemeColorsToPreviousBars(api);
-
-			const bars: alphaTab.model.Bar[] = [];
-
-			// Only create highlight color (red)
-			let highlightColor: alphaTab.model.Color | null = null;
-			try {
-				highlightColor = alphaTab.model.Color.fromJson("#ef4444");
-				if (!highlightColor || typeof highlightColor.toString !== "function") {
-					throw new Error("Invalid highlightColor");
-				}
-			} catch (err) {
-				console.error("[BarColor] Failed to create highlightColor:", err);
-				return false;
-			}
-
-			for (const track of api.score.tracks ?? []) {
-				for (const staff of track.staves ?? []) {
-					for (const bar of staff.bars ?? []) {
-						if (bar.index !== barIndex) continue;
-						bars.push(bar);
-
-						// Only create style if it doesn't exist (minimize intervention)
-						if (!bar.style) {
-							bar.style = new alphaTab.model.BarStyle();
-						}
-
-						// Only set bar number color to red, other elements use global theme colors
-						safeSetColor(
-							bar.style.colors,
-							alphaTab.model.BarSubElement.StandardNotationBarNumber,
-							highlightColor,
-						);
-						safeSetColor(
-							bar.style.colors,
-							alphaTab.model.BarSubElement.GuitarTabsBarNumber,
-							highlightColor,
-						);
-						safeSetColor(
-							bar.style.colors,
-							alphaTab.model.BarSubElement.SlashBarNumber,
-							highlightColor,
-						);
-						safeSetColor(
-							bar.style.colors,
-							alphaTab.model.BarSubElement.NumberedBarNumber,
-							highlightColor,
-						);
-					}
-				}
-			}
-
-			lastColoredBarsRef.current = { barIndex, bars, score: currentScore };
-
-			// Sanitize again before render() to ensure all color values are valid (prevent serialization errors)
-			try {
-				sanitizeAllBarStyles(api);
-			} catch (err) {
-				console.error(
-					"[BarColor] sanitizeAllBarStyles failed before render:",
-					err,
-				);
-				// Even if sanitize fails, try to render as only some bars may have issues
-			}
-
-			api.render?.();
-			return true;
+			const result = applyEditorBarNumberColorLib(
+				api,
+				barIndex,
+				lastColoredBarsRef.current as LastColoredBars,
+			);
+			lastColoredBarsRef.current = result.newLastColored;
+			return result.applied;
 		},
-		[applyThemeColorsToPreviousBars, sanitizeAllBarStyles, safeSetColor],
+		[],
 	);
 
 	useEffect(() => {
@@ -1851,87 +1419,13 @@ export default function Preview({
 								</span>
 							}
 							trailing={
-								<>
-									{/* 导出按钮组 */}
-									<div className="ml-2 flex items-center gap-1">
-										{/* 导出 MIDI */}
-										<Tooltip>
-											<TooltipTrigger asChild>
-												<IconButton
-													onClick={() => {
-														const api = apiRef.current;
-														if (!api?.score) return;
-														exportToMidi(api);
-													}}
-													disabled={!apiRef.current?.score}
-												>
-													<Music className="h-4 w-4" />
-												</IconButton>
-											</TooltipTrigger>
-											<TooltipContent side="bottom">
-												<p>{t("toolbar:export.midi")}</p>
-											</TooltipContent>
-										</Tooltip>
-										{/* 导出 WAV */}
-										<Tooltip>
-											<TooltipTrigger asChild>
-												<IconButton
-													onClick={async () => {
-														const api = apiRef.current;
-														if (!api?.score) return;
-														const filename = getDefaultExportFilename(
-															fileName,
-															"wav",
-														);
-														await exportToWav(api, filename);
-													}}
-													disabled={!apiRef.current?.score}
-												>
-													<FileDown className="h-4 w-4" />
-												</IconButton>
-											</TooltipTrigger>
-											<TooltipContent side="bottom">
-												<p>{t("toolbar:export.wav")}</p>
-											</TooltipContent>
-										</Tooltip>
-										{/* 导出 GP */}
-										<Tooltip>
-											<TooltipTrigger asChild>
-												<IconButton
-													onClick={() => {
-														const api = apiRef.current;
-														if (!api?.score) return;
-														const filename = getDefaultExportFilename(
-															fileName,
-															"gp",
-														);
-														exportToGp7(api, filename);
-													}}
-													disabled={!apiRef.current?.score}
-												>
-													<FileMusic className="h-4 w-4" />
-												</IconButton>
-											</TooltipTrigger>
-											<TooltipContent side="bottom">
-												<p>{t("toolbar:export.gp")}</p>
-											</TooltipContent>
-										</Tooltip>
-										{/* 打印按钮 */}
-										<Tooltip>
-											<TooltipTrigger asChild>
-												<IconButton
-													onClick={() => setShowPrintPreview(true)}
-													disabled={!content}
-												>
-													<Printer className="h-4 w-4" />
-												</IconButton>
-											</TooltipTrigger>
-											<TooltipContent side="bottom">
-												<p>{t("print:printPreview")}</p>
-											</TooltipContent>
-										</Tooltip>
-									</div>
-								</>
+								<PreviewToolbar
+									apiRef={apiRef}
+									fileName={fileName}
+									content={content}
+									onPrintClick={() => setShowPrintPreview(true)}
+									t={t}
+								/>
 							}
 						/>
 						<div
