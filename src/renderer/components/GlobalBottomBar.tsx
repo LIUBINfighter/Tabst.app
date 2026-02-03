@@ -1,7 +1,6 @@
 import {
 	ChevronLeft,
 	ChevronRight,
-	Layers,
 	Minus,
 	Music2,
 	Pause,
