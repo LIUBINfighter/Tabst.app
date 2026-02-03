@@ -15,14 +15,21 @@ import {
 } from "@/renderer/lib/themeManager";
 import { useAppStore } from "@/renderer/store/appStore";
 
-interface UseAlphaTabOptions {
+export interface UseAlphaTabOptions {
 	content?: string;
 	onScoreLoaded?: (score: alphaTab.model.Score) => void;
 	onError?: (error: string) => void;
+	/** Called once when API is created; use to attach Preview-specific listeners */
+	onApiReady?: (api: alphaTab.AlphaTabApi) => void;
+	/** When changed (e.g. incremented), API is destroyed and re-created (e.g. after print) */
+	reinitTrigger?: number;
+	/** When true, API is destroyed (e.g. when PrintPreview is open); re-init when false + reinitTrigger bump */
+	suspended?: boolean;
 }
 
-interface UseAlphaTabReturn {
-	api: alphaTab.AlphaTabApi | null;
+export interface UseAlphaTabReturn {
+	/** Live ref to the alphaTab API instance (use .current in effects/callbacks) */
+	apiRef: React.RefObject<alphaTab.AlphaTabApi | null>;
 	containerRef: React.RefObject<HTMLDivElement | null>;
 	scrollHostRef: React.RefObject<HTMLDivElement | null>;
 	isLoading: boolean;
@@ -33,7 +40,14 @@ interface UseAlphaTabReturn {
 }
 
 export function useAlphaTab(options: UseAlphaTabOptions): UseAlphaTabReturn {
-	const { content, onScoreLoaded, onError } = options;
+	const {
+		content,
+		onScoreLoaded,
+		onError,
+		onApiReady,
+		reinitTrigger = 0,
+		suspended = false,
+	} = options;
 	const containerRef = useRef<HTMLDivElement>(null);
 	const scrollHostRef = useRef<HTMLDivElement>(null);
 	const apiRef = useRef<alphaTab.AlphaTabApi | null>(null);
@@ -41,6 +55,8 @@ export function useAlphaTab(options: UseAlphaTabOptions): UseAlphaTabReturn {
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const [zoom, setZoomState] = useState(60);
+	/** Incremented by theme observer to force re-init after destroy (new colors) */
+	const [themeReinitKey, setThemeReinitKey] = useState(0);
 
 	const zoomRef = useRef(zoom);
 	const trackConfigRef = useRef<StaffDisplayOptions | null>(null);
@@ -51,6 +67,13 @@ export function useAlphaTab(options: UseAlphaTabOptions): UseAlphaTabReturn {
 	const pendingTexRef = useRef<{ id: number; content: string } | null>(null);
 	const texSeqRef = useRef(0);
 	const latestContentRef = useRef(content ?? "");
+
+	const onScoreLoadedRef = useRef(onScoreLoaded);
+	const onErrorRef = useRef(onError);
+	const onApiReadyRef = useRef(onApiReady);
+	onScoreLoadedRef.current = onScoreLoaded;
+	onErrorRef.current = onError;
+	onApiReadyRef.current = onApiReady;
 
 	const setFirstStaffOptions = useAppStore((s) => s.setFirstStaffOptions);
 	const bumpScoreVersion = useAppStore((s) => s.bumpScoreVersion);
@@ -95,8 +118,17 @@ export function useAlphaTab(options: UseAlphaTabOptions): UseAlphaTabReturn {
 		}
 	}, [setFirstStaffOptions]);
 
+	// When suspended (e.g. PrintPreview open), destroy API
 	useEffect(() => {
-		if (!containerRef.current) return;
+		if (suspended && apiRef.current) {
+			apiRef.current.destroy();
+			apiRef.current = null;
+		}
+	}, [suspended]);
+
+	// Init API once per container mount (or when reinitTrigger / themeReinitKey changes); skip when suspended
+	useEffect(() => {
+		if (!containerRef.current || suspended) return;
 
 		const initAlphaTab = async () => {
 			try {
@@ -115,71 +147,68 @@ export function useAlphaTab(options: UseAlphaTabOptions): UseAlphaTabReturn {
 					console.warn("[useAlphaTab] Bravura font load failed:", e);
 				}
 
-				if (!apiRef.current) {
-					const colors = getAlphaTabColorsForTheme();
-					const settings = createPreviewSettings(urls as ResourceUrls, {
-						scale: zoomRef.current / 100,
-						scrollElement: scrollEl,
-						colors,
+				const colors = getAlphaTabColorsForTheme();
+				const settings = createPreviewSettings(urls as ResourceUrls, {
+					scale: zoomRef.current / 100,
+					scrollElement: scrollEl,
+					colors,
+				});
+
+				const api = new alphaTab.AlphaTabApi(el, settings);
+				apiRef.current = api;
+
+				try {
+					await loadSoundFontFromUrl(api, urls.soundFontUrl);
+					api.soundFontLoaded?.on(() => {
+						try {
+							if (apiRef.current) apiRef.current.masterVolume = 1.0;
+						} catch {}
 					});
+				} catch (e) {
+					console.warn("[useAlphaTab] SoundFont load failed:", e);
+				}
 
-					apiRef.current = new alphaTab.AlphaTabApi(el, settings);
+				api.renderFinished.on(() => {
+					setIsLoading(false);
+				});
 
-					try {
-						await loadSoundFontFromUrl(apiRef.current, urls.soundFontUrl);
-						apiRef.current.soundFontLoaded?.on(() => {
-							try {
-								if (apiRef.current) apiRef.current.masterVolume = 1.0;
-							} catch {}
-						});
-					} catch (e) {
-						console.warn("[useAlphaTab] SoundFont load failed:", e);
+				api.error.on((err: unknown) => {
+					const fullError = formatFullError(err);
+					setError(fullError);
+					setIsLoading(false);
+					if (lastValidScoreRef.current?.score && apiRef.current) {
+						try {
+							apiRef.current.renderScore(lastValidScoreRef.current.score, [0]);
+						} catch {}
 					}
+					onErrorRef.current?.(fullError);
+				});
 
-					apiRef.current.renderFinished.on(() => {
-						setIsLoading(false);
-					});
-
-					apiRef.current.error.on((err: unknown) => {
-						const fullError = formatFullError(err);
-						setError(fullError);
-						setIsLoading(false);
-						if (lastValidScoreRef.current?.score && apiRef.current) {
-							try {
-								apiRef.current.renderScore(
-									lastValidScoreRef.current.score,
-									[0],
-								);
-							} catch {}
+				api.scoreLoaded.on((score) => {
+					if (score?.tracks && score.tracks.length > 0) {
+						bumpScoreVersion();
+						const currentContent = latestContentRef.current ?? "";
+						if (
+							pendingTexRef.current &&
+							pendingTexRef.current.content === currentContent
+						) {
+							lastValidScoreRef.current = {
+								score,
+								content: currentContent,
+							};
+							setError(null);
 						}
-						if (onError) onError(fullError);
-					});
+						if (apiRef.current) applyTracksConfig();
+						onScoreLoadedRef.current?.(score);
+					}
+				});
 
-					apiRef.current.scoreLoaded.on((score) => {
-						if (score?.tracks && score.tracks.length > 0) {
-							bumpScoreVersion();
-							const currentContent = latestContentRef.current ?? "";
-							if (
-								pendingTexRef.current &&
-								pendingTexRef.current.content === currentContent
-							) {
-								lastValidScoreRef.current = {
-									score,
-									content: currentContent,
-								};
-								setError(null);
-							}
-							if (apiRef.current) applyTracksConfig();
-							if (onScoreLoaded) onScoreLoaded(score);
-						}
-					});
-				}
-
-				if (content) {
-					const seq = ++texSeqRef.current;
-					pendingTexRef.current = { id: seq, content };
-					apiRef.current.tex(content);
-				}
+				// Defer so consumer can set onApiReady ref after same render
+				const apiInstance = api;
+				setTimeout(() => {
+					if (apiRef.current === apiInstance)
+						onApiReadyRef.current?.(apiInstance);
+				}, 0);
 			} catch (err) {
 				console.error("[useAlphaTab] Failed to initialize:", err);
 				setError(err instanceof Error ? err.message : "Initialization failed");
@@ -195,7 +224,23 @@ export function useAlphaTab(options: UseAlphaTabOptions): UseAlphaTabReturn {
 				apiRef.current = null;
 			}
 		};
-	}, [applyTracksConfig, bumpScoreVersion, content, onError, onScoreLoaded]);
+	}, [
+		applyTracksConfig,
+		bumpScoreVersion,
+		reinitTrigger,
+		suspended,
+		themeReinitKey,
+	]);
+
+	// When content changes, update score via tex() without re-creating API
+	useEffect(() => {
+		if (suspended) return;
+		const api = apiRef.current;
+		if (!api || content == null) return;
+		const seq = ++texSeqRef.current;
+		pendingTexRef.current = { id: seq, content };
+		api.tex(content);
+	}, [content, suspended]);
 
 	useEffect(() => {
 		const unsubscribe = setupThemeObserver(() => {
@@ -220,6 +265,7 @@ export function useAlphaTab(options: UseAlphaTabOptions): UseAlphaTabReturn {
 
 			api.destroy();
 			apiRef.current = null;
+			setThemeReinitKey((k) => k + 1);
 		});
 
 		return () => unsubscribe();
@@ -233,7 +279,7 @@ export function useAlphaTab(options: UseAlphaTabOptions): UseAlphaTabReturn {
 	);
 
 	return {
-		api: apiRef.current,
+		apiRef,
 		containerRef,
 		scrollHostRef,
 		isLoading,

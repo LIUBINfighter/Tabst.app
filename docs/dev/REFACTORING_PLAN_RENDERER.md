@@ -7,10 +7,10 @@
 | 顺序 | 模块 | 目标 | 状态 |
 |------|------|------|------|
 | 1 | Preview.tsx | 接入/复用 hooks 与 lib，拆分子 hooks 与 UI | 进行中 |
-| 2 | alphatex-selection-sync | 按职责拆成 3–4 个模块 | 进行中 |
-| 3 | GlobalBottomBar | 按模式拆分或抽 useBottomBarContent | 待办 |
+| 2 | alphatex-selection-sync | 按职责拆成 3–4 个模块 | ✅ 完成 |
+| 3 | GlobalBottomBar | 按模式拆分或抽 useBottomBarContent | ✅ 完成 |
 | 4 | PrintPreview / PrintTracksPanel | 统一 Staff 配置，拆 hooks 与子组件 | 待办 |
-| 5 | Editor / Sidebar | hooks 与 lib 抽离 | 待办 |
+| 5 | Editor / Sidebar | hooks 与 lib 抽离 | ✅ 完成 |
 
 ## 二、已实施项
 
@@ -36,13 +36,23 @@
 - 使用 `lib/alphatab-bar-highlight` 的小节着色与恢复逻辑。
 - 抽出 **PreviewToolbar.tsx**：TopBar 上的导出（MIDI/WAV/GP）、打印按钮。
 
-## 三、后续可做（未在本轮实施）
+### 2.5 Editor
 
-- Preview 完全接入 `useAlphaTab`（需 hook 暴露 `apiRef` 并统一初始化/主题/错误恢复）。
-- `usePreviewBarHighlight`、`usePreviewSelectionSync`、`usePreviewErrorRecovery` 等子 hook 进一步拆分。
-- PrintPreview/PrintTracksPanel 统一 Staff 配置与 hooks。
-- Editor：`useEditorTheme`、`useEditorLSP`，扩展迁移到 `lib/editor-extensions.ts`。
-- Sidebar：`useFileOperations`、`FileTreeItem`、`SidebarCommands`。
+- **lib/editor-extensions.ts**：`createThemeExtension`、`createAlphaTexExtensions`。
+- **hooks/useEditorTheme.ts**：主题 Compartment 与 dark 模式观察。
+- **hooks/useEditorLSP.ts**：LSP 客户端与语言扩展加载。
+
+### 2.6 Sidebar
+
+- **hooks/useFileOperations.ts**：`handleOpenFile`、`handleNewFile`、重命名相关。
+- **FileTreeItem.tsx**：单文件项 + 重命名。
+- **SidebarCommands.tsx** / **SidebarBottomBar**：顶部命令与底部栏（教程、设置）。
+
+## 三、待办（本轮实施）
+
+1. Preview 完全接入 `useAlphaTab`（需 hook 暴露 `apiRef` 并统一初始化/主题/错误恢复）。
+2. `usePreviewBarHighlight`、`usePreviewSelectionSync`、`usePreviewErrorRecovery` 等子 hook 进一步拆分。
+3. PrintPreview/PrintTracksPanel 统一 Staff 配置与 hooks。
 
 ## 四、质量门
 

@@ -24,6 +24,7 @@ import {
 	getAlphaTabColorsForTheme,
 	setupThemeObserver,
 } from "../lib/themeManager";
+import { usePreviewBarHighlight } from "../hooks/usePreviewBarHighlight";
 import { useAppStore } from "../store/appStore";
 import PreviewToolbar from "./PreviewToolbar";
 import PrintPreview from "./PrintPreview";
@@ -47,8 +48,8 @@ export default function Preview({
 	className,
 }: PreviewProps) {
 	const { t } = useTranslation(["common", "errors", "print", "toolbar"]);
-	const containerRef = useRef<HTMLDivElement>(null);
-	const scrollHostRef = useRef<HTMLDivElement>(null);
+	const containerRef = useRef<HTMLDivElement | null>(null);
+	const scrollHostRef = useRef<HTMLDivElement | null>(null);
 	const apiRef = useRef<alphaTab.AlphaTabApi | null>(null);
 	const cursorRef = useRef<HTMLDivElement | null>(null);
 	// Zoom state (percentage)
@@ -217,18 +218,13 @@ export default function Preview({
 		[],
 	);
 
-	useEffect(() => {
-		// When score changes, clear old coloring cache and reapply
-		const api = apiRef.current;
-		if (api) {
-			applyThemeColorsToPreviousBars(api);
-		}
-		pendingBarColorRef.current = null;
-		if (!api || !editorCursor || editorCursor.barIndex < 0) return;
-		if (!applyEditorBarNumberColor(api, editorCursor.barIndex)) {
-			pendingBarColorRef.current = editorCursor.barIndex;
-		}
-	}, [applyEditorBarNumberColor, applyThemeColorsToPreviousBars, editorCursor]);
+	usePreviewBarHighlight(
+		apiRef,
+		editorCursor,
+		applyThemeColorsToPreviousBars,
+		applyEditorBarNumberColor,
+		pendingBarColorRef,
+	);
 
 	/**
 	 * Apply tracks display configuration to the first track
