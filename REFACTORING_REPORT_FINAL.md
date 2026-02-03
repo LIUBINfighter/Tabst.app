@@ -31,8 +31,7 @@
 
 ### ✅ Phase 3: 主进程重构
 **src/main/ipc/**:
-- `file-operations.ts` - 文件操作IPC处理器 (原始实现)
-- `app-state.ts` - 应用状态IPC处理器
+- `file-operations-effect.ts` - Effect-based 文件操作与应用状态 IPC 处理器（已接入 main.ts）
 
 **src/main/main.ts**:
 - 从413行精简到约200行
@@ -47,21 +46,18 @@
 **新增依赖**: `effect@3.19.15`
 
 **src/main/effects/**:
-- `file-system.ts` - Effect-based文件系统操作
-  - `readFile`, `writeFile`, `copyFile`, `unlinkFile`
-  - `fileExists`, `mkdir`
-  - `showOpenDialog`, `getDefaultSaveDir`
-  - `readJsonFile`, `writeJsonFile`
+- `file-system.ts` - Effect-based 文件系统操作
+  - `readFile`, `readFileAsUint8Array`, `writeFile`, `copyFile`, `unlinkFile`, `fileExists`, `mkdir`
+  - `showOpenDialog`, `getDefaultSaveDir`, `readJsonFile`, `writeJsonFile`
   - 自定义错误类型: `FileSystemError`, `DialogError`
+- `http.ts` - Effect-based HTTP 请求（fetchReleasesFeed）
 
 **src/main/ipc/**:
-- `file-operations-effect.ts` - 使用Effect重构的IPC处理器
-  - `handleOpenFileEffect`
-  - `handleCreateFileEffect`
-  - `handleSaveFileEffect`
-  - `handleRenameFileEffect`
-  - `handleLoadAppStateEffect`
-  - `handleSaveAppStateEffect`
+- `file-operations-effect.ts` - 使用 Effect 重构的 IPC 处理器
+  - `handleOpenFileEffect`, `handleCreateFileEffect`, `handleSaveFileEffect`, `handleRenameFileEffect`
+  - `handleLoadAppStateEffect`, `handleSaveAppStateEffect`
+- `misc-operations-effect.ts` - 杂项 IPC（Effect 版）
+  - `handleRevealInFolderEffect`, `handleReadAssetEffect`, `handleFetchReleasesFeedEffect`
 
 **Effect-TS优势**:
 - 类型安全的错误处理
@@ -74,6 +70,8 @@
 ## 质量门验证
 
 ### ✅ 所有检查通过
+
+运行单元测试：`pnpm add -D vitest` 后执行 `pnpm exec vitest run`（或添加 `"test": "vitest run"` 到 package.json scripts）。
 
 ```bash
 $ pnpm format
@@ -102,11 +100,13 @@ $ pnpm build
 ```
 src/main/
 ├── effects/
-│   └── file-system.ts           # Effect-TS文件系统操作
+│   ├── file-system.ts           # Effect-TS文件系统操作
+│   ├── file-system.test.ts      # 单元测试
+│   ├── http.ts                  # Effect-based HTTP
+│   └── http.test.ts             # 单元测试
 ├── ipc/
-    ├── file-operations.ts       # 原始文件操作IPC
-    ├── file-operations-effect.ts # Effect重构的文件操作
-    └── app-state.ts             # 应用状态IPC
+│   ├── file-operations-effect.ts # Effect-based 文件操作与应用状态IPC
+│   └── misc-operations-effect.ts # Effect-based 杂项IPC（reveal/read-asset/fetch-feed）
 
 src/renderer/
 ├── hooks/
@@ -180,10 +180,10 @@ const result = await Effect.runPromiseExit(program);
 ## 下一步建议
 
 ### 可选的进一步优化
-1. **使用新的Effect处理器**: 在main.ts中切换到Effect版本的IPC处理器
-2. **更多Effect模块**: 将其他异步操作重构为Effect
-3. **测试**: 为新的Effect模块编写单元测试
-4. **文档**: 更新开发者文档说明Effect的使用模式
+1. ~~**使用新的Effect处理器**: 在main.ts中切换到Effect版本的IPC处理器~~ ✅ 已完成
+2. ~~**更多Effect模块**: 将 reveal-in-folder、read-asset、fetch-releases-feed 等 IPC 重构为 Effect~~ ✅ 已完成
+3. ~~**测试**: 为 Effect 模块编写单元测试~~ ✅ 已完成
+4. **文档**: 更新开发者文档说明 Effect 的使用模式（视需要）
 
 ---
 

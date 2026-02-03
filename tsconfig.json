@@ -21,5 +21,6 @@
 			"@/renderer/*": ["src/renderer/*"]
 		}
 	},
-	"include": ["src", "public/assets"]
+	"include": ["src", "public/assets"],
+	"exclude": ["**/*.test.ts"]
 }

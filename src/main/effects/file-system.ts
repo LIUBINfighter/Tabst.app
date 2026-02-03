@@ -28,6 +28,18 @@ export const readFile = (
 			new FileSystemError(`Failed to read file: ${filePath}`, error),
 	});
 
+export const readFileAsUint8Array = (
+	filePath: string,
+): Effect.Effect<Uint8Array, FileSystemError> =>
+	Effect.tryPromise({
+		try: async () => {
+			const data = await fs.promises.readFile(filePath);
+			return new Uint8Array(data);
+		},
+		catch: (error) =>
+			new FileSystemError(`Failed to read file: ${filePath}`, error),
+	});
+
 export const writeFile = (
 	filePath: string,
 	content: string,
