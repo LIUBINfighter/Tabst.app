@@ -18,8 +18,8 @@ importers:
         specifier: ^1.8.0
         version: 1.8.0
       '@coderline/alphatab-language-server':
-        specifier: ^1.7.1
-        version: 1.8.0
+        specifier: ^1.8.1
+        version: 1.8.1
       '@mdx-js/react':
         specifier: ^3.1.1
         version: 3.1.1(@types/react@19.2.10)(react@19.2.4)
@@ -505,12 +505,16 @@ packages:
   '@codemirror/view@6.39.12':
     resolution: {integrity: sha512-f+/VsHVn/kOA9lltk/GFzuYwVVAKmOnNjxbrhkk3tPHntFqjWeI2TbIXx006YkBkqC10wZ4NsnWXCQiFPeAISQ==}
 
-  '@coderline/alphatab-language-server@1.8.0':
-    resolution: {integrity: sha512-COikF1K+fJhHNPJg3yMMGq04y1Mky3/vgvroTEMCGG5uZTqddtalwY7O0idFw/1usFUFSOkv5Z2ZxUqzEMPjlQ==}
+  '@coderline/alphatab-language-server@1.8.1':
+    resolution: {integrity: sha512-cXgL5Kfb35VUf9T968tkSA/ONgCHEFnwtAgYpGxzAE82EHW/9K9vfKxAqFUIUESPC8sv4bAB4sOnRkgqpQX6rw==}
     hasBin: true
 
   '@coderline/alphatab@1.8.0':
     resolution: {integrity: sha512-8CvGX3jnVFGwvHUEHJrX4/RkGJiNeEJ8kjIqvcXNhYFlU0zZNhw6LMJ06cESX+fe2swT6dvfKz4dHvX+Rh+17A==}
+    engines: {node: '>=6.0.0'}
+
+  '@coderline/alphatab@1.8.1':
+    resolution: {integrity: sha512-sbhSUnuMew3k7I2ulNNunyaqOFIeELOtPAZCQkZo7tPaK/dnWzVk7XSx+nNlakbMqd5zpJZwUnOv5KexkEgz2Q==}
     engines: {node: '>=6.0.0'}
 
   '@develar/schema-utils@2.6.5':
@@ -6415,13 +6419,15 @@ snapshots:
       style-mod: 4.1.3
       w3c-keyname: 2.2.8
 
-  '@coderline/alphatab-language-server@1.8.0':
+  '@coderline/alphatab-language-server@1.8.1':
     dependencies:
-      '@coderline/alphatab': 1.8.0
+      '@coderline/alphatab': 1.8.1
       vscode-languageserver: 9.0.1
       vscode-languageserver-textdocument: 1.0.12
 
   '@coderline/alphatab@1.8.0': {}
+
+  '@coderline/alphatab@1.8.1': {}
 
   '@develar/schema-utils@2.6.5':
     dependencies:
