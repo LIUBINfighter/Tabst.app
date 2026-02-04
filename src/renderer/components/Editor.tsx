@@ -50,6 +50,7 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 	const _scoreSelection = useAppStore((s) => s.scoreSelection);
 	const _playbackBeat = useAppStore((s) => s.playbackBeat);
 	const _playerCursorPosition = useAppStore((s) => s.playerCursorPosition);
+	const enableSyncScroll = useAppStore((s) => s.enableSyncScroll);
 
 	const { isDark, themeCompartment, createThemeExtension } = useEditorTheme();
 	const {
@@ -314,8 +315,9 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 			_playbackBeat,
 			_playerCursorPosition,
 			isPlaying,
+			enableSyncScroll,
 		);
-	}, [_playbackBeat, _playerCursorPosition, activeFile, getLanguageForFile]);
+	}, [_playbackBeat, _playerCursorPosition, activeFile, getLanguageForFile, enableSyncScroll]);
 
 	// Cleanup on unmount
 	useEffect(() => {

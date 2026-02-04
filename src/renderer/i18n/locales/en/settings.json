@@ -31,5 +31,11 @@
 		"languageEn": "English",
 		"languageZh": "Simplified Chinese"
 	},
-	"playbackPlaceholder": "Custom player coming soon"
+	"playbackPlaceholder": "Custom player coming soon",
+	"playbackSection": {
+		"enableSyncScroll": "Enable editor sync scroll",
+		"syncScrollHint": "Auto-scroll editor to follow current note during playback",
+		"enableCursorBroadcast": "Enable cursor broadcast to Preview",
+		"cursorBroadcastHint": "Sync editor cursor bar position to Preview display"
+	}
 }

@@ -113,8 +113,13 @@ interface AppState {
 	songInitialBpm: number | null;
 	setSongInitialBpm: (v: number | null) => void;
 
-	metronomeVolume: number;
-	setMetronomeVolume: (v: number) => void;
+  /** 是否启用编辑器播放同步滚动 */
+  enableSyncScroll: boolean;
+  setEnableSyncScroll: (v: boolean) => void;
+
+  // 是否启用编辑器光标广播到Preview
+  enableCursorBroadcast: boolean;
+  setEnableCursorBroadcast: (v: boolean) => void;
 
 	// 🆕 alphaTab API / score 生命周期标识
 	apiInstanceId: number;
@@ -214,8 +219,14 @@ export const useAppStore = create<AppState>((set, get) => ({
 	songInitialBpm: null,
 	setSongInitialBpm: (v) => set({ songInitialBpm: v }),
 
-	metronomeVolume: 0,
-	setMetronomeVolume: (v) => set({ metronomeVolume: v }),
+  metronomeVolume: 0,
+  setMetronomeVolume: (v) => set({ metronomeVolume: v }),
+  // 是否启用编辑器播放同步滚动
+  enableSyncScroll: false,
+  setEnableSyncScroll: (v) => set({ enableSyncScroll: v }),
+  // 是否启用编辑器光标广播到Preview
+  enableCursorBroadcast: false,
+  setEnableCursorBroadcast: (v) => set({ enableCursorBroadcast: v }),
 	apiInstanceId: 0,
 	scoreVersion: 0,
 	bumpApiInstanceId: () =>

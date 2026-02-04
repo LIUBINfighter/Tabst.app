@@ -43,6 +43,9 @@ export function usePreviewSelectionSync({
 		const api = apiRef.current;
 		if (!api || !editorCursor) return;
 
+		// 检查是否启用了光标广播功能
+		if (!useAppStore.getState().enableCursorBroadcast) return;
+
 		if (editorCursor.barIndex < 0) return;
 		if (isEditorCursorFromScoreRef.current) {
 			isEditorCursorFromScoreRef.current = false;
