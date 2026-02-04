@@ -30,6 +30,7 @@ import { useAppStore } from "../store/appStore";
 import PreviewToolbar from "./PreviewToolbar";
 import PrintPreview from "./PrintPreview";
 import TopBar from "./TopBar";
+import { TracksPanel } from "./TracksPanel";
 import {
 	Tooltip,
 	TooltipContent,
