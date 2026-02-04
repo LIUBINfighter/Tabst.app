@@ -93,6 +93,20 @@ export function useTheme(): UseThemeReturn {
 			if (extended.focusRing) {
 				root.style.setProperty("--focus-ring", extended.focusRing);
 			}
+			if (extended.highlight) {
+				root.style.setProperty(
+					"--highlight-bg",
+					extended.highlight.background,
+				);
+				root.style.setProperty(
+					"--highlight-text",
+					extended.highlight.foreground,
+				);
+			}
+			if (extended.hover) {
+				root.style.setProperty("--hover-bg", extended.hover.background);
+				root.style.setProperty("--hover-text", extended.hover.foreground);
+			}
 			if (extended.score) {
 				root.style.setProperty(
 					"--alphatab-main-glyph",

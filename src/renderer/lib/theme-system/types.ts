@@ -53,6 +53,15 @@ export interface UITheme {
 		selectionOverlay: string;
 		scrollbar: string;
 		focusRing: string;
+		// 高亮色（用于选中项、悬停状态等）
+		highlight?: {
+			background: string;
+			foreground: string;
+		};
+		hover?: {
+			background: string;
+			foreground: string;
+		};
 		// 谱面相关
 		score?: {
 			mainGlyph: string;

@@ -57,7 +57,7 @@ export function SidebarCommands({
 							<Button
 								variant="ghost"
 								size="icon"
-								className="h-8 w-8 hover:bg-blue-500/20 hover:text-blue-600"
+								className="h-8 w-8 hover:bg-[var(--hover-bg)] hover:text-[var(--hover-text)]"
 								onClick={onCollapse}
 							>
 								<span className="sr-only">{t("collapseSidebar")}</span>
@@ -77,7 +77,7 @@ export function SidebarCommands({
 								<Button
 									variant="ghost"
 									size="icon"
-									className="h-8 w-8 hover:bg-blue-500/20 hover:text-blue-600"
+									className="h-8 w-8 hover:bg-[var(--hover-bg)] hover:text-[var(--hover-text)]"
 									onClick={onOpenFile}
 								>
 									<span className="sr-only">{t("openFile")}</span>
@@ -94,7 +94,7 @@ export function SidebarCommands({
 								<Button
 									variant="ghost"
 									size="icon"
-									className="h-8 w-8 hover:bg-blue-500/20 hover:text-blue-600"
+									className="h-8 w-8 hover:bg-[var(--hover-bg)] hover:text-[var(--hover-text)]"
 									onClick={() => onNewFile(".atex")}
 								>
 									<span className="sr-only">{t("newAtex")}</span>
@@ -111,7 +111,7 @@ export function SidebarCommands({
 								<Button
 									variant="ghost"
 									size="icon"
-									className="h-8 w-8 hover:bg-blue-500/20 hover:text-blue-600"
+									className="h-8 w-8 hover:bg-[var(--hover-bg)] hover:text-[var(--hover-text)]"
 									onClick={() => onNewFile(".md")}
 								>
 									<span className="sr-only">{t("newMd")}</span>
@@ -130,7 +130,7 @@ export function SidebarCommands({
 						<Button
 							variant="ghost"
 							size="icon"
-							className="h-8 w-8 hover:bg-blue-500/20 hover:text-blue-600"
+							className="h-8 w-8 hover:bg-[var(--hover-bg)] hover:text-[var(--hover-text)]"
 							onClick={onToggleTheme}
 						>
 							<span className="sr-only">{t("toggleTheme")}</span>

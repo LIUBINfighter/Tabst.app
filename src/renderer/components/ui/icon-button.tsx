@@ -22,8 +22,8 @@ export default function IconButton({
 	const colorClass = destructive
 		? "hover:bg-red-500/20 hover:text-red-600"
 		: active
-			? "bg-blue-500/20 text-blue-600"
-			: "hover:bg-blue-500/20 hover:text-blue-600";
+			? "bg-[var(--highlight-bg)] text-[var(--highlight-text)]"
+			: "hover:bg-[var(--hover-bg)] hover:text-[var(--hover-text)]";
 
 	return (
 		<Button

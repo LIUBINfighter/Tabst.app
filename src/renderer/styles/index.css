@@ -34,6 +34,10 @@
 		--selection-overlay: rgba(0, 0, 0, 0.03);
 		--scrollbar: hsl(213 27% 84% / 0.9);
 		--focus-ring: rgb(59 130 246);
+		--highlight-bg: rgba(59, 130, 246, 0.2);
+		--highlight-text: rgb(37, 99, 235);
+		--hover-bg: rgba(59, 130, 246, 0.1);
+		--hover-text: rgb(37, 99, 235);
 
 		/* AlphaTab 默认颜色 */
 		--alphatab-main-glyph: #0f172a;
@@ -67,6 +71,10 @@
 		--selection-overlay: rgba(255, 255, 255, 0.03);
 		--scrollbar: hsl(215 14% 21% / 0.9);
 		--focus-ring: rgb(96 165 250);
+		--highlight-bg: rgba(96, 165, 250, 0.2);
+		--highlight-text: rgb(96, 165, 250);
+		--hover-bg: rgba(96, 165, 250, 0.1);
+		--hover-text: rgb(96, 165, 250);
 
 		/* AlphaTab 暗色主题 */
 		--alphatab-main-glyph: #f1f5f9;

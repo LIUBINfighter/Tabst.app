@@ -38,6 +38,14 @@ const githubLight: UITheme = {
 		selectionOverlay: "rgba(0, 0, 0, 0.03)",
 		scrollbar: "hsl(213 27% 84% / 0.9)",
 		focusRing: "rgb(59 130 246)",
+		highlight: {
+			background: "rgba(59, 130, 246, 0.2)",
+			foreground: "rgb(37, 99, 235)",
+		},
+		hover: {
+			background: "rgba(59, 130, 246, 0.1)",
+			foreground: "rgb(37, 99, 235)",
+		},
 		score: {
 			mainGlyph: "#0f172a",
 			secondaryGlyph: "rgba(15, 23, 42, 0.6)",
@@ -79,6 +87,14 @@ const githubDark: UITheme = {
 		selectionOverlay: "rgba(255, 255, 255, 0.03)",
 		scrollbar: "hsl(215 14% 21% / 0.9)",
 		focusRing: "rgb(96 165 250)",
+		highlight: {
+			background: "rgba(96, 165, 250, 0.2)",
+			foreground: "rgb(96, 165, 250)",
+		},
+		hover: {
+			background: "rgba(96, 165, 250, 0.1)",
+			foreground: "rgb(96, 165, 250)",
+		},
 		score: {
 			mainGlyph: "#f1f5f9",
 			secondaryGlyph: "rgba(241, 245, 249, 0.6)",
@@ -120,6 +136,14 @@ const vscodeLight: UITheme = {
 		selectionOverlay: "rgba(0, 0, 0, 0.04)",
 		scrollbar: "hsl(220 13% 75% / 0.9)",
 		focusRing: "rgb(0 122 204)",
+		highlight: {
+			background: "rgba(0, 122, 204, 0.2)",
+			foreground: "rgb(0, 122, 204)",
+		},
+		hover: {
+			background: "rgba(0, 122, 204, 0.1)",
+			foreground: "rgb(0, 122, 204)",
+		},
 		score: {
 			mainGlyph: "#1a1a1a",
 			secondaryGlyph: "rgba(26, 26, 26, 0.6)",
@@ -161,6 +185,14 @@ const vscodeDark: UITheme = {
 		selectionOverlay: "rgba(255, 255, 255, 0.04)",
 		scrollbar: "hsl(220 13% 25% / 0.9)",
 		focusRing: "rgb(0 122 204)",
+		highlight: {
+			background: "rgba(0, 122, 204, 0.2)",
+			foreground: "rgb(0, 127, 212)",
+		},
+		hover: {
+			background: "rgba(0, 122, 204, 0.1)",
+			foreground: "rgb(0, 127, 212)",
+		},
 		score: {
 			mainGlyph: "#e0e0e0",
 			secondaryGlyph: "rgba(224, 224, 224, 0.6)",
@@ -202,6 +234,14 @@ const obsidian: UITheme = {
 		selectionOverlay: "rgba(139, 92, 246, 0.08)",
 		scrollbar: "hsl(260 20% 25% / 0.9)",
 		focusRing: "rgb(167 139 250)",
+		highlight: {
+			background: "rgba(139, 92, 246, 0.25)",
+			foreground: "rgb(167, 139, 250)",
+		},
+		hover: {
+			background: "rgba(139, 92, 246, 0.15)",
+			foreground: "rgb(167, 139, 250)",
+		},
 		score: {
 			mainGlyph: "#f0ebff",
 			secondaryGlyph: "rgba(240, 235, 255, 0.6)",
@@ -243,6 +283,14 @@ const dracula: UITheme = {
 		selectionOverlay: "rgba(255, 121, 198, 0.1)",
 		scrollbar: "hsl(231 15% 35% / 0.9)",
 		focusRing: "rgb(255 121 198)",
+		highlight: {
+			background: "rgba(255, 121, 198, 0.2)",
+			foreground: "rgb(255, 121, 198)",
+		},
+		hover: {
+			background: "rgba(255, 121, 198, 0.1)",
+			foreground: "rgb(255, 121, 198)",
+		},
 		score: {
 			mainGlyph: "#f8f8f2",
 			secondaryGlyph: "rgba(248, 248, 242, 0.6)",
@@ -284,6 +332,14 @@ const nord: UITheme = {
 		selectionOverlay: "rgba(129, 161, 193, 0.12)",
 		scrollbar: "hsl(220 16% 40% / 0.9)",
 		focusRing: "rgb(136 192 208)",
+		highlight: {
+			background: "rgba(136, 192, 208, 0.25)",
+			foreground: "rgb(136, 192, 208)",
+		},
+		hover: {
+			background: "rgba(136, 192, 208, 0.15)",
+			foreground: "rgb(136, 192, 208)",
+		},
 		score: {
 			mainGlyph: "#eceff4",
 			secondaryGlyph: "rgba(236, 239, 244, 0.6)",
@@ -333,6 +389,14 @@ const monokai: UITheme = {
 			barNumber: "#66d9ef",
 			scoreInfo: "#f8f8f2",
 		},
+		highlight: {
+			background: "rgba(174, 129, 255, 0.2)",
+			foreground: "rgb(174, 129, 255)",
+		},
+		hover: {
+			background: "rgba(174, 129, 255, 0.1)",
+			foreground: "rgb(174, 129, 255)",
+		},
 	},
 };
 
@@ -366,6 +430,14 @@ const solarizedLight: UITheme = {
 		selectionOverlay: "rgba(7, 54, 66, 0.08)",
 		scrollbar: "hsl(44 40% 70% / 0.9)",
 		focusRing: "rgb(203 75 22)",
+		highlight: {
+			background: "rgba(203, 75, 22, 0.2)",
+			foreground: "rgb(203, 75, 22)",
+		},
+		hover: {
+			background: "rgba(203, 75, 22, 0.1)",
+			foreground: "rgb(203, 75, 22)",
+		},
 		score: {
 			mainGlyph: "#073642",
 			secondaryGlyph: "rgba(7, 54, 66, 0.6)",
@@ -407,6 +479,14 @@ const solarizedDark: UITheme = {
 		selectionOverlay: "rgba(253, 246, 227, 0.08)",
 		scrollbar: "hsl(192 40% 30% / 0.9)",
 		focusRing: "rgb(42 161 152)",
+		highlight: {
+			background: "rgba(42, 161, 152, 0.2)",
+			foreground: "rgb(42, 161, 152)",
+		},
+		hover: {
+			background: "rgba(42, 161, 152, 0.1)",
+			foreground: "rgb(42, 161, 152)",
+		},
 		score: {
 			mainGlyph: "#eee8d5",
 			secondaryGlyph: "rgba(238, 232, 213, 0.6)",

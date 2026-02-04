@@ -71,11 +71,11 @@ export function ThemeSelector() {
 					{t("settings:appearance.uiTheme")}
 				</label>
 				<Select value={uiTheme.id} onValueChange={handleUIThemeChange}>
-					<SelectTrigger className="w-full">
-						<SelectValue />
-					</SelectTrigger>
-					<SelectContent>
-						<div className="grid gap-1">
+				<SelectTrigger className="w-[180px]">
+					<SelectValue />
+				</SelectTrigger>
+				<SelectContent className="w-[180px]">
+					<div className="grid gap-1">
 							{uiThemes.map((theme) => (
 								<SelectItem key={theme.id} value={theme.id}>
 									<div className="flex items-center gap-2">
@@ -103,7 +103,7 @@ export function ThemeSelector() {
 						variant="outline"
 						size="sm"
 						onClick={handleVariantSwitch}
-						className="w-full mt-2"
+						className="w-[180px] mt-2"
 					>
 						切换到 {variantTheme.name}
 					</Button>
@@ -115,11 +115,11 @@ export function ThemeSelector() {
 					{t("settings:appearance.editorTheme")}
 				</label>
 				<Select value={editorTheme.id} onValueChange={handleEditorThemeChange}>
-					<SelectTrigger className="w-full">
-						<SelectValue />
-					</SelectTrigger>
-					<SelectContent>
-						{editorThemes.map((theme) => (
+				<SelectTrigger className="w-[180px]">
+					<SelectValue />
+				</SelectTrigger>
+				<SelectContent className="w-[180px]">
+					{editorThemes.map((theme) => (
 							<SelectItem key={theme.id} value={theme.id}>
 								<div className="flex items-center gap-2">
 									<span

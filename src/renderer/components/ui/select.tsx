@@ -16,7 +16,7 @@ const SelectTrigger = React.forwardRef<
 		ref={ref}
 		className={cn(
 			"flex h-7 items-center justify-between gap-2 rounded border border-border bg-transparent px-2 text-xs",
-			"focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500",
+			"focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--focus-ring)]",
 			"data-[state=open]:bg-accent data-[state=open]:text-accent-foreground",
 			"disabled:cursor-not-allowed disabled:opacity-50",
 			className,
@@ -49,7 +49,7 @@ const SelectContent = React.forwardRef<
 			)}
 			{...props}
 		>
-			<SelectPrimitive.Viewport className="p-1">
+			<SelectPrimitive.Viewport className="p-1 max-h-[240px] overflow-y-auto">
 				{children}
 			</SelectPrimitive.Viewport>
 		</SelectPrimitive.Content>
