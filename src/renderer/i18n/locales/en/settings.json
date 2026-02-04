@@ -24,12 +24,18 @@
 	"alphatabLinkAlphaTex": "alphaTex",
 	"appearanceSection": {
 		"title": "Appearance",
+		"theme": "Theme",
 		"toggleTheme": "Toggle light/dark theme",
 		"themeHint": "Theme is controlled by page class",
 		"language": "Language",
 		"languageHint": "App UI language",
 		"languageEn": "English",
-		"languageZh": "Simplified Chinese"
+		"languageZh": "Simplified Chinese",
+		"followSystem": "Follow system theme",
+		"followSystemDescription": "Automatically switch between light and dark themes based on system settings",
+		"uiTheme": "UI Theme",
+		"editorTheme": "Editor Highlight",
+		"preview": "Current Selection"
 	},
 	"playbackPlaceholder": "Custom player coming soon",
 	"playbackSection": {
