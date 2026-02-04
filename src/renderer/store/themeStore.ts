@@ -1,12 +1,12 @@
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
-import type { ThemeState, CombinedTheme } from '../lib/theme-system/types';
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
 import {
-	getUITheme,
 	getDefaultEditorThemeForUI,
-} from '../lib/theme-system/theme-registry';
+	getUITheme,
+} from "../lib/theme-system/theme-registry";
+import type { CombinedTheme, ThemeState } from "../lib/theme-system/types";
 
-const THEME_STORAGE_KEY = 'tabst-theme-preference';
+const THEME_STORAGE_KEY = "tabst-theme-preference";
 
 interface ThemeStore extends ThemeState {
 	setUITheme: (themeId: string) => void;
@@ -16,22 +16,22 @@ interface ThemeStore extends ThemeState {
 	getEffectiveTheme: () => { ui: string; editor: string };
 }
 
-function getSystemTheme(): 'light' | 'dark' {
-	if (typeof window === 'undefined') return 'light';
-	return window.matchMedia('(prefers-color-scheme: dark)').matches
-		? 'dark'
-		: 'light';
+function getSystemTheme(): "light" | "dark" {
+	if (typeof window === "undefined") return "light";
+	return window.matchMedia("(prefers-color-scheme: dark)").matches
+		? "dark"
+		: "light";
 }
 
-function getDefaultThemeForVariant(variant: 'light' | 'dark'): string {
-	return variant === 'dark' ? 'github-dark' : 'github-light';
+function getDefaultThemeForVariant(variant: "light" | "dark"): string {
+	return variant === "dark" ? "github-dark" : "github-light";
 }
 
 export const useThemeStore = create<ThemeStore>()(
 	persist(
 		(set, get) => ({
-			currentUITheme: 'github-light',
-			currentEditorTheme: 'github',
+			currentUITheme: "github-light",
+			currentEditorTheme: "github",
 			followSystem: true,
 			savedPreference: undefined,
 

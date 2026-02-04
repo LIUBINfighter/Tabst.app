@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { useFileOperations } from "../hooks/useFileOperations";
+import { useTheme } from "../lib/theme-system/use-theme";
 import { useAppStore } from "../store/appStore";
 import { FileTreeItem } from "./FileTreeItem";
 import { SettingsSidebar } from "./SettingsSidebar";
@@ -16,6 +17,7 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 	const { t } = useTranslation("sidebar");
 	const files = useAppStore((s) => s.files);
 	const workspaceMode = useAppStore((s) => s.workspaceMode);
+	const { switchToVariant, uiTheme } = useTheme();
 
 	const {
 		handleOpenFile,
@@ -31,14 +33,9 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 	} = useFileOperations();
 
 	const handleToggleTheme = () => {
-		const root = document.documentElement;
-		root.classList.toggle("dark");
-		const isDark = root.classList.contains("dark");
-		try {
-			localStorage.setItem("theme", isDark ? "dark" : "light");
-		} catch {
-			// ignore storage errors
-		}
+		// 使用智能变体切换：如果当前主题有对应变体，切换到变体；否则使用原来的强制明暗模式
+		const targetVariant = uiTheme.variant === "light" ? "dark" : "light";
+		switchToVariant(targetVariant);
 	};
 
 	return (

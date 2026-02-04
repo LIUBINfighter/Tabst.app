@@ -5,12 +5,12 @@
 @layer base {
 	:root {
 		--radius: 0.375rem;
-		
+
 		/* 动画时间变量 */
 		--transition-fast: 100ms ease-out;
 		--transition-normal: 200ms cubic-bezier(0.4, 0, 0.2, 1);
 		--transition-spring: 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
-		
+
 		/* 默认主题变量（会被动态覆盖） */
 		--background: 0 0% 100%;
 		--foreground: 210 13% 16%;
@@ -32,9 +32,9 @@
 		--input: 213 27% 84%;
 		--ring: 212 92% 45%;
 		--selection-overlay: rgba(0, 0, 0, 0.03);
-		--scrollbar: hsl(213 27% 84% / 0.7);
+		--scrollbar: hsl(213 27% 84% / 0.9);
 		--focus-ring: rgb(59 130 246);
-		
+
 		/* AlphaTab 默认颜色 */
 		--alphatab-main-glyph: #0f172a;
 		--alphatab-secondary-glyph: rgba(15, 23, 42, 0.6);
@@ -65,9 +65,9 @@
 		--input: 215 14% 21%;
 		--ring: 212 92% 58%;
 		--selection-overlay: rgba(255, 255, 255, 0.03);
-		--scrollbar: hsl(215 14% 21% / 0.7);
+		--scrollbar: hsl(215 14% 21% / 0.9);
 		--focus-ring: rgb(96 165 250);
-		
+
 		/* AlphaTab 暗色主题 */
 		--alphatab-main-glyph: #f1f5f9;
 		--alphatab-secondary-glyph: rgba(241, 245, 249, 0.6);
@@ -85,6 +85,44 @@
 
 	body {
 		@apply bg-background text-foreground;
+	}
+
+	/* Global scrollbar styling for modern Chromium and Firefox */
+	*::-webkit-scrollbar {
+		width: 10px;
+		height: 10px;
+	}
+
+	*::-webkit-scrollbar-track {
+		background: transparent;
+	}
+
+	*::-webkit-scrollbar-thumb {
+		background-color: var(--scrollbar);
+		border-radius: 9999px;
+		border: 2px solid transparent;
+		background-clip: padding-box;
+	}
+
+	*::-webkit-scrollbar-thumb:hover {
+		background-color: var(--scrollbar);
+		opacity: 0.8;
+	}
+
+	*::-webkit-scrollbar-button {
+		display: none;
+		width: 0;
+		height: 0;
+	}
+
+	*::-webkit-scrollbar-corner {
+		background: transparent;
+	}
+
+	/* Firefox scrollbar */
+	* {
+		scrollbar-width: thin;
+		scrollbar-color: var(--scrollbar) transparent;
 	}
 
 	:focus {
@@ -112,17 +150,23 @@
 
 	.focus-ring-bg {
 		@apply focus:outline-none focus:ring-1 focus:ring-[var(--focus-ring)] focus:ring-offset-0;
-		transition: box-shadow var(--transition-normal), background-color var(--transition-fast);
+		transition:
+			box-shadow var(--transition-normal),
+			background-color var(--transition-fast);
 	}
 
 	.focus-input {
 		@apply focus:outline-none focus:ring-1 focus:ring-[var(--focus-ring)] focus:border-[var(--focus-ring)];
-		transition: box-shadow var(--transition-normal), border-color var(--transition-normal);
+		transition:
+			box-shadow var(--transition-normal),
+			border-color var(--transition-normal);
 	}
 
 	/* 悬停效果 */
 	.hover-lift {
-		transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+		transition:
+			transform var(--transition-fast),
+			box-shadow var(--transition-fast);
 	}
 	.hover-lift:hover {
 		transform: translateY(-1px);
@@ -228,7 +272,8 @@
 }
 
 @keyframes pulseSoft {
-	0%, 100% {
+	0%,
+	100% {
 		opacity: 1;
 	}
 	50% {
@@ -242,7 +287,11 @@
 	pointer-events: none;
 	position: absolute;
 	background: rgba(255, 242, 0, 0.25);
-	transition: left 100ms linear, top 100ms linear, width 100ms linear, height 100ms linear;
+	transition:
+		left 100ms linear,
+		top 100ms linear,
+		width 100ms linear,
+		height 100ms linear;
 	z-index: 20;
 	border-radius: 2px;
 }
@@ -253,7 +302,9 @@
 	background: rgba(64, 64, 255, 0.75);
 	width: 3px;
 	z-index: 25;
-	transition: left 80ms linear, top 80ms linear;
+	transition:
+		left 80ms linear,
+		top 80ms linear;
 }
 
 .at-selection div {

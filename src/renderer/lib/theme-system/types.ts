@@ -46,7 +46,7 @@ export interface UITheme {
 	id: string;
 	name: string;
 	description?: string;
-	variant: 'light' | 'dark';
+	variant: "light" | "dark";
 	colors: UISemanticColors;
 	// 扩展颜色（用于更精细的控制）
 	extended?: {
@@ -89,7 +89,7 @@ export interface EditorTheme {
 	id: string;
 	name: string;
 	description?: string;
-	variant: 'light' | 'dark' | 'universal';
+	variant: "light" | "dark" | "universal";
 	colors: EditorHighlightColors;
 	// CodeMirror 特定配置
 	cmConfig?: {
@@ -133,7 +133,7 @@ export interface ThemeState {
 
 // ===== 辅助类型 =====
 
-export type ThemeVariant = 'light' | 'dark';
+export type ThemeVariant = "light" | "dark";
 
 export interface ThemePreview {
 	id: string;

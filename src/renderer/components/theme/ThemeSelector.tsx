@@ -1,23 +1,23 @@
-import { useTranslation } from 'react-i18next';
-import { useTheme } from '../../lib/theme-system/use-theme';
+import { useTranslation } from "react-i18next";
 import {
-	getAllUIThemes,
 	getAllEditorThemes,
+	getAllUIThemes,
 	getDefaultEditorThemeForUI,
 	themeRegistry,
-} from '../../lib/theme-system/theme-registry';
-import { Button } from '../ui/button';
-import { Switch } from '../ui/switch';
+} from "../../lib/theme-system/theme-registry";
+import { useTheme } from "../../lib/theme-system/use-theme";
+import { Button } from "../ui/button";
 import {
 	Select,
 	SelectContent,
 	SelectItem,
 	SelectTrigger,
 	SelectValue,
-} from '../ui/select';
+} from "../ui/select";
+import { Switch } from "../ui/switch";
 
 export function ThemeSelector() {
-	const { t } = useTranslation(['settings']);
+	const { t } = useTranslation(["settings"]);
 	const {
 		uiTheme,
 		editorTheme,
@@ -41,10 +41,14 @@ export function ThemeSelector() {
 
 	// 检查当前主题是否有对应变体
 	const hasVariant = themeRegistry.getThemeVariant(uiTheme.id) !== null;
-	const variantTheme = hasVariant ? getAllUIThemes().find(t => t.id === themeRegistry.getThemeVariant(uiTheme.id)) : null;
+	const variantTheme = hasVariant
+		? getAllUIThemes().find(
+				(t) => t.id === themeRegistry.getThemeVariant(uiTheme.id),
+			)
+		: null;
 
 	const handleVariantSwitch = () => {
-		const targetVariant = uiTheme.variant === 'light' ? 'dark' : 'light';
+		const targetVariant = uiTheme.variant === "light" ? "dark" : "light";
 		switchToVariant(targetVariant);
 	};
 
@@ -53,21 +57,18 @@ export function ThemeSelector() {
 			<div className="flex items-center justify-between">
 				<div>
 					<h3 className="text-sm font-medium">
-						{t('settings:appearance.followSystem')}
+						{t("settings:appearance.followSystem")}
 					</h3>
 					<p className="text-xs text-muted-foreground mt-1">
-						{t('settings:appearance.followSystemDescription')}
+						{t("settings:appearance.followSystemDescription")}
 					</p>
 				</div>
-				<Switch
-					checked={followSystem}
-					onCheckedChange={setFollowSystem}
-				/>
+				<Switch checked={followSystem} onCheckedChange={setFollowSystem} />
 			</div>
 
 			<div className="space-y-3">
 				<label className="text-sm font-medium">
-					{t('settings:appearance.uiTheme')}
+					{t("settings:appearance.uiTheme")}
 				</label>
 				<Select value={uiTheme.id} onValueChange={handleUIThemeChange}>
 					<SelectTrigger className="w-full">
@@ -86,7 +87,7 @@ export function ThemeSelector() {
 										/>
 										<span>{theme.name}</span>
 										<span className="text-xs text-muted-foreground">
-											({theme.variant === 'dark' ? 'Dark' : 'Light'})
+											({theme.variant === "dark" ? "Dark" : "Light"})
 										</span>
 									</div>
 								</SelectItem>
@@ -111,7 +112,7 @@ export function ThemeSelector() {
 
 			<div className="space-y-3">
 				<label className="text-sm font-medium">
-					{t('settings:appearance.editorTheme')}
+					{t("settings:appearance.editorTheme")}
 				</label>
 				<Select value={editorTheme.id} onValueChange={handleEditorThemeChange}>
 					<SelectTrigger className="w-full">
@@ -142,7 +143,7 @@ export function ThemeSelector() {
 
 			<div className="rounded-lg border p-4 bg-muted/30">
 				<h4 className="text-sm font-medium mb-2">
-					{t('settings:appearance.preview')}
+					{t("settings:appearance.preview")}
 				</h4>
 				<div className="space-y-2">
 					<div className="flex items-center gap-2 text-sm">
