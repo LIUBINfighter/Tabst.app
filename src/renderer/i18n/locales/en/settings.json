@@ -36,6 +36,14 @@
 		"enableSyncScroll": "Enable editor sync scroll",
 		"syncScrollHint": "Auto-scroll editor to follow current note during playback",
 		"enableCursorBroadcast": "Enable cursor broadcast to Preview",
-		"cursorBroadcastHint": "Sync editor cursor bar position to Preview display"
+		"cursorBroadcastHint": "Sync editor cursor bar position to Preview display",
+		"customPlayer": "Custom Player Controls",
+		"customPlayerHint": "Configure which player controls to show and their order"
+	},
+	"playerConfigurator": {
+		"hide": "Hide",
+		"show": "Show",
+		"hint": "Drag to reorder • Toggle checkbox to show/hide controls",
+		"reset": "Reset to default"
 	}
 }

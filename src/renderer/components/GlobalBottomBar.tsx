@@ -163,6 +163,10 @@ function EditorBottomBar({
 	playerIsPlaying: boolean;
 	t: (key: string) => string;
 }) {
+	// 获取自定义播放器配置
+	const customPlayerConfig = useAppStore((s) => s.customPlayerConfig);
+
+	// 预定义组件
 	const playbackSpeedControl = playbackBpmMode ? (
 		<BpmStepper />
 	) : (
@@ -188,98 +192,103 @@ function EditorBottomBar({
 		</Select>
 	);
 
-	return (
-		<div className="flex items-center gap-2">
-			<StaffControls
-				firstStaffOptions={firstStaffOptions}
-				toggleFirstStaffOpt={requestStaffToggle}
+	const zoomControls = (
+		<div className="flex items-center gap-1">
+			<Tooltip>
+				<TooltipTrigger asChild>
+					<IconButton
+						compact
+						onClick={() => {
+							const pct = Math.max(10, zoomPercent - 10);
+							setZoomPercent(pct);
+							playerControls?.applyZoom?.(pct);
+						}}
+						aria-label={t("toolbar:zoomOut")}
+					>
+						<Minus className="h-4 w-4" />
+					</IconButton>
+				</TooltipTrigger>
+				<TooltipContent side="top">
+					<p>{t("toolbar:zoomOut")}</p>
+				</TooltipContent>
+			</Tooltip>
+			<input
+				aria-label={t("toolbar:zoomPercent")}
+				value={zoomPercent}
+				onChange={(e) => {
+					const v = parseInt(e.target.value ?? "60", 10);
+					if (Number.isNaN(v)) return;
+					setZoomPercent(v);
+				}}
+				onBlur={(e) => {
+					const v = parseInt(e.target.value ?? "60", 10);
+					if (Number.isNaN(v)) return;
+					const pct = Math.max(10, Math.min(400, v));
+					setZoomPercent(pct);
+					playerControls?.applyZoom?.(pct);
+				}}
+				className="w-8 h-6 text-xs text-center rounded bg-transparent border border-border px-1 input-no-spinner"
+				step={1}
+				min={10}
+				max={400}
 			/>
-			<div className="ml-2 flex items-center gap-1">
-				<Tooltip>
-					<TooltipTrigger asChild>
-						<IconButton
-							compact
-							onClick={() => {
-								const pct = Math.max(10, zoomPercent - 10);
-								setZoomPercent(pct);
-								playerControls?.applyZoom?.(pct);
-							}}
-							aria-label={t("toolbar:zoomOut")}
-						>
-							<Minus className="h-4 w-4" />
-						</IconButton>
-					</TooltipTrigger>
-					<TooltipContent side="top">
-						<p>{t("toolbar:zoomOut")}</p>
-					</TooltipContent>
-				</Tooltip>
-				<input
-					aria-label={t("toolbar:zoomPercent")}
-					value={zoomPercent}
-					onChange={(e) => {
-						const v = parseInt(e.target.value ?? "60", 10);
-						if (Number.isNaN(v)) return;
-						setZoomPercent(v);
-					}}
-					onBlur={(e) => {
-						const v = parseInt(e.target.value ?? "60", 10);
-						if (Number.isNaN(v)) return;
-						const pct = Math.max(10, Math.min(400, v));
-						setZoomPercent(pct);
-						playerControls?.applyZoom?.(pct);
-					}}
-					className="w-8 h-6 text-xs text-center rounded bg-transparent border border-border px-1 input-no-spinner"
-					step={1}
-					min={10}
-					max={400}
-				/>
-				<span className="text-xs text-muted-foreground ml-0.5">%</span>
-				<Tooltip>
-					<TooltipTrigger asChild>
-						<IconButton
-							compact
-							onClick={() => {
-								const pct = Math.min(400, zoomPercent + 10);
-								setZoomPercent(pct);
-								playerControls?.applyZoom?.(pct);
-							}}
-							aria-label={t("toolbar:zoomIn")}
-						>
-							<Plus className="h-4 w-4" />
-						</IconButton>
-					</TooltipTrigger>
-					<TooltipContent side="top">
-						<p>{t("toolbar:zoomIn")}</p>
-					</TooltipContent>
-				</Tooltip>
-			</div>
-			<div className="ml-3 flex items-center gap-1 text-xs">
-				{playbackSpeedControl}
-			</div>
-			<div className="ml-2 flex items-center">
-				<Tooltip>
-					<TooltipTrigger asChild>
-						<IconButton
-							active={metronomeVolume > 0}
-							onClick={() => {
-								const nextVolume = metronomeVolume > 0 ? 0 : 0.6;
-								setMetronomeVolume(nextVolume);
-								playerControls?.setMetronomeVolume?.(nextVolume);
-							}}
-							aria-label={t("toolbar:metronome.label")}
-						>
-							<Music2 className="h-4 w-4" />
-						</IconButton>
-					</TooltipTrigger>
-					<TooltipContent side="top">
-						<p>
-							{metronomeVolume > 0
-								? t("toolbar:metronome.disable")
-								: t("toolbar:metronome.enable")}
-						</p>
-					</TooltipContent>
-				</Tooltip>
-			</div>
+			<span className="text-xs text-muted-foreground ml-0.5">%</span>
+			<Tooltip>
+				<TooltipTrigger asChild>
+					<IconButton
+						compact
+						onClick={() => {
+							const pct = Math.min(400, zoomPercent + 10);
+							setZoomPercent(pct);
+							playerControls?.applyZoom?.(pct);
+						}}
+						aria-label={t("toolbar:zoomIn")}
+					>
+						<Plus className="h-4 w-4" />
+					</IconButton>
+				</TooltipTrigger>
+				<TooltipContent side="top">
+					<p>{t("toolbar:zoomIn")}</p>
+				</TooltipContent>
+			</Tooltip>
+		</div>
+	);
+
+	const playbackSpeedControls = (
+		<div className="flex items-center gap-1 text-xs">
+			{playbackSpeedControl}
+		</div>
+	);
+
+	const metronomeControls = (
+		<div className="flex items-center">
+			<Tooltip>
+				<TooltipTrigger asChild>
+					<IconButton
+						active={metronomeVolume > 0}
+						onClick={() => {
+							const nextVolume = metronomeVolume > 0 ? 0 : 0.6;
+							setMetronomeVolume(nextVolume);
+							playerControls?.setMetronomeVolume?.(nextVolume);
+						}}
+						aria-label={t("toolbar:metronome.label")}
+					>
+						<Music2 className="h-4 w-4" />
+					</IconButton>
+				</TooltipTrigger>
+				<TooltipContent side="top">
+					<p>
+						{metronomeVolume > 0
+							? t("toolbar:metronome.disable")
+							: t("toolbar:metronome.enable")}
+					</p>
+				</TooltipContent>
+			</Tooltip>
+		</div>
+	);
+
+	const transportControls = (
+		<>
 			<Tooltip>
 				<TooltipTrigger asChild>
 					<IconButton
@@ -346,8 +355,48 @@ function EditorBottomBar({
 					<p>{t("toolbar:refresh")}</p>
 				</TooltipContent>
 			</Tooltip>
-		</div>
+		</>
 	);
+
+	// 组件映射
+	const componentMap = {
+		staffControls: (
+			<StaffControls
+				firstStaffOptions={firstStaffOptions}
+				toggleFirstStaffOpt={requestStaffToggle}
+			/>
+		),
+		zoomControls,
+		playbackSpeedControls,
+		playbackTransport: transportControls,
+	};
+
+	// 根据配置渲染组件
+	const renderedComponents = customPlayerConfig.components
+		.filter((component) => component.enabled)
+		.map((component, index) => {
+			const element = componentMap[component.type];
+			if (!element) return null;
+
+			// 为不同组件添加合适的间距
+			let className = "";
+			if (component.type === "zoomControls") {
+				className = "ml-2";
+			} else if (component.type === "playbackSpeedControls") {
+				className = "ml-3";
+			} else if (component.type === "playbackTransport") {
+				className = "ml-2";
+			}
+
+			return (
+				<div key={component.type} className={className}>
+					{element}
+				</div>
+			);
+		})
+		.filter(Boolean); // 移除null值
+
+	return <div className="flex items-center gap-2">{renderedComponents}</div>;
 }
 
 export default function GlobalBottomBar() {
@@ -387,6 +436,22 @@ export default function GlobalBottomBar() {
 				prevTutorial={prevTutorial}
 				nextTutorial={nextTutorial}
 				onSelectTutorial={setActiveTutorialId}
+				t={t}
+			/>
+		) : isSettingsMode && activeSettingsPageId === "playback" ? (
+			// 当在设置页面的playback页签时，显示播放控件以便实时预览配置效果
+			<EditorBottomBar
+				firstStaffOptions={firstStaffOptions}
+				requestStaffToggle={requestStaffToggle}
+				zoomPercent={zoomPercent}
+				setZoomPercent={setZoomPercent}
+				playerControls={playerControls}
+				playbackSpeed={playbackSpeed}
+				setPlaybackSpeed={setPlaybackSpeed}
+				playbackBpmMode={playbackBpmMode}
+				metronomeVolume={metronomeVolume}
+				setMetronomeVolume={setMetronomeVolume}
+				playerIsPlaying={playerIsPlaying}
 				t={t}
 			/>
 		) : isSettingsMode ? (

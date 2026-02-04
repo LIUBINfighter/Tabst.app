@@ -317,7 +317,13 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 			isPlaying,
 			enableSyncScroll,
 		);
-	}, [_playbackBeat, _playerCursorPosition, activeFile, getLanguageForFile, enableSyncScroll]);
+	}, [
+		_playbackBeat,
+		_playerCursorPosition,
+		activeFile,
+		getLanguageForFile,
+		enableSyncScroll,
+	]);
 
 	// Cleanup on unmount
 	useEffect(() => {
