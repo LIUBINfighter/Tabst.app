@@ -24,12 +24,18 @@
 	"alphatabLinkAlphaTex": "alphaTex",
 	"appearanceSection": {
 		"title": "外观",
+		"theme": "主题",
 		"toggleTheme": "切换明暗主题",
 		"themeHint": "当前主题由页面 class 控制",
 		"language": "语言",
 		"languageHint": "应用界面语言",
 		"languageEn": "English",
-		"languageZh": "简体中文"
+		"languageZh": "简体中文",
+		"followSystem": "跟随系统主题",
+		"followSystemDescription": "根据系统设置自动切换明暗主题",
+		"uiTheme": "界面主题",
+		"editorTheme": "编辑器高亮",
+		"preview": "当前选择"
 	},
 	"playbackPlaceholder": "自定义播放器正在开发中",
 	"playbackSection": {

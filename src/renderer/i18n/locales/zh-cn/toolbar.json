@@ -31,5 +31,6 @@
 		"midi": "导出 MIDI",
 		"wav": "导出 WAV",
 		"gp": "导出 GP"
-	}
+	},
+	"tracks": "轨道选择"
 }

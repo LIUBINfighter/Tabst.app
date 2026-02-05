@@ -36,8 +36,8 @@ export function SettingsSidebar() {
 					}}
 					className={`w-full group flex items-center gap-2 px-3 py-1.5 cursor-pointer text-xs transition-colors text-left ${
 						activeSettingsPageId === p.id
-							? "bg-blue-500/20 text-blue-600"
-							: "hover:bg-blue-500/20 hover:text-blue-600 text-muted-foreground"
+							? "bg-[var(--highlight-bg)] text-[var(--highlight-text)]"
+							: "hover:bg-[var(--hover-bg)] hover:text-[var(--hover-text)] text-muted-foreground"
 					}`}
 				>
 					{(() => {
@@ -47,8 +47,8 @@ export function SettingsSidebar() {
 									<Palette
 										className={`flex-none h-3.5 w-3.5 ${
 											activeSettingsPageId === p.id
-												? "text-blue-600"
-												: "text-muted-foreground hover:text-blue-600"
+												? "text-[var(--highlight-text)]"
+												: "text-muted-foreground hover:text-[var(--hover-text)]"
 										}`}
 									/>
 								);
@@ -57,8 +57,8 @@ export function SettingsSidebar() {
 									<Play
 										className={`flex-none h-3.5 w-3.5 ${
 											activeSettingsPageId === p.id
-												? "text-blue-600"
-												: "text-muted-foreground hover:text-blue-600"
+												? "text-[var(--highlight-text)]"
+												: "text-muted-foreground hover:text-[var(--hover-text)]"
 										}`}
 									/>
 								);
@@ -67,8 +67,8 @@ export function SettingsSidebar() {
 									<RefreshCw
 										className={`flex-none h-3.5 w-3.5 ${
 											activeSettingsPageId === p.id
-												? "text-blue-600"
-												: "text-muted-foreground hover:text-blue-600"
+												? "text-[var(--highlight-text)]"
+												: "text-muted-foreground hover:text-[var(--hover-text)]"
 										}`}
 									/>
 								);
@@ -77,8 +77,8 @@ export function SettingsSidebar() {
 									<MapIcon
 										className={`flex-none h-3.5 w-3.5 ${
 											activeSettingsPageId === p.id
-												? "text-blue-600"
-												: "text-muted-foreground hover:text-blue-600"
+												? "text-[var(--highlight-text)]"
+												: "text-muted-foreground hover:text-[var(--hover-text)]"
 										}`}
 									/>
 								);
@@ -87,8 +87,8 @@ export function SettingsSidebar() {
 									<Info
 										className={`flex-none h-3.5 w-3.5 ${
 											activeSettingsPageId === p.id
-												? "text-blue-600"
-												: "text-muted-foreground hover:text-blue-600"
+												? "text-[var(--highlight-text)]"
+												: "text-muted-foreground hover:text-[var(--hover-text)]"
 										}`}
 									/>
 								);
@@ -97,8 +97,8 @@ export function SettingsSidebar() {
 									<Settings
 										className={`flex-none h-3.5 w-3.5 ${
 											activeSettingsPageId === p.id
-												? "text-blue-600"
-												: "text-muted-foreground hover:text-blue-600"
+												? "text-[var(--highlight-text)]"
+												: "text-muted-foreground hover:text-[var(--hover-text)]"
 										}`}
 									/>
 								);

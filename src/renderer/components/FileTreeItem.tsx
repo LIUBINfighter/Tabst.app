@@ -37,8 +37,8 @@ export function FileTreeItem({
 	const fileExt = isEditing ? renameExt : splitName(file.name).ext;
 	const iconClass = `shrink-0 h-3.5 w-3.5 transition-colors ${
 		isActive
-			? "text-blue-600"
-			: "text-muted-foreground group-hover:text-blue-600"
+			? "text-[var(--highlight-text)]"
+			: "text-muted-foreground group-hover:text-[var(--hover-text)]"
 	}`;
 
 	useEffect(() => {
@@ -79,7 +79,7 @@ export function FileTreeItem({
 			className={`
 				w-full max-w-full group flex items-center gap-2 px-3 py-1.5 cursor-pointer overflow-hidden
 				text-xs text-muted-foreground transition-colors text-left
-				${isActive ? "bg-blue-500/20 text-blue-600" : "hover:bg-blue-500/20 hover:text-blue-600"}
+				${isActive ? "bg-[var(--highlight-bg)] text-[var(--highlight-text)]" : "hover:bg-[var(--hover-bg)] hover:text-[var(--hover-text)]"}
 			`}
 		>
 			{fileExt === "atex" ? (
@@ -118,10 +118,10 @@ export function FileTreeItem({
 				<button
 					type="button"
 					onClick={(e) => onRenameClick(e, file)}
-					className={`opacity-0 group-hover:opacity-100 focus-visible:opacity-100 p-1 rounded transition-opacity w-6 h-6 flex items-center justify-center hover:bg-blue-500/20 focus-visible:bg-blue-500/20 ${
+					className={`opacity-0 group-hover:opacity-100 focus-visible:opacity-100 p-1 rounded transition-opacity w-6 h-6 flex items-center justify-center hover:bg-[var(--hover-bg)] focus-visible:bg-[var(--highlight-bg)] ${
 						isActive
-							? "text-blue-600"
-							: "text-muted-foreground hover:text-blue-600 focus-visible:text-blue-600"
+							? "text-[var(--highlight-text)]"
+							: "text-muted-foreground hover:text-[var(--hover-text)] focus-visible:text-[var(--highlight-text)]"
 					}`}
 					aria-label={t("rename")}
 				>
@@ -138,10 +138,10 @@ export function FileTreeItem({
 							console.error("revealInFolder failed:", err);
 						}
 					}}
-					className={`opacity-0 group-hover:opacity-100 focus-visible:opacity-100 p-1 rounded transition-opacity w-6 h-6 flex items-center justify-center hover:bg-blue-500/20 focus-visible:bg-blue-500/20 ${
+					className={`opacity-0 group-hover:opacity-100 focus-visible:opacity-100 p-1 rounded transition-opacity w-6 h-6 flex items-center justify-center hover:bg-[var(--hover-bg)] focus-visible:bg-[var(--highlight-bg)] ${
 						isActive
-							? "text-blue-600"
-							: "text-muted-foreground hover:text-blue-600 focus-visible:text-blue-600"
+							? "text-[var(--highlight-text)]"
+							: "text-muted-foreground hover:text-[var(--hover-text)] focus-visible:text-[var(--highlight-text)]"
 					}`}
 					aria-label={t("showInExplorer")}
 				>
@@ -153,7 +153,7 @@ export function FileTreeItem({
 			{fileExt === "md" && (
 				<code
 					className={`shrink-0 font-mono bg-muted/50 px-1 rounded text-xs h-6 leading-6 select-none ${
-						isActive ? "text-blue-600" : "text-muted-foreground"
+						isActive ? "text-[var(--highlight-text)]" : "text-muted-foreground"
 					}`}
 				>
 					{fileExt}

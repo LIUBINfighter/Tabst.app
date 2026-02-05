@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { useFileOperations } from "../hooks/useFileOperations";
+import { useTheme } from "../lib/theme-system/use-theme";
 import { useAppStore } from "../store/appStore";
 import { FileTreeItem } from "./FileTreeItem";
 import { SettingsSidebar } from "./SettingsSidebar";
@@ -16,6 +17,7 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 	const { t } = useTranslation("sidebar");
 	const files = useAppStore((s) => s.files);
 	const workspaceMode = useAppStore((s) => s.workspaceMode);
+	const { themeMode, setThemeMode } = useTheme();
 
 	const {
 		handleOpenFile,
@@ -31,14 +33,10 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 	} = useFileOperations();
 
 	const handleToggleTheme = () => {
-		const root = document.documentElement;
-		root.classList.toggle("dark");
-		const isDark = root.classList.contains("dark");
-		try {
-			localStorage.setItem("theme", isDark ? "dark" : "light");
-		} catch {
-			// ignore storage errors
-		}
+		const modes = ["light", "dark", "system"] as const;
+		const currentIndex = modes.indexOf(themeMode);
+		const nextMode = modes[(currentIndex + 1) % modes.length];
+		setThemeMode(nextMode);
 	};
 
 	return (
@@ -49,9 +47,9 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 					onOpenFile={handleOpenFile}
 					onNewFile={handleNewFile}
 					onToggleTheme={handleToggleTheme}
+					themeMode={themeMode}
 				/>
 
-				{/* 文件列表 */}
 				<ScrollArea className="flex-1 w-full overflow-hidden min-h-0">
 					<div className="py-1 w-full overflow-hidden">
 						{workspaceMode === "tutorial" ? (
@@ -81,7 +79,6 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 					</div>
 				</ScrollArea>
 
-				{/* 底部栏：教程、设置 */}
 				<SidebarBottomBar />
 			</div>
 		</TooltipProvider>

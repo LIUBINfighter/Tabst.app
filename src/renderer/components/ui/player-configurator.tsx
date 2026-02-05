@@ -132,8 +132,15 @@ export function PlayerConfigurator({ className }: PlayerConfiguratorProps) {
 								onDragStart={(e) => handleDragStart(e, index)}
 								onDragOver={(e) => handleDragOver(e, index)}
 								onDrop={(e) => handleDrop(e, index)}
+								onClick={() => handleToggle(component.type)}
+								onKeyDown={(event) => {
+									if (event.key === " " || event.key === "Enter") {
+										event.preventDefault();
+										handleToggle(component.type);
+									}
+								}}
 								className={cn(
-									"flex items-center gap-3 p-3 bg-card border border-border rounded-lg hover:bg-accent/50 transition-colors cursor-move group",
+									"flex items-center gap-3 p-3 bg-card border border-border rounded-lg hover:bg-accent/50 transition-colors cursor-pointer group",
 									isDragging && "opacity-50",
 								)}
 								role="button"
@@ -142,11 +149,18 @@ export function PlayerConfigurator({ className }: PlayerConfiguratorProps) {
 								})}
 								tabIndex={0}
 							>
-								<GripVertical className="h-4 w-4 text-muted-foreground/50 group-hover:text-muted-foreground flex-shrink-0 transition-colors" />
+								<GripVertical
+									className="h-4 w-4 text-muted-foreground/50 group-hover:text-muted-foreground flex-shrink-0 transition-colors cursor-move"
+									onClick={(e) => e.stopPropagation()}
+									onMouseDown={(e) => e.stopPropagation()}
+								/>
 
 								<div
 									className="flex items-center justify-center h-5 w-5 rounded border border-primary/50 cursor-pointer transition-colors hover:border-primary"
-									onClick={() => handleToggle(component.type)}
+									onClick={(e) => {
+										e.stopPropagation();
+										handleToggle(component.type);
+									}}
 									onKeyDown={(event) => {
 										if (event.key === " " || event.key === "Enter") {
 											event.preventDefault();

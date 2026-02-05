@@ -32,14 +32,8 @@ export function createThemeExtension(dark: boolean): Extension {
 			color: "hsl(var(--foreground))",
 		},
 		".cm-scroller": {
-			overflowX: "hidden",
-			overflowY: "auto",
-			height: "100%",
-			minHeight: 0,
-			fontFamily:
-				'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace',
 			scrollbarWidth: "thin",
-			scrollbarColor: "hsl(var(--border) / 0.7) transparent",
+			scrollbarColor: "var(--scrollbar) transparent",
 		},
 		".cm-content": {
 			padding: "8px 0 var(--scroll-buffer, 150px) 0",

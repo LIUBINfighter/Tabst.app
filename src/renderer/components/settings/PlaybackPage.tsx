@@ -23,7 +23,18 @@ export function PlaybackPage() {
 				</div>
 			</div>
 
-			<div className="bg-card border border-border rounded-lg p-3 hover:bg-accent/50 transition-colors">
+			<div
+				className="bg-card border border-border rounded-lg p-3 hover:bg-accent/50 transition-colors cursor-pointer"
+				onClick={() => setEnableSyncScroll(!enableSyncScroll)}
+				onKeyDown={(event) => {
+					if (event.key === " " || event.key === "Enter") {
+						event.preventDefault();
+						setEnableSyncScroll(!enableSyncScroll);
+					}
+				}}
+				role="button"
+				tabIndex={0}
+			>
 				<div className="flex items-center gap-3">
 					<CheckboxToggle
 						checked={enableSyncScroll}
@@ -41,7 +52,18 @@ export function PlaybackPage() {
 				</div>
 			</div>
 
-			<div className="bg-card border border-border rounded-lg p-3 hover:bg-accent/50 transition-colors">
+			<div
+				className="bg-card border border-border rounded-lg p-3 hover:bg-accent/50 transition-colors cursor-pointer"
+				onClick={() => setEnableCursorBroadcast(!enableCursorBroadcast)}
+				onKeyDown={(event) => {
+					if (event.key === " " || event.key === "Enter") {
+						event.preventDefault();
+						setEnableCursorBroadcast(!enableCursorBroadcast);
+					}
+				}}
+				role="button"
+				tabIndex={0}
+			>
 				<div className="flex items-center gap-3">
 					<CheckboxToggle
 						checked={enableCursorBroadcast}

@@ -106,7 +106,7 @@ export const components = {
 		children?: ReactNode;
 	}) => {
 		const styles = {
-			info: "bg-blue-500/10 border-blue-500/20 text-blue-600",
+			info: "bg-[var(--highlight-bg)] border-[var(--highlight-bg)] text-[var(--highlight-text)]",
 			success: "bg-green-500/10 border-green-500/20 text-green-600",
 			warning: "bg-yellow-500/10 border-yellow-500/20 text-yellow-600",
 			error: "bg-red-500/10 border-red-500/20 text-red-600",

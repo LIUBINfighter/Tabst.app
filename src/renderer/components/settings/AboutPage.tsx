@@ -132,7 +132,7 @@ export function AboutPage() {
 					</div>
 				)}
 				{!loading && !error && readmeContent && (
-					<TutorialRenderer content={readmeContent} />
+					<TutorialRenderer content={readmeContent} allowHtml={true} />
 				)}
 			</section>
 		</div>

@@ -1,10 +1,3 @@
-/**
- * AlphaTex Syntax Highlighting
- *
- * Provides lightweight syntax highlighting for AlphaTex language using
- * CodeMirror 6 stream parser (no require / TextMate dependency at runtime).
- */
-
 import {
 	HighlightStyle,
 	StreamLanguage,
@@ -13,16 +6,8 @@ import {
 import type { Extension } from "@codemirror/state";
 import { textMateGrammar } from "@coderline/alphatab-language-server";
 import { tags } from "@lezer/highlight";
+import type { EditorTheme } from "./theme-system/types";
 
-let highlightExtension: Extension[] | null = null;
-
-/**
- * Simple stream parser for AlphaTex
- * - Commands start with "\"
- * - Strings are double-quoted
- * - Numbers and durations are numeric (with optional dots)
- * - Brackets and pipes are treated as operators
- */
 const alphaTexParser = StreamLanguage.define({
 	startState() {
 		return { inBlockComment: false };
@@ -41,7 +26,6 @@ const alphaTexParser = StreamLanguage.define({
 
 		if (stream.eatSpace()) return null;
 
-		// Block comments with /*
 		if (stream.match("/*")) {
 			state.inBlockComment = true;
 			while (!stream.eol()) {
@@ -54,22 +38,18 @@ const alphaTexParser = StreamLanguage.define({
 			return "comment";
 		}
 
-		// Line comments with //
 		if (stream.match("//")) {
 			stream.skipToEnd();
 			return "comment";
 		}
 
-		// Duration modifiers like :8 :4 :16 (inline-code highlight)
 		if (stream.match(/:(128|64|32|16|8|4|2|1)/)) {
-			// Optional dotted duration (e.g. :8.)
 			if (stream.peek() === ".") {
 				const nextChar = stream.string[stream.pos + 1] ?? "";
 				if (!/[0-9]/.test(nextChar)) {
 					stream.next();
 				}
 			}
-			// Optional modifier block (e.g. :8{tu 3})
 			if (stream.peek() === "{") {
 				stream.next();
 				while (!stream.eol() && stream.peek() !== "}") {
@@ -82,75 +62,107 @@ const alphaTexParser = StreamLanguage.define({
 			return "atom";
 		}
 
-		// Commands and tags starting with backslash
 		if (stream.eat("\\")) {
 			stream.eatWhile(/[-\w]/);
 			return "keyword";
 		}
 
-		// Strings
 		if (stream.eat('"')) {
 			while (!stream.eol()) {
 				if (stream.eat('"')) break;
-				else stream.next();
+				stream.next();
 			}
 			return "string";
 		}
 
-		// Brackets and grouping symbols
 		if (stream.eat(/[{}[\]()]/)) return "bracket";
 
-		// Barlines and separators
 		if (stream.eat("|")) return "operator";
 
-		// Numbers (including dotted rhythms like 4. or 3.5)
 		if (/[0-9]/.test(stream.peek() ?? "")) {
 			stream.eatWhile(/[0-9.]/);
 			return "number";
 		}
 
-		// Default: move one char
 		stream.next();
 		return null;
 	},
 });
 
-/**
- * Initialize and return syntax highlighting extension
- */
-export async function getAlphaTexHighlight() {
-	if (highlightExtension) return highlightExtension;
+export function createAlphaTexHighlightForTheme(
+	theme: EditorTheme,
+): Extension[] {
+	const colors = theme.colors;
 
 	const alphaTexTheme = HighlightStyle.define([
-		{ tag: tags.comment, color: "#6a737d" },
-		{ tag: tags.keyword, color: "#d73a49", fontWeight: "bold" },
-		{ tag: tags.operator, color: "#d73a49" },
-		{ tag: tags.string, color: "inherit" },
-		{ tag: tags.character, color: "inherit" },
-		{ tag: tags.number, color: "#005cc5" },
+		{ tag: tags.comment, color: colors.comment },
+		{ tag: tags.keyword, color: colors.keyword, fontWeight: "bold" },
+		{ tag: tags.operator, color: colors.operator },
+		{ tag: tags.string, color: colors.string },
+		{ tag: tags.character, color: colors.string },
+		{ tag: tags.number, color: colors.number },
 		{
 			tag: tags.atom,
-			color: "#f59e0b",
-			backgroundColor: "rgba(245, 158, 11, 0.12)",
+			color: colors.atom,
+			...(colors.atomBackground && { backgroundColor: colors.atomBackground }),
 			borderRadius: "3px",
 			fontFamily:
 				"var(--font-mono, ui-monospace, SFMono-Regular, SFMono, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace)",
 		},
-		{ tag: tags.function(tags.variableName), color: "#6f42c1" },
-		{ tag: tags.tagName, color: "#22863a" },
-		{ tag: tags.attributeName, color: "#6f42c1" },
-		{ tag: tags.variableName, color: "#24292e" },
-		{ tag: tags.bracket, color: "#24292e" },
+		{ tag: tags.function(tags.variableName), color: colors.function },
+		{ tag: tags.tagName, color: colors.tag },
+		{ tag: tags.attributeName, color: colors.attribute },
+		{ tag: tags.variableName, color: colors.variable },
+		{ tag: tags.bracket, color: colors.bracket },
 	]);
 
-	highlightExtension = [alphaTexParser, syntaxHighlighting(alphaTexTheme)];
-	return highlightExtension;
+	return [alphaTexParser, syntaxHighlighting(alphaTexTheme)];
 }
 
-/**
- * Get the TextMate grammar definition
- * Useful for external tools that need to parse AlphaTex
- */
+let cachedExtension: Extension[] | null = null;
+let cachedThemeId: string | null = null;
+
+export async function getAlphaTexHighlight(
+	theme?: EditorTheme,
+): Promise<Extension[]> {
+	if (theme) {
+		if (cachedThemeId === theme.id && cachedExtension) {
+			return cachedExtension;
+		}
+		cachedThemeId = theme.id;
+		cachedExtension = createAlphaTexHighlightForTheme(theme);
+		return cachedExtension;
+	}
+
+	if (cachedExtension) return cachedExtension;
+
+	const defaultTheme: EditorTheme = {
+		id: "github",
+		name: "GitHub",
+		variant: "universal",
+		colors: {
+			comment: "#6a737d",
+			keyword: "#d73a49",
+			operator: "#d73a49",
+			string: "#032f62",
+			number: "#005cc5",
+			atom: "#f59e0b",
+			function: "#6f42c1",
+			tag: "#22863a",
+			attribute: "#6f42c1",
+			variable: "#24292e",
+			bracket: "#24292e",
+			atomBackground: "rgba(245, 158, 11, 0.12)",
+			matchBackground: "rgba(36, 41, 46, 0.04)",
+			selectionMatch: "rgba(9, 105, 218, 0.18)",
+		},
+	};
+
+	cachedThemeId = defaultTheme.id;
+	cachedExtension = createAlphaTexHighlightForTheme(defaultTheme);
+	return cachedExtension;
+}
+
 export function getAlphaTexGrammar() {
 	return textMateGrammar;
 }
