@@ -8,18 +8,36 @@ importers:
 
   .:
     dependencies:
+      '@codemirror/autocomplete':
+        specifier: ^6.20.0
+        version: 6.20.0
       '@codemirror/lang-markdown':
         specifier: ^6.5.0
         version: 6.5.0
+      '@codemirror/language':
+        specifier: ^6.12.1
+        version: 6.12.1
+      '@codemirror/lint':
+        specifier: ^6.9.3
+        version: 6.9.3
+      '@codemirror/state':
+        specifier: ^6.5.4
+        version: 6.5.4
       '@codemirror/stream-parser':
         specifier: ^0.19.9
         version: 0.19.9
+      '@codemirror/view':
+        specifier: ^6.39.12
+        version: 6.39.12
       '@coderline/alphatab':
         specifier: ^1.8.1
         version: 1.8.1
       '@coderline/alphatab-language-server':
         specifier: ^1.8.1
         version: 1.8.1
+      '@lezer/highlight':
+        specifier: ^1.2.3
+        version: 1.2.3
       '@mdx-js/react':
         specifier: ^3.1.1
         version: 3.1.1(@types/react@19.2.10)(react@19.2.4)
@@ -171,6 +189,9 @@ importers:
       '@types/dompurify':
         specifier: ^3.2.0
         version: 3.2.0
+      '@types/mdx':
+        specifier: ^2.0.13
+        version: 2.0.13
       '@types/node':
         specifier: ^25.2.0
         version: 25.2.0

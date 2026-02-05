@@ -62,6 +62,37 @@ export interface PlaybackBeatInfo {
 	beatIndex: number;
 }
 
+/**
+ * 播放器组件类型定义
+ */
+export type PlayerComponentType =
+	| "staffControls" // TAB/Staff切换控件
+	| "zoomControls" // 缩放控件 (zoom out/input/zoom in)
+	| "playbackSpeedControls" // 播放速度和节拍器控件
+	| "playbackTransport"; // 播放控制 (play/pause/stop/refresh)
+
+/**
+ * 播放器组件配置项
+ */
+export interface PlayerComponentConfig {
+	/** 组件类型 */
+	type: PlayerComponentType;
+	/** 是否启用 */
+	enabled: boolean;
+	/** 显示名称 */
+	label: string;
+	/** 描述 */
+	description: string;
+}
+
+/**
+ * 自定义播放器配置
+ */
+export interface CustomPlayerConfig {
+	/** 组件顺序列表 */
+	components: PlayerComponentConfig[];
+}
+
 interface AppState {
 	// 文件列表
 	files: FileItem[];
@@ -113,8 +144,23 @@ interface AppState {
 	songInitialBpm: number | null;
 	setSongInitialBpm: (v: number | null) => void;
 
+	/** 节拍器音量 (0-1) */
 	metronomeVolume: number;
 	setMetronomeVolume: (v: number) => void;
+
+	/** 是否启用编辑器播放同步滚动 */
+	enableSyncScroll: boolean;
+	setEnableSyncScroll: (v: boolean) => void;
+
+	// 是否启用编辑器光标广播到Preview
+	enableCursorBroadcast: boolean;
+	setEnableCursorBroadcast: (v: boolean) => void;
+
+	// 🆕 自定义播放器配置
+	customPlayerConfig: CustomPlayerConfig;
+	setCustomPlayerConfig: (config: CustomPlayerConfig) => void;
+	updatePlayerComponentOrder: (components: PlayerComponentConfig[]) => void;
+	togglePlayerComponent: (type: PlayerComponentType) => void;
 
 	// 🆕 alphaTab API / score 生命周期标识
 	apiInstanceId: number;
@@ -216,6 +262,56 @@ export const useAppStore = create<AppState>((set, get) => ({
 
 	metronomeVolume: 0,
 	setMetronomeVolume: (v) => set({ metronomeVolume: v }),
+	// 是否启用编辑器播放同步滚动
+	enableSyncScroll: false,
+	setEnableSyncScroll: (v) => set({ enableSyncScroll: v }),
+	// 是否启用编辑器光标广播到Preview
+	enableCursorBroadcast: false,
+	setEnableCursorBroadcast: (v) => set({ enableCursorBroadcast: v }),
+
+	// 🆕 自定义播放器配置 - 默认按照当前底部栏顺序
+	customPlayerConfig: {
+		components: [
+			{
+				type: "staffControls",
+				enabled: true,
+				label: "Staff Controls",
+				description: "TAB/Staff display toggle",
+			},
+			{
+				type: "zoomControls",
+				enabled: true,
+				label: "Zoom Controls",
+				description: "Zoom in/out and percentage input",
+			},
+			{
+				type: "playbackSpeedControls",
+				enabled: true,
+				label: "Playback Speed",
+				description: "Speed selector and metronome toggle",
+			},
+			{
+				type: "playbackTransport",
+				enabled: true,
+				label: "Transport Controls",
+				description: "Play, pause, stop, and refresh buttons",
+			},
+		],
+	},
+	setCustomPlayerConfig: (config) => set({ customPlayerConfig: config }),
+	updatePlayerComponentOrder: (components) =>
+		set((state) => ({
+			customPlayerConfig: { ...state.customPlayerConfig, components },
+		})),
+	togglePlayerComponent: (type) =>
+		set((state) => ({
+			customPlayerConfig: {
+				...state.customPlayerConfig,
+				components: state.customPlayerConfig.components.map((comp) =>
+					comp.type === type ? { ...comp, enabled: !comp.enabled } : comp,
+				),
+			},
+		})),
 	apiInstanceId: 0,
 	scoreVersion: 0,
 	bumpApiInstanceId: () =>

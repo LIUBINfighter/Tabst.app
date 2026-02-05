@@ -12,7 +12,6 @@
 ![Downloads (Total)](https://img.shields.io/github/downloads/LIUBINfighter/Tabst.app/total)
 ![Downloads (Latest)](https://img.shields.io/github/downloads/LIUBINfighter/Tabst.app/latest/total)
 
-
 <div align="center">
 <img width="2560" height="1406" alt="image" src="https://github.com/user-attachments/assets/d58323a0-44bb-4468-87c7-281c898a5ab6" />
 </div>

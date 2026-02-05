@@ -1,32 +1,15 @@
-import { markdown } from "@codemirror/lang-markdown";
 import type { Extension } from "@codemirror/state";
-import { Compartment, EditorState } from "@codemirror/state";
+import { EditorState } from "@codemirror/state";
 import type { ViewUpdate } from "@codemirror/view";
 import { basicSetup, EditorView } from "codemirror";
 import { ChevronRight, Edit } from "lucide-react";
-import {
-	useCallback,
-	useEffect,
-	useLayoutEffect,
-	useRef,
-	useState,
-} from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { alphatexAbbreviations } from "../lib/alphatex-abbreviations";
-import { createAlphaTexBarlinesExtension } from "../lib/alphatex-barlines";
-import { createAlphaTexAutocomplete } from "../lib/alphatex-completion";
-import { getAlphaTexHighlight } from "../lib/alphatex-highlight";
-import type { AlphaTexLSPClient } from "../lib/alphatex-lsp";
-import { createAlphaTexLSPClient } from "../lib/alphatex-lsp";
-import {
-	createCursorTrackingExtension,
-	createPlaybackSyncExtension,
-	createSelectionSyncExtension,
-	updateEditorPlaybackHighlight,
-	updateEditorSelectionHighlight,
-} from "../lib/alphatex-selection-sync";
+import { useEditorLSP } from "../hooks/useEditorLSP";
+import { useEditorTheme } from "../hooks/useEditorTheme";
+import { updateEditorPlaybackHighlight } from "../lib/alphatex-playback-sync";
+import { updateEditorSelectionHighlight } from "../lib/alphatex-selection-sync";
 import { whitespaceDecoration } from "../lib/whitespace-decoration";
-import type { EditorCursorInfo } from "../store/appStore";
 import { useAppStore } from "../store/appStore";
 import Preview from "./Preview";
 import QuoteCard from "./QuoteCard";
@@ -50,7 +33,6 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 	const editorRef = useRef<HTMLDivElement | null>(null);
 	const viewRef = useRef<EditorView | null>(null);
 	const saveTimerRef = useRef<number | null>(null);
-	const lspClientRef = useRef<AlphaTexLSPClient | null>(null);
 	const lastContentRef = useRef<string>("");
 	const focusCleanupRef = useRef<(() => void) | null>(null);
 
@@ -65,178 +47,18 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 	const activeFile = files.find((f) => f.id === activeFileId);
 	const setWorkspaceMode = useAppStore((s) => s.setWorkspaceMode);
 
-	// 🆕 订阅乐谱选区状态
 	const _scoreSelection = useAppStore((s) => s.scoreSelection);
-
-	// 🆕 订阅播放位置状态
 	const _playbackBeat = useAppStore((s) => s.playbackBeat);
-
-	// 🆕 订阅播放器光标位置（暂停时也保留）
 	const _playerCursorPosition = useAppStore((s) => s.playerCursorPosition);
+	const enableSyncScroll = useAppStore((s) => s.enableSyncScroll);
 
-	// Observe <html> to detect dark mode toggles (class 'dark')
-	const [isDark, setIsDark] = useState<boolean>(() => {
-		if (typeof document === "undefined") return false;
-		return document.documentElement.classList.contains("dark");
-	});
-
-	// Helper function to determine file language
-	const getLanguageForFile = useCallback((filePath: string) => {
-		if (filePath.endsWith(".atex")) return "alphatex";
-		if (filePath.endsWith(".md")) return "markdown";
-		return "plaintext";
-	}, []);
-
-	// Observe dark mode changes
-	useEffect(() => {
-		if (typeof document === "undefined") return;
-		const root = document.documentElement;
-		const observer = new MutationObserver(() => {
-			setIsDark(root.classList.contains("dark"));
-		});
-		observer.observe(root, { attributes: true, attributeFilter: ["class"] });
-		return () => observer.disconnect();
-	}, []);
-
-	// Initialize Compartments (only once)
-	const themeCompartmentRef = useRef<Compartment>(new Compartment());
-	const languageCompartmentRef = useRef<Compartment>(new Compartment());
-
-	// Helper to create theme extension
-	const createThemeExtension = useCallback((dark: boolean) => {
-		const themeStyles = {
-			"&": {
-				height: "100%",
-				display: "flex",
-				flexDirection: "column",
-				fontSize: "14px",
-				backgroundColor: "hsl(var(--card))",
-				color: "hsl(var(--foreground))",
-			},
-			".cm-scroller": {
-				overflowX: "hidden",
-				overflowY: "auto",
-				height: "100%",
-				minHeight: 0,
-				fontFamily:
-					'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace',
-				scrollbarWidth: "thin",
-				scrollbarColor: "hsl(var(--border) / 0.7) transparent",
-			},
-			".cm-content": {
-				// 顶部 8px、左右 0；底部留白通过 CSS 变量控制（由容器高度 * 0.6 计算得到）
-				padding: "8px 0 var(--scroll-buffer, 150px) 0",
-			},
-			".cm-gutters": {
-				backgroundColor: "transparent",
-				border: "none",
-				color: "hsl(var(--muted-foreground))",
-			},
-			".cm-activeLineGutter": { backgroundColor: "transparent" },
-			".cm-activeLine": { backgroundColor: "hsl(var(--muted) / 0.06)" },
-			".cm-selectionBackground, .cm-selection": {
-				backgroundColor: "var(--selection-overlay)",
-				color: "inherit",
-				opacity: "1",
-				mixBlendMode: "normal",
-			},
-			".cm-selectionMatch": {
-				backgroundColor: "hsl(var(--primary) / 0.18)",
-				color: "inherit",
-			},
-			".cm-searchMatch": {
-				backgroundColor: "hsl(var(--muted) / 0.12)",
-				color: "inherit",
-			},
-			".cm-searchMatch.cm-searchMatch-selected": {
-				backgroundColor: "hsl(var(--primary) / 0.22)",
-				color: "inherit",
-			},
-			".cm-matchingBracket": {
-				backgroundColor: "hsl(var(--primary) / 0.14)",
-			},
-			".cm-nonmatchingBracket": {
-				backgroundColor: "hsl(var(--destructive) / 0.14)",
-			},
-			".cm-cursor": { borderLeftColor: "hsl(var(--primary))" },
-			".cm-tooltip": {
-				backgroundColor: "hsl(var(--popover))",
-				color: "hsl(var(--popover-foreground))",
-				border: "1px solid hsl(var(--border))",
-			},
-			".cm-gutterElement": { color: "hsl(var(--muted-foreground))" },
-			"&.cm-focused": { outline: "none" },
-		} as const;
-
-		return EditorView.theme(themeStyles, { dark });
-	}, []);
-
-	// Helper to load language extensions
-	const loadLanguageExtensions = useCallback(
-		async (language: string, filePath: string): Promise<Extension[]> => {
-			const extensions: Extension[] = [];
-
-			if (language === "alphatex") {
-				try {
-					// Load AlphaTex highlight
-					const alphaTexHighlight = await getAlphaTexHighlight();
-					if (alphaTexHighlight && alphaTexHighlight.length > 0) {
-						extensions.push(alphaTexHighlight);
-					}
-
-					// Initialize LSP client for AlphaTex
-					const lspClient = createAlphaTexLSPClient(filePath);
-					lspClientRef.current = lspClient;
-
-					// Initialize the language server in background
-					lspClient
-						.request("initialize", {
-							rootUri: "file:///",
-							capabilities: {},
-						})
-						.catch((e: unknown) => console.error("LSP init failed:", e));
-
-					// Add code completion extension (returns array of extensions)
-					const completionExts = createAlphaTexAutocomplete(lspClient);
-					extensions.push(...completionExts);
-
-					// Add barline decorations extension
-					const barlinesExt = createAlphaTexBarlinesExtension(lspClient);
-					extensions.push(barlinesExt);
-
-					// Add immediate abbreviation expansion
-					extensions.push(alphatexAbbreviations);
-
-					// 🆕 Add selection sync extension (乐谱选区 → 代码高亮)
-					const selectionSyncExt = createSelectionSyncExtension();
-					extensions.push(...selectionSyncExt);
-
-					// 🆕 Add playback sync extension (播放进度 → 代码高亮)
-					const playbackSyncExt = createPlaybackSyncExtension();
-					extensions.push(...playbackSyncExt);
-
-					// 🆕 Add cursor tracking extension (代码光标 → 乐谱定位)
-					const cursorTrackingExt = createCursorTrackingExtension(
-						(cursor: EditorCursorInfo | null) => {
-							useAppStore.getState().setEditorCursor(cursor);
-						},
-					);
-					extensions.push(cursorTrackingExt);
-
-					// Enable soft-wrapping
-					extensions.push(EditorView.lineWrapping);
-				} catch (e) {
-					console.error("Failed to load AlphaTex support:", e);
-				}
-			} else if (language === "markdown") {
-				extensions.push(markdown());
-				extensions.push(EditorView.lineWrapping);
-			}
-
-			return extensions;
-		},
-		[],
-	);
+	const { isDark, themeCompartment, createThemeExtension } = useEditorTheme();
+	const {
+		languageCompartment,
+		getLanguageForFile,
+		loadLanguageExtensions,
+		cleanupLSP,
+	} = useEditorLSP();
 
 	// Create update listener
 	const createUpdateListener = useCallback(() => {
@@ -297,10 +119,7 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 				focusCleanupRef.current = null;
 				useAppStore.getState().setEditorHasFocus(false);
 			}
-			if (lspClientRef.current) {
-				lspClientRef.current.close?.();
-				lspClientRef.current = null;
-			}
+			cleanupLSP();
 			currentFilePathRef.current = "";
 			return;
 		}
@@ -340,8 +159,8 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 						basicSetup,
 						updateListener,
 						whitespaceDecoration(),
-						themeCompartmentRef.current.of(themeExtension),
-						languageCompartmentRef.current.of(languageExtensions),
+						themeCompartment.of(themeExtension),
+						languageCompartment.of(languageExtensions),
 					];
 
 					const state = EditorState.create({
@@ -397,19 +216,13 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 
 				// Update language extensions if file type changed
 				if (needsLanguageChange) {
-					// Clean up old LSP client if exists
-					if (lspClientRef.current) {
-						lspClientRef.current.close?.();
-						lspClientRef.current = null;
-					}
+					cleanupLSP();
 
 					const languageExtensions = await loadLanguageExtensions(
 						language,
 						filePath,
 					);
-					effects.push(
-						languageCompartmentRef.current.reconfigure(languageExtensions),
-					);
+					effects.push(languageCompartment.reconfigure(languageExtensions));
 					currentFilePathRef.current = filePath;
 				}
 
@@ -436,6 +249,9 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 		loadLanguageExtensions,
 		createUpdateListener,
 		activeFile,
+		themeCompartment,
+		languageCompartment,
+		cleanupLSP,
 	]);
 
 	// ✅ 统一滚动缓冲：不使用 vh，按容器高度的 60% 计算底部留白（px）
@@ -459,13 +275,13 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 
 	// Update theme when dark mode changes
 	useEffect(() => {
-		if (!viewRef.current || !themeCompartmentRef.current) return;
+		if (!viewRef.current || !themeCompartment) return;
 
 		const themeExtension = createThemeExtension(isDark);
 		viewRef.current.dispatch({
-			effects: themeCompartmentRef.current.reconfigure(themeExtension),
+			effects: themeCompartment.reconfigure(themeExtension),
 		});
-	}, [isDark, createThemeExtension]);
+	}, [isDark, createThemeExtension, themeCompartment]);
 
 	// 🆕 监听乐谱选区变化，更新编辑器高亮
 	useEffect(() => {
@@ -499,8 +315,15 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 			_playbackBeat,
 			_playerCursorPosition,
 			isPlaying,
+			enableSyncScroll,
 		);
-	}, [_playbackBeat, _playerCursorPosition, activeFile, getLanguageForFile]);
+	}, [
+		_playbackBeat,
+		_playerCursorPosition,
+		activeFile,
+		getLanguageForFile,
+		enableSyncScroll,
+	]);
 
 	// Cleanup on unmount
 	useEffect(() => {
@@ -518,16 +341,13 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 				focusCleanupRef.current = null;
 				useAppStore.getState().setEditorHasFocus(false);
 			}
-			if (lspClientRef.current) {
-				lspClientRef.current.close?.();
-				lspClientRef.current = null;
-			}
+			cleanupLSP();
 			if (saveTimerRef.current) {
 				clearTimeout(saveTimerRef.current);
 				saveTimerRef.current = null;
 			}
 		};
-	}, []);
+	}, [cleanupLSP]);
 
 	// Cleanup editor when no active file - use useLayoutEffect to ensure cleanup before render
 	useLayoutEffect(() => {

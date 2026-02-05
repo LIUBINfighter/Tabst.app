@@ -31,5 +31,19 @@
 		"languageEn": "English",
 		"languageZh": "简体中文"
 	},
-	"playbackPlaceholder": "自定义播放器正在开发中"
+	"playbackPlaceholder": "自定义播放器正在开发中",
+	"playbackSection": {
+		"enableSyncScroll": "启用编辑器同步滚动",
+		"syncScrollHint": "播放时自动滚动编辑器跟随当前音符位置",
+		"enableCursorBroadcast": "启用光标广播到Preview",
+		"cursorBroadcastHint": "编辑器光标所在小节位置同步显示在Preview中",
+		"customPlayer": "自定义播放器控件",
+		"customPlayerHint": "配置要显示的播放器控件及其顺序"
+	},
+	"playerConfigurator": {
+		"hide": "隐藏",
+		"show": "显示",
+		"hint": "拖拽重新排序 • 切换复选框显示/隐藏控件",
+		"reset": "恢复默认"
+	}
 }
