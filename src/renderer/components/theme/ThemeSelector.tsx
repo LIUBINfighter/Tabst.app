@@ -150,7 +150,6 @@ export function ThemeSelector() {
 					</SelectContent>
 				</Select>
 			</div>
-
 		</div>
 	);
 }

@@ -648,6 +648,11 @@ const solarized: UITheme = {
 			barNumber: "#586e75",
 			scoreInfo: "#073642",
 		},
+		playerCursor: {
+			background: "rgba(203, 75, 22, 0.4)",
+			border: "rgb(203, 75, 22)",
+			barHighlight: "rgba(203, 75, 22, 0.15)",
+		},
 	},
 	dark: {
 		semantic: {
@@ -689,6 +694,11 @@ const solarized: UITheme = {
 			barSeparator: "#586e75",
 			barNumber: "#2aa198",
 			scoreInfo: "#fdf6e3",
+		},
+		playerCursor: {
+			background: "rgba(42, 161, 152, 0.4)",
+			border: "rgb(42, 161, 152)",
+			barHighlight: "rgba(42, 161, 152, 0.15)",
 		},
 	},
 };

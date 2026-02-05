@@ -1079,8 +1079,8 @@ export default function Preview({
 									ref={cursorRef}
 									className="pointer-events-none absolute z-20 rounded-sm hidden"
 									style={{
-										backgroundColor: 'var(--player-cursor-bg)',
-										border: '2px solid var(--player-cursor-border)',
+										backgroundColor: "var(--player-cursor-bg)",
+										border: "2px solid var(--player-cursor-border)",
 									}}
 								/>
 							</div>

@@ -47,33 +47,50 @@ export function EditorPreview() {
 
 		const baseTheme = EditorView.theme({
 			"&": {
-				backgroundColor: isDark ? "#1e1e1e" : "#ffffff",
-				color: isDark ? "#d4d4d4" : "#24292e",
-				fontSize: "13px",
+				backgroundColor: "hsl(var(--card))",
+				color: "hsl(var(--foreground))",
+				fontSize: "14px",
 				fontFamily:
-					"var(--font-mono, ui-monospace, SFMono-Regular, SFMono, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace)",
+					'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace',
 				borderRadius: "6px",
-				overflow: "hidden",
+				height: "100%",
+				display: "flex",
+				flexDirection: "column",
+			},
+			".cm-scroller": {
+				overflowX: "hidden",
+				overflowY: "auto",
+				height: "100%",
+				minHeight: "0",
+				fontFamily:
+					'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace',
+				scrollbarWidth: "thin",
 			},
 			".cm-content": {
-				padding: "12px 8px",
+				padding: "8px 0",
 			},
 			".cm-line": {
-				padding: "0 4px",
+				padding: "0 8px",
 			},
 			".cm-gutters": {
-				backgroundColor: isDark ? "#1e1e1e" : "#f6f8fa",
-				borderRight: `1px solid ${isDark ? "#333" : "#e1e4e8"}`,
-				color: isDark ? "#6e7681" : "#6a737d",
+				backgroundColor: "hsl(var(--card))",
+				border: "none",
+				color: "hsl(var(--muted-foreground))",
 			},
 			".cm-activeLineGutter": {
 				backgroundColor: "transparent",
 			},
+			".cm-activeLine": {
+				backgroundColor: "hsl(var(--muted) / 0.06)",
+			},
 			".cm-cursor": {
-				borderLeftColor: isDark ? "#d4d4d4" : "#24292e",
+				borderLeftColor: "hsl(var(--primary))",
 			},
 			".cm-selectionBackground": {
-				backgroundColor: isDark ? "#264f78" : "#b4d7ff",
+				backgroundColor: "var(--selection-overlay)",
+				color: "inherit",
+				opacity: "1",
+				mixBlendMode: "normal",
 			},
 		});
 
