@@ -346,6 +346,6 @@
 .code-block-no-text-bg span,
 .code-block-no-text-bg span[style*="background"],
 .code-block-no-text-bg span[style*="background-color"] {
-	background: transparent !important;
-	background-color: transparent !important;
+	background: transparent;
+	background-color: transparent;
 }

@@ -62,9 +62,9 @@ export function ThemeSelector() {
 		<div className="space-y-6">
 			{/* Theme Mode Selection */}
 			<div className="space-y-3">
-				<label className="text-sm font-medium">
+				<h4 className="text-sm font-medium">
 					{t("settings:appearance.themeMode")}
-				</label>
+				</h4>
 				<div className="flex gap-2">
 					{modeOptions.map((option) => (
 						<button
@@ -86,11 +86,11 @@ export function ThemeSelector() {
 
 			{/* UI Theme Selection */}
 			<div className="space-y-3">
-				<label className="text-sm font-medium">
+				<label htmlFor="ui-theme-select" className="text-sm font-medium">
 					{t("settings:appearance.uiTheme")}
 				</label>
 				<Select value={uiTheme.id} onValueChange={handleUIThemeChange}>
-					<SelectTrigger className="w-[200px]">
+					<SelectTrigger id="ui-theme-select" className="w-[200px]">
 						<SelectValue />
 					</SelectTrigger>
 					<SelectContent className="w-[200px]">
@@ -126,11 +126,11 @@ export function ThemeSelector() {
 
 			{/* Editor Theme Selection */}
 			<div className="space-y-3">
-				<label className="text-sm font-medium">
+				<label htmlFor="editor-theme-select" className="text-sm font-medium">
 					{t("settings:appearance.editorTheme")}
 				</label>
 				<Select value={editorTheme.id} onValueChange={handleEditorThemeChange}>
-					<SelectTrigger className="w-[200px]">
+					<SelectTrigger id="editor-theme-select" className="w-[200px]">
 						<SelectValue />
 					</SelectTrigger>
 					<SelectContent className="w-[200px]">

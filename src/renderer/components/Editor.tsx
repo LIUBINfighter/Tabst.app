@@ -52,7 +52,7 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 	const _playerCursorPosition = useAppStore((s) => s.playerCursorPosition);
 	const enableSyncScroll = useAppStore((s) => s.enableSyncScroll);
 
-	const { isDark, themeCompartment, themeExtension } = useEditorTheme();
+	const { themeCompartment, themeExtension } = useEditorTheme();
 	const {
 		languageCompartment,
 		getLanguageForFile,
@@ -242,7 +242,6 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 		activeFileId,
 		activeFile?.content,
 		activeFile?.path,
-		isDark,
 		getLanguageForFile,
 		themeExtension,
 		loadLanguageExtensions,
@@ -279,7 +278,7 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 		viewRef.current.dispatch({
 			effects: themeCompartment.reconfigure(themeExtension),
 		});
-	}, [isDark, themeExtension, themeCompartment]);
+	}, [themeExtension, themeCompartment]);
 
 	// 🆕 监听乐谱选区变化，更新编辑器高亮
 	useEffect(() => {

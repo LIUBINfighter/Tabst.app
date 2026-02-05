@@ -29,11 +29,24 @@ export function useTheme(): UseThemeReturn {
 	const isDark = effectiveVariant === "dark";
 
 	const uiTheme = useMemo(() => {
-		return getUITheme(currentUITheme) ?? getUITheme("github")!;
+		const theme = getUITheme(currentUITheme) ?? getUITheme("github");
+		if (!theme) {
+			throw new Error(
+				`UI theme "${currentUITheme}" not found and fallback "github" also not found`,
+			);
+		}
+		return theme;
 	}, [currentUITheme]);
 
 	const editorTheme = useMemo(() => {
-		return getEditorTheme(currentEditorTheme) ?? getEditorTheme("github")!;
+		const theme =
+			getEditorTheme(currentEditorTheme) ?? getEditorTheme("github");
+		if (!theme) {
+			throw new Error(
+				`Editor theme "${currentEditorTheme}" not found and fallback "github" also not found`,
+			);
+		}
+		return theme;
 	}, [currentEditorTheme]);
 
 	const effectiveColors = useMemo(() => {

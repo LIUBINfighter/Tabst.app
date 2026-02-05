@@ -31,7 +31,7 @@ const SAMPLE_ALPHATEX_CODE = `// Welcome to Tabst - Guitar Tab Editor
 `;
 
 export function EditorPreview() {
-	const { editorTheme, isDark } = useTheme();
+	const { editorTheme } = useTheme();
 	const editorRef = useRef<HTMLDivElement>(null);
 	const viewRef = useRef<EditorView | null>(null);
 
@@ -119,7 +119,7 @@ export function EditorPreview() {
 				viewRef.current = null;
 			}
 		};
-	}, [editorTheme, isDark]);
+	}, [editorTheme]);
 
 	return (
 		<div className="mt-4">
