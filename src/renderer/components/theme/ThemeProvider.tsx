@@ -6,20 +6,19 @@ interface ThemeProviderProps {
 }
 
 export function ThemeProvider({ children }: ThemeProviderProps) {
-	const { uiTheme } = useTheme();
+	const { isDark } = useTheme();
 
 	useEffect(() => {
 		if (typeof document === "undefined") return;
 
 		const root = document.documentElement;
-		const isDark = uiTheme.variant === "dark";
 
 		if (isDark) {
 			root.classList.add("dark");
 		} else {
 			root.classList.remove("dark");
 		}
-	}, [uiTheme]);
+	}, [isDark]);
 
 	return <>{children}</>;
 }

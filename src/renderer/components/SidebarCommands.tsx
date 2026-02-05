@@ -4,11 +4,13 @@ import {
 	FileMusic,
 	FileQuestion,
 	FolderOpen,
+	Monitor,
 	Moon,
 	Settings,
 	Sun,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import type { ThemeMode } from "../lib/theme-system/types";
 import { useAppStore } from "../store/appStore";
 import { Button } from "./ui/button";
 import IconButton from "./ui/icon-button";
@@ -19,6 +21,7 @@ export interface SidebarCommandsProps {
 	onOpenFile: () => void;
 	onNewFile: (ext: string) => void;
 	onToggleTheme: () => void;
+	themeMode: ThemeMode;
 }
 
 export function SidebarCommands({
@@ -26,9 +29,22 @@ export function SidebarCommands({
 	onOpenFile,
 	onNewFile,
 	onToggleTheme,
+	themeMode,
 }: SidebarCommandsProps) {
 	const { t } = useTranslation("sidebar");
 	const workspaceMode = useAppStore((s) => s.workspaceMode);
+
+	const themeIcon = {
+		light: <Sun className="h-4 w-4" />,
+		dark: <Moon className="h-4 w-4" />,
+		system: <Monitor className="h-4 w-4" />,
+	};
+
+	const themeTooltip = {
+		light: t("themeLight"),
+		dark: t("themeDark"),
+		system: t("themeSystem"),
+	};
 	const setWorkspaceMode = useAppStore((s) => s.setWorkspaceMode);
 	const _setActiveTutorialId = useAppStore((s) => s.setActiveTutorialId);
 
@@ -133,13 +149,12 @@ export function SidebarCommands({
 							className="h-8 w-8 hover:bg-[var(--hover-bg)] hover:text-[var(--hover-text)]"
 							onClick={onToggleTheme}
 						>
-							<span className="sr-only">{t("toggleTheme")}</span>
-							<Sun className="h-4 w-4 block dark:hidden" />
-							<Moon className="h-4 w-4 hidden dark:block" />
+							<span className="sr-only">{themeTooltip[themeMode]}</span>
+							{themeIcon[themeMode]}
 						</Button>
 					</TooltipTrigger>
 					<TooltipContent side="bottom">
-						<p>{t("toggleTheme")}</p>
+						<p>{themeTooltip[themeMode]}</p>
 					</TooltipContent>
 				</Tooltip>
 			</div>

@@ -1,21 +1,23 @@
 import { Children, isValidElement } from "react";
 import type { Components } from "react-markdown";
 import ReactMarkdown from "react-markdown";
+import rehypeRaw from "rehype-raw";
 import remarkGfm from "remark-gfm";
 import { CodeBlock } from "./CodeBlock";
 import { TutorialImage } from "./TutorialImage";
 
 interface TutorialRendererProps {
 	content: string;
+	allowHtml?: boolean;
 }
 
-export function TutorialRenderer({ content }: TutorialRendererProps) {
-	// 自定义组件映射
+export function TutorialRenderer({
+	content,
+	allowHtml = true,
+}: TutorialRendererProps) {
 	const components = {
-		// pre 标签：直接传递子元素，不添加容器
 		pre: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
 
-		// 代码块
 		code({
 			node,
 			inline,
@@ -29,8 +31,6 @@ export function TutorialRenderer({ content }: TutorialRendererProps) {
 			children?: React.ReactNode;
 			[key: string]: unknown;
 		}) {
-			// 使用 ReactMarkdown 提供的 `inline` 来判断是否为内联代码
-			// 使用 ReactMarkdown 提供的 `inline` 来判断是否为内联代码
 			if (inline) {
 				return (
 					<code
@@ -42,7 +42,6 @@ export function TutorialRenderer({ content }: TutorialRendererProps) {
 				);
 			}
 
-			// 块级代码（有时没有 language 类），尽量从 className 提取语言以便高亮
 			const detectedLanguage = className?.replace(/language-/, "") || undefined;
 
 			return (
@@ -52,14 +51,27 @@ export function TutorialRenderer({ content }: TutorialRendererProps) {
 			);
 		},
 
-		// 图片
 		img({ src, alt, title }: { src?: string; alt?: string; title?: string }) {
 			return <TutorialImage src={src || ""} alt={alt} title={title} />;
 		},
 
-		// 标题样式
-		h1: ({ children }: { children?: React.ReactNode }) => (
-			<h1 className="text-2xl font-bold mt-6 mb-4 first:mt-0">{children}</h1>
+		h1: ({
+			children,
+			align,
+		}: {
+			children?: React.ReactNode;
+			align?: string;
+		}) => (
+			<h1
+				className="text-2xl font-bold mt-6 mb-4 first:mt-0"
+				style={
+					align
+						? { textAlign: align as React.CSSProperties["textAlign"] }
+						: undefined
+				}
+			>
+				{children}
+			</h1>
 		),
 		h2: ({ children }: { children?: React.ReactNode }) => (
 			<h2 className="text-xl font-semibold mt-5 mb-3">{children}</h2>
@@ -71,15 +83,30 @@ export function TutorialRenderer({ content }: TutorialRendererProps) {
 			<h4 className="text-base font-medium mt-3 mb-2">{children}</h4>
 		),
 
-		// 段落
+		div: ({
+			children,
+			align,
+		}: {
+			children?: React.ReactNode;
+			align?: string;
+		}) => {
+			const alignClass =
+				align === "center"
+					? "text-center"
+					: align === "right"
+						? "text-right"
+						: align === "left"
+							? "text-left"
+							: align === "justify"
+								? "text-justify"
+								: "";
+			return <div className={alignClass}>{children}</div>;
+		},
+
 		p: ({ children }: { children?: React.ReactNode }) => {
-			// 检查子元素中是否包含图片（TutorialImage 会渲染为 <figure>）
-			// 如果包含图片，不能将 <figure> 包裹在 <p> 中（HTML 规范不允许）
 			const childrenArray = Children.toArray(children);
 			const hasImage = childrenArray.some((child) => {
 				if (isValidElement(child)) {
-					// 检查是否是 TutorialImage 组件
-					// TutorialImage 组件会接收 src, alt, title 属性
 					const props = child.props as
 						| { src?: string; alt?: string; title?: string }
 						| undefined;
@@ -91,7 +118,6 @@ export function TutorialRenderer({ content }: TutorialRendererProps) {
 				return false;
 			});
 
-			// 如果包含图片，使用 div 而不是 p（因为 <figure> 不能是 <p> 的子元素）
 			if (hasImage) {
 				return (
 					<div className="text-sm text-foreground mb-4 leading-relaxed break-words">
@@ -107,7 +133,6 @@ export function TutorialRenderer({ content }: TutorialRendererProps) {
 			);
 		},
 
-		// 列表
 		ul: ({ children }: { children?: React.ReactNode }) => (
 			<ul className="list-disc list-inside mb-4 space-y-2 text-sm">
 				{children}
@@ -122,14 +147,12 @@ export function TutorialRenderer({ content }: TutorialRendererProps) {
 			<li className="ml-2">{children}</li>
 		),
 
-		// 引用
 		blockquote: ({ children }: { children?: React.ReactNode }) => (
 			<blockquote className="border-l-4 border-border pl-4 py-2 my-4 bg-muted/50 italic text-sm">
 				{children}
 			</blockquote>
 		),
 
-		// 链接
 		a: ({ href, children }: { href?: string; children?: React.ReactNode }) => (
 			<a
 				href={href}
@@ -149,10 +172,8 @@ export function TutorialRenderer({ content }: TutorialRendererProps) {
 			</a>
 		),
 
-		// 水平线
 		hr: () => <hr className="my-6 border-border" />,
 
-		// 表格
 		table: ({ children }: { children?: React.ReactNode }) => (
 			<div className="overflow-x-auto my-4">
 				<table className="min-w-full border-collapse border border-border text-sm">
@@ -181,7 +202,11 @@ export function TutorialRenderer({ content }: TutorialRendererProps) {
 
 	return (
 		<div className="prose prose-sm max-w-none dark:prose-invert">
-			<ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
+			<ReactMarkdown
+				remarkPlugins={[remarkGfm]}
+				rehypePlugins={allowHtml ? [rehypeRaw] : []}
+				components={components}
+			>
 				{content}
 			</ReactMarkdown>
 		</div>

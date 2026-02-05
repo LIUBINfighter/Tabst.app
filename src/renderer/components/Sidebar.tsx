@@ -17,7 +17,7 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 	const { t } = useTranslation("sidebar");
 	const files = useAppStore((s) => s.files);
 	const workspaceMode = useAppStore((s) => s.workspaceMode);
-	const { switchToVariant, uiTheme } = useTheme();
+	const { themeMode, setThemeMode } = useTheme();
 
 	const {
 		handleOpenFile,
@@ -33,9 +33,10 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 	} = useFileOperations();
 
 	const handleToggleTheme = () => {
-		// 使用智能变体切换：如果当前主题有对应变体，切换到变体；否则使用原来的强制明暗模式
-		const targetVariant = uiTheme.variant === "light" ? "dark" : "light";
-		switchToVariant(targetVariant);
+		const modes = ["light", "dark", "system"] as const;
+		const currentIndex = modes.indexOf(themeMode);
+		const nextMode = modes[(currentIndex + 1) % modes.length];
+		setThemeMode(nextMode);
 	};
 
 	return (
@@ -46,9 +47,9 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 					onOpenFile={handleOpenFile}
 					onNewFile={handleNewFile}
 					onToggleTheme={handleToggleTheme}
+					themeMode={themeMode}
 				/>
 
-				{/* 文件列表 */}
 				<ScrollArea className="flex-1 w-full overflow-hidden min-h-0">
 					<div className="py-1 w-full overflow-hidden">
 						{workspaceMode === "tutorial" ? (
@@ -78,7 +79,6 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 					</div>
 				</ScrollArea>
 
-				{/* 底部栏：教程、设置 */}
 				<SidebarBottomBar />
 			</div>
 		</TooltipProvider>

@@ -9,6 +9,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "../ui/select";
+import { EditorPreview } from "./EditorPreview";
 
 export function AppearancePage() {
 	const { t } = useTranslation("settings");
@@ -23,6 +24,7 @@ export function AppearancePage() {
 						{t("appearanceSection.theme")}
 					</h3>
 					<ThemeSelector />
+					<EditorPreview />
 				</div>
 			</section>
 

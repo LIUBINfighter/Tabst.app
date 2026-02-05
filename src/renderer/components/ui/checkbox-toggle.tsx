@@ -21,7 +21,10 @@ export function CheckboxToggle({
 				"flex items-center justify-center h-5 w-5 rounded border border-primary/50 cursor-pointer transition-colors hover:border-primary",
 				className,
 			)}
-			onClick={() => onCheckedChange(!checked)}
+			onClick={(e) => {
+				e.stopPropagation();
+				onCheckedChange(!checked);
+			}}
 			role="checkbox"
 			aria-checked={checked}
 			aria-label={ariaLabel}

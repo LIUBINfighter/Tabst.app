@@ -34,11 +34,11 @@ export function SettingsSidebar() {
 						setActiveSettingsPageId(p.id);
 						setWorkspaceMode("settings");
 					}}
-				className={`w-full group flex items-center gap-2 px-3 py-1.5 cursor-pointer text-xs transition-colors text-left ${
-					activeSettingsPageId === p.id
-						? "bg-[var(--highlight-bg)] text-[var(--highlight-text)]"
-						: "hover:bg-[var(--hover-bg)] hover:text-[var(--hover-text)] text-muted-foreground"
-				}`}
+					className={`w-full group flex items-center gap-2 px-3 py-1.5 cursor-pointer text-xs transition-colors text-left ${
+						activeSettingsPageId === p.id
+							? "bg-[var(--highlight-bg)] text-[var(--highlight-text)]"
+							: "hover:bg-[var(--hover-bg)] hover:text-[var(--hover-text)] text-muted-foreground"
+					}`}
 				>
 					{(() => {
 						switch (p.id) {

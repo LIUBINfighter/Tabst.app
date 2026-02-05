@@ -4,16 +4,20 @@ import {
 	getDefaultEditorThemeForUI,
 	getUITheme,
 } from "../lib/theme-system/theme-registry";
-import type { CombinedTheme, ThemeState } from "../lib/theme-system/types";
+import type {
+	CombinedTheme,
+	ThemeMode,
+	ThemeState,
+} from "../lib/theme-system/types";
 
 const THEME_STORAGE_KEY = "tabst-theme-preference";
 
 interface ThemeStore extends ThemeState {
 	setUITheme: (themeId: string) => void;
 	setEditorTheme: (themeId: string) => void;
-	setFollowSystem: (follow: boolean) => void;
+	setThemeMode: (mode: ThemeMode) => void;
 	setCombinedTheme: (combined: CombinedTheme) => void;
-	getEffectiveTheme: () => { ui: string; editor: string };
+	getEffectiveVariant: () => "light" | "dark";
 }
 
 function getSystemTheme(): "light" | "dark" {
@@ -23,16 +27,12 @@ function getSystemTheme(): "light" | "dark" {
 		: "light";
 }
 
-function getDefaultThemeForVariant(variant: "light" | "dark"): string {
-	return variant === "dark" ? "github-dark" : "github-light";
-}
-
 export const useThemeStore = create<ThemeStore>()(
 	persist(
 		(set, get) => ({
-			currentUITheme: "github-light",
+			currentUITheme: "github",
 			currentEditorTheme: "github",
-			followSystem: true,
+			themeMode: "system",
 			savedPreference: undefined,
 
 			setUITheme: (themeId) => {
@@ -60,8 +60,8 @@ export const useThemeStore = create<ThemeStore>()(
 				}));
 			},
 
-			setFollowSystem: (follow) => {
-				set({ followSystem: follow });
+			setThemeMode: (mode) => {
+				set({ themeMode: mode });
 			},
 
 			setCombinedTheme: (combined) => {
@@ -72,40 +72,19 @@ export const useThemeStore = create<ThemeStore>()(
 				});
 			},
 
-			getEffectiveTheme: () => {
+			getEffectiveVariant: () => {
 				const state = get();
-				if (!state.followSystem) {
-					return {
-						ui: state.currentUITheme,
-						editor: state.currentEditorTheme,
-					};
+				if (state.themeMode === "system") {
+					return getSystemTheme();
 				}
-
-				const systemVariant = getSystemTheme();
-				const saved = state.savedPreference;
-
-				if (saved) {
-					const savedUI = getUITheme(saved.uiThemeId);
-					if (savedUI && savedUI.variant === systemVariant) {
-						return {
-							ui: saved.uiThemeId,
-							editor: saved.editorThemeId,
-						};
-					}
-				}
-
-				const defaultTheme = getDefaultThemeForVariant(systemVariant);
-				return {
-					ui: defaultTheme,
-					editor: getDefaultEditorThemeForUI(defaultTheme),
-				};
+				return state.themeMode;
 			},
 		}),
 		{
 			name: THEME_STORAGE_KEY,
 			partialize: (state) => ({
 				savedPreference: state.savedPreference,
-				followSystem: state.followSystem,
+				themeMode: state.themeMode,
 			}),
 		},
 	),

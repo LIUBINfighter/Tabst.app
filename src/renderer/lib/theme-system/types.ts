@@ -42,36 +42,35 @@ export interface UISemanticColors {
 	ring: string;
 }
 
+export interface UIThemeColors {
+	semantic: UISemanticColors;
+	selectionOverlay: string;
+	scrollbar: string;
+	focusRing: string;
+	highlight?: {
+		background: string;
+		foreground: string;
+	};
+	hover?: {
+		background: string;
+		foreground: string;
+	};
+	score?: {
+		mainGlyph: string;
+		secondaryGlyph: string;
+		staffLine: string;
+		barSeparator: string;
+		barNumber: string;
+		scoreInfo: string;
+	};
+}
+
 export interface UITheme {
 	id: string;
 	name: string;
 	description?: string;
-	variant: "light" | "dark";
-	colors: UISemanticColors;
-	// 扩展颜色（用于更精细的控制）
-	extended?: {
-		selectionOverlay: string;
-		scrollbar: string;
-		focusRing: string;
-		// 高亮色（用于选中项、悬停状态等）
-		highlight?: {
-			background: string;
-			foreground: string;
-		};
-		hover?: {
-			background: string;
-			foreground: string;
-		};
-		// 谱面相关
-		score?: {
-			mainGlyph: string;
-			secondaryGlyph: string;
-			staffLine: string;
-			barSeparator: string;
-			barNumber: string;
-			scoreInfo: string;
-		};
-	};
+	light: UIThemeColors;
+	dark: UIThemeColors;
 }
 
 // ===== 编辑器高亮主题 =====
@@ -134,23 +133,21 @@ export interface ThemeState {
 	// 当前激活的主题
 	currentUITheme: string;
 	currentEditorTheme: string;
-	// 是否跟随系统
-	followSystem: boolean;
+	// 主题模式: light, dark, system
+	themeMode: ThemeMode;
 	// 用户保存的偏好
 	savedPreference?: CombinedTheme;
 }
 
 // ===== 辅助类型 =====
 
-export type ThemeVariant = "light" | "dark";
+export type ThemeMode = "light" | "dark" | "system";
 
 export interface ThemePreview {
 	id: string;
 	name: string;
-	variant: ThemeVariant;
 	previewColors: {
-		background: string;
-		primary: string;
-		accent: string;
+		light: { background: string; primary: string };
+		dark: { background: string; primary: string };
 	};
 }

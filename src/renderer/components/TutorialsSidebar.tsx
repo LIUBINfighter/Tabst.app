@@ -27,11 +27,11 @@ export function TutorialsSidebar() {
 						setActiveTutorialId(t.id);
 						setWorkspaceMode("tutorial");
 					}}
-				className={`w-full group flex items-center gap-2 px-3 py-1.5 cursor-pointer text-xs transition-colors text-left ${
-					activeTutorialId === t.id
-						? "bg-[var(--highlight-bg)] text-[var(--highlight-text)]"
-						: "hover:bg-[var(--hover-bg)] hover:text-[var(--hover-text)] text-muted-foreground"
-				}`}
+					className={`w-full group flex items-center gap-2 px-3 py-1.5 cursor-pointer text-xs transition-colors text-left ${
+						activeTutorialId === t.id
+							? "bg-[var(--highlight-bg)] text-[var(--highlight-text)]"
+							: "hover:bg-[var(--hover-bg)] hover:text-[var(--hover-text)] text-muted-foreground"
+					}`}
 				>
 					<FileText
 						className={`flex-none h-3.5 w-3.5 ${
