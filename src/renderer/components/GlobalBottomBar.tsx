@@ -1,6 +1,7 @@
 import {
 	ChevronLeft,
 	ChevronRight,
+	ListMusic,
 	Minus,
 	Music2,
 	Pause,
@@ -144,6 +145,8 @@ function EditorBottomBar({
 	metronomeVolume,
 	setMetronomeVolume,
 	playerIsPlaying,
+	isTracksPanelOpen,
+	toggleTracksPanel,
 	t,
 }: {
 	firstStaffOptions: ReturnType<
@@ -161,6 +164,8 @@ function EditorBottomBar({
 	metronomeVolume: number;
 	setMetronomeVolume: (v: number) => void;
 	playerIsPlaying: boolean;
+	isTracksPanelOpen: boolean;
+	toggleTracksPanel: () => void;
 	t: (key: string) => string;
 }) {
 	// 获取自定义播放器配置
@@ -366,6 +371,24 @@ function EditorBottomBar({
 				toggleFirstStaffOpt={requestStaffToggle}
 			/>
 		),
+		tracksControls: (
+			<div className="flex items-center">
+				<Tooltip>
+					<TooltipTrigger asChild>
+						<IconButton
+							active={isTracksPanelOpen}
+							onClick={toggleTracksPanel}
+							aria-label={t("toolbar:tracks")}
+						>
+							<ListMusic className="h-4 w-4" />
+						</IconButton>
+					</TooltipTrigger>
+					<TooltipContent side="top">
+						<p>{t("toolbar:tracks")}</p>
+					</TooltipContent>
+				</Tooltip>
+			</div>
+		),
 		zoomControls,
 		playbackSpeedControls,
 		playbackTransport: transportControls,
@@ -416,6 +439,9 @@ export default function GlobalBottomBar() {
 	const metronomeVolume = useAppStore((s) => s.metronomeVolume);
 	const setMetronomeVolume = useAppStore((s) => s.setMetronomeVolume);
 
+	const isTracksPanelOpen = useAppStore((s) => s.isTracksPanelOpen);
+	const toggleTracksPanel = useAppStore((s) => s.toggleTracksPanel);
+
 	const workspaceMode = useAppStore((s) => s.workspaceMode);
 	const activeTutorialId = useAppStore((s) => s.activeTutorialId);
 	const setActiveTutorialId = useAppStore((s) => s.setActiveTutorialId);
@@ -452,6 +478,8 @@ export default function GlobalBottomBar() {
 				metronomeVolume={metronomeVolume}
 				setMetronomeVolume={setMetronomeVolume}
 				playerIsPlaying={playerIsPlaying}
+				isTracksPanelOpen={isTracksPanelOpen}
+				toggleTracksPanel={toggleTracksPanel}
 				t={t}
 			/>
 		) : isSettingsMode ? (
@@ -469,6 +497,8 @@ export default function GlobalBottomBar() {
 				metronomeVolume={metronomeVolume}
 				setMetronomeVolume={setMetronomeVolume}
 				playerIsPlaying={playerIsPlaying}
+				isTracksPanelOpen={isTracksPanelOpen}
+				toggleTracksPanel={toggleTracksPanel}
 				t={t}
 			/>
 		) : null;

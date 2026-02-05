@@ -31,5 +31,6 @@
 		"midi": "Export MIDI",
 		"wav": "Export WAV",
 		"gp": "Export GP"
-	}
+	},
+	"tracks": "Track selection"
 }

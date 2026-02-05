@@ -67,6 +67,7 @@ export interface PlaybackBeatInfo {
  */
 export type PlayerComponentType =
 	| "staffControls" // TAB/Staff切换控件
+	| "tracksControls" // 轨道选择控件
 	| "zoomControls" // 缩放控件 (zoom out/input/zoom in)
 	| "playbackSpeedControls" // 播放速度和节拍器控件
 	| "playbackTransport"; // 播放控制 (play/pause/stop/refresh)
@@ -277,6 +278,12 @@ export const useAppStore = create<AppState>((set, get) => ({
 				enabled: true,
 				label: "Staff Controls",
 				description: "TAB/Staff display toggle",
+			},
+			{
+				type: "tracksControls",
+				enabled: false,
+				label: "Track Controls",
+				description: "Track selection panel toggle",
 			},
 			{
 				type: "zoomControls",
