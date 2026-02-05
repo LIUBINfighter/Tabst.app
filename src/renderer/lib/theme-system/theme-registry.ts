@@ -53,6 +53,11 @@ const github: UITheme = {
 			barNumber: "#475569",
 			scoreInfo: "#1e293b",
 		},
+		playerCursor: {
+			background: "rgba(59, 130, 246, 0.4)",
+			border: "rgb(37, 99, 235)",
+			barHighlight: "rgba(59, 130, 246, 0.15)",
+		},
 	},
 	dark: {
 		semantic: {
@@ -143,6 +148,11 @@ const vscode: UITheme = {
 			barNumber: "#616161",
 			scoreInfo: "#333333",
 		},
+		playerCursor: {
+			background: "rgba(0, 122, 204, 0.4)",
+			border: "rgb(0, 122, 204)",
+			barHighlight: "rgba(0, 122, 204, 0.15)",
+		},
 	},
 	dark: {
 		semantic: {
@@ -184,6 +194,11 @@ const vscode: UITheme = {
 			barSeparator: "#4a4a4a",
 			barNumber: "#858585",
 			scoreInfo: "#cccccc",
+		},
+		playerCursor: {
+			background: "rgba(0, 122, 204, 0.4)",
+			border: "rgb(0, 127, 212)",
+			barHighlight: "rgba(0, 122, 204, 0.15)",
 		},
 	},
 };
@@ -233,6 +248,11 @@ const obsidian: UITheme = {
 			barNumber: "#7c3aed",
 			scoreInfo: "#4c1d95",
 		},
+		playerCursor: {
+			background: "rgba(139, 92, 246, 0.4)",
+			border: "rgb(124, 58, 237)",
+			barHighlight: "rgba(139, 92, 246, 0.15)",
+		},
 	},
 	dark: {
 		semantic: {
@@ -274,6 +294,11 @@ const obsidian: UITheme = {
 			barSeparator: "#4a4458",
 			barNumber: "#9ca3af",
 			scoreInfo: "#d1d5db",
+		},
+		playerCursor: {
+			background: "rgba(167, 139, 250, 0.4)",
+			border: "rgb(167, 139, 250)",
+			barHighlight: "rgba(167, 139, 250, 0.15)",
 		},
 	},
 };
@@ -323,6 +348,11 @@ const dracula: UITheme = {
 			barNumber: "#ff79c6",
 			scoreInfo: "#44475a",
 		},
+		playerCursor: {
+			background: "rgba(255, 121, 198, 0.4)",
+			border: "rgb(219, 39, 119)",
+			barHighlight: "rgba(255, 121, 198, 0.15)",
+		},
 	},
 	dark: {
 		semantic: {
@@ -364,6 +394,11 @@ const dracula: UITheme = {
 			barSeparator: "#6272a4",
 			barNumber: "#bd93f9",
 			scoreInfo: "#f8f8f2",
+		},
+		playerCursor: {
+			background: "rgba(255, 121, 198, 0.4)",
+			border: "rgb(255, 121, 198)",
+			barHighlight: "rgba(255, 121, 198, 0.15)",
 		},
 	},
 };
@@ -413,6 +448,11 @@ const nord: UITheme = {
 			barNumber: "#5e81ac",
 			scoreInfo: "#3b4252",
 		},
+		playerCursor: {
+			background: "rgba(129, 161, 193, 0.4)",
+			border: "rgb(89, 116, 143)",
+			barHighlight: "rgba(129, 161, 193, 0.15)",
+		},
 	},
 	dark: {
 		semantic: {
@@ -454,6 +494,11 @@ const nord: UITheme = {
 			barSeparator: "#4c566a",
 			barNumber: "#81a1c1",
 			scoreInfo: "#d8dee9",
+		},
+		playerCursor: {
+			background: "rgba(136, 192, 208, 0.4)",
+			border: "rgb(136, 192, 208)",
+			barHighlight: "rgba(136, 192, 208, 0.15)",
 		},
 	},
 };
@@ -503,6 +548,11 @@ const monokai: UITheme = {
 			barNumber: "#f92672",
 			scoreInfo: "#49483e",
 		},
+		playerCursor: {
+			background: "rgba(174, 129, 255, 0.4)",
+			border: "rgb(147, 51, 234)",
+			barHighlight: "rgba(174, 129, 255, 0.15)",
+		},
 	},
 	dark: {
 		semantic: {
@@ -544,6 +594,11 @@ const monokai: UITheme = {
 			barSeparator: "#75715e",
 			barNumber: "#66d9ef",
 			scoreInfo: "#f8f8f2",
+		},
+		playerCursor: {
+			background: "rgba(174, 129, 255, 0.4)",
+			border: "rgb(174, 129, 255)",
+			barHighlight: "rgba(174, 129, 255, 0.15)",
 		},
 	},
 };

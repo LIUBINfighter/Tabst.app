@@ -151,22 +151,6 @@ export function ThemeSelector() {
 				</Select>
 			</div>
 
-			{/* Preview */}
-			<div className="rounded-lg border p-4 bg-muted/30">
-				<h4 className="text-sm font-medium mb-2">
-					{t("settings:appearance.preview")}
-				</h4>
-				<div className="space-y-2">
-					<div className="flex items-center gap-2 text-sm">
-						<span className="text-muted-foreground">UI:</span>
-						<span className="font-medium">{uiTheme.name}</span>
-					</div>
-					<div className="flex items-center gap-2 text-sm">
-						<span className="text-muted-foreground">Editor:</span>
-						<span className="font-medium">{editorTheme.name}</span>
-					</div>
-				</div>
-			</div>
 		</div>
 	);
 }

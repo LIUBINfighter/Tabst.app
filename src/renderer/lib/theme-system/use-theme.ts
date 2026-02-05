@@ -106,6 +106,20 @@ export function useTheme(): UseThemeReturn {
 			root.style.setProperty("--alphatab-bar-number", extended.score.barNumber);
 			root.style.setProperty("--alphatab-score-info", extended.score.scoreInfo);
 		}
+		if (extended.playerCursor) {
+			root.style.setProperty(
+				"--player-cursor-bg",
+				extended.playerCursor.background,
+			);
+			root.style.setProperty(
+				"--player-cursor-border",
+				extended.playerCursor.border,
+			);
+			root.style.setProperty(
+				"--player-cursor-highlight",
+				extended.playerCursor.barHighlight,
+			);
+		}
 	}, [effectiveColors, isDark]);
 
 	return {

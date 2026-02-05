@@ -63,6 +63,11 @@ export interface UIThemeColors {
 		barNumber: string;
 		scoreInfo: string;
 	};
+	playerCursor?: {
+		background: string;
+		border: string;
+		barHighlight: string;
+	};
 }
 
 export interface UITheme {

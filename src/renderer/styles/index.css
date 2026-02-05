@@ -46,6 +46,10 @@
 		--alphatab-bar-separator: #cbd5e1;
 		--alphatab-bar-number: #475569;
 		--alphatab-score-info: #1e293b;
+
+		--player-cursor-bg: rgba(59, 130, 246, 0.4);
+		--player-cursor-border: rgb(37, 99, 235);
+		--player-cursor-highlight: rgba(59, 130, 246, 0.15);
 	}
 
 	.dark {
@@ -76,13 +80,16 @@
 		--hover-bg: rgba(96, 165, 250, 0.1);
 		--hover-text: rgb(96, 165, 250);
 
-		/* AlphaTab 暗色主题 */
 		--alphatab-main-glyph: #f1f5f9;
 		--alphatab-secondary-glyph: rgba(241, 245, 249, 0.6);
 		--alphatab-staff-line: #475569;
 		--alphatab-bar-separator: #475569;
 		--alphatab-bar-number: #94a3b8;
 		--alphatab-score-info: #cbd5e1;
+
+		--player-cursor-bg: rgba(96, 165, 250, 0.4);
+		--player-cursor-border: rgb(96, 165, 250);
+		--player-cursor-highlight: rgba(96, 165, 250, 0.15);
 	}
 }
 
