@@ -49,7 +49,6 @@ export function FileTreeItem({
 	}, [isEditing]);
 
 	return (
-		// biome-ignore lint/a11y/useSemanticElements: needs nested buttons for rename/reveal actions
 		<div
 			onClick={(e) => {
 				if ((e.target as HTMLElement).closest("button")) {
