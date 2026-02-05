@@ -260,7 +260,7 @@ function EditorBottomBar({
 		</div>
 	);
 
-	const metronomeControls = (
+	const _metronomeControls = (
 		<div className="flex items-center">
 			<Tooltip>
 				<TooltipTrigger asChild>
@@ -374,7 +374,7 @@ function EditorBottomBar({
 	// 根据配置渲染组件
 	const renderedComponents = customPlayerConfig.components
 		.filter((component) => component.enabled)
-		.map((component, index) => {
+		.map((component, _index) => {
 			const element = componentMap[component.type];
 			if (!element) return null;
 

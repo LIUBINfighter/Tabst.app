@@ -1,5 +1,5 @@
 import { Check } from "lucide-react";
-import React from "react";
+import type React from "react";
 import { cn } from "../../lib/utils";
 
 interface CheckboxToggleProps {
@@ -15,6 +15,13 @@ export function CheckboxToggle({
 	className,
 	"aria-label": ariaLabel,
 }: CheckboxToggleProps) {
+	const handleKeyDown = (event: React.KeyboardEvent) => {
+		if (event.key === " " || event.key === "Enter") {
+			event.preventDefault();
+			onCheckedChange(!checked);
+		}
+	};
+
 	return (
 		<div
 			className={cn(
@@ -22,9 +29,11 @@ export function CheckboxToggle({
 				className,
 			)}
 			onClick={() => onCheckedChange(!checked)}
+			onKeyDown={handleKeyDown}
 			role="checkbox"
 			aria-checked={checked}
 			aria-label={ariaLabel}
+			tabIndex={0}
 		>
 			<div
 				className={cn(

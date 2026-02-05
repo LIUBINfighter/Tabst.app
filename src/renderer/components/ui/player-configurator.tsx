@@ -3,8 +3,8 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import { cn } from "../../lib/utils";
 import {
-	PlayerComponentConfig,
-	PlayerComponentType,
+	type PlayerComponentConfig,
+	type PlayerComponentType,
 	useAppStore,
 } from "../../store/appStore";
 import { Button } from "./button";
@@ -113,6 +113,8 @@ export function PlayerConfigurator({ className }: PlayerConfiguratorProps) {
 				className="space-y-3 relative"
 				onDragLeave={handleDragLeave}
 				onDragEnd={handleDragEnd}
+				role="region"
+				aria-label={t("playerConfigurator.dragDropArea")}
 			>
 				{customPlayerConfig.components.map(
 					(component: PlayerComponentConfig, index: number) => (
@@ -134,12 +136,23 @@ export function PlayerConfigurator({ className }: PlayerConfiguratorProps) {
 									"flex items-center gap-3 p-3 bg-card border border-border rounded-lg hover:bg-accent/50 transition-colors cursor-move group",
 									isDragging && "opacity-50",
 								)}
+								role="button"
+								aria-label={t("playerConfigurator.dragToReorder", {
+									component: component.label,
+								})}
+								tabIndex={0}
 							>
 								<GripVertical className="h-4 w-4 text-muted-foreground/50 group-hover:text-muted-foreground flex-shrink-0 transition-colors" />
 
 								<div
 									className="flex items-center justify-center h-5 w-5 rounded border border-primary/50 cursor-pointer transition-colors hover:border-primary"
 									onClick={() => handleToggle(component.type)}
+									onKeyDown={(event) => {
+										if (event.key === " " || event.key === "Enter") {
+											event.preventDefault();
+											handleToggle(component.type);
+										}
+									}}
 									role="checkbox"
 									aria-checked={component.enabled}
 									aria-label={
@@ -147,6 +160,7 @@ export function PlayerConfigurator({ className }: PlayerConfiguratorProps) {
 											? t("playerConfigurator.hide")
 											: t("playerConfigurator.show")
 									}
+									tabIndex={0}
 								>
 									<div
 										className={cn(
