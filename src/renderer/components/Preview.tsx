@@ -53,7 +53,7 @@ export default function Preview({
 	const containerRef = useRef<HTMLDivElement | null>(null);
 	const scrollHostRef = useRef<HTMLDivElement | null>(null);
 	const apiRef = useRef<alphaTab.AlphaTabApi | null>(null);
-	const cursorRef = useRef<HTMLDivElement | null>(null);
+	const _cursorRef = useRef<HTMLDivElement | null>(null);
 	// Zoom state (percentage)
 
 	const zoomRef = useRef<number>(60);
@@ -309,8 +309,9 @@ export default function Preview({
 			// 2. 渲染完成（处理光标，注意：不要修改播放状态）
 			api.renderFinished.on((r) => {
 				console.info("[Preview] alphaTab render complete:", r);
-				const cursor = cursorRef.current;
-				if (cursor) cursor.classList.add("hidden");
+				// 暂时关闭自定义播放器光标隐藏
+				// const cursor = _cursorRef.current;
+				// if (cursor) cursor.classList.add("hidden");
 				// 渲染完成时回到无高亮状态（避免保留旧的黄色小节高亮导致滚动锁定）
 				useAppStore.getState().clearPlaybackHighlights();
 
@@ -355,7 +356,9 @@ export default function Preview({
 				// 🆕 同时更新播放器光标位置（暂停后保留）
 				useAppStore.getState().setPlayerCursorPosition({ barIndex, beatIndex });
 
-				const cursor = cursorRef.current;
+				// 暂时关闭自定义播放器光标更新
+				/*
+				const cursor = _cursorRef.current;
 				if (!cursor) return;
 				const bb = api.boundsLookup?.findBeat?.(beat);
 				if (!bb) {
@@ -368,6 +371,7 @@ export default function Preview({
 				cursor.style.top = `${visual.y}px`;
 				cursor.style.width = `${visual.w}px`;
 				cursor.style.height = `${visual.h}px`;
+				*/
 			});
 
 			// 4. 播放器完成/状态变化事件：确保 UI 与播放器同步
@@ -1075,14 +1079,16 @@ export default function Preview({
 								<div className="w-full min-h-full pb-[var(--scroll-buffer)] overflow-x-hidden">
 									<div ref={containerRef} className="w-full h-full" />
 								</div>
+								{/* 暂时关闭自定义播放器光标功能
 								<div
-									ref={cursorRef}
+									ref={_cursorRef}
 									className="pointer-events-none absolute z-20 rounded-sm hidden"
 									style={{
 										backgroundColor: "var(--player-cursor-bg)",
 										border: "2px solid var(--player-cursor-border)",
 									}}
 								/>
+								*/}
 							</div>
 							{/* 音轨选择面板（浮动在滚动区域之上） */}
 							<TracksPanel
