@@ -363,7 +363,7 @@ export function TracksPanel({
 
 	return (
 		<TooltipProvider delayDuration={200}>
-			<div className="w-64 border-l border-border bg-card flex flex-col h-full shrink-0 shadow-lg absolute right-0 top-0 bottom-0 z-30">
+			<div className="w-64 border-l border-border bg-card flex flex-col h-full shrink-0 shadow-lg absolute right-0 top-0 bottom-0 z-[2001]">
 				{/* Header */}
 				<div className="h-10 border-b border-border flex items-center justify-between px-3 shrink-0">
 					<div className="flex items-center gap-2">
