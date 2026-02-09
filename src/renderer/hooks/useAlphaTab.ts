@@ -7,6 +7,7 @@ import type { ResourceUrls } from "@/renderer/lib/resourceLoaderService";
 import { getResourceUrls } from "@/renderer/lib/resourceLoaderService";
 import {
 	applyStaffConfig,
+	getFirstStaffOptions,
 	type StaffDisplayOptions,
 } from "@/renderer/lib/staff-config";
 import {
@@ -104,18 +105,19 @@ export function useAlphaTab(options: UseAlphaTabOptions): UseAlphaTabReturn {
 	const applyTracksConfig = useCallback(() => {
 		const api = apiRef.current;
 		if (!api) return;
-
-		const config: StaffDisplayOptions = trackConfigRef.current || {
-			showTablature: true,
-			showStandardNotation: false,
-			showSlash: false,
-			showNumbered: false,
-		};
-
-		const appliedConfig = applyStaffConfig(api, config);
-		if (appliedConfig) {
-			setFirstStaffOptions(appliedConfig);
+		// First load: respect alphaTab adaptation, just read current staff state.
+		if (!trackConfigRef.current) {
+			const current = getFirstStaffOptions(api);
+			if (current) {
+				trackConfigRef.current = current;
+				setFirstStaffOptions(current);
+			}
+			return;
 		}
+
+		// Subsequent loads / rebuild: apply saved config (e.g. user toggled)
+		const appliedConfig = applyStaffConfig(api, trackConfigRef.current);
+		if (appliedConfig) setFirstStaffOptions(appliedConfig);
 	}, [setFirstStaffOptions]);
 
 	// When suspended (e.g. PrintPreview open), destroy API
@@ -247,22 +249,10 @@ export function useAlphaTab(options: UseAlphaTabOptions): UseAlphaTabReturn {
 		const unsubscribe = setupThemeObserver(() => {
 			const api = apiRef.current;
 			if (!api) return;
-
-			const notation = api.settings.notation as
-				| {
-						numberedNotationActive?: boolean;
-						slashNotationActive?: boolean;
-						tablatureNotationActive?: boolean;
-						standardNotationActive?: boolean;
-				  }
-				| undefined;
-
-			trackConfigRef.current = {
-				showNumbered: notation?.numberedNotationActive ?? false,
-				showSlash: notation?.slashNotationActive ?? false,
-				showTablature: notation?.tablatureNotationActive ?? true,
-				showStandardNotation: notation?.standardNotationActive ?? false,
-			};
+			// Preserve current first-staff options before rebuilding API.
+			// Using staff options is safer than global notation flags for non-guitar tracks.
+			const current = getFirstStaffOptions(api);
+			if (current) trackConfigRef.current = current;
 
 			api.destroy();
 			apiRef.current = null;

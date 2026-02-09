@@ -19,7 +19,7 @@ import type { ResourceUrls } from "../lib/resourceLoaderService";
 import { getResourceUrls } from "../lib/resourceLoaderService";
 import {
 	applyStaffConfig,
-	type StaffDisplayOptions,
+	getFirstStaffOptions,
 	toggleFirstStaffOption,
 } from "../lib/staff-config";
 import {
@@ -246,20 +246,19 @@ export default function Preview({
 	 */
 	const applyTracksConfig = useCallback(
 		(api: alphaTab.AlphaTabApi) => {
-			// Get saved configuration from ref, use defaults if not available
-			const config: StaffDisplayOptions = trackConfigRef.current || {
-				showTablature: true,
-				showStandardNotation: false,
-				showSlash: false,
-				showNumbered: false,
-			};
-
-			// Apply configuration
-			const appliedConfig = applyStaffConfig(api, config);
-			if (appliedConfig) {
-				// Update UI state
-				setFirstStaffOptions(appliedConfig);
+			// First load: respect alphaTab's own adaptation; just read current staff state.
+			if (!trackConfigRef.current) {
+				const current = getFirstStaffOptions(api);
+				if (current) {
+					trackConfigRef.current = current;
+					setFirstStaffOptions(current);
+				}
+				return;
 			}
+
+			// Subsequent loads / rebuild: apply saved config (e.g. user toggled)
+			const appliedConfig = applyStaffConfig(api, trackConfigRef.current);
+			if (appliedConfig) setFirstStaffOptions(appliedConfig);
 		},
 		[setFirstStaffOptions],
 	);
