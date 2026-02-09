@@ -25,6 +25,7 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 	const collapseFolder = useAppStore((s) => s.collapseFolder);
 	const refreshFileTree = useAppStore((s) => s.refreshFileTree);
 	const addFile = useAppStore((s) => s.addFile);
+	const renameFile = useAppStore((s) => s.renameFile);
 	const { themeMode, setThemeMode } = useTheme();
 
 	const { handleOpenFile, handleNewFile } = useFileOperations();
@@ -114,6 +115,30 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 		await refreshFileTree();
 	};
 
+	const handleRename = async (node: FileNode, newName: string) => {
+		if (!newName.trim()) return;
+
+		try {
+			if (node.type === "file") {
+				await renameFile(node.id, newName.trim());
+				return;
+			}
+
+			// Folder rename is not represented in `files`, so do it via IPC then rescan.
+			const result = await window.electronAPI?.renameFile?.(
+				node.path,
+				newName.trim(),
+			);
+			if (!result?.success) {
+				console.error("rename folder failed:", result?.error);
+				return;
+			}
+			await refreshFileTree();
+		} catch (err) {
+			console.error("rename failed:", err);
+		}
+	};
+
 	const renderContent = () => {
 		if (workspaceMode === "tutorial") {
 			return <TutorialsSidebar />;
@@ -144,6 +169,7 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 				nodes={fileTree}
 				onFileSelect={handleFileSelect}
 				onFolderToggle={handleFolderToggle}
+				onRename={handleRename}
 				onReveal={handleReveal}
 				onCopyPath={handleCopyPath}
 				onDelete={handleDelete}

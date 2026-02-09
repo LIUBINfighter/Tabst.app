@@ -7,7 +7,7 @@ import {
 	Folder,
 	FolderOpen,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAppStore } from "../store/appStore";
 import type { FileNode } from "../types/repo";
@@ -18,7 +18,7 @@ export interface FileTreeItemProps {
 	level?: number;
 	onFileSelect?: (node: FileNode) => void;
 	onFolderToggle?: (node: FileNode) => void;
-	onRename?: (node: FileNode) => void;
+	onRename?: (node: FileNode, newName: string) => void;
 	onReveal?: (node: FileNode) => void;
 	onCopyPath?: (node: FileNode) => void;
 	onDelete?: (node: FileNode) => void;
@@ -36,14 +36,25 @@ export function FileTreeItem({
 }: FileTreeItemProps) {
 	const { t } = useTranslation("sidebar");
 	const activeFileId = useAppStore((s) => s.activeFileId);
-	const _setActiveFile = useAppStore((s) => s.setActiveFile);
-	const _setWorkspaceMode = useAppStore((s) => s.setWorkspaceMode);
 	const expandFolder = useAppStore((s) => s.expandFolder);
 	const collapseFolder = useAppStore((s) => s.collapseFolder);
 
 	const [isEditing, setIsEditing] = useState(false);
-	const [editValue, setEditValue] = useState(node.name);
+	const [editValue, setEditValue] = useState("");
 	const inputRef = useRef<HTMLInputElement | null>(null);
+	const preventCloseAutoFocusRef = useRef(false);
+
+	const focusRenameInput = useCallback(() => {
+		const el = inputRef.current;
+		if (!el) return false;
+		el.focus();
+		try {
+			el.setSelectionRange(0, el.value.length);
+		} catch {
+			// ignore (e.g. unsupported input type)
+		}
+		return true;
+	}, []);
 
 	const isActive = activeFileId === node.id;
 	const isFolder = node.type === "folder";
@@ -53,11 +64,32 @@ export function FileTreeItem({
 	const baseName = node.name.replace(/\.[^/.]+$/, "");
 
 	useEffect(() => {
-		if (isEditing && inputRef.current) {
-			inputRef.current.focus();
-			inputRef.current.select();
+		if (!isEditing) {
+			setEditValue(isFolder ? node.name : baseName);
 		}
-	}, [isEditing]);
+	}, [isEditing, isFolder, node.name, baseName]);
+
+	useEffect(() => {
+		if (!isEditing) return;
+		// Focus after paint to ensure the input is mounted.
+		const id = requestAnimationFrame(() => {
+			focusRenameInput();
+		});
+		return () => cancelAnimationFrame(id);
+	}, [isEditing, focusRenameInput]);
+
+	const handleContextMenuCloseAutoFocus = useCallback(
+		(event: Event) => {
+			if (preventCloseAutoFocusRef.current) {
+				event.preventDefault();
+				preventCloseAutoFocusRef.current = false;
+				// After the menu closes, force focus back into the rename input.
+				requestAnimationFrame(() => focusRenameInput());
+				requestAnimationFrame(() => focusRenameInput());
+			}
+		},
+		[focusRenameInput],
+	);
 
 	const handleClick = () => {
 		if (isFolder) {
@@ -73,8 +105,24 @@ export function FileTreeItem({
 	};
 
 	const handleRenameSubmit = () => {
-		if (editValue.trim() && editValue !== node.name) {
-			onRename?.(node);
+		const trimmed = editValue.trim();
+		if (!trimmed) {
+			setEditValue(isFolder ? node.name : baseName);
+			setIsEditing(false);
+			return;
+		}
+
+		if (isFolder) {
+			if (trimmed !== node.name) {
+				onRename?.(node, trimmed);
+			}
+			setIsEditing(false);
+			return;
+		}
+
+		const finalName = fileExt ? `${trimmed}.${fileExt}` : trimmed;
+		if (finalName !== node.name) {
+			onRename?.(node, finalName);
 		}
 		setIsEditing(false);
 	};
@@ -148,8 +196,12 @@ export function FileTreeItem({
 						onBlur={handleRenameSubmit}
 						onKeyDown={(e) => {
 							if (e.key === "Enter") {
+								e.preventDefault();
+								e.stopPropagation();
 								handleRenameSubmit();
 							} else if (e.key === "Escape") {
+								e.preventDefault();
+								e.stopPropagation();
 								handleRenameCancel();
 							}
 						}}
@@ -183,13 +235,14 @@ export function FileTreeItem({
 				onOpen={() => handleContextMenuAction(() => onFileSelect?.(node))}
 				onRename={() =>
 					handleContextMenuAction(() => {
+						preventCloseAutoFocusRef.current = true;
 						setIsEditing(true);
-						onRename?.(node);
 					})
 				}
 				onReveal={() => handleContextMenuAction(() => onReveal?.(node))}
 				onCopyPath={() => handleContextMenuAction(() => onCopyPath?.(node))}
 				onDelete={() => handleContextMenuAction(() => onDelete?.(node))}
+				onCloseAutoFocus={handleContextMenuCloseAutoFocus}
 			>
 				{content}
 			</FileContextMenu>

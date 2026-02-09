@@ -27,6 +27,7 @@ import {
 	readFile,
 	readFileAsUint8Array,
 	readJsonFile,
+	renamePath,
 	unlinkFile,
 	writeFile,
 	writeJsonFile,
@@ -111,6 +112,31 @@ describe("file-system effects", () => {
 		const existsAfter = await Effect.runPromiseExit(fileExists(dest));
 		expect(Exit.isSuccess(existsAfter)).toBe(true);
 		if (Exit.isSuccess(existsAfter)) expect(existsAfter.value).toBe(false);
+	});
+
+	it("renamePath (file)", async () => {
+		const src = path.join(testDir, "rename-src.txt");
+		const dest = path.join(testDir, "rename-dest.txt");
+		fs.writeFileSync(src, "rename me", "utf-8");
+
+		const result = await Effect.runPromiseExit(renamePath(src, dest));
+		expect(Exit.isSuccess(result)).toBe(true);
+		expect(fs.existsSync(src)).toBe(false);
+		expect(fs.existsSync(dest)).toBe(true);
+		expect(fs.readFileSync(dest, "utf-8")).toBe("rename me");
+	});
+
+	it("renamePath (folder)", async () => {
+		const srcDir = path.join(testDir, "folder-src");
+		const destDir = path.join(testDir, "folder-dest");
+		fs.mkdirSync(srcDir);
+		fs.writeFileSync(path.join(srcDir, "a.txt"), "a", "utf-8");
+
+		const result = await Effect.runPromiseExit(renamePath(srcDir, destDir));
+		expect(Exit.isSuccess(result)).toBe(true);
+		expect(fs.existsSync(srcDir)).toBe(false);
+		expect(fs.existsSync(destDir)).toBe(true);
+		expect(fs.readFileSync(path.join(destDir, "a.txt"), "utf-8")).toBe("a");
 	});
 
 	it("mkdir", async () => {

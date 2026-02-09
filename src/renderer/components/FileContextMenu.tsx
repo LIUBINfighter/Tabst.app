@@ -18,6 +18,7 @@ export interface FileContextMenuProps {
 	onReveal: () => void;
 	onCopyPath: () => void;
 	onDelete: () => void;
+	onCloseAutoFocus?: (event: Event) => void;
 }
 
 export function FileContextMenu({
@@ -28,13 +29,14 @@ export function FileContextMenu({
 	onReveal,
 	onCopyPath,
 	onDelete,
+	onCloseAutoFocus,
 }: FileContextMenuProps) {
 	const { t } = useTranslation("sidebar");
 
 	return (
 		<ContextMenu>
 			<ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
-			<ContextMenuContent className="w-48">
+			<ContextMenuContent className="w-48" onCloseAutoFocus={onCloseAutoFocus}>
 				{node.type === "file" && (
 					<ContextMenuItem onClick={onOpen}>
 						<ExternalLink className="mr-2 h-4 w-4" />

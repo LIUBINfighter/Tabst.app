@@ -66,6 +66,35 @@ export const copyFile = (
 			new FileSystemError(`Failed to copy file from ${src} to ${dest}`, error),
 	});
 
+export const renamePath = (
+	src: string,
+	dest: string,
+): Effect.Effect<void, FileSystemError> =>
+	Effect.tryPromise({
+		try: async () => {
+			try {
+				await fs.promises.rename(src, dest);
+			} catch (error) {
+				const err = error as NodeJS.ErrnoException;
+				// Cross-device rename isn't supported; fallback to copy+unlink for files.
+				if (err?.code === "EXDEV") {
+					const stat = await fs.promises.stat(src);
+					if (stat.isFile()) {
+						await fs.promises.copyFile(src, dest);
+						await fs.promises.unlink(src);
+						return;
+					}
+				}
+				throw error;
+			}
+		},
+		catch: (error) =>
+			new FileSystemError(
+				`Failed to rename path from ${src} to ${dest}`,
+				error,
+			),
+	});
+
 export const unlinkFile = (
 	filePath: string,
 ): Effect.Effect<void, FileSystemError> =>

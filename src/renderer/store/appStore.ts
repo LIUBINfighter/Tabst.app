@@ -621,9 +621,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 	},
 
 	renameFile: async (id, newName) => {
-		// find file first
-		const state = get();
-		const file = state.files.find((f) => f.id === id);
+		const file = get().files.find((f) => f.id === id);
 		if (!file) return false;
 
 		// preserve original extension
@@ -643,16 +641,42 @@ export const useAppStore = create<AppState>((set, get) => ({
 				console.error("renameFile failed:", result?.error);
 				return false;
 			}
-			const newFiles = state.files.map((f) =>
-				f.id === id
-					? {
-							...f,
-							name: result.newName ?? finalName,
-							path: result.newPath ?? f.path,
-						}
-					: f,
-			);
-			set({ files: newFiles });
+
+			const oldPath = file.path;
+			const newPath = result.newPath ?? file.path;
+			const updatedName = result.newName ?? finalName;
+
+			set((state) => {
+				const target = state.files.find((f) => f.id === id);
+				if (!target) return {};
+
+				const shouldUpdateId =
+					target.id === oldPath || target.id === target.path;
+
+				const newFiles = state.files.map((f) =>
+					f.id === id
+						? {
+								...f,
+								id: shouldUpdateId ? newPath : f.id,
+								name: updatedName,
+								path: newPath,
+							}
+						: f,
+				);
+
+				const newActiveFileId =
+					shouldUpdateId && state.activeFileId === id
+						? newPath
+						: state.activeFileId;
+
+				const newTree = renameNodeInTree(state.fileTree, oldPath, newPath);
+
+				return {
+					files: newFiles,
+					activeFileId: newActiveFileId,
+					fileTree: newTree,
+				};
+			});
 			return true;
 		} catch (err) {
 			console.error("renameFile error:", err);
@@ -779,4 +803,100 @@ function flattenFileNodes(nodes: FileNode[]): FileItem[] {
 		}
 	}
 	return result;
+}
+
+function basenameFromPath(p: string): string {
+	const normalized = p.replace(/\\/g, "/");
+	const parts = normalized.split("/");
+	return parts[parts.length - 1] || normalized;
+}
+
+function replacePathPrefix(
+	p: string,
+	oldPrefix: string,
+	newPrefix: string,
+): string {
+	if (p === oldPrefix) return newPrefix;
+	if (!p.startsWith(oldPrefix)) return p;
+	const rest = p.slice(oldPrefix.length);
+	if (rest === "" || rest.startsWith("/") || rest.startsWith("\\")) {
+		return `${newPrefix}${rest}`;
+	}
+	return p;
+}
+
+function renameNodeInTree(
+	nodes: FileNode[],
+	oldPath: string,
+	newPath: string,
+): FileNode[] {
+	let changed = false;
+	const next = nodes.map((node) => {
+		const nodeMatches = node.id === oldPath || node.path === oldPath;
+		if (nodeMatches) {
+			changed = true;
+			if (node.type === "folder" && node.children) {
+				const updatedChildren = renameDescendants(
+					node.children,
+					oldPath,
+					newPath,
+				);
+				return {
+					...node,
+					id: newPath,
+					path: newPath,
+					name: basenameFromPath(newPath),
+					children: updatedChildren,
+				};
+			}
+			return {
+				...node,
+				id: newPath,
+				path: newPath,
+				name: basenameFromPath(newPath),
+			};
+		}
+
+		if (node.type === "folder" && node.children) {
+			const updatedChildren = renameNodeInTree(node.children, oldPath, newPath);
+			if (updatedChildren !== node.children) {
+				changed = true;
+				return { ...node, children: updatedChildren };
+			}
+		}
+		return node;
+	});
+	return changed ? next : nodes;
+}
+
+function renameDescendants(
+	nodes: FileNode[],
+	oldPrefix: string,
+	newPrefix: string,
+): FileNode[] {
+	return nodes.map((node) => {
+		const updatedId = replacePathPrefix(node.id, oldPrefix, newPrefix);
+		const updatedPath = replacePathPrefix(node.path, oldPrefix, newPrefix);
+		const updatedName = basenameFromPath(updatedPath);
+		if (node.type === "folder" && node.children) {
+			const updatedChildren = renameDescendants(
+				node.children,
+				oldPrefix,
+				newPrefix,
+			);
+			return {
+				...node,
+				id: updatedId,
+				path: updatedPath,
+				name: updatedName,
+				children: updatedChildren,
+			};
+		}
+		return {
+			...node,
+			id: updatedId,
+			path: updatedPath,
+			name: updatedName,
+		};
+	});
 }

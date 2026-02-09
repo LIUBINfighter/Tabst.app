@@ -7,7 +7,7 @@ export interface FileTreeProps {
 	level?: number;
 	onFileSelect: (node: FileNode) => void;
 	onFolderToggle: (node: FileNode) => void;
-	onRename?: (node: FileNode) => void;
+	onRename?: (node: FileNode, newName: string) => void;
 	onReveal: (node: FileNode) => void;
 	onCopyPath: (node: FileNode) => void;
 	onDelete: (node: FileNode) => void;

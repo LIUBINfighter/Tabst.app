@@ -1,13 +1,12 @@
 import path from "node:path";
 import { Effect, Exit } from "effect";
 import {
-	copyFile,
 	fileExists,
 	getDefaultSaveDir,
 	readFile,
 	readJsonFile,
+	renamePath,
 	showOpenDialog,
-	unlinkFile,
 	writeFile,
 	writeJsonFile,
 } from "../effects/file-system";
@@ -119,8 +118,7 @@ export async function handleRenameFileEffect(
 			return { success: false, error: "target-exists" };
 		}
 
-		yield* copyFile(oldPath, newPath);
-		yield* unlinkFile(oldPath);
+		yield* renamePath(oldPath, newPath);
 
 		return {
 			success: true,
@@ -141,7 +139,7 @@ export async function handleRenameFileEffect(
 			}
 			return { success: false, error: "Unknown error" };
 		},
-		onSuccess: () => ({ success: true }),
+		onSuccess: (value) => value,
 	});
 }
 
