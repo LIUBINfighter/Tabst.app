@@ -11,6 +11,7 @@ import {
 	handleCreateFileEffect,
 	handleLoadAppStateEffect,
 	handleOpenFileEffect,
+	handleReadFileEffect,
 	handleRenameFileEffect,
 	handleSaveAppStateEffect,
 	handleSaveFileEffect,
@@ -19,7 +20,16 @@ import {
 	handleFetchReleasesFeedEffect,
 	handleReadAssetEffect,
 	handleRevealInFolderEffect,
+	handleSelectFolderEffect,
 } from "./ipc/misc-operations-effect";
+import {
+	handleDeleteFileEffect,
+	handleLoadReposEffect,
+	handleLoadWorkspaceMetadataEffect,
+	handleSaveReposEffect,
+	handleSaveWorkspaceMetadataEffect,
+	handleScanDirectoryEffect,
+} from "./ipc/repo-operations-effect";
 
 const isDev = process.env.NODE_ENV === "development" || !app.isPackaged;
 
@@ -96,3 +106,12 @@ ipcMain.handle("get-app-version", async () => app.getVersion());
 
 ipcMain.handle("load-app-state", handleLoadAppStateEffect);
 ipcMain.handle("save-app-state", handleSaveAppStateEffect);
+ipcMain.handle("read-file", handleReadFileEffect);
+
+ipcMain.handle("scan-directory", handleScanDirectoryEffect);
+ipcMain.handle("load-repos", handleLoadReposEffect);
+ipcMain.handle("save-repos", handleSaveReposEffect);
+ipcMain.handle("load-workspace-metadata", handleLoadWorkspaceMetadataEffect);
+ipcMain.handle("save-workspace-metadata", handleSaveWorkspaceMetadataEffect);
+ipcMain.handle("delete-file", handleDeleteFileEffect);
+ipcMain.handle("select-folder", handleSelectFolderEffect);

@@ -1,45 +1,56 @@
-import { Edit, FileDown, FileMusic, FileText, FolderOpen } from "lucide-react";
-import { useEffect, useRef } from "react";
+import {
+	ChevronDown,
+	ChevronRight,
+	FileDown,
+	FileMusic,
+	FileText,
+	Folder,
+	FolderOpen,
+} from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { FileItem } from "../store/appStore";
 import { useAppStore } from "../store/appStore";
+import type { FileNode } from "../types/repo";
+import { FileContextMenu } from "./FileContextMenu";
 
 export interface FileTreeItemProps {
-	file: FileItem;
-	isEditing: boolean;
-	renameValue: string;
-	renameExt: string;
-	onRenameValueChange: (value: string) => void;
-	onRenameClick: (e: React.MouseEvent, file: FileItem) => void;
-	onRenameSubmit: (id: string) => void;
-	onRenameCancel: (e?: React.KeyboardEvent | React.FocusEvent) => void;
-	splitName: (name: string) => { base: string; ext: string };
+	node: FileNode;
+	level?: number;
+	onFileSelect?: (node: FileNode) => void;
+	onFolderToggle?: (node: FileNode) => void;
+	onRename?: (node: FileNode) => void;
+	onReveal?: (node: FileNode) => void;
+	onCopyPath?: (node: FileNode) => void;
+	onDelete?: (node: FileNode) => void;
 }
 
 export function FileTreeItem({
-	file,
-	isEditing,
-	renameValue,
-	renameExt,
-	onRenameValueChange,
-	onRenameClick,
-	onRenameSubmit,
-	onRenameCancel,
-	splitName,
+	node,
+	level = 0,
+	onFileSelect,
+	onFolderToggle,
+	onRename,
+	onReveal,
+	onCopyPath,
+	onDelete,
 }: FileTreeItemProps) {
 	const { t } = useTranslation("sidebar");
 	const activeFileId = useAppStore((s) => s.activeFileId);
-	const setActiveFile = useAppStore((s) => s.setActiveFile);
-	const setWorkspaceMode = useAppStore((s) => s.setWorkspaceMode);
+	const _setActiveFile = useAppStore((s) => s.setActiveFile);
+	const _setWorkspaceMode = useAppStore((s) => s.setWorkspaceMode);
+	const expandFolder = useAppStore((s) => s.expandFolder);
+	const collapseFolder = useAppStore((s) => s.collapseFolder);
+
+	const [isEditing, setIsEditing] = useState(false);
+	const [editValue, setEditValue] = useState(node.name);
 	const inputRef = useRef<HTMLInputElement | null>(null);
 
-	const isActive = activeFileId === file.id;
-	const fileExt = isEditing ? renameExt : splitName(file.name).ext;
-	const iconClass = `shrink-0 h-3.5 w-3.5 transition-colors ${
-		isActive
-			? "text-[var(--highlight-text)]"
-			: "text-muted-foreground group-hover:text-[var(--hover-text)]"
-	}`;
+	const isActive = activeFileId === node.id;
+	const isFolder = node.type === "folder";
+	const isExpanded = node.isExpanded ?? false;
+
+	const fileExt = node.name.split(".").pop()?.toLowerCase() || "";
+	const baseName = node.name.replace(/\.[^/.]+$/, "");
 
 	useEffect(() => {
 		if (isEditing && inputRef.current) {
@@ -48,41 +59,79 @@ export function FileTreeItem({
 		}
 	}, [isEditing]);
 
-	return (
+	const handleClick = () => {
+		if (isFolder) {
+			if (isExpanded) {
+				collapseFolder(node.path);
+			} else {
+				expandFolder(node.path);
+			}
+			onFolderToggle?.(node);
+		} else {
+			onFileSelect?.(node);
+		}
+	};
+
+	const handleRenameSubmit = () => {
+		if (editValue.trim() && editValue !== node.name) {
+			onRename?.(node);
+		}
+		setIsEditing(false);
+	};
+
+	const handleRenameCancel = () => {
+		setEditValue(node.name);
+		setIsEditing(false);
+	};
+
+	const handleContextMenuAction = (action: () => void) => {
+		if (!isEditing) {
+			action();
+		}
+	};
+
+	const iconClass = `shrink-0 h-3.5 w-3.5 transition-colors ${
+		isActive
+			? "text-[var(--highlight-text)]"
+			: "text-muted-foreground group-hover:text-[var(--hover-text)]"
+	}`;
+
+	const indentStyle = { paddingLeft: `${12 + level * 16}px` };
+
+	const content = (
 		<div
-			onClick={(e) => {
-				if ((e.target as HTMLElement).closest("button")) {
-					return;
-				}
-				if (isActive) {
-					setActiveFile(null);
-				} else {
-					setActiveFile(file.id);
-					setWorkspaceMode("editor");
-				}
-			}}
-			onKeyDown={(e) => {
-				if ((e.target as HTMLElement).closest("button")) {
-					return;
-				}
-				if (e.key === "Enter" || e.key === " ") {
-					if (isActive) {
-						setActiveFile(null);
-					} else {
-						setActiveFile(file.id);
-						setWorkspaceMode("editor");
-					}
-				}
-			}}
 			role="button"
 			tabIndex={0}
+			onClick={handleClick}
+			onKeyDown={(e) => {
+				if (e.key === "Enter" || e.key === " ") {
+					handleClick();
+				}
+			}}
 			className={`
 				w-full max-w-full group flex items-center gap-2 px-3 py-1.5 cursor-pointer overflow-hidden
 				text-xs text-muted-foreground transition-colors text-left
 				${isActive ? "bg-[var(--highlight-bg)] text-[var(--highlight-text)]" : "hover:bg-[var(--hover-bg)] hover:text-[var(--hover-text)]"}
 			`}
+			style={indentStyle}
 		>
-			{fileExt === "atex" ? (
+			{isFolder ? (
+				isExpanded ? (
+					<ChevronDown className="shrink-0 h-3 w-3 text-muted-foreground" />
+				) : (
+					<ChevronRight className="shrink-0 h-3 w-3 text-muted-foreground" />
+				)
+			) : (
+				<div className="w-3 shrink-0" />
+			)}
+
+			{isFolder ? (
+				isExpanded ? (
+					<FolderOpen className={iconClass} />
+				) : (
+					<Folder className={iconClass} />
+				)
+			) : fileExt === "atex" ? (
 				<FileMusic className={iconClass} />
 			) : fileExt === "md" ? (
 				<FileDown className={iconClass} />
@@ -94,63 +143,28 @@ export function FileTreeItem({
 				{isEditing ? (
 					<input
 						ref={inputRef}
-						value={renameValue}
-						onChange={(e) => onRenameValueChange(e.target.value)}
-						onBlur={() => onRenameSubmit(file.id)}
+						value={editValue}
+						onChange={(e) => setEditValue(e.target.value)}
+						onBlur={handleRenameSubmit}
 						onKeyDown={(e) => {
 							if (e.key === "Enter") {
-								onRenameSubmit(file.id);
+								handleRenameSubmit();
 							} else if (e.key === "Escape") {
-								onRenameCancel(e);
+								handleRenameCancel();
 							}
 						}}
 						className="w-full bg-transparent text-xs h-6 leading-6 px-1 border border-border rounded-sm outline-none"
 						spellCheck={false}
 						autoComplete="off"
 						aria-label={t("renameFile")}
+						onClick={(e) => e.stopPropagation()}
 					/>
 				) : (
-					splitName(file.name).base
+					baseName
 				)}
 			</span>
 
-			<div className="shrink-0 flex items-center gap-0.5">
-				<button
-					type="button"
-					onClick={(e) => onRenameClick(e, file)}
-					className={`opacity-0 group-hover:opacity-100 focus-visible:opacity-100 p-1 rounded transition-opacity w-6 h-6 flex items-center justify-center hover:bg-[var(--hover-bg)] focus-visible:bg-[var(--highlight-bg)] ${
-						isActive
-							? "text-[var(--highlight-text)]"
-							: "text-muted-foreground hover:text-[var(--hover-text)] focus-visible:text-[var(--highlight-text)]"
-					}`}
-					aria-label={t("rename")}
-				>
-					<span className="sr-only">{t("renameFile")}</span>
-					<Edit className="h-3 w-3" />
-				</button>
-				<button
-					type="button"
-					onClick={async (e) => {
-						e.stopPropagation();
-						try {
-							await window.electronAPI.revealInFolder(file.path);
-						} catch (err) {
-							console.error("revealInFolder failed:", err);
-						}
-					}}
-					className={`opacity-0 group-hover:opacity-100 focus-visible:opacity-100 p-1 rounded transition-opacity w-6 h-6 flex items-center justify-center hover:bg-[var(--hover-bg)] focus-visible:bg-[var(--highlight-bg)] ${
-						isActive
-							? "text-[var(--highlight-text)]"
-							: "text-muted-foreground hover:text-[var(--hover-text)] focus-visible:text-[var(--highlight-text)]"
-					}`}
-					aria-label={t("showInExplorer")}
-				>
-					<span className="sr-only">{t("showInExplorer")}</span>
-					<FolderOpen className="h-3.5 w-3.5" />
-				</button>
-			</div>
-
-			{fileExt === "md" && (
+			{!isFolder && fileExt === "md" && (
 				<code
 					className={`shrink-0 font-mono bg-muted/50 px-1 rounded text-xs h-6 leading-6 select-none ${
 						isActive ? "text-[var(--highlight-text)]" : "text-muted-foreground"
@@ -158,6 +172,44 @@ export function FileTreeItem({
 				>
 					{fileExt}
 				</code>
+			)}
+		</div>
+	);
+
+	return (
+		<div className="w-full">
+			<FileContextMenu
+				node={node}
+				onOpen={() => handleContextMenuAction(() => onFileSelect?.(node))}
+				onRename={() =>
+					handleContextMenuAction(() => {
+						setIsEditing(true);
+						onRename?.(node);
+					})
+				}
+				onReveal={() => handleContextMenuAction(() => onReveal?.(node))}
+				onCopyPath={() => handleContextMenuAction(() => onCopyPath?.(node))}
+				onDelete={() => handleContextMenuAction(() => onDelete?.(node))}
+			>
+				{content}
+			</FileContextMenu>
+
+			{isFolder && isExpanded && node.children && (
+				<div className="w-full">
+					{node.children.map((child) => (
+						<FileTreeItem
+							key={child.id}
+							node={child}
+							level={level + 1}
+							onFileSelect={onFileSelect}
+							onFolderToggle={onFolderToggle}
+							onRename={onRename}
+							onReveal={onReveal}
+							onCopyPath={onCopyPath}
+							onDelete={onDelete}
+						/>
+					))}
+				</div>
 			)}
 		</div>
 	);

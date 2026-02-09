@@ -1,3 +1,5 @@
+import type { FileNode, Repo, RepoMetadata } from "./repo";
+
 export interface FileResult {
 	path: string;
 	name: string;
@@ -10,23 +12,24 @@ export interface SaveResult {
 	error?: string;
 }
 
+export interface ScanDirectoryResult {
+	nodes: FileNode[];
+	expandedFolders: string[];
+}
+
 export interface ElectronAPI {
 	openFile: (extensions: string[]) => Promise<FileResult | null>;
-	// ext: optional file extension, may be like '.md' or '.atex' or 'md'
 	createFile: (ext?: string) => Promise<FileResult | null>;
 	saveFile: (filePath: string, content: string) => Promise<SaveResult>;
 
-	// 应用状态持久化
 	loadAppState: () => Promise<{
 		files: FileResult[];
 		activeFileId: string | null;
 	} | null>;
-	// 仅保存元数据 id/name/path 和 activeFileId
 	saveAppState: (state: {
 		files: { id: string; name: string; path: string }[];
 		activeFileId: string | null;
 	}) => Promise<{ success: boolean; error?: string } | null>;
-	// Rename: copy to new name in same directory, then delete original
 	renameFile: (
 		oldPath: string,
 		newName: string,
@@ -36,18 +39,30 @@ export interface ElectronAPI {
 		newName?: string;
 		error?: string;
 	} | null>;
-	// Show file in OS file manager and select it
 	revealInFolder: (
 		filePath: string,
 	) => Promise<{ success: boolean; error?: string } | null>;
-	// Read asset (ArrayBuffer / Uint8Array) via main process for packaged app
 	readAsset: (relPath: string) => Promise<Uint8Array>;
+	selectFolder: () => Promise<string | null>;
+	readFile: (filePath: string) => Promise<{ content: string; error?: string }>;
+
+	scanDirectory: (path: string) => Promise<ScanDirectoryResult | null>;
+	loadRepos: () => Promise<Repo[]>;
+	saveRepos: (repos: Repo[]) => Promise<void>;
+	loadWorkspaceMetadata: (repoPath: string) => Promise<RepoMetadata | null>;
+	saveWorkspaceMetadata: (
+		repoPath: string,
+		metadata: RepoMetadata,
+	) => Promise<void>;
+	deleteFile: (
+		filePath: string,
+		behavior: "system-trash" | "repo-trash" | "ask-every-time",
+	) => Promise<{ success: boolean; error?: string }>;
 
 	// Auto-update
 	checkForUpdates: () => Promise<{ supported: boolean; message?: string }>;
 	installUpdate: () => Promise<{ ok: boolean; message?: string }>;
 	getAppVersion: () => Promise<string>;
-	// Fetch GitHub releases RSS feed
 	fetchReleasesFeed: () => Promise<{
 		success: boolean;
 		data?: string;

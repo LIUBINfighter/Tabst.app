@@ -42,9 +42,9 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 	// Track if we're currently updating to prevent recursive updates
 	const isUpdatingRef = useRef(false);
 
-	const activeFileId = useAppStore((s) => s.activeFileId);
-	const files = useAppStore((s) => s.files);
-	const activeFile = files.find((f) => f.id === activeFileId);
+	const activeFile = useAppStore((s) =>
+		s.files.find((f) => f.id === s.activeFileId),
+	);
 	const setWorkspaceMode = useAppStore((s) => s.setWorkspaceMode);
 
 	const _scoreSelection = useAppStore((s) => s.scoreSelection);
@@ -97,7 +97,7 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 		if (!editorRef.current) return;
 
 		// If there's no active file, destroy editor
-		if (!activeFileId || !activeFile) {
+		if (!activeFile?.id) {
 			if (viewRef.current) {
 				viewRef.current.destroy();
 				viewRef.current = null;
@@ -239,7 +239,7 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 			}
 		})();
 	}, [
-		activeFileId,
+		activeFile?.id,
 		activeFile?.content,
 		activeFile?.path,
 		getLanguageForFile,
@@ -348,7 +348,7 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 
 	// Cleanup editor when no active file - use useLayoutEffect to ensure cleanup before render
 	useLayoutEffect(() => {
-		if (!activeFileId || !activeFile) {
+		if (!activeFile?.id) {
 			// 先保存编辑器 DOM 引用，因为 destroy() 会清除它
 			const editorDom = viewRef.current?.dom
 				? viewRef.current.dom.closest(".cm-editor")
@@ -396,7 +396,7 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 				}
 			}
 		}
-	}, [activeFileId, activeFile]);
+	}, [activeFile?.id, activeFile]);
 
 	if (!activeFile) {
 		return (

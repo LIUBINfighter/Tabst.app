@@ -79,6 +79,8 @@ export default function Preview({
 	} = errorRecovery;
 	// Store latest content for async callbacks and theme rebuild
 	const latestContentRef = useRef<string>(content ?? "");
+	// Queue for content updates when API is not ready yet
+	const pendingContentRef = useRef<string | null>(null);
 	// Print preview state and reinitialization trigger
 	const [showPrintPreview, setShowPrintPreview] = useState(false);
 	const [reinitTrigger, setReinitTrigger] = useState(0);
@@ -903,14 +905,17 @@ export default function Preview({
 					} catch {
 						// Could not load soundfont (this is optional)
 					}
-				} // 7. 设置内容
-				if (apiRef.current && latestContentRef.current) {
+				}
+				const initialContent =
+					pendingContentRef.current ?? latestContentRef.current;
+				pendingContentRef.current = null;
+
+				if (apiRef.current && initialContent) {
 					try {
-						scheduleTexTimeout(latestContentRef.current);
+						scheduleTexTimeout(initialContent);
 						markLoadAsUserContent(true);
-						apiRef.current.tex(latestContentRef.current);
+						apiRef.current.tex(initialContent);
 					} catch (syncError) {
-						// 同步错误：记录到控制台，但不要修改 parseError UI state.
 						console.error("[Preview] Synchronous error in tex():", syncError);
 						const errorMsg =
 							syncError instanceof Error
@@ -921,7 +926,7 @@ export default function Preview({
 							errorMsg,
 						);
 					}
-				} else if (apiRef.current && !latestContentRef.current) {
+				} else if (apiRef.current && !initialContent) {
 					clearTexTimeout();
 					setParseError(null);
 					markLoadAsUserContent(true);
@@ -972,16 +977,24 @@ export default function Preview({
 	// 内容更新：仅调用 tex，不销毁 API，避免闪烁
 	useEffect(() => {
 		const api = apiRef.current;
-		if (!api) return;
 
-		// 🆕 内容变化时，清除选区高亮（避免旧文件的选区残留在新文件中）
+		// Queue content update if API is not ready yet
+		if (!api) {
+			pendingContentRef.current = content ?? "";
+			return;
+		}
+
+		// Apply any pending content first
+		const contentToApply = pendingContentRef.current ?? content ?? "";
+		pendingContentRef.current = null;
+
 		useAppStore.getState().clearScoreSelection();
 
-		if (content) {
+		if (contentToApply) {
 			try {
-				scheduleTexTimeout(content);
+				scheduleTexTimeout(contentToApply);
 				markLoadAsUserContent(true);
-				api.tex(content);
+				api.tex(contentToApply);
 			} catch (syncError) {
 				console.error("[Preview] Synchronous error in tex():", syncError);
 				const errorMsg =

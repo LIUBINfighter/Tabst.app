@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import i18n, { LOCALE_STORAGE_KEY, type Locale } from "../i18n";
 import type { StaffDisplayOptions } from "../lib/staff-config";
+import type { DeleteBehavior, FileNode, Repo } from "../types/repo";
 
 /**
  * 获取初始语言设置
@@ -14,11 +15,16 @@ function getInitialLocale(): Locale {
 	return "zh-cn";
 }
 
+/**
+ * @deprecated 使用 FileNode 替代
+ */
 export interface FileItem {
 	id: string;
 	name: string;
 	path: string;
 	content: string;
+	/** Whether `content` is hydrated from disk/user input (vs empty placeholder from file tree scan). */
+	contentLoaded?: boolean;
 }
 
 /**
@@ -95,8 +101,29 @@ export interface CustomPlayerConfig {
 }
 
 interface AppState {
-	// 文件列表
+	// ===== Repo 管理 =====
+	repos: Repo[];
+	activeRepoId: string | null;
+	fileTree: FileNode[];
+	// 保留 files 以兼容现有代码，实际使用 fileTree
 	files: FileItem[];
+	// 用户偏好设置
+	deleteBehavior: DeleteBehavior;
+	setDeleteBehavior: (behavior: DeleteBehavior) => void;
+
+	// Repo Actions
+	addRepo: (path: string, name?: string) => Promise<void>;
+	removeRepo: (id: string) => void;
+	switchRepo: (id: string) => Promise<void>;
+	updateRepoName: (id: string, name: string) => void;
+	loadRepos: () => Promise<void>;
+
+	// FileTree Actions
+	expandFolder: (path: string) => void;
+	collapseFolder: (path: string) => void;
+	refreshFileTree: () => Promise<void>;
+	getFileNodeById: (id: string) => FileNode | undefined;
+
 	// 当前选中的文件
 	activeFileId: string | null;
 
@@ -210,7 +237,7 @@ interface AppState {
 	// 🆕 播放器光标位置操作（暂停时也保留）
 	setPlayerCursorPosition: (position: PlaybackBeatInfo | null) => void;
 	/**
-	 * 🆕 清除“播放相关”高亮状态，回到无高亮状态
+	 * 🆕 清除"播放相关"高亮状态，回到无高亮状态
 	 * - 清除绿色当前 beat 高亮
 	 * - 清除黄色小节高亮（依赖 playerCursorPosition）
 	 */
@@ -230,7 +257,204 @@ interface AppState {
 	initialize: () => Promise<void>;
 }
 
+// 递归查找文件节点
+function findNodeById(nodes: FileNode[], id: string): FileNode | undefined {
+	for (const node of nodes) {
+		if (node.id === id) return node;
+		if (node.children) {
+			const found = findNodeById(node.children, id);
+			if (found) return found;
+		}
+	}
+	return undefined;
+}
+
+// 递归更新节点展开状态
+function updateNodeExpanded(
+	nodes: FileNode[],
+	path: string,
+	isExpanded: boolean,
+): FileNode[] {
+	return nodes.map((node) => {
+		if (node.path === path) {
+			return { ...node, isExpanded };
+		}
+		if (node.children) {
+			return {
+				...node,
+				children: updateNodeExpanded(node.children, path, isExpanded),
+			};
+		}
+		return node;
+	});
+}
+
 export const useAppStore = create<AppState>((set, get) => ({
+	// ===== Repo 初始状态 =====
+	repos: [],
+	activeRepoId: null,
+	fileTree: [],
+	deleteBehavior: "ask-every-time",
+	setDeleteBehavior: (behavior) => set({ deleteBehavior: behavior }),
+
+	// ===== Repo Actions =====
+	addRepo: async (path: string, name?: string) => {
+		const { repos } = get();
+
+		const normalizedPath = path.replace(/\\/g, "/");
+		const existingRepo = repos.find(
+			(r) => r.path.replace(/\\/g, "/") === normalizedPath,
+		);
+
+		if (existingRepo) {
+			await get().switchRepo(existingRepo.id);
+			return;
+		}
+
+		const pathParts = path.split(/[\\/]/);
+		const folderName =
+			pathParts[pathParts.length - 1] ||
+			pathParts[pathParts.length - 2] ||
+			"Untitled";
+
+		const newRepo: Repo = {
+			id: crypto.randomUUID(),
+			name: name || folderName,
+			path,
+			lastOpenedAt: Date.now(),
+		};
+
+		set((state) => {
+			const newRepos = [...state.repos, newRepo];
+			try {
+				window.electronAPI?.saveRepos?.(newRepos);
+			} catch {}
+			return { repos: newRepos, activeRepoId: newRepo.id };
+		});
+
+		await get().switchRepo(newRepo.id);
+	},
+
+	removeRepo: (id: string) => {
+		set((state) => {
+			const newRepos = state.repos.filter((r) => r.id !== id);
+			const newActiveId =
+				state.activeRepoId === id
+					? newRepos.length > 0
+						? newRepos[0].id
+						: null
+					: state.activeRepoId;
+			try {
+				window.electronAPI?.saveRepos?.(newRepos);
+			} catch {}
+			return {
+				repos: newRepos,
+				activeRepoId: newActiveId,
+				fileTree: newActiveId ? state.fileTree : [],
+				files: newActiveId ? state.files : [],
+			};
+		});
+	},
+
+	switchRepo: async (id: string) => {
+		const repo = get().repos.find((r) => r.id === id);
+		if (!repo) return;
+
+		try {
+			const result = await window.electronAPI?.scanDirectory?.(repo.path);
+			if (result) {
+				set((state) => {
+					const newRepos = state.repos.map((r) =>
+						r.id === id ? { ...r, lastOpenedAt: Date.now() } : r,
+					);
+					try {
+						window.electronAPI?.saveRepos?.(newRepos);
+					} catch {}
+					return {
+						repos: newRepos,
+						activeRepoId: id,
+						fileTree: result.nodes,
+						files: flattenFileNodes(result.nodes),
+						activeFileId: null,
+						scoreSelection: null,
+						playbackBeat: null,
+						playerCursorPosition: null,
+					};
+				});
+
+				await window.electronAPI?.saveWorkspaceMetadata?.(repo.path, {
+					id: repo.id,
+					name: repo.name,
+					openedAt: Date.now(),
+					expandedFolders: result.expandedFolders,
+				});
+			}
+		} catch (err) {
+			console.error("Failed to scan directory:", err);
+		}
+	},
+
+	updateRepoName: (id: string, name: string) => {
+		set((state) => {
+			const newRepos = state.repos.map((r) =>
+				r.id === id ? { ...r, name } : r,
+			);
+			try {
+				window.electronAPI?.saveRepos?.(newRepos);
+			} catch {}
+			return { repos: newRepos };
+		});
+	},
+
+	loadRepos: async () => {
+		try {
+			const repos = await window.electronAPI?.loadRepos?.();
+			if (repos) {
+				set({ repos });
+			}
+		} catch (err) {
+			console.error("Failed to load repos:", err);
+		}
+	},
+
+	// ===== FileTree Actions =====
+	expandFolder: (path: string) => {
+		set((state) => ({
+			fileTree: updateNodeExpanded(state.fileTree, path, true),
+		}));
+	},
+
+	collapseFolder: (path: string) => {
+		set((state) => ({
+			fileTree: updateNodeExpanded(state.fileTree, path, false),
+		}));
+	},
+
+	refreshFileTree: async () => {
+		const { activeRepoId, repos } = get();
+		if (!activeRepoId) return;
+
+		const repo = repos.find((r) => r.id === activeRepoId);
+		if (!repo) return;
+
+		try {
+			const result = await window.electronAPI?.scanDirectory?.(repo.path);
+			if (result) {
+				set({
+					fileTree: result.nodes,
+					files: flattenFileNodes(result.nodes),
+				});
+			}
+		} catch (err) {
+			console.error("Failed to refresh file tree:", err);
+		}
+	},
+
+	getFileNodeById: (id: string) => {
+		return findNodeById(get().fileTree, id);
+	},
+
+	// ===== 兼容旧代码 =====
 	files: [],
 	activeFileId: null,
 	isTracksPanelOpen: false,
@@ -357,29 +581,29 @@ export const useAppStore = create<AppState>((set, get) => ({
 
 	addFile: (file) => {
 		set((state) => {
-			// 检查文件是否已存在
-			const exists = state.files.some((f) => f.path === file.path);
-			if (exists) {
+			const existing = state.files.find((f) => f.path === file.path);
+			if (existing) {
+				const merged = {
+					...existing,
+					// Prefer latest metadata/content when provided
+					name: file.name || existing.name,
+					content: file.content ?? existing.content,
+					contentLoaded: file.contentLoaded ?? true,
+				};
 				return {
-					activeFileId: state.files.find((f) => f.path === file.path)?.id,
+					...state,
+					files: state.files.map((f) => (f.id === existing.id ? merged : f)),
+					activeFileId: existing.id,
 				};
 			}
-			const newState = {
-				files: [...state.files, file],
+			return {
+				...state,
+				files: [
+					...state.files,
+					{ ...file, contentLoaded: file.contentLoaded ?? true },
+				],
 				activeFileId: file.id,
 			};
-			// 持久化到主进程
-			try {
-				window.electronAPI?.saveAppState?.({
-					files: newState.files.map((f) => ({
-						id: f.id,
-						name: f.name,
-						path: f.path,
-					})),
-					activeFileId: newState.activeFileId,
-				});
-			} catch {}
-			return newState;
 		});
 	},
 
@@ -392,18 +616,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 						? newFiles[0].id
 						: null
 					: state.activeFileId;
-			const newState = { files: newFiles, activeFileId: newActiveId };
-			try {
-				window.electronAPI?.saveAppState?.({
-					files: newFiles.map((f) => ({
-						id: f.id,
-						name: f.name,
-						path: f.path,
-					})),
-					activeFileId: newActiveId,
-				});
-			} catch {}
-			return newState;
+			return { files: newFiles, activeFileId: newActiveId };
 		});
 	},
 
@@ -440,16 +653,6 @@ export const useAppStore = create<AppState>((set, get) => ({
 					: f,
 			);
 			set({ files: newFiles });
-			try {
-				window.electronAPI?.saveAppState?.({
-					files: newFiles.map((f) => ({
-						id: f.id,
-						name: f.name,
-						path: f.path,
-					})),
-					activeFileId: state.activeFileId,
-				});
-			} catch {}
 			return true;
 		} catch (err) {
 			console.error("renameFile error:", err);
@@ -458,25 +661,14 @@ export const useAppStore = create<AppState>((set, get) => ({
 	},
 
 	setActiveFile: (id) => {
-		set((state) => {
-			const newState = { ...state, activeFileId: id };
-			try {
-				window.electronAPI?.saveAppState?.({
-					files: newState.files.map((f) => ({
-						id: f.id,
-						name: f.name,
-						path: f.path,
-					})),
-					activeFileId: newState.activeFileId,
-				});
-			} catch {}
-			return { activeFileId: id };
-		});
+		set({ activeFileId: id });
 	},
 
 	updateFileContent: (id, content) => {
 		set((state) => ({
-			files: state.files.map((f) => (f.id === id ? { ...f, content } : f)),
+			files: state.files.map((f) =>
+				f.id === id ? { ...f, content, contentLoaded: true } : f,
+			),
 		}));
 	},
 
@@ -553,25 +745,15 @@ export const useAppStore = create<AppState>((set, get) => ({
 
 	initialize: async () => {
 		try {
-			// 注意：语言设置不需要在这里恢复
-			// appStore.locale 的初始值已通过 getInitialLocale() 从 i18n.language 同步
-			// i18n 在导入时已从 localStorage 初始化，因此 appStore.locale 已经是正确的值
+			const repos = await window.electronAPI?.loadRepos?.();
+			if (repos) {
+				set({ repos });
+			}
 
-			// 检查 electronAPI 是否可用
-			if (
-				typeof window !== "undefined" &&
-				window.electronAPI &&
-				window.electronAPI.loadAppState
-			) {
-				const result = await window.electronAPI.loadAppState();
-				if (result?.files) {
-					const restored = result.files.map((f) => ({
-						id: f.id ?? crypto.randomUUID(),
-						name: f.name,
-						path: f.path,
-						content: f.content ?? "",
-					}));
-					set({ files: restored, activeFileId: result.activeFileId });
+			if (repos) {
+				const activeRepo = repos.find((r) => r.id === get().activeRepoId);
+				if (activeRepo) {
+					await get().switchRepo(activeRepo.id);
 				}
 			}
 		} catch (err) {
@@ -579,3 +761,22 @@ export const useAppStore = create<AppState>((set, get) => ({
 		}
 	},
 }));
+
+// 辅助函数：将 FileNode 树扁平化为 FileItem 数组
+function flattenFileNodes(nodes: FileNode[]): FileItem[] {
+	const result: FileItem[] = [];
+	for (const node of nodes) {
+		if (node.type === "file") {
+			result.push({
+				id: node.id,
+				name: node.name,
+				path: node.path,
+				content: node.content || "",
+				contentLoaded: typeof node.content === "string",
+			});
+		} else if (node.children) {
+			result.push(...flattenFileNodes(node.children));
+		}
+	}
+	return result;
+}

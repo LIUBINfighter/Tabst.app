@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer } from "electron";
+import type { FileNode, Repo, RepoMetadata } from "../renderer/types/repo";
 
 export interface FileResult {
 	path: string;
@@ -11,10 +12,17 @@ export interface SaveResult {
 	error?: string;
 }
 
+export interface ScanDirectoryResult {
+	nodes: FileNode[];
+	expandedFolders: string[];
+}
+
 contextBridge.exposeInMainWorld("electronAPI", {
-	// 打开文件选择器
 	openFile: (extensions: string[]): Promise<FileResult | null> =>
 		ipcRenderer.invoke("open-file", extensions),
+
+	selectFolder: (): Promise<string | null> =>
+		ipcRenderer.invoke("select-folder"),
 
 	// 创建新文件, ext 可选, 例如 '.md' 或 '.atex'
 	createFile: (ext?: string): Promise<FileResult | null> =>
@@ -45,6 +53,39 @@ contextBridge.exposeInMainWorld("electronAPI", {
 	// Read asset (ArrayBuffer / Uint8Array) via main process for packaged app
 	readAsset: (relPath: string): Promise<Uint8Array> =>
 		ipcRenderer.invoke("read-asset", relPath),
+
+	readFile: (filePath: string): Promise<{ content: string; error?: string }> =>
+		ipcRenderer.invoke("read-file", filePath),
+
+	// ===== Repo 管理 =====
+	// 扫描目录，返回文件树
+	scanDirectory: (path: string): Promise<ScanDirectoryResult | null> =>
+		ipcRenderer.invoke("scan-directory", path),
+
+	// 加载全局 Repo 列表
+	loadRepos: (): Promise<Repo[]> => ipcRenderer.invoke("load-repos"),
+
+	// 保存全局 Repo 列表
+	saveRepos: (repos: Repo[]): Promise<void> =>
+		ipcRenderer.invoke("save-repos", repos),
+
+	// 加载 Repo 元数据
+	loadWorkspaceMetadata: (repoPath: string): Promise<RepoMetadata | null> =>
+		ipcRenderer.invoke("load-workspace-metadata", repoPath),
+
+	// 保存 Repo 元数据
+	saveWorkspaceMetadata: (
+		repoPath: string,
+		metadata: RepoMetadata,
+	): Promise<void> =>
+		ipcRenderer.invoke("save-workspace-metadata", repoPath, metadata),
+
+	// 删除文件（根据用户偏好）
+	deleteFile: (
+		filePath: string,
+		behavior: "system-trash" | "repo-trash" | "ask-every-time",
+	): Promise<{ success: boolean; error?: string }> =>
+		ipcRenderer.invoke("delete-file", filePath, behavior),
 
 	// Auto-update
 	checkForUpdates: (): Promise<{ supported: boolean; message?: string }> =>
