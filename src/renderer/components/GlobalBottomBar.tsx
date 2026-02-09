@@ -259,13 +259,7 @@ function EditorBottomBar({
 		</div>
 	);
 
-	const playbackSpeedControls = (
-		<div className="flex items-center gap-1 text-xs">
-			{playbackSpeedControl}
-		</div>
-	);
-
-	const _metronomeControls = (
+	const metronomeControls = (
 		<div className="flex items-center">
 			<Tooltip>
 				<TooltipTrigger asChild>
@@ -289,6 +283,13 @@ function EditorBottomBar({
 					</p>
 				</TooltipContent>
 			</Tooltip>
+		</div>
+	);
+
+	const playbackSpeedControls = (
+		<div className="flex items-center gap-1 text-xs">
+			{playbackSpeedControl}
+			{metronomeControls}
 		</div>
 	);
 
