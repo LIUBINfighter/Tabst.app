@@ -64,6 +64,13 @@ export default function Preview({
 		showTablature?: boolean;
 		showStandardNotation?: boolean;
 	} | null>(null);
+	// On first load, try to prefer TAB silently. If alphaTab errors, rollback and keep default.
+	const tabProbeRef = useRef<{
+		active: boolean;
+		prev: ReturnType<typeof getFirstStaffOptions>;
+		timeoutId: number | null;
+		lastProbeAt: number;
+	}>({ active: false, prev: null, timeoutId: null });
 	// Error recovery: parse timeout + last valid score restore
 	const errorRecovery = usePreviewErrorRecovery();
 	const {
@@ -246,12 +253,51 @@ export default function Preview({
 	 */
 	const applyTracksConfig = useCallback(
 		(api: alphaTab.AlphaTabApi) => {
-			// First load: respect alphaTab's own adaptation; just read current staff state.
+			// First load: try to prefer TAB (silent dry-run). If it errors, keep alphaTab default.
 			if (!trackConfigRef.current) {
+				if (tabProbeRef.current.active) return;
 				const current = getFirstStaffOptions(api);
-				if (current) {
+				if (!current) return;
+
+				const preferTab = {
+					...current,
+					showTablature: true,
+					showStandardNotation: false,
+				};
+
+				tabProbeRef.current.active = true;
+				tabProbeRef.current.prev = current;
+				tabProbeRef.current.lastProbeAt = Date.now();
+				if (tabProbeRef.current.timeoutId != null) {
+					clearTimeout(tabProbeRef.current.timeoutId);
+				}
+				// Failsafe: finalize even if renderFinished never arrives.
+				tabProbeRef.current.timeoutId = window.setTimeout(() => {
+					if (!tabProbeRef.current.active) return;
+					tabProbeRef.current.active = false;
+					const applied = getFirstStaffOptions(api) ?? tabProbeRef.current.prev;
+					if (applied) {
+						trackConfigRef.current = applied;
+						setFirstStaffOptions(applied);
+					}
+				}, 1200);
+
+				try {
+					// This may trigger async worker errors; those are handled in api.error while probe is active.
+					applyStaffConfig(api, preferTab);
+				} catch (e) {
+					// Sync failure: rollback immediately, without surfacing to UI.
+					tabProbeRef.current.active = false;
+					if (tabProbeRef.current.timeoutId != null) {
+						clearTimeout(tabProbeRef.current.timeoutId);
+						tabProbeRef.current.timeoutId = null;
+					}
+					try {
+						applyStaffConfig(api, current);
+					} catch {}
 					trackConfigRef.current = current;
 					setFirstStaffOptions(current);
+					console.warn("[Preview] TAB probe sync-failed; kept default.", e);
 				}
 				return;
 			}
@@ -310,6 +356,23 @@ export default function Preview({
 			// 2. 渲染完成（处理光标，注意：不要修改播放状态）
 			api.renderFinished.on((r) => {
 				console.info("[Preview] alphaTab render complete:", r);
+				// If we are probing TAB on first load, wait a short grace period before finalizing.
+				// Some worker errors can arrive slightly after renderFinished.
+				if (tabProbeRef.current.active) {
+					if (tabProbeRef.current.timeoutId != null) {
+						clearTimeout(tabProbeRef.current.timeoutId);
+					}
+					tabProbeRef.current.timeoutId = window.setTimeout(() => {
+						if (!tabProbeRef.current.active) return;
+						tabProbeRef.current.active = false;
+						const applied =
+							getFirstStaffOptions(api) ?? tabProbeRef.current.prev;
+						if (applied) {
+							trackConfigRef.current = applied;
+							setFirstStaffOptions(applied);
+						}
+					}, 250);
+				}
 				// 暂时关闭自定义播放器光标隐藏
 				// const cursor = _cursorRef.current;
 				// if (cursor) cursor.classList.add("hidden");
@@ -709,8 +772,45 @@ export default function Preview({
 
 			// 4. 改进的错误处理：保留上一次成功的渲染
 			api.error.on((err: unknown) => {
-				console.error("[Preview] alphaTab error:", err);
 				const fullError = formatFullError(err);
+				const now = Date.now();
+				const recentlyProbed =
+					(tabProbeRef.current.lastProbeAt ?? 0) > 0 &&
+					now - (tabProbeRef.current.lastProbeAt ?? 0) < 2000;
+				// Keep this intentionally narrow: we only want to rollback for the known
+				// non-guitar TAB crash (undefined staves). Don't swallow other errors.
+				const looksLikeProbeStavesError =
+					fullError.includes("(reading 'staves')") ||
+					(fullError.includes("Cannot read properties of undefined") &&
+						fullError.includes("staves"));
+
+				// During TAB probe (or immediately after), swallow internal TypeErrors and rollback.
+				if (
+					(tabProbeRef.current.active || recentlyProbed) &&
+					looksLikeProbeStavesError
+				) {
+					console.warn(
+						"[Preview] TAB probe internal error; rollback to default.",
+						fullError,
+					);
+					tabProbeRef.current.active = false;
+					if (tabProbeRef.current.timeoutId != null) {
+						clearTimeout(tabProbeRef.current.timeoutId);
+						tabProbeRef.current.timeoutId = null;
+					}
+					const prev = tabProbeRef.current.prev;
+					if (prev) {
+						try {
+							applyStaffConfig(api, prev);
+						} catch {}
+						trackConfigRef.current = prev;
+						setFirstStaffOptions(prev);
+					}
+					// Ensure user does not see an error banner from internal probe failure.
+					setParseError(null);
+					return;
+				}
+				console.error("[Preview] alphaTab error:", err);
 				console.error("[Preview] Setting error state:", fullError);
 				onErrorRecovery(apiRef.current, fullError);
 			});
@@ -971,6 +1071,7 @@ export default function Preview({
 		onErrorRecovery,
 		onScoreLoadedMatch,
 		setParseError,
+		setFirstStaffOptions,
 	]);
 
 	// 内容更新：仅调用 tex，不销毁 API，避免闪烁

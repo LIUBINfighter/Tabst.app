@@ -61,6 +61,12 @@ export function useAlphaTab(options: UseAlphaTabOptions): UseAlphaTabReturn {
 
 	const zoomRef = useRef(zoom);
 	const trackConfigRef = useRef<StaffDisplayOptions | null>(null);
+	const tabProbeRef = useRef<{
+		active: boolean;
+		prev: StaffDisplayOptions | null;
+		timeoutId: ReturnType<typeof setTimeout> | null;
+		lastProbeAt: number;
+	}>({ active: false, prev: null, timeoutId: null, lastProbeAt: 0 });
 	const lastValidScoreRef = useRef<{
 		score: alphaTab.model.Score;
 		content: string;
@@ -105,12 +111,49 @@ export function useAlphaTab(options: UseAlphaTabOptions): UseAlphaTabReturn {
 	const applyTracksConfig = useCallback(() => {
 		const api = apiRef.current;
 		if (!api) return;
-		// First load: respect alphaTab adaptation, just read current staff state.
+		// First load: try to prefer TAB (silent dry-run). If it errors, keep alphaTab default.
 		if (!trackConfigRef.current) {
+			if (tabProbeRef.current.active) return;
 			const current = getFirstStaffOptions(api);
-			if (current) {
+			if (!current) return;
+
+			const preferTab: StaffDisplayOptions = {
+				...current,
+				showTablature: true,
+				showStandardNotation: false,
+			};
+
+			tabProbeRef.current.active = true;
+			tabProbeRef.current.prev = current;
+			tabProbeRef.current.lastProbeAt = Date.now();
+			if (tabProbeRef.current.timeoutId) {
+				clearTimeout(tabProbeRef.current.timeoutId);
+			}
+			// Failsafe: finalize even if renderFinished never arrives.
+			tabProbeRef.current.timeoutId = setTimeout(() => {
+				if (!tabProbeRef.current.active) return;
+				tabProbeRef.current.active = false;
+				const applied = getFirstStaffOptions(api) ?? tabProbeRef.current.prev;
+				if (applied) {
+					trackConfigRef.current = applied;
+					setFirstStaffOptions(applied);
+				}
+			}, 1200);
+
+			try {
+				applyStaffConfig(api, preferTab);
+			} catch (e) {
+				tabProbeRef.current.active = false;
+				if (tabProbeRef.current.timeoutId) {
+					clearTimeout(tabProbeRef.current.timeoutId);
+					tabProbeRef.current.timeoutId = null;
+				}
+				try {
+					applyStaffConfig(api, current);
+				} catch {}
 				trackConfigRef.current = current;
 				setFirstStaffOptions(current);
+				console.warn("[useAlphaTab] TAB probe sync-failed; kept default.", e);
 			}
 			return;
 		}
@@ -172,11 +215,63 @@ export function useAlphaTab(options: UseAlphaTabOptions): UseAlphaTabReturn {
 				}
 
 				api.renderFinished.on(() => {
+					// If we are probing TAB on first load, wait a short grace period before finalizing.
+					if (tabProbeRef.current.active) {
+						if (tabProbeRef.current.timeoutId) {
+							clearTimeout(tabProbeRef.current.timeoutId);
+						}
+						tabProbeRef.current.timeoutId = setTimeout(() => {
+							if (!tabProbeRef.current.active) return;
+							tabProbeRef.current.active = false;
+							const applied =
+								getFirstStaffOptions(api) ?? tabProbeRef.current.prev;
+							if (applied) {
+								trackConfigRef.current = applied;
+								setFirstStaffOptions(applied);
+							}
+						}, 250);
+					}
 					setIsLoading(false);
 				});
 
 				api.error.on((err: unknown) => {
 					const fullError = formatFullError(err);
+					const now = Date.now();
+					const recentlyProbed =
+						(tabProbeRef.current.lastProbeAt ?? 0) > 0 &&
+						now - (tabProbeRef.current.lastProbeAt ?? 0) < 2000;
+					// Keep this intentionally narrow: rollback only for the known
+					// non-guitar TAB crash (undefined staves). Don't swallow other errors.
+					const looksLikeProbeStavesError =
+						fullError.includes("(reading 'staves')") ||
+						(fullError.includes("Cannot read properties of undefined") &&
+							fullError.includes("staves"));
+
+					// During TAB probe (or immediately after), swallow internal TypeErrors and rollback.
+					if (
+						(tabProbeRef.current.active || recentlyProbed) &&
+						looksLikeProbeStavesError
+					) {
+						console.warn(
+							"[useAlphaTab] TAB probe internal error; rollback to default.",
+							fullError,
+						);
+						tabProbeRef.current.active = false;
+						if (tabProbeRef.current.timeoutId) {
+							clearTimeout(tabProbeRef.current.timeoutId);
+							tabProbeRef.current.timeoutId = null;
+						}
+						const prev = tabProbeRef.current.prev;
+						if (prev) {
+							try {
+								applyStaffConfig(api, prev);
+							} catch {}
+							trackConfigRef.current = prev;
+							setFirstStaffOptions(prev);
+						}
+						setIsLoading(false);
+						return;
+					}
 					setError(fullError);
 					setIsLoading(false);
 					if (lastValidScoreRef.current?.score && apiRef.current) {
