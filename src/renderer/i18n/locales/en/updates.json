@@ -10,6 +10,8 @@
 	"unsupported": "Update check not supported in this environment",
 	"triggered": "Check triggered, watch for update toast",
 	"checkFailed": "Check failed: {{reason}}",
+	"fetchReleasesFailed": "Failed to fetch releases",
+	"parseXmlFailed": "Failed to parse XML",
 	"viewRelease": "View →",
 	"toast": {
 		"title": "Update",

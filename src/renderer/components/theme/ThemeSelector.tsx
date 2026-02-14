@@ -43,17 +43,17 @@ export function ThemeSelector() {
 	}[] = [
 		{
 			value: "light",
-			label: t("settings:appearance.light"),
+			label: t("light"),
 			icon: <Sun className="h-4 w-4" />,
 		},
 		{
 			value: "dark",
-			label: t("settings:appearance.dark"),
+			label: t("dark"),
 			icon: <Moon className="h-4 w-4" />,
 		},
 		{
 			value: "system",
-			label: t("settings:appearance.system"),
+			label: t("system"),
 			icon: <Monitor className="h-4 w-4" />,
 		},
 	];
@@ -62,9 +62,7 @@ export function ThemeSelector() {
 		<div className="space-y-6">
 			{/* Theme Mode Selection */}
 			<div className="space-y-3">
-				<h4 className="text-sm font-medium">
-					{t("settings:appearance.themeMode")}
-				</h4>
+				<h4 className="text-sm font-medium">{t("themeMode")}</h4>
 				<div className="flex gap-2">
 					{modeOptions.map((option) => (
 						<button
@@ -84,71 +82,78 @@ export function ThemeSelector() {
 				</div>
 			</div>
 
-			{/* UI Theme Selection */}
-			<div className="space-y-3">
-				<label htmlFor="ui-theme-select" className="text-sm font-medium">
-					{t("settings:appearance.uiTheme")}
-				</label>
-				<Select value={uiTheme.id} onValueChange={handleUIThemeChange}>
-					<SelectTrigger id="ui-theme-select" className="w-[200px]">
-						<SelectValue />
-					</SelectTrigger>
-					<SelectContent className="w-[200px]">
-						<div className="grid gap-1">
-							{uiThemes.map((theme) => (
+			<div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6">
+				{/* UI Theme Selection */}
+				<div className="space-y-3">
+					<label htmlFor="ui-theme-select" className="text-sm font-medium">
+						{t("appearanceSection.uiTheme")}
+					</label>
+					<Select value={uiTheme.id} onValueChange={handleUIThemeChange}>
+						<SelectTrigger id="ui-theme-select" className="w-full">
+							<SelectValue />
+						</SelectTrigger>
+						<SelectContent className="w-[260px]">
+							<div className="grid gap-1">
+								{uiThemes.map((theme) => (
+									<SelectItem key={theme.id} value={theme.id}>
+										<div className="flex items-center gap-2">
+											<div className="flex -space-x-1">
+												<span
+													className="w-3 h-3 rounded-full border border-border"
+													style={{
+														background: `hsl(${theme.light.semantic.primary})`,
+													}}
+												/>
+												<span
+													className="w-3 h-3 rounded-full border border-border"
+													style={{
+														background: `hsl(${theme.dark.semantic.primary})`,
+													}}
+												/>
+											</div>
+											<span>{theme.name}</span>
+										</div>
+									</SelectItem>
+								))}
+							</div>
+						</SelectContent>
+					</Select>
+					{uiTheme && (
+						<p className="text-xs text-muted-foreground">
+							{t(`uiThemes.${uiTheme.id}`)}
+						</p>
+					)}
+				</div>
+
+				{/* Editor Theme Selection */}
+				<div className="space-y-3">
+					<label htmlFor="editor-theme-select" className="text-sm font-medium">
+						{t("appearanceSection.editorTheme")}
+					</label>
+					<Select
+						value={editorTheme.id}
+						onValueChange={handleEditorThemeChange}
+					>
+						<SelectTrigger id="editor-theme-select" className="w-full">
+							<SelectValue />
+						</SelectTrigger>
+						<SelectContent className="w-[260px]">
+							{editorThemes.map((theme) => (
 								<SelectItem key={theme.id} value={theme.id}>
 									<div className="flex items-center gap-2">
-										<div className="flex -space-x-1">
-											<span
-												className="w-3 h-3 rounded-full border border-border"
-												style={{
-													background: `hsl(${theme.light.semantic.primary})`,
-												}}
-											/>
-											<span
-												className="w-3 h-3 rounded-full border border-border"
-												style={{
-													background: `hsl(${theme.dark.semantic.primary})`,
-												}}
-											/>
-										</div>
+										<span
+											className="w-3 h-3 rounded-full"
+											style={{
+												background: `linear-gradient(90deg, ${theme.colors.keyword} 25%, ${theme.colors.string} 25%, ${theme.colors.string} 50%, ${theme.colors.number} 50%, ${theme.colors.number} 75%, ${theme.colors.comment} 75%)`,
+											}}
+										/>
 										<span>{theme.name}</span>
 									</div>
 								</SelectItem>
 							))}
-						</div>
-					</SelectContent>
-				</Select>
-				{uiTheme.description && (
-					<p className="text-xs text-muted-foreground">{uiTheme.description}</p>
-				)}
-			</div>
-
-			{/* Editor Theme Selection */}
-			<div className="space-y-3">
-				<label htmlFor="editor-theme-select" className="text-sm font-medium">
-					{t("settings:appearance.editorTheme")}
-				</label>
-				<Select value={editorTheme.id} onValueChange={handleEditorThemeChange}>
-					<SelectTrigger id="editor-theme-select" className="w-[200px]">
-						<SelectValue />
-					</SelectTrigger>
-					<SelectContent className="w-[200px]">
-						{editorThemes.map((theme) => (
-							<SelectItem key={theme.id} value={theme.id}>
-								<div className="flex items-center gap-2">
-									<span
-										className="w-3 h-3 rounded-full"
-										style={{
-											background: `linear-gradient(90deg, ${theme.colors.keyword} 25%, ${theme.colors.string} 25%, ${theme.colors.string} 50%, ${theme.colors.number} 50%, ${theme.colors.number} 75%, ${theme.colors.comment} 75%)`,
-										}}
-									/>
-									<span>{theme.name}</span>
-								</div>
-							</SelectItem>
-						))}
-					</SelectContent>
-				</Select>
+						</SelectContent>
+					</Select>
+				</div>
 			</div>
 		</div>
 	);
