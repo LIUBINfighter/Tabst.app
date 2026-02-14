@@ -745,6 +745,24 @@ export default function PrintPreview({
 									</Button>
 								</div>
 							)}
+
+							<Button
+								size="sm"
+								className="px-2 print-btn h-8 text-xs"
+								variant="default"
+								onClick={handlePrint}
+								disabled={isLoading || !!error || pages.length === 0}
+							>
+								<Printer className="h-3 w-3 mr-1" /> {t("printExport")}
+							</Button>
+							{fontError && (
+								<span
+									className="text-xs text-amber-600"
+									title={t("fontLoadFailed")}
+								>
+									⚠️ 字体
+								</span>
+							)}
 							{/* 音轨选择按钮（使用 IconButton 与主预览一致） */}
 							<Tooltip>
 								<TooltipTrigger asChild>
@@ -764,23 +782,6 @@ export default function PrintPreview({
 									</p>
 								</TooltipContent>
 							</Tooltip>
-							<Button
-								size="sm"
-								className="px-2 print-btn h-8 text-xs"
-								variant="default"
-								onClick={handlePrint}
-								disabled={isLoading || !!error || pages.length === 0}
-							>
-								<Printer className="h-3 w-3 mr-1" /> {t("printExport")}
-							</Button>
-							{fontError && (
-								<span
-									className="text-xs text-amber-600"
-									title={t("fontLoadFailed")}
-								>
-									⚠️ 字体
-								</span>
-							)}
 							<Tooltip>
 								<TooltipTrigger asChild>
 									<IconButton
@@ -802,80 +803,99 @@ export default function PrintPreview({
 
 			{/* 主内容区域（包含侧边栏和预览） */}
 			<div className="flex-1 flex overflow-hidden">
-				{/* 内容区域 */}
-				<div
-					ref={previewViewportRef}
-					className="flex-1 overflow-auto bg-muted/30 p-6"
-				>
-					{/* 加载状态 */}
-					{isLoading && (
-						<div className="flex items-center justify-center h-full">
-							<div className="flex flex-col items-center gap-4">
-								<Loader2 className="h-8 w-8 animate-spin text-primary" />
-								<span className="text-sm text-muted-foreground">
-									{t("generating")}
-								</span>
-							</div>
-						</div>
-					)}
-
-					{/* 错误状态 */}
-					{error && (
-						<div className="flex items-center justify-center h-full">
-							<div className="bg-destructive/10 text-destructive p-6 rounded-lg max-w-md">
-								<h3 className="font-medium mb-2">{t("generateFailed")}</h3>
-								<p className="text-sm">{error}</p>
-							</div>
-						</div>
-					)}
-
-					{/* 隐藏的 alphaTab 渲染容器 - 保持在可视区域内以获取正确的字体度量 */}
+				<div className="flex-1 min-w-0 flex flex-col overflow-hidden">
+					{/* 内容区域 */}
 					<div
-						ref={alphaTabContainerRef}
-						className="fixed bg-white"
-						style={{
-							position: "fixed",
-							top: 0,
-							left: 0,
-							width: `${contentWidthPx}px`,
-							zIndex: -100, // Place at bottom layer
-							opacity: 0, // Fully transparent
-							pointerEvents: "none", // Don't respond to mouse events
-							fontSize: "16px", // Force set base font size
-							lineHeight: "normal", // Prevent inheriting abnormal line height
-						}}
-					/>
-
-					{/* 页面预览 */}
-					{!isLoading && !error && pages.length > 0 && (
-						<div className="flex justify-center">
-							<div
-								className="relative"
-								style={{
-									width: `${Math.round(contentWidthPx * previewFitScale)}px`,
-									height: `${Math.round(contentHeightPx * previewFitScale)}px`,
-								}}
-							>
-								<div
-									ref={previewContainerRef}
-									className="bg-white shadow-lg rounded-sm overflow-hidden relative"
-									style={{
-										width: `${contentWidthPx}px`,
-										height: `${contentHeightPx}px`,
-										transform: `scale(${previewFitScale})`,
-										transformOrigin: "top left",
-									}}
-								>
-									{/* 渲染当前页面的 SVG 内容 - pages 已经包含完整的 at-surface div */}
-									<div
-										// biome-ignore lint/security/noDangerouslySetInnerHtml: alphaTab SVG content from internal rendering
-										dangerouslySetInnerHTML={{ __html: currentPageHtml }}
-										style={{ width: "100%", height: "100%" }}
-									/>
+						ref={previewViewportRef}
+						className="flex-1 overflow-auto bg-muted/30 p-6"
+					>
+						{/* 加载状态 */}
+						{isLoading && (
+							<div className="flex items-center justify-center h-full">
+								<div className="flex flex-col items-center gap-4">
+									<Loader2 className="h-8 w-8 animate-spin text-primary" />
+									<span className="text-sm text-muted-foreground">
+										{t("generating")}
+									</span>
 								</div>
 							</div>
-						</div>
-					)}
+						)}
+
+						{/* 错误状态 */}
+						{error && (
+							<div className="flex items-center justify-center h-full">
+								<div className="bg-destructive/10 text-destructive p-6 rounded-lg max-w-md">
+									<h3 className="font-medium mb-2">{t("generateFailed")}</h3>
+									<p className="text-sm">{error}</p>
+								</div>
+							</div>
+						)}
+
+						{/* 隐藏的 alphaTab 渲染容器 - 保持在可视区域内以获取正确的字体度量 */}
+						<div
+							ref={alphaTabContainerRef}
+							className="fixed bg-white"
+							style={{
+								position: "fixed",
+								top: 0,
+								left: 0,
+								width: `${contentWidthPx}px`,
+								zIndex: -100, // Place at bottom layer
+								opacity: 0, // Fully transparent
+								pointerEvents: "none", // Don't respond to mouse events
+								fontSize: "16px", // Force set base font size
+								lineHeight: "normal", // Prevent inheriting abnormal line height
+							}}
+						/>
+
+						{/* 页面预览 */}
+						{!isLoading && !error && pages.length > 0 && (
+							<div className="flex justify-center">
+								<div
+									className="relative"
+									style={{
+										width: `${Math.round(contentWidthPx * previewFitScale)}px`,
+										height: `${Math.round(contentHeightPx * previewFitScale)}px`,
+									}}
+								>
+									<div
+										ref={previewContainerRef}
+										className="bg-white shadow-lg rounded-sm overflow-hidden relative"
+										style={{
+											width: `${contentWidthPx}px`,
+											height: `${contentHeightPx}px`,
+											transform: `scale(${previewFitScale})`,
+											transformOrigin: "top left",
+										}}
+									>
+										{/* 渲染当前页面的 SVG 内容 - pages 已经包含完整的 at-surface div */}
+										<div
+											// biome-ignore lint/security/noDangerouslySetInnerHtml: alphaTab SVG content from internal rendering
+											dangerouslySetInnerHTML={{ __html: currentPageHtml }}
+											style={{ width: "100%", height: "100%" }}
+										/>
+									</div>
+								</div>
+							</div>
+						)}
+					</div>
+
+					{/* 底部快捷键提示 */}
+					<div className="h-8 border-t border-border flex items-center justify-between px-3 bg-card text-xs text-muted-foreground shrink-0">
+						<span>{t("shortcuts")}</span>
+						{!isTracksPanelOpen && (
+							<Button
+								variant="ghost"
+								size="sm"
+								className="h-6 px-2 text-xs"
+								onClick={() => setIsTracksPanelOpen(true)}
+								disabled={isLoading || !printApi?.score}
+							>
+								<Layers className="mr-1 h-3.5 w-3.5" />
+								{t("openTracksPanel")}
+							</Button>
+						)}
+					</div>
 				</div>
 
 				{/* 音轨选择侧边栏 */}
@@ -897,11 +917,6 @@ export default function PrintPreview({
 						applyStaffOptionsRef.current = applyFn;
 					}}
 				/>
-			</div>
-
-			{/* 底部快捷键提示 */}
-			<div className="h-8 border-t border-border flex items-center justify-center px-4 bg-card text-xs text-muted-foreground shrink-0">
-				<span>{t("shortcuts")}</span>
 			</div>
 		</div>
 	);

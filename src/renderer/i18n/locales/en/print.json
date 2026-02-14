@@ -42,7 +42,7 @@
 	"printPreview": "Print preview",
 	"generating": "Generating print preview…",
 	"generateFailed": "Generate preview failed",
-	"printExport": "Print / Export PDF",
+	"printExport": "Print PDF",
 	"fontLoadFailed": "Font load failed, using fallback",
 	"shortcuts": "Esc close | ← → page | Ctrl+P print",
 	"unableToOpenPrintWindow": "Unable to open print window, please check browser settings"

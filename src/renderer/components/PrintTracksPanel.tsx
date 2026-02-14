@@ -356,7 +356,7 @@ export function PrintTracksPanel({
 		<TooltipProvider delayDuration={200}>
 			<div className="w-72 border-l border-border bg-card flex flex-col h-full shrink-0">
 				{/* Header */}
-				<div className="h-12 border-b border-border flex items-center justify-between px-3 shrink-0">
+				<div className="h-8 border-b border-border flex items-center justify-between px-3 shrink-0">
 					<div className="flex items-center gap-2">
 						<Layers className="h-4 w-4" />
 						<span className="text-sm font-medium">{t("panelTitle")}</span>
@@ -574,7 +574,7 @@ export function PrintTracksPanel({
 					</div>
 				</div>
 
-				<div className="h-10 border-t border-border flex items-center justify-between px-3 text-xs text-muted-foreground shrink-0">
+				<div className="h-8 border-t border-border flex items-center justify-between px-3 text-xs text-muted-foreground shrink-0">
 					<span>
 						{t("selectedCount", { n: selectedCount, total: totalCount })}
 					</span>
