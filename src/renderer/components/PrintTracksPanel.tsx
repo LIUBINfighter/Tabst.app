@@ -365,7 +365,64 @@ export function PrintTracksPanel({
 
 				{/* Content */}
 				<div className="flex-1 overflow-y-auto p-2">
-					<div className="mb-3 p-3 bg-muted/30 rounded-md space-y-2">
+					<div className="mb-2 rounded-md border border-border/60 bg-muted/20 p-2.5">
+						<div className="mb-2 flex items-center justify-between px-0.5">
+							<span className="text-xs font-medium text-muted-foreground">
+								{t("trackSelect")}
+							</span>
+							<div className="flex items-center gap-1">
+								<Tooltip>
+									<TooltipTrigger asChild>
+										<Button
+											variant="ghost"
+											size="sm"
+											className="h-6 px-2 text-xs"
+											onClick={selectAllTracks}
+										>
+											{t("selectAll")}
+										</Button>
+									</TooltipTrigger>
+									<TooltipContent side="top">
+										<p>{t("selectAll")}</p>
+									</TooltipContent>
+								</Tooltip>
+								<Tooltip>
+									<TooltipTrigger asChild>
+										<Button
+											variant="ghost"
+											size="sm"
+											className="h-6 px-2 text-xs"
+											onClick={deselectAllTracks}
+										>
+											{t("clear")}
+										</Button>
+									</TooltipTrigger>
+									<TooltipContent side="top">
+										<p>{t("firstOnly")}</p>
+									</TooltipContent>
+								</Tooltip>
+							</div>
+						</div>
+
+						{trackConfigs.length === 0 ? (
+							<div className="flex h-28 items-center justify-center text-sm text-muted-foreground">
+								{t("noTracks")}
+							</div>
+						) : (
+							<div className="space-y-1">
+								{trackConfigs.map((config) => (
+									<TrackItem
+										key={config.index}
+										config={config}
+										onToggleSelection={toggleTrackSelection}
+										onToggleStaffOption={toggleStaffOption}
+									/>
+								))}
+							</div>
+						)}
+					</div>
+
+					<div className="mb-2 rounded-md border border-border/60 bg-muted/20 p-2.5 space-y-1.5">
 						<div className="flex items-center justify-between">
 							<span className="text-xs font-medium text-muted-foreground">
 								{t("zoomLabel")}
@@ -414,7 +471,8 @@ export function PrintTracksPanel({
 							<span>100%</span>
 						</div>
 					</div>
-					<div className="mb-3 p-3 bg-muted/30 rounded-md space-y-2">
+
+					<div className="mb-2 rounded-md border border-border/60 bg-muted/20 p-2.5 space-y-1.5">
 						<div className="flex items-center justify-between">
 							<span className="text-xs font-medium text-muted-foreground">
 								{t("barsPerRow")}
@@ -464,7 +522,7 @@ export function PrintTracksPanel({
 						</div>
 					</div>
 
-					<div className="mb-3 p-3 bg-muted/30 rounded-md space-y-2">
+					<div className="rounded-md border border-border/60 bg-muted/20 p-2.5 space-y-1.5">
 						<div className="flex items-center justify-between">
 							<span className="text-xs font-medium text-muted-foreground">
 								{t("noteSpacing")}
@@ -514,60 +572,6 @@ export function PrintTracksPanel({
 							<span>{t("loose")}</span>
 						</div>
 					</div>
-					<div className="flex items-center justify-between mb-2 px-1">
-						<span className="text-xs font-medium text-muted-foreground">
-							{t("trackSelect")}
-						</span>
-						<div className="flex items-center gap-1">
-							<Tooltip>
-								<TooltipTrigger asChild>
-									<Button
-										variant="ghost"
-										size="sm"
-										className="h-6 px-2 text-xs"
-										onClick={selectAllTracks}
-									>
-										{t("selectAll")}
-									</Button>
-								</TooltipTrigger>
-								<TooltipContent side="top">
-									<p>{t("selectAll")}</p>
-								</TooltipContent>
-							</Tooltip>
-							<Tooltip>
-								<TooltipTrigger asChild>
-									<Button
-										variant="ghost"
-										size="sm"
-										className="h-6 px-2 text-xs"
-										onClick={deselectAllTracks}
-									>
-										{t("clear")}
-									</Button>
-								</TooltipTrigger>
-								<TooltipContent side="top">
-									<p>{t("firstOnly")}</p>
-								</TooltipContent>
-							</Tooltip>
-						</div>
-					</div>
-
-					{trackConfigs.length === 0 ? (
-						<div className="flex items-center justify-center h-32 text-sm text-muted-foreground">
-							{t("noTracks")}
-						</div>
-					) : (
-						<div className="space-y-1">
-							{trackConfigs.map((config) => (
-								<TrackItem
-									key={config.index}
-									config={config}
-									onToggleSelection={toggleTrackSelection}
-									onToggleStaffOption={toggleStaffOption}
-								/>
-							))}
-						</div>
-					)}
 				</div>
 
 				<div className="h-10 border-t border-border flex items-center justify-between px-3 text-xs text-muted-foreground shrink-0">
