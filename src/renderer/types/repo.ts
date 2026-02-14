@@ -4,6 +4,8 @@
  * 全局元数据存储在 ~/.tabst/
  */
 
+import type { StaffDisplayOptions } from "../lib/staff-config";
+
 export interface Repo {
 	id: string;
 	name: string;
@@ -11,11 +13,35 @@ export interface Repo {
 	lastOpenedAt: number;
 }
 
+export interface RepoPreferences {
+	staffOptions?: StaffDisplayOptions;
+	zoomPercent?: number;
+	playbackSpeed?: number;
+	playbackBpmMode?: boolean;
+	metronomeVolume?: number;
+	enableSyncScroll?: boolean;
+	enableCursorBroadcast?: boolean;
+	customPlayerConfig?: {
+		components: Array<{
+			type:
+				| "staffControls"
+				| "tracksControls"
+				| "zoomControls"
+				| "playbackSpeedControls"
+				| "playbackTransport";
+			enabled: boolean;
+			label: string;
+			description: string;
+		}>;
+	};
+}
+
 export interface RepoMetadata {
 	id: string;
 	name: string;
 	openedAt: number;
 	expandedFolders: string[];
+	preferences?: RepoPreferences;
 }
 
 /**

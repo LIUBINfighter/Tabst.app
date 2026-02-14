@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import i18n, { LOCALE_STORAGE_KEY, type Locale } from "../i18n";
 import { saveGlobalSettings, loadGlobalSettings } from "../lib/global-settings";
+import type { RepoMetadata, RepoPreferences } from "../types/repo";
 import type { StaffDisplayOptions } from "../lib/staff-config";
 import type { DeleteBehavior, FileNode, Repo } from "../types/repo";
 
@@ -290,6 +291,39 @@ function updateNodeExpanded(
 	});
 }
 
+function collectExpandedFolders(nodes: FileNode[]): string[] {
+	const result: string[] = [];
+	const walk = (n: FileNode[]) => {
+		for (const node of n) {
+			if (node.type === "folder") {
+				if (node.isExpanded) result.push(node.path);
+				if (node.children) walk(node.children);
+			}
+		}
+	};
+	walk(nodes);
+	return result;
+}
+
+async function mergeAndSaveWorkspacePreferences(partial: RepoPreferences) {
+	const state = useAppStore.getState();
+	const repo = state.repos.find((r) => r.id === state.activeRepoId);
+	if (!repo) return;
+	try {
+		const existing = await window.electronAPI.loadWorkspaceMetadata(repo.path);
+		const next: RepoMetadata = {
+			id: repo.id,
+			name: repo.name,
+			openedAt: Date.now(),
+			expandedFolders: existing?.expandedFolders ?? collectExpandedFolders(state.fileTree),
+			preferences: { ...(existing?.preferences ?? {}), ...partial },
+		};
+		await window.electronAPI.saveWorkspaceMetadata(repo.path, next);
+	} catch (e) {
+		console.error("saveWorkspacePreferences failed", e);
+	}
+}
+
 export const useAppStore = create<AppState>((set, get) => ({
 	// ===== Repo 初始状态 =====
 	repos: [],
@@ -374,7 +408,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 					try {
 						window.electronAPI?.saveRepos?.(newRepos);
 					} catch {}
-					return {
+					const baseState = {
 						repos: newRepos,
 						activeRepoId: id,
 						fileTree: result.nodes,
@@ -384,14 +418,64 @@ export const useAppStore = create<AppState>((set, get) => ({
 						playbackBeat: null,
 						playerCursorPosition: null,
 					};
+					return baseState;
 				});
 
-				await window.electronAPI?.saveWorkspaceMetadata?.(repo.path, {
-					id: repo.id,
-					name: repo.name,
-					openedAt: Date.now(),
-					expandedFolders: result.expandedFolders,
-				});
+				// hydrate workspace preferences and expanded folders
+				try {
+					const meta = await window.electronAPI.loadWorkspaceMetadata(repo.path);
+					if (meta) {
+						// apply expanded folders
+						if (meta.expandedFolders?.length) {
+							for (const p of meta.expandedFolders) {
+								set((state) => ({
+									fileTree: updateNodeExpanded(state.fileTree, p, true),
+								}));
+							}
+						}
+						// apply preferences
+						const prefs = meta.preferences ?? {};
+						if (typeof prefs.zoomPercent === "number") {
+							set({ zoomPercent: prefs.zoomPercent });
+							get().playerControls?.applyZoom?.(prefs.zoomPercent);
+						}
+						if (typeof prefs.playbackSpeed === "number") {
+							set({ playbackSpeed: prefs.playbackSpeed });
+							get().playerControls?.applyPlaybackSpeed?.(prefs.playbackSpeed);
+						}
+						if (typeof prefs.playbackBpmMode === "boolean") {
+							set({ playbackBpmMode: prefs.playbackBpmMode });
+						}
+						if (typeof prefs.metronomeVolume === "number") {
+							set({ metronomeVolume: prefs.metronomeVolume });
+							get().playerControls?.setMetronomeVolume?.(prefs.metronomeVolume);
+						}
+						if (typeof prefs.enableSyncScroll === "boolean") {
+							set({ enableSyncScroll: prefs.enableSyncScroll });
+						}
+						if (typeof prefs.enableCursorBroadcast === "boolean") {
+							set({ enableCursorBroadcast: prefs.enableCursorBroadcast });
+						}
+						if (
+							prefs.customPlayerConfig?.components &&
+							Array.isArray(prefs.customPlayerConfig.components)
+						) {
+							set({
+								customPlayerConfig: prefs.customPlayerConfig,
+							});
+						}
+					} else {
+						// initialize workspace metadata
+						await window.electronAPI.saveWorkspaceMetadata(repo.path, {
+							id: repo.id,
+							name: repo.name,
+							openedAt: Date.now(),
+							expandedFolders: [],
+						});
+					}
+				} catch (e) {
+					console.error("hydrate workspace failed", e);
+				}
 			}
 		} catch (err) {
 			console.error("Failed to scan directory:", err);
@@ -426,12 +510,46 @@ export const useAppStore = create<AppState>((set, get) => ({
 		set((state) => ({
 			fileTree: updateNodeExpanded(state.fileTree, path, true),
 		}));
+		void (async () => {
+			const s = get();
+			const repo = s.repos.find((r) => r.id === s.activeRepoId);
+			if (!repo) return;
+			try {
+				const expanded = collectExpandedFolders(s.fileTree);
+				const existing = await window.electronAPI.loadWorkspaceMetadata(repo.path);
+				const next: RepoMetadata = {
+					id: repo.id,
+					name: repo.name,
+					openedAt: Date.now(),
+					expandedFolders: expanded,
+					preferences: existing?.preferences,
+				};
+				await window.electronAPI.saveWorkspaceMetadata(repo.path, next);
+			} catch {}
+		})();
 	},
 
 	collapseFolder: (path: string) => {
 		set((state) => ({
 			fileTree: updateNodeExpanded(state.fileTree, path, false),
 		}));
+		void (async () => {
+			const s = get();
+			const repo = s.repos.find((r) => r.id === s.activeRepoId);
+			if (!repo) return;
+			try {
+				const expanded = collectExpandedFolders(s.fileTree);
+				const existing = await window.electronAPI.loadWorkspaceMetadata(repo.path);
+				const next: RepoMetadata = {
+					id: repo.id,
+					name: repo.name,
+					openedAt: Date.now(),
+					expandedFolders: expanded,
+					preferences: existing?.preferences,
+				};
+				await window.electronAPI.saveWorkspaceMetadata(repo.path, next);
+			} catch {}
+		})();
 	},
 
 	refreshFileTree: async () => {
@@ -477,26 +595,44 @@ export const useAppStore = create<AppState>((set, get) => ({
 	playerIsPlaying: false,
 	setPlayerIsPlaying: (v) => set({ playerIsPlaying: v }),
 	zoomPercent: 60,
-	setZoomPercent: (v) => set({ zoomPercent: v }),
+	setZoomPercent: (v) => {
+		set({ zoomPercent: v });
+		void mergeAndSaveWorkspacePreferences({ zoomPercent: v });
+	},
 	playbackSpeed: 1.0,
-	setPlaybackSpeed: (v) => set({ playbackSpeed: v }),
+	setPlaybackSpeed: (v) => {
+		set({ playbackSpeed: v });
+		void mergeAndSaveWorkspacePreferences({ playbackSpeed: v });
+	},
 
 	// 默认为 BPM 模式
 	playbackBpmMode: true,
-	setPlaybackBpmMode: (v) => set({ playbackBpmMode: v }),
+	setPlaybackBpmMode: (v) => {
+		set({ playbackBpmMode: v });
+		void mergeAndSaveWorkspacePreferences({ playbackBpmMode: v });
+	},
 
 	// 初始 BPM（由 Preview 在加载/渲染后填充）
 	songInitialBpm: null,
 	setSongInitialBpm: (v) => set({ songInitialBpm: v }),
 
 	metronomeVolume: 0,
-	setMetronomeVolume: (v) => set({ metronomeVolume: v }),
+	setMetronomeVolume: (v) => {
+		set({ metronomeVolume: v });
+		void mergeAndSaveWorkspacePreferences({ metronomeVolume: v });
+	},
 	// 是否启用编辑器播放同步滚动
 	enableSyncScroll: false,
-	setEnableSyncScroll: (v) => set({ enableSyncScroll: v }),
+	setEnableSyncScroll: (v) => {
+		set({ enableSyncScroll: v });
+		void mergeAndSaveWorkspacePreferences({ enableSyncScroll: v });
+	},
 	// 是否启用编辑器光标广播到Preview
 	enableCursorBroadcast: false,
-	setEnableCursorBroadcast: (v) => set({ enableCursorBroadcast: v }),
+	setEnableCursorBroadcast: (v) => {
+		set({ enableCursorBroadcast: v });
+		void mergeAndSaveWorkspacePreferences({ enableCursorBroadcast: v });
+	},
 
 	// 🆕 自定义播放器配置 - 默认按照当前底部栏顺序
 	customPlayerConfig: {
@@ -533,12 +669,18 @@ export const useAppStore = create<AppState>((set, get) => ({
 			},
 		],
 	},
-	setCustomPlayerConfig: (config) => set({ customPlayerConfig: config }),
-	updatePlayerComponentOrder: (components) =>
+	setCustomPlayerConfig: (config) => {
+		set({ customPlayerConfig: config });
+		void mergeAndSaveWorkspacePreferences({ customPlayerConfig: config });
+	},
+	updatePlayerComponentOrder: (components) => {
 		set((state) => ({
 			customPlayerConfig: { ...state.customPlayerConfig, components },
-		})),
-	togglePlayerComponent: (type) =>
+		}));
+		const next = { ...get().customPlayerConfig, components };
+		void mergeAndSaveWorkspacePreferences({ customPlayerConfig: next });
+	},
+	togglePlayerComponent: (type) => {
 		set((state) => ({
 			customPlayerConfig: {
 				...state.customPlayerConfig,
@@ -546,7 +688,11 @@ export const useAppStore = create<AppState>((set, get) => ({
 					comp.type === type ? { ...comp, enabled: !comp.enabled } : comp,
 				),
 			},
-		})),
+		}));
+		void mergeAndSaveWorkspacePreferences({
+			customPlayerConfig: get().customPlayerConfig,
+		});
+	},
 	apiInstanceId: 0,
 	scoreVersion: 0,
 	bumpApiInstanceId: () =>

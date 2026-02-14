@@ -85,6 +85,17 @@ export interface ElectronAPI {
 			message?: string;
 		}) => void,
 	) => () => void;
+
+	// Global settings (.tabst/settings.json)
+	loadGlobalSettings: () => Promise<{
+		success: boolean;
+		data?: unknown;
+		error?: string;
+	}>;
+	saveGlobalSettings: (settings: unknown) => Promise<{
+		success: boolean;
+		error?: string;
+	}>;
 }
 
 declare global {

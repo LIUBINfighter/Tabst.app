@@ -1212,7 +1212,7 @@ export default function Preview({
 						</div>
 						{parseError && (
 							<div className="bg-destructive/10 text-destructive px-3 py-2 text-xs border-t border-destructive/20 flex items-start gap-2">
-								<span className="font-semibold shrink-0">⚠️</span>
+								<span className="font-semibold shrink-0"></span>
 								<div className="flex-1 min-w-0">
 									<div className="font-medium">{t("errors:parseError")}</div>
 									<div className="mt-0.5 text-destructive/80 break-words">
