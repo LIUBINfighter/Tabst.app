@@ -5,6 +5,7 @@ import type {
 	RepoMetadata,
 	ScanDirectoryResult,
 } from "../../renderer/types/repo";
+import type { GlobalSettings } from "../effects/file-system";
 import {
 	moveToRepoTrash,
 	moveToSystemTrash,
@@ -157,7 +158,7 @@ export async function handleSaveGlobalSettingsEffect(
 	_event: Electron.IpcMainInvokeEvent,
 	settings: unknown,
 ): Promise<{ success: boolean; error?: string }> {
-	const program = writeGlobalSettings(settings as any);
+	const program = writeGlobalSettings(settings as GlobalSettings);
 	const result = await Effect.runPromiseExit(program);
 	return Exit.match(result, {
 		onFailure: (error) => {

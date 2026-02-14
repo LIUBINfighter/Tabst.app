@@ -644,7 +644,7 @@ export default function PrintPreview({
 		observer.observe(viewport);
 
 		return () => observer.disconnect();
-	}, [contentWidthPx, contentHeightPx, isTracksPanelOpen]);
+	}, [contentWidthPx, contentHeightPx]);
 
 	// Current page HTML
 	const currentPageHtml = pages[currentPage - 1] || "";

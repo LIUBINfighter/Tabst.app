@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import i18n, { LOCALE_STORAGE_KEY, type Locale } from "../i18n";
+import i18n, { type Locale } from "../i18n";
 import { loadGlobalSettings, saveGlobalSettings } from "../lib/global-settings";
 import type { StaffDisplayOptions } from "../lib/staff-config";
 import type {
