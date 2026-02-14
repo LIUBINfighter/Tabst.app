@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import i18n, { LOCALE_STORAGE_KEY, type Locale } from "../i18n";
+import { saveGlobalSettings, loadGlobalSettings } from "../lib/global-settings";
 import type { StaffDisplayOptions } from "../lib/staff-config";
 import type { DeleteBehavior, FileNode, Repo } from "../types/repo";
 
@@ -9,7 +10,7 @@ import type { DeleteBehavior, FileNode, Repo } from "../types/repo";
  * 这确保 appStore.locale 与 i18n.language 保持同步
  */
 function getInitialLocale(): Locale {
-	// i18n 在此模块导入时已经初始化完成，直接读取它的语言设置
+	// Prefer i18n language; fallback to global settings; default zh-cn
 	const lng = i18n.language;
 	if (lng === "en" || lng === "zh-cn") return lng;
 	return "zh-cn";
@@ -295,7 +296,10 @@ export const useAppStore = create<AppState>((set, get) => ({
 	activeRepoId: null,
 	fileTree: [],
 	deleteBehavior: "ask-every-time",
-	setDeleteBehavior: (behavior) => set({ deleteBehavior: behavior }),
+	setDeleteBehavior: (behavior) => {
+		set({ deleteBehavior: behavior });
+		void saveGlobalSettings({ deleteBehavior: behavior });
+	},
 
 	// ===== Repo Actions =====
 	addRepo: async (path: string, name?: string) => {
@@ -573,10 +577,8 @@ export const useAppStore = create<AppState>((set, get) => ({
 		i18n.changeLanguage(locale).catch((err) => {
 			console.error("Failed to change language:", err);
 		});
-		// 持久化到 localStorage（仅用于下次启动时恢复）
-		try {
-			localStorage.setItem(LOCALE_STORAGE_KEY, locale);
-		} catch {}
+		// Persist to ~/.tabst/settings.json
+		void saveGlobalSettings({ locale });
 	},
 
 	addFile: (file) => {
@@ -785,6 +787,20 @@ export const useAppStore = create<AppState>((set, get) => ({
 		}
 	},
 }));
+
+// Hydrate locale and delete behavior from global settings at startup
+void (async () => {
+	try {
+		const settings = await loadGlobalSettings();
+		const store = useAppStore.getState();
+		if (settings.locale && settings.locale !== store.locale) {
+			store.setLocale(settings.locale);
+		}
+		if (settings.deleteBehavior && settings.deleteBehavior !== store.deleteBehavior) {
+			store.setDeleteBehavior(settings.deleteBehavior);
+		}
+	} catch {}
+})();
 
 // 辅助函数：将 FileNode 树扁平化为 FileItem 数组
 function flattenFileNodes(nodes: FileNode[]): FileItem[] {

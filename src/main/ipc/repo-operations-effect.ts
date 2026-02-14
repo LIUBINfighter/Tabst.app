@@ -8,9 +8,11 @@ import type {
 import {
 	moveToRepoTrash,
 	moveToSystemTrash,
+	readGlobalSettings,
 	readRepos,
 	readWorkspaceMetadata,
 	scanDirectory,
+	writeGlobalSettings,
 	writeRepos,
 	writeWorkspaceMetadata,
 } from "../effects/file-system";
@@ -133,4 +135,35 @@ export async function handleDeleteFileEffect(
 		success: false,
 		error: "Invalid delete behavior or missing repo path",
 	};
+}
+
+export async function handleLoadGlobalSettingsEffect(): Promise<{
+	success: boolean;
+	data?: unknown;
+	error?: string;
+}> {
+	const program = readGlobalSettings();
+	const result = await Effect.runPromiseExit(program);
+	return Exit.match(result, {
+		onFailure: (error) => {
+			console.error("Load global settings failed:", error);
+			return { success: false, error: "Failed to load settings" };
+		},
+		onSuccess: (value) => ({ success: true, data: value ?? {} }),
+	});
+}
+
+export async function handleSaveGlobalSettingsEffect(
+	_event: Electron.IpcMainInvokeEvent,
+	settings: unknown,
+): Promise<{ success: boolean; error?: string }> {
+	const program = writeGlobalSettings(settings as any);
+	const result = await Effect.runPromiseExit(program);
+	return Exit.match(result, {
+		onFailure: (error) => {
+			console.error("Save global settings failed:", error);
+			return { success: false, error: "Failed to save settings" };
+		},
+		onSuccess: () => ({ success: true }),
+	});
 }

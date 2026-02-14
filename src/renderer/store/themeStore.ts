@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+// Persist to ~/.tabst/settings.json via helper, not localStorage
 import {
 	getDefaultEditorThemeForUI,
 	getUITheme,
@@ -9,8 +9,9 @@ import type {
 	ThemeMode,
 	ThemeState,
 } from "../lib/theme-system/types";
+import { loadGlobalSettings, saveGlobalSettings } from "../lib/global-settings";
 
-const THEME_STORAGE_KEY = "tabst-theme-preference";
+// Removed localStorage storage key; using global settings file instead
 
 interface ThemeStore extends ThemeState {
 	setUITheme: (themeId: string) => void;
@@ -28,8 +29,7 @@ function getSystemTheme(): "light" | "dark" {
 }
 
 export const useThemeStore = create<ThemeStore>()(
-	persist(
-		(set, get) => ({
+	(set, get) => ({
 			currentUITheme: "github",
 			currentEditorTheme: "github",
 			themeMode: "system",
@@ -48,6 +48,13 @@ export const useThemeStore = create<ThemeStore>()(
 						editorThemeId: defaultEditor,
 					},
 				});
+				void saveGlobalSettings({
+					theme: {
+						uiThemeId: themeId,
+						editorThemeId: defaultEditor,
+						mode: get().themeMode,
+					},
+				});
 			},
 
 			setEditorTheme: (themeId) => {
@@ -58,10 +65,24 @@ export const useThemeStore = create<ThemeStore>()(
 						editorThemeId: themeId,
 					},
 				}));
+				void saveGlobalSettings({
+					theme: {
+						uiThemeId: get().currentUITheme,
+						editorThemeId: themeId,
+						mode: get().themeMode,
+					},
+				});
 			},
 
 			setThemeMode: (mode) => {
 				set({ themeMode: mode });
+				void saveGlobalSettings({
+					theme: {
+						uiThemeId: get().currentUITheme,
+						editorThemeId: get().currentEditorTheme,
+						mode: mode,
+					},
+				});
 			},
 
 			setCombinedTheme: (combined) => {
@@ -69,6 +90,13 @@ export const useThemeStore = create<ThemeStore>()(
 					currentUITheme: combined.uiThemeId,
 					currentEditorTheme: combined.editorThemeId,
 					savedPreference: combined,
+				});
+				void saveGlobalSettings({
+					theme: {
+						uiThemeId: combined.uiThemeId,
+						editorThemeId: combined.editorThemeId,
+						mode: get().themeMode,
+					},
 				});
 			},
 
@@ -79,13 +107,19 @@ export const useThemeStore = create<ThemeStore>()(
 				}
 				return state.themeMode;
 			},
-		}),
-		{
-			name: THEME_STORAGE_KEY,
-			partialize: (state) => ({
-				savedPreference: state.savedPreference,
-				themeMode: state.themeMode,
-			}),
-		},
-	),
+		})
 );
+
+// Hydrate initial theme preference from global settings file
+void (async () => {
+	try {
+		const settings = await loadGlobalSettings();
+		if (settings.theme) {
+			useThemeStore.getState().setCombinedTheme({
+				uiThemeId: settings.theme.uiThemeId,
+				editorThemeId: settings.theme.editorThemeId,
+			});
+			useThemeStore.getState().setThemeMode(settings.theme.mode);
+		}
+	} catch {}
+})();

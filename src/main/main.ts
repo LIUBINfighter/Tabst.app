@@ -26,8 +26,10 @@ import {
 	handleDeleteFileEffect,
 	handleLoadReposEffect,
 	handleLoadWorkspaceMetadataEffect,
+	handleLoadGlobalSettingsEffect,
 	handleSaveReposEffect,
 	handleSaveWorkspaceMetadataEffect,
+	handleSaveGlobalSettingsEffect,
 	handleScanDirectoryEffect,
 } from "./ipc/repo-operations-effect";
 
@@ -115,3 +117,5 @@ ipcMain.handle("load-workspace-metadata", handleLoadWorkspaceMetadataEffect);
 ipcMain.handle("save-workspace-metadata", handleSaveWorkspaceMetadataEffect);
 ipcMain.handle("delete-file", handleDeleteFileEffect);
 ipcMain.handle("select-folder", handleSelectFolderEffect);
+ipcMain.handle("load-global-settings", handleLoadGlobalSettingsEffect);
+ipcMain.handle("save-global-settings", handleSaveGlobalSettingsEffect);

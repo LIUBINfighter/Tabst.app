@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { DeleteBehavior } from "../types/repo";
+import { loadGlobalSettings, saveGlobalSettings } from "../lib/global-settings";
 import {
 	Dialog,
 	DialogContent,
@@ -28,10 +29,20 @@ export function DeleteConfirmDialog({
 		useState<DeleteBehavior>("ask-every-time");
 	const [rememberChoice, setRememberChoice] = useState(false);
 
+	useEffect(() => {
+		// Load current preference to reflect existing setting
+		void (async () => {
+			const s = await loadGlobalSettings();
+			if (s.deleteBehavior && s.deleteBehavior !== "ask-every-time") {
+				_setSelectedBehavior(s.deleteBehavior);
+			}
+		})();
+	}, []);
+
 	const handleConfirm = (behavior: DeleteBehavior) => {
 		onConfirm(behavior);
 		if (rememberChoice && behavior !== "ask-every-time") {
-			localStorage.setItem("deleteBehavior", behavior);
+			void saveGlobalSettings({ deleteBehavior: behavior });
 		}
 	};
 

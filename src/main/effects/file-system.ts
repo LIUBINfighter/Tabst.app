@@ -208,6 +208,37 @@ export const getGlobalMetadataDir = (): Effect.Effect<
 		return metadataDir;
 	});
 
+// ===== Global Settings (.tabst/settings.json) =====
+export interface GlobalSettings {
+	locale?: "en" | "zh-cn";
+	deleteBehavior?: "system-trash" | "repo-trash" | "ask-every-time";
+	theme?: {
+		uiThemeId?: string;
+		editorThemeId?: string;
+		mode?: "light" | "dark" | "system";
+	};
+}
+
+export const readGlobalSettings = (): Effect.Effect<
+	GlobalSettings | null,
+	FileSystemError
+> =>
+	Effect.gen(function* () {
+		const metadataDir = yield* getGlobalMetadataDir();
+		const settingsFile = path.join(metadataDir, "settings.json");
+		const settings = yield* readJsonFile<GlobalSettings>(settingsFile);
+		return settings ?? null;
+	});
+
+export const writeGlobalSettings = (
+	settings: GlobalSettings,
+): Effect.Effect<void, FileSystemError> =>
+	Effect.gen(function* () {
+		const metadataDir = yield* getGlobalMetadataDir();
+		const settingsFile = path.join(metadataDir, "settings.json");
+		yield* writeJsonFile(settingsFile, settings);
+	});
+
 export const readRepos = (): Effect.Effect<Repo[], FileSystemError> =>
 	Effect.gen(function* () {
 		const metadataDir = yield* getGlobalMetadataDir();
