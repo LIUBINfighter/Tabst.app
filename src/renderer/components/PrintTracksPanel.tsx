@@ -79,6 +79,14 @@ export function PrintTracksPanel({
 	// 标记是否已初始化
 	const [isInitialized, setIsInitialized] = useState(false);
 
+	// API 实例变化时重置初始化状态，避免持有旧实例的音轨配置
+	useEffect(() => {
+		setIsInitialized(false);
+		if (!api?.score) {
+			setTrackConfigs([]);
+		}
+	}, [api]);
+
 	// 初始化：从 API 读取初始状态（仅一次）
 	useEffect(() => {
 		if (!api?.score || isInitialized) return;
