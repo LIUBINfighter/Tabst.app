@@ -3,7 +3,13 @@ import { EditorState } from "@codemirror/state";
 import type { ViewUpdate } from "@codemirror/view";
 import { basicSetup, EditorView } from "codemirror";
 import { ChevronRight, Edit } from "lucide-react";
-import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
+import {
+	useCallback,
+	useEffect,
+	useLayoutEffect,
+	useRef,
+	useState,
+} from "react";
 import { useTranslation } from "react-i18next";
 import { useEditorLSP } from "../hooks/useEditorLSP";
 import { useEditorTheme } from "../hooks/useEditorTheme";
@@ -14,6 +20,7 @@ import { useAppStore } from "../store/appStore";
 import Preview from "./Preview";
 import QuoteCard from "./QuoteCard";
 import TopBar from "./TopBar";
+import { TracksPanel, type TracksPanelProps } from "./TracksPanel";
 import { Button } from "./ui/button";
 import IconButton from "./ui/icon-button";
 import {
@@ -35,6 +42,7 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 	const saveTimerRef = useRef<number | null>(null);
 	const lastContentRef = useRef<string>("");
 	const focusCleanupRef = useRef<(() => void) | null>(null);
+	const [previewApi, setPreviewApi] = useState<TracksPanelProps["api"]>(null);
 
 	// Track current file path to detect language changes
 	const currentFilePathRef = useRef<string>("");
@@ -46,6 +54,8 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 		s.files.find((f) => f.id === s.activeFileId),
 	);
 	const setWorkspaceMode = useAppStore((s) => s.setWorkspaceMode);
+	const isTracksPanelOpen = useAppStore((s) => s.isTracksPanelOpen);
+	const setTracksPanelOpen = useAppStore((s) => s.setTracksPanelOpen);
 
 	const _scoreSelection = useAppStore((s) => s.scoreSelection);
 	const _playbackBeat = useAppStore((s) => s.playbackBeat);
@@ -476,6 +486,12 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 						<div className="flex-1 min-h-0 overflow-hidden relative">
 							{/* Host for CodeMirror */}
 							<div ref={editorRef} className="h-full" />
+
+							<TracksPanel
+								api={previewApi}
+								isOpen={isTracksPanelOpen}
+								onClose={() => setTracksPanelOpen(false)}
+							/>
 						</div>
 					</div>
 
@@ -484,6 +500,7 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 						<Preview
 							fileName={`${activeFile.name} ${t("common:preview")}`}
 							content={activeFile.content}
+							onApiChange={setPreviewApi}
 						/>
 					</div>
 				</div>

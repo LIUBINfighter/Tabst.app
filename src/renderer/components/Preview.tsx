@@ -30,7 +30,6 @@ import { useAppStore } from "../store/appStore";
 import PreviewToolbar from "./PreviewToolbar";
 import PrintPreview from "./PrintPreview";
 import TopBar from "./TopBar";
-import { TracksPanel } from "./TracksPanel";
 import {
 	Tooltip,
 	TooltipContent,
@@ -42,12 +41,14 @@ export interface PreviewProps {
 	fileName?: string;
 	content?: string;
 	className?: string;
+	onApiChange?: (api: alphaTab.AlphaTabApi | null) => void;
 }
 
 export default function Preview({
 	fileName,
 	content,
 	className,
+	onApiChange,
 }: PreviewProps) {
 	const { t } = useTranslation(["common", "errors", "print", "toolbar"]);
 	const containerRef = useRef<HTMLDivElement | null>(null);
@@ -105,9 +106,6 @@ export default function Preview({
 	const _scoreVersion = useAppStore((s) => s.scoreVersion);
 	const bumpApiInstanceId = useAppStore((s) => s.bumpApiInstanceId);
 	const bumpScoreVersion = useAppStore((s) => s.bumpScoreVersion);
-	// Tracks panel state
-	const isTracksPanelOpen = useAppStore((s) => s.isTracksPanelOpen);
-	const setTracksPanelOpen = useAppStore((s) => s.setTracksPanelOpen);
 	// Store latest playback speed/metronome volume in ref to avoid triggering API rebuild useEffect
 	const playbackSpeedRef = useRef(playbackSpeed);
 	const metronomeVolumeRef = useRef(metronomeVolume);
@@ -122,6 +120,13 @@ export default function Preview({
 		score: alphaTab.model.Score | null;
 	} | null>(null);
 	const pendingBarColorRef = useRef<number | null>(null);
+
+	const emitApiChange = useCallback(
+		(api: alphaTab.AlphaTabApi | null) => {
+			onApiChange?.(api);
+		},
+		[onApiChange],
+	);
 	// Prevent loop from cursor updates triggered by score selection
 	const isEditorCursorFromScoreRef = useRef(false);
 	// Track whether current highlight is triggered by editor cursor (to distinguish from manual selection)
@@ -886,6 +891,7 @@ export default function Preview({
 					});
 
 					apiRef.current = new alphaTab.AlphaTabApi(el, settings);
+					emitApiChange(apiRef.current);
 					bumpApiInstanceId();
 
 					// 🆕 新建 API 时清除选区高亮（避免旧 API 的选区残留）
@@ -929,6 +935,7 @@ export default function Preview({
 
 									// 销毁旧的 API
 									apiRef.current?.destroy();
+									emitApiChange(null);
 
 									// 🆕 销毁旧 API 时清除选区高亮（避免旧 API 的选区残留）
 									useAppStore.getState().clearScoreSelection();
@@ -951,6 +958,7 @@ export default function Preview({
 
 									// 创建新的 API
 									apiRef.current = new alphaTab.AlphaTabApi(el, newSettings);
+									emitApiChange(apiRef.current);
 									bumpApiInstanceId();
 
 									// 🆕 新建 API 时清除选区高亮（避免旧 API 的选区残留）
@@ -1050,6 +1058,7 @@ export default function Preview({
 				}
 				apiRef.current.destroy();
 				apiRef.current = null;
+				emitApiChange(null);
 
 				// 🆕 销毁 API 时清除选区高亮（避免旧 API 的选区残留）
 				useAppStore.getState().clearScoreSelection();
@@ -1063,6 +1072,7 @@ export default function Preview({
 		applyEditorBarNumberColor,
 		bumpScoreVersion,
 		bumpApiInstanceId,
+		emitApiChange,
 		sanitizeAllBarStyles,
 		applyThemeColorsToPreviousBars,
 		scheduleTexTimeout,
@@ -1143,6 +1153,7 @@ export default function Preview({
 				}
 				apiRef.current.destroy();
 				apiRef.current = null;
+				emitApiChange(null);
 
 				// 🆕 销毁 API 时清除选区高亮（避免旧 API 的选区残留）
 				useAppStore.getState().clearScoreSelection();
@@ -1154,7 +1165,7 @@ export default function Preview({
 			}, 150);
 			return () => clearTimeout(timer);
 		}
-	}, [showPrintPreview]);
+	}, [showPrintPreview, emitApiChange]);
 
 	return (
 		<TooltipProvider delayDuration={200}>
@@ -1203,12 +1214,6 @@ export default function Preview({
 								/>
 								*/}
 							</div>
-							{/* 音轨选择面板（浮动在滚动区域之上） */}
-							<TracksPanel
-								api={apiRef.current}
-								isOpen={isTracksPanelOpen}
-								onClose={() => setTracksPanelOpen(false)}
-							/>
 						</div>
 						{parseError && (
 							<div className="bg-destructive/10 text-destructive px-3 py-2 text-xs border-t border-destructive/20 flex items-start gap-2">
