@@ -489,7 +489,7 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 
 							<TracksPanel
 								api={previewApi}
-								isOpen={isTracksPanelOpen}
+								isOpen={isTracksPanelOpen && previewApi !== null}
 								onClose={() => setTracksPanelOpen(false)}
 							/>
 						</div>
