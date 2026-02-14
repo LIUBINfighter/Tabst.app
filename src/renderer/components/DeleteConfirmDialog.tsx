@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { DeleteBehavior } from "../types/repo";
 import { loadGlobalSettings, saveGlobalSettings } from "../lib/global-settings";
+import type { DeleteBehavior } from "../types/repo";
 import {
 	Dialog,
 	DialogContent,

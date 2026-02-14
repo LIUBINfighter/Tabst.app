@@ -24,12 +24,12 @@ import {
 } from "./ipc/misc-operations-effect";
 import {
 	handleDeleteFileEffect,
+	handleLoadGlobalSettingsEffect,
 	handleLoadReposEffect,
 	handleLoadWorkspaceMetadataEffect,
-	handleLoadGlobalSettingsEffect,
+	handleSaveGlobalSettingsEffect,
 	handleSaveReposEffect,
 	handleSaveWorkspaceMetadataEffect,
-	handleSaveGlobalSettingsEffect,
 	handleScanDirectoryEffect,
 } from "./ipc/repo-operations-effect";
 

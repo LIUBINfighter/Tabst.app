@@ -145,7 +145,9 @@ contextBridge.exposeInMainWorld("electronAPI", {
 		data?: unknown;
 		error?: string;
 	}> => ipcRenderer.invoke("load-global-settings"),
-	saveGlobalSettings: (settings: unknown): Promise<{
+	saveGlobalSettings: (
+		settings: unknown,
+	): Promise<{
 		success: boolean;
 		error?: string;
 	}> => ipcRenderer.invoke("save-global-settings", settings),

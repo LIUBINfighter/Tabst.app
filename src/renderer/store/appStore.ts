@@ -1,9 +1,14 @@
 import { create } from "zustand";
 import i18n, { LOCALE_STORAGE_KEY, type Locale } from "../i18n";
-import { saveGlobalSettings, loadGlobalSettings } from "../lib/global-settings";
-import type { RepoMetadata, RepoPreferences } from "../types/repo";
+import { loadGlobalSettings, saveGlobalSettings } from "../lib/global-settings";
 import type { StaffDisplayOptions } from "../lib/staff-config";
-import type { DeleteBehavior, FileNode, Repo } from "../types/repo";
+import type {
+	DeleteBehavior,
+	FileNode,
+	Repo,
+	RepoMetadata,
+	RepoPreferences,
+} from "../types/repo";
 
 /**
  * 获取初始语言设置
@@ -315,7 +320,8 @@ async function mergeAndSaveWorkspacePreferences(partial: RepoPreferences) {
 			id: repo.id,
 			name: repo.name,
 			openedAt: Date.now(),
-			expandedFolders: existing?.expandedFolders ?? collectExpandedFolders(state.fileTree),
+			expandedFolders:
+				existing?.expandedFolders ?? collectExpandedFolders(state.fileTree),
 			preferences: { ...(existing?.preferences ?? {}), ...partial },
 		};
 		await window.electronAPI.saveWorkspaceMetadata(repo.path, next);
@@ -423,7 +429,9 @@ export const useAppStore = create<AppState>((set, get) => ({
 
 				// hydrate workspace preferences and expanded folders
 				try {
-					const meta = await window.electronAPI.loadWorkspaceMetadata(repo.path);
+					const meta = await window.electronAPI.loadWorkspaceMetadata(
+						repo.path,
+					);
 					if (meta) {
 						// apply expanded folders
 						if (meta.expandedFolders?.length) {
@@ -516,7 +524,9 @@ export const useAppStore = create<AppState>((set, get) => ({
 			if (!repo) return;
 			try {
 				const expanded = collectExpandedFolders(s.fileTree);
-				const existing = await window.electronAPI.loadWorkspaceMetadata(repo.path);
+				const existing = await window.electronAPI.loadWorkspaceMetadata(
+					repo.path,
+				);
 				const next: RepoMetadata = {
 					id: repo.id,
 					name: repo.name,
@@ -539,7 +549,9 @@ export const useAppStore = create<AppState>((set, get) => ({
 			if (!repo) return;
 			try {
 				const expanded = collectExpandedFolders(s.fileTree);
-				const existing = await window.electronAPI.loadWorkspaceMetadata(repo.path);
+				const existing = await window.electronAPI.loadWorkspaceMetadata(
+					repo.path,
+				);
 				const next: RepoMetadata = {
 					id: repo.id,
 					name: repo.name,
@@ -942,7 +954,10 @@ void (async () => {
 		if (settings.locale && settings.locale !== store.locale) {
 			store.setLocale(settings.locale);
 		}
-		if (settings.deleteBehavior && settings.deleteBehavior !== store.deleteBehavior) {
+		if (
+			settings.deleteBehavior &&
+			settings.deleteBehavior !== store.deleteBehavior
+		) {
 			store.setDeleteBehavior(settings.deleteBehavior);
 		}
 	} catch {}

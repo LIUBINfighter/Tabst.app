@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { loadGlobalSettings, saveGlobalSettings } from "../lib/global-settings";
 // Persist to ~/.tabst/settings.json via helper, not localStorage
 import {
 	getDefaultEditorThemeForUI,
@@ -9,7 +10,6 @@ import type {
 	ThemeMode,
 	ThemeState,
 } from "../lib/theme-system/types";
-import { loadGlobalSettings, saveGlobalSettings } from "../lib/global-settings";
 
 // Removed localStorage storage key; using global settings file instead
 
@@ -28,87 +28,85 @@ function getSystemTheme(): "light" | "dark" {
 		: "light";
 }
 
-export const useThemeStore = create<ThemeStore>()(
-	(set, get) => ({
-			currentUITheme: "github",
-			currentEditorTheme: "github",
-			themeMode: "system",
-			savedPreference: undefined,
+export const useThemeStore = create<ThemeStore>()((set, get) => ({
+	currentUITheme: "github",
+	currentEditorTheme: "github",
+	themeMode: "system",
+	savedPreference: undefined,
 
-			setUITheme: (themeId) => {
-				const uiTheme = getUITheme(themeId);
-				if (!uiTheme) return;
+	setUITheme: (themeId) => {
+		const uiTheme = getUITheme(themeId);
+		if (!uiTheme) return;
 
-				const defaultEditor = getDefaultEditorThemeForUI(themeId);
-				set({
-					currentUITheme: themeId,
-					currentEditorTheme: defaultEditor,
-					savedPreference: {
-						uiThemeId: themeId,
-						editorThemeId: defaultEditor,
-					},
-				});
-				void saveGlobalSettings({
-					theme: {
-						uiThemeId: themeId,
-						editorThemeId: defaultEditor,
-						mode: get().themeMode,
-					},
-				});
+		const defaultEditor = getDefaultEditorThemeForUI(themeId);
+		set({
+			currentUITheme: themeId,
+			currentEditorTheme: defaultEditor,
+			savedPreference: {
+				uiThemeId: themeId,
+				editorThemeId: defaultEditor,
 			},
-
-			setEditorTheme: (themeId) => {
-				set((state) => ({
-					currentEditorTheme: themeId,
-					savedPreference: {
-						uiThemeId: state.currentUITheme,
-						editorThemeId: themeId,
-					},
-				}));
-				void saveGlobalSettings({
-					theme: {
-						uiThemeId: get().currentUITheme,
-						editorThemeId: themeId,
-						mode: get().themeMode,
-					},
-				});
+		});
+		void saveGlobalSettings({
+			theme: {
+				uiThemeId: themeId,
+				editorThemeId: defaultEditor,
+				mode: get().themeMode,
 			},
+		});
+	},
 
-			setThemeMode: (mode) => {
-				set({ themeMode: mode });
-				void saveGlobalSettings({
-					theme: {
-						uiThemeId: get().currentUITheme,
-						editorThemeId: get().currentEditorTheme,
-						mode: mode,
-					},
-				});
+	setEditorTheme: (themeId) => {
+		set((state) => ({
+			currentEditorTheme: themeId,
+			savedPreference: {
+				uiThemeId: state.currentUITheme,
+				editorThemeId: themeId,
 			},
+		}));
+		void saveGlobalSettings({
+			theme: {
+				uiThemeId: get().currentUITheme,
+				editorThemeId: themeId,
+				mode: get().themeMode,
+			},
+		});
+	},
 
-			setCombinedTheme: (combined) => {
-				set({
-					currentUITheme: combined.uiThemeId,
-					currentEditorTheme: combined.editorThemeId,
-					savedPreference: combined,
-				});
-				void saveGlobalSettings({
-					theme: {
-						uiThemeId: combined.uiThemeId,
-						editorThemeId: combined.editorThemeId,
-						mode: get().themeMode,
-					},
-				});
+	setThemeMode: (mode) => {
+		set({ themeMode: mode });
+		void saveGlobalSettings({
+			theme: {
+				uiThemeId: get().currentUITheme,
+				editorThemeId: get().currentEditorTheme,
+				mode: mode,
 			},
+		});
+	},
 
-			getEffectiveVariant: () => {
-				const state = get();
-				if (state.themeMode === "system") {
-					return getSystemTheme();
-				}
-				return state.themeMode;
+	setCombinedTheme: (combined) => {
+		set({
+			currentUITheme: combined.uiThemeId,
+			currentEditorTheme: combined.editorThemeId,
+			savedPreference: combined,
+		});
+		void saveGlobalSettings({
+			theme: {
+				uiThemeId: combined.uiThemeId,
+				editorThemeId: combined.editorThemeId,
+				mode: get().themeMode,
 			},
-		})
-);
+		});
+	},
+
+	getEffectiveVariant: () => {
+		const state = get();
+		if (state.themeMode === "system") {
+			return getSystemTheme();
+		}
+		return state.themeMode;
+	},
+}));
 
 // Hydrate initial theme preference from global settings file
 void (async () => {
