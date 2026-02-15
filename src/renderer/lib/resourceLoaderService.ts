@@ -32,6 +32,18 @@ export async function getResourceUrls(): Promise<ResourceUrls> {
 		}
 
 		const href = window.location.href;
+		const viteBaseUrlRaw =
+			typeof import.meta !== "undefined" &&
+			"env" in import.meta &&
+			typeof (import.meta as unknown as { env?: { BASE_URL?: unknown } })
+				.env === "object"
+				? (import.meta as unknown as { env?: { BASE_URL?: unknown } }).env
+						?.BASE_URL
+				: undefined;
+		const viteBaseUrl =
+			typeof viteBaseUrlRaw === "string" && viteBaseUrlRaw.trim().length > 0
+				? viteBaseUrlRaw
+				: "/";
 
 		try {
 			// 打包环境：Electron 使用 file:// 协议加载 HTML
@@ -44,11 +56,15 @@ export async function getResourceUrls(): Promise<ResourceUrls> {
 				return url;
 			}
 
-			// 开发环境：Vite 开发服务器运行在 http://127.0.0.1:port
-			// 但由于 vite.config.ts 的中间件重定向，实际加载的是 /src/renderer/index.html
-			// 此时用绝对路径 /assets/... 相对于 HTTP 根目录
-			const baseUrl = new URL("/", href);
-			const url = new URL(assetPath, baseUrl).toString();
+			// HTTP 环境：使用 Vite BASE_URL，兼容 GitHub Pages 子路径部署（如 /Tabst.app/）
+			const baseWithSlash = viteBaseUrl.endsWith("/")
+				? viteBaseUrl
+				: `${viteBaseUrl}/`;
+			const relativeOrAbsolute =
+				baseWithSlash === "/"
+					? `/${assetPath}`
+					: `${baseWithSlash}${assetPath}`;
+			const url = new URL(relativeOrAbsolute, href).toString();
 			return url;
 		} catch (err) {
 			console.warn(
