@@ -3,7 +3,13 @@ import { EditorState } from "@codemirror/state";
 import type { ViewUpdate } from "@codemirror/view";
 import { basicSetup, EditorView } from "codemirror";
 import { ChevronRight, Edit } from "lucide-react";
-import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
+import {
+	useCallback,
+	useEffect,
+	useLayoutEffect,
+	useRef,
+	useState,
+} from "react";
 import { useTranslation } from "react-i18next";
 import { useEditorLSP } from "../hooks/useEditorLSP";
 import { useEditorTheme } from "../hooks/useEditorTheme";
@@ -14,6 +20,7 @@ import { useAppStore } from "../store/appStore";
 import Preview from "./Preview";
 import QuoteCard from "./QuoteCard";
 import TopBar from "./TopBar";
+import { TracksPanel, type TracksPanelProps } from "./TracksPanel";
 import { Button } from "./ui/button";
 import IconButton from "./ui/icon-button";
 import {
@@ -35,6 +42,7 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 	const saveTimerRef = useRef<number | null>(null);
 	const lastContentRef = useRef<string>("");
 	const focusCleanupRef = useRef<(() => void) | null>(null);
+	const [previewApi, setPreviewApi] = useState<TracksPanelProps["api"]>(null);
 
 	// Track current file path to detect language changes
 	const currentFilePathRef = useRef<string>("");
@@ -42,10 +50,12 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 	// Track if we're currently updating to prevent recursive updates
 	const isUpdatingRef = useRef(false);
 
-	const activeFileId = useAppStore((s) => s.activeFileId);
-	const files = useAppStore((s) => s.files);
-	const activeFile = files.find((f) => f.id === activeFileId);
+	const activeFile = useAppStore((s) =>
+		s.files.find((f) => f.id === s.activeFileId),
+	);
 	const setWorkspaceMode = useAppStore((s) => s.setWorkspaceMode);
+	const isTracksPanelOpen = useAppStore((s) => s.isTracksPanelOpen);
+	const setTracksPanelOpen = useAppStore((s) => s.setTracksPanelOpen);
 
 	const _scoreSelection = useAppStore((s) => s.scoreSelection);
 	const _playbackBeat = useAppStore((s) => s.playbackBeat);
@@ -97,7 +107,7 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 		if (!editorRef.current) return;
 
 		// If there's no active file, destroy editor
-		if (!activeFileId || !activeFile) {
+		if (!activeFile?.id) {
 			if (viewRef.current) {
 				viewRef.current.destroy();
 				viewRef.current = null;
@@ -239,7 +249,7 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 			}
 		})();
 	}, [
-		activeFileId,
+		activeFile?.id,
 		activeFile?.content,
 		activeFile?.path,
 		getLanguageForFile,
@@ -348,7 +358,7 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 
 	// Cleanup editor when no active file - use useLayoutEffect to ensure cleanup before render
 	useLayoutEffect(() => {
-		if (!activeFileId || !activeFile) {
+		if (!activeFile?.id) {
 			// 先保存编辑器 DOM 引用，因为 destroy() 会清除它
 			const editorDom = viewRef.current?.dom
 				? viewRef.current.dom.closest(".cm-editor")
@@ -396,7 +406,7 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 				}
 			}
 		}
-	}, [activeFileId, activeFile]);
+	}, [activeFile?.id, activeFile]);
 
 	if (!activeFile) {
 		return (
@@ -476,6 +486,12 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 						<div className="flex-1 min-h-0 overflow-hidden relative">
 							{/* Host for CodeMirror */}
 							<div ref={editorRef} className="h-full" />
+
+							<TracksPanel
+								api={previewApi}
+								isOpen={isTracksPanelOpen && previewApi !== null}
+								onClose={() => setTracksPanelOpen(false)}
+							/>
 						</div>
 					</div>
 
@@ -484,6 +500,7 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 						<Preview
 							fileName={`${activeFile.name} ${t("common:preview")}`}
 							content={activeFile.content}
+							onApiChange={setPreviewApi}
 						/>
 					</div>
 				</div>

@@ -1,6 +1,6 @@
 import path from "node:path";
 import { Effect, Exit } from "effect";
-import { app, shell } from "electron";
+import { app, dialog, shell } from "electron";
 import { fileExists, readFileAsUint8Array } from "../effects/file-system";
 import { fetchReleasesFeed } from "../effects/http";
 
@@ -84,6 +84,30 @@ export async function handleFetchReleasesFeedEffect(): Promise<{
 				success: false,
 				error: err._tag === "Fail" ? err.error.message : String(err),
 			};
+		},
+		onSuccess: (v) => v,
+	});
+}
+
+export async function handleSelectFolderEffect(): Promise<string | null> {
+	const program = Effect.tryPromise({
+		try: async () => {
+			const result = await dialog.showOpenDialog({
+				properties: ["openDirectory"],
+			});
+			if (result.canceled || result.filePaths.length === 0) {
+				return null;
+			}
+			return result.filePaths[0];
+		},
+		catch: (error) => error,
+	});
+
+	const result = await Effect.runPromiseExit(program);
+	return Exit.match(result, {
+		onFailure: (err) => {
+			console.error("select-folder failed:", err);
+			return null;
 		},
 		onSuccess: (v) => v,
 	});

@@ -10,6 +10,8 @@
 	"unsupported": "当前环境不支持更新检查",
 	"triggered": "已触发检查，请留意右下角更新提示",
 	"checkFailed": "检查失败：{{reason}}",
+	"fetchReleasesFailed": "获取发布信息失败",
+	"parseXmlFailed": "解析 XML 失败",
 	"viewRelease": "查看 →",
 	"toast": {
 		"title": "更新提示",

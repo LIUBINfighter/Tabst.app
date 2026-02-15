@@ -1,6 +1,14 @@
 import { create } from "zustand";
-import i18n, { LOCALE_STORAGE_KEY, type Locale } from "../i18n";
+import i18n, { type Locale } from "../i18n";
+import { loadGlobalSettings, saveGlobalSettings } from "../lib/global-settings";
 import type { StaffDisplayOptions } from "../lib/staff-config";
+import type {
+	DeleteBehavior,
+	FileNode,
+	Repo,
+	RepoMetadata,
+	RepoPreferences,
+} from "../types/repo";
 
 /**
  * 获取初始语言设置
@@ -8,17 +16,22 @@ import type { StaffDisplayOptions } from "../lib/staff-config";
  * 这确保 appStore.locale 与 i18n.language 保持同步
  */
 function getInitialLocale(): Locale {
-	// i18n 在此模块导入时已经初始化完成，直接读取它的语言设置
+	// Prefer i18n language; fallback to global settings; default zh-cn
 	const lng = i18n.language;
 	if (lng === "en" || lng === "zh-cn") return lng;
 	return "zh-cn";
 }
 
+/**
+ * @deprecated 使用 FileNode 替代
+ */
 export interface FileItem {
 	id: string;
 	name: string;
 	path: string;
 	content: string;
+	/** Whether `content` is hydrated from disk/user input (vs empty placeholder from file tree scan). */
+	contentLoaded?: boolean;
 }
 
 /**
@@ -95,8 +108,29 @@ export interface CustomPlayerConfig {
 }
 
 interface AppState {
-	// 文件列表
+	// ===== Repo 管理 =====
+	repos: Repo[];
+	activeRepoId: string | null;
+	fileTree: FileNode[];
+	// 保留 files 以兼容现有代码，实际使用 fileTree
 	files: FileItem[];
+	// 用户偏好设置
+	deleteBehavior: DeleteBehavior;
+	setDeleteBehavior: (behavior: DeleteBehavior) => void;
+
+	// Repo Actions
+	addRepo: (path: string, name?: string) => Promise<void>;
+	removeRepo: (id: string) => void;
+	switchRepo: (id: string) => Promise<void>;
+	updateRepoName: (id: string, name: string) => void;
+	loadRepos: () => Promise<void>;
+
+	// FileTree Actions
+	expandFolder: (path: string) => void;
+	collapseFolder: (path: string) => void;
+	refreshFileTree: () => Promise<void>;
+	getFileNodeById: (id: string) => FileNode | undefined;
+
 	// 当前选中的文件
 	activeFileId: string | null;
 
@@ -210,7 +244,7 @@ interface AppState {
 	// 🆕 播放器光标位置操作（暂停时也保留）
 	setPlayerCursorPosition: (position: PlaybackBeatInfo | null) => void;
 	/**
-	 * 🆕 清除“播放相关”高亮状态，回到无高亮状态
+	 * 🆕 清除"播放相关"高亮状态，回到无高亮状态
 	 * - 清除绿色当前 beat 高亮
 	 * - 清除黄色小节高亮（依赖 playerCursorPosition）
 	 */
@@ -230,7 +264,331 @@ interface AppState {
 	initialize: () => Promise<void>;
 }
 
+// 递归查找文件节点
+function findNodeById(nodes: FileNode[], id: string): FileNode | undefined {
+	for (const node of nodes) {
+		if (node.id === id) return node;
+		if (node.children) {
+			const found = findNodeById(node.children, id);
+			if (found) return found;
+		}
+	}
+	return undefined;
+}
+
+// 递归更新节点展开状态
+function updateNodeExpanded(
+	nodes: FileNode[],
+	path: string,
+	isExpanded: boolean,
+): FileNode[] {
+	return nodes.map((node) => {
+		if (node.path === path) {
+			return { ...node, isExpanded };
+		}
+		if (node.children) {
+			return {
+				...node,
+				children: updateNodeExpanded(node.children, path, isExpanded),
+			};
+		}
+		return node;
+	});
+}
+
+function collectExpandedFolders(nodes: FileNode[]): string[] {
+	const result: string[] = [];
+	const walk = (n: FileNode[]) => {
+		for (const node of n) {
+			if (node.type === "folder") {
+				if (node.isExpanded) result.push(node.path);
+				if (node.children) walk(node.children);
+			}
+		}
+	};
+	walk(nodes);
+	return result;
+}
+
+async function mergeAndSaveWorkspacePreferences(partial: RepoPreferences) {
+	const state = useAppStore.getState();
+	const repo = state.repos.find((r) => r.id === state.activeRepoId);
+	if (!repo) return;
+	try {
+		const existing = await window.electronAPI.loadWorkspaceMetadata(repo.path);
+		const next: RepoMetadata = {
+			id: repo.id,
+			name: repo.name,
+			openedAt: Date.now(),
+			expandedFolders:
+				existing?.expandedFolders ?? collectExpandedFolders(state.fileTree),
+			preferences: { ...(existing?.preferences ?? {}), ...partial },
+		};
+		await window.electronAPI.saveWorkspaceMetadata(repo.path, next);
+	} catch (e) {
+		console.error("saveWorkspacePreferences failed", e);
+	}
+}
+
 export const useAppStore = create<AppState>((set, get) => ({
+	// ===== Repo 初始状态 =====
+	repos: [],
+	activeRepoId: null,
+	fileTree: [],
+	deleteBehavior: "ask-every-time",
+	setDeleteBehavior: (behavior) => {
+		set({ deleteBehavior: behavior });
+		void saveGlobalSettings({ deleteBehavior: behavior });
+	},
+
+	// ===== Repo Actions =====
+	addRepo: async (path: string, name?: string) => {
+		const { repos } = get();
+
+		const normalizedPath = path.replace(/\\/g, "/");
+		const existingRepo = repos.find(
+			(r) => r.path.replace(/\\/g, "/") === normalizedPath,
+		);
+
+		if (existingRepo) {
+			await get().switchRepo(existingRepo.id);
+			return;
+		}
+
+		const pathParts = path.split(/[\\/]/);
+		const folderName =
+			pathParts[pathParts.length - 1] ||
+			pathParts[pathParts.length - 2] ||
+			"Untitled";
+
+		const newRepo: Repo = {
+			id: crypto.randomUUID(),
+			name: name || folderName,
+			path,
+			lastOpenedAt: Date.now(),
+		};
+
+		set((state) => {
+			const newRepos = [...state.repos, newRepo];
+			try {
+				window.electronAPI?.saveRepos?.(newRepos);
+			} catch {}
+			return { repos: newRepos, activeRepoId: newRepo.id };
+		});
+
+		await get().switchRepo(newRepo.id);
+	},
+
+	removeRepo: (id: string) => {
+		set((state) => {
+			const newRepos = state.repos.filter((r) => r.id !== id);
+			const newActiveId =
+				state.activeRepoId === id
+					? newRepos.length > 0
+						? newRepos[0].id
+						: null
+					: state.activeRepoId;
+			try {
+				window.electronAPI?.saveRepos?.(newRepos);
+			} catch {}
+			return {
+				repos: newRepos,
+				activeRepoId: newActiveId,
+				fileTree: newActiveId ? state.fileTree : [],
+				files: newActiveId ? state.files : [],
+			};
+		});
+	},
+
+	switchRepo: async (id: string) => {
+		const repo = get().repos.find((r) => r.id === id);
+		if (!repo) return;
+
+		try {
+			const result = await window.electronAPI?.scanDirectory?.(repo.path);
+			if (result) {
+				set((state) => {
+					const newRepos = state.repos.map((r) =>
+						r.id === id ? { ...r, lastOpenedAt: Date.now() } : r,
+					);
+					try {
+						window.electronAPI?.saveRepos?.(newRepos);
+					} catch {}
+					const baseState = {
+						repos: newRepos,
+						activeRepoId: id,
+						fileTree: result.nodes,
+						files: flattenFileNodes(result.nodes),
+						activeFileId: null,
+						scoreSelection: null,
+						playbackBeat: null,
+						playerCursorPosition: null,
+					};
+					return baseState;
+				});
+
+				// hydrate workspace preferences and expanded folders
+				try {
+					const meta = await window.electronAPI.loadWorkspaceMetadata(
+						repo.path,
+					);
+					if (meta) {
+						// apply expanded folders
+						if (meta.expandedFolders?.length) {
+							for (const p of meta.expandedFolders) {
+								set((state) => ({
+									fileTree: updateNodeExpanded(state.fileTree, p, true),
+								}));
+							}
+						}
+						// apply preferences
+						const prefs = meta.preferences ?? {};
+						if (typeof prefs.zoomPercent === "number") {
+							set({ zoomPercent: prefs.zoomPercent });
+							get().playerControls?.applyZoom?.(prefs.zoomPercent);
+						}
+						if (typeof prefs.playbackSpeed === "number") {
+							set({ playbackSpeed: prefs.playbackSpeed });
+							get().playerControls?.applyPlaybackSpeed?.(prefs.playbackSpeed);
+						}
+						if (typeof prefs.playbackBpmMode === "boolean") {
+							set({ playbackBpmMode: prefs.playbackBpmMode });
+						}
+						if (typeof prefs.metronomeVolume === "number") {
+							set({ metronomeVolume: prefs.metronomeVolume });
+							get().playerControls?.setMetronomeVolume?.(prefs.metronomeVolume);
+						}
+						if (typeof prefs.enableSyncScroll === "boolean") {
+							set({ enableSyncScroll: prefs.enableSyncScroll });
+						}
+						if (typeof prefs.enableCursorBroadcast === "boolean") {
+							set({ enableCursorBroadcast: prefs.enableCursorBroadcast });
+						}
+						if (
+							prefs.customPlayerConfig?.components &&
+							Array.isArray(prefs.customPlayerConfig.components)
+						) {
+							set({
+								customPlayerConfig: prefs.customPlayerConfig,
+							});
+						}
+					} else {
+						// initialize workspace metadata
+						await window.electronAPI.saveWorkspaceMetadata(repo.path, {
+							id: repo.id,
+							name: repo.name,
+							openedAt: Date.now(),
+							expandedFolders: [],
+						});
+					}
+				} catch (e) {
+					console.error("hydrate workspace failed", e);
+				}
+			}
+		} catch (err) {
+			console.error("Failed to scan directory:", err);
+		}
+	},
+
+	updateRepoName: (id: string, name: string) => {
+		set((state) => {
+			const newRepos = state.repos.map((r) =>
+				r.id === id ? { ...r, name } : r,
+			);
+			try {
+				window.electronAPI?.saveRepos?.(newRepos);
+			} catch {}
+			return { repos: newRepos };
+		});
+	},
+
+	loadRepos: async () => {
+		try {
+			const repos = await window.electronAPI?.loadRepos?.();
+			if (repos) {
+				set({ repos });
+			}
+		} catch (err) {
+			console.error("Failed to load repos:", err);
+		}
+	},
+
+	// ===== FileTree Actions =====
+	expandFolder: (path: string) => {
+		set((state) => ({
+			fileTree: updateNodeExpanded(state.fileTree, path, true),
+		}));
+		void (async () => {
+			const s = get();
+			const repo = s.repos.find((r) => r.id === s.activeRepoId);
+			if (!repo) return;
+			try {
+				const expanded = collectExpandedFolders(s.fileTree);
+				const existing = await window.electronAPI.loadWorkspaceMetadata(
+					repo.path,
+				);
+				const next: RepoMetadata = {
+					id: repo.id,
+					name: repo.name,
+					openedAt: Date.now(),
+					expandedFolders: expanded,
+					preferences: existing?.preferences,
+				};
+				await window.electronAPI.saveWorkspaceMetadata(repo.path, next);
+			} catch {}
+		})();
+	},
+
+	collapseFolder: (path: string) => {
+		set((state) => ({
+			fileTree: updateNodeExpanded(state.fileTree, path, false),
+		}));
+		void (async () => {
+			const s = get();
+			const repo = s.repos.find((r) => r.id === s.activeRepoId);
+			if (!repo) return;
+			try {
+				const expanded = collectExpandedFolders(s.fileTree);
+				const existing = await window.electronAPI.loadWorkspaceMetadata(
+					repo.path,
+				);
+				const next: RepoMetadata = {
+					id: repo.id,
+					name: repo.name,
+					openedAt: Date.now(),
+					expandedFolders: expanded,
+					preferences: existing?.preferences,
+				};
+				await window.electronAPI.saveWorkspaceMetadata(repo.path, next);
+			} catch {}
+		})();
+	},
+
+	refreshFileTree: async () => {
+		const { activeRepoId, repos } = get();
+		if (!activeRepoId) return;
+
+		const repo = repos.find((r) => r.id === activeRepoId);
+		if (!repo) return;
+
+		try {
+			const result = await window.electronAPI?.scanDirectory?.(repo.path);
+			if (result) {
+				set({
+					fileTree: result.nodes,
+					files: flattenFileNodes(result.nodes),
+				});
+			}
+		} catch (err) {
+			console.error("Failed to refresh file tree:", err);
+		}
+	},
+
+	getFileNodeById: (id: string) => {
+		return findNodeById(get().fileTree, id);
+	},
+
+	// ===== 兼容旧代码 =====
 	files: [],
 	activeFileId: null,
 	isTracksPanelOpen: false,
@@ -249,26 +607,44 @@ export const useAppStore = create<AppState>((set, get) => ({
 	playerIsPlaying: false,
 	setPlayerIsPlaying: (v) => set({ playerIsPlaying: v }),
 	zoomPercent: 60,
-	setZoomPercent: (v) => set({ zoomPercent: v }),
+	setZoomPercent: (v) => {
+		set({ zoomPercent: v });
+		void mergeAndSaveWorkspacePreferences({ zoomPercent: v });
+	},
 	playbackSpeed: 1.0,
-	setPlaybackSpeed: (v) => set({ playbackSpeed: v }),
+	setPlaybackSpeed: (v) => {
+		set({ playbackSpeed: v });
+		void mergeAndSaveWorkspacePreferences({ playbackSpeed: v });
+	},
 
 	// 默认为 BPM 模式
 	playbackBpmMode: true,
-	setPlaybackBpmMode: (v) => set({ playbackBpmMode: v }),
+	setPlaybackBpmMode: (v) => {
+		set({ playbackBpmMode: v });
+		void mergeAndSaveWorkspacePreferences({ playbackBpmMode: v });
+	},
 
 	// 初始 BPM（由 Preview 在加载/渲染后填充）
 	songInitialBpm: null,
 	setSongInitialBpm: (v) => set({ songInitialBpm: v }),
 
 	metronomeVolume: 0,
-	setMetronomeVolume: (v) => set({ metronomeVolume: v }),
+	setMetronomeVolume: (v) => {
+		set({ metronomeVolume: v });
+		void mergeAndSaveWorkspacePreferences({ metronomeVolume: v });
+	},
 	// 是否启用编辑器播放同步滚动
 	enableSyncScroll: false,
-	setEnableSyncScroll: (v) => set({ enableSyncScroll: v }),
+	setEnableSyncScroll: (v) => {
+		set({ enableSyncScroll: v });
+		void mergeAndSaveWorkspacePreferences({ enableSyncScroll: v });
+	},
 	// 是否启用编辑器光标广播到Preview
 	enableCursorBroadcast: false,
-	setEnableCursorBroadcast: (v) => set({ enableCursorBroadcast: v }),
+	setEnableCursorBroadcast: (v) => {
+		set({ enableCursorBroadcast: v });
+		void mergeAndSaveWorkspacePreferences({ enableCursorBroadcast: v });
+	},
 
 	// 🆕 自定义播放器配置 - 默认按照当前底部栏顺序
 	customPlayerConfig: {
@@ -305,12 +681,18 @@ export const useAppStore = create<AppState>((set, get) => ({
 			},
 		],
 	},
-	setCustomPlayerConfig: (config) => set({ customPlayerConfig: config }),
-	updatePlayerComponentOrder: (components) =>
+	setCustomPlayerConfig: (config) => {
+		set({ customPlayerConfig: config });
+		void mergeAndSaveWorkspacePreferences({ customPlayerConfig: config });
+	},
+	updatePlayerComponentOrder: (components) => {
 		set((state) => ({
 			customPlayerConfig: { ...state.customPlayerConfig, components },
-		})),
-	togglePlayerComponent: (type) =>
+		}));
+		const next = { ...get().customPlayerConfig, components };
+		void mergeAndSaveWorkspacePreferences({ customPlayerConfig: next });
+	},
+	togglePlayerComponent: (type) => {
 		set((state) => ({
 			customPlayerConfig: {
 				...state.customPlayerConfig,
@@ -318,7 +700,11 @@ export const useAppStore = create<AppState>((set, get) => ({
 					comp.type === type ? { ...comp, enabled: !comp.enabled } : comp,
 				),
 			},
-		})),
+		}));
+		void mergeAndSaveWorkspacePreferences({
+			customPlayerConfig: get().customPlayerConfig,
+		});
+	},
 	apiInstanceId: 0,
 	scoreVersion: 0,
 	bumpApiInstanceId: () =>
@@ -349,37 +735,35 @@ export const useAppStore = create<AppState>((set, get) => ({
 		i18n.changeLanguage(locale).catch((err) => {
 			console.error("Failed to change language:", err);
 		});
-		// 持久化到 localStorage（仅用于下次启动时恢复）
-		try {
-			localStorage.setItem(LOCALE_STORAGE_KEY, locale);
-		} catch {}
+		// Persist to ~/.tabst/settings.json
+		void saveGlobalSettings({ locale });
 	},
 
 	addFile: (file) => {
 		set((state) => {
-			// 检查文件是否已存在
-			const exists = state.files.some((f) => f.path === file.path);
-			if (exists) {
+			const existing = state.files.find((f) => f.path === file.path);
+			if (existing) {
+				const merged = {
+					...existing,
+					// Prefer latest metadata/content when provided
+					name: file.name || existing.name,
+					content: file.content ?? existing.content,
+					contentLoaded: file.contentLoaded ?? true,
+				};
 				return {
-					activeFileId: state.files.find((f) => f.path === file.path)?.id,
+					...state,
+					files: state.files.map((f) => (f.id === existing.id ? merged : f)),
+					activeFileId: existing.id,
 				};
 			}
-			const newState = {
-				files: [...state.files, file],
+			return {
+				...state,
+				files: [
+					...state.files,
+					{ ...file, contentLoaded: file.contentLoaded ?? true },
+				],
 				activeFileId: file.id,
 			};
-			// 持久化到主进程
-			try {
-				window.electronAPI?.saveAppState?.({
-					files: newState.files.map((f) => ({
-						id: f.id,
-						name: f.name,
-						path: f.path,
-					})),
-					activeFileId: newState.activeFileId,
-				});
-			} catch {}
-			return newState;
 		});
 	},
 
@@ -392,25 +776,12 @@ export const useAppStore = create<AppState>((set, get) => ({
 						? newFiles[0].id
 						: null
 					: state.activeFileId;
-			const newState = { files: newFiles, activeFileId: newActiveId };
-			try {
-				window.electronAPI?.saveAppState?.({
-					files: newFiles.map((f) => ({
-						id: f.id,
-						name: f.name,
-						path: f.path,
-					})),
-					activeFileId: newActiveId,
-				});
-			} catch {}
-			return newState;
+			return { files: newFiles, activeFileId: newActiveId };
 		});
 	},
 
 	renameFile: async (id, newName) => {
-		// find file first
-		const state = get();
-		const file = state.files.find((f) => f.id === id);
+		const file = get().files.find((f) => f.id === id);
 		if (!file) return false;
 
 		// preserve original extension
@@ -430,26 +801,42 @@ export const useAppStore = create<AppState>((set, get) => ({
 				console.error("renameFile failed:", result?.error);
 				return false;
 			}
-			const newFiles = state.files.map((f) =>
-				f.id === id
-					? {
-							...f,
-							name: result.newName ?? finalName,
-							path: result.newPath ?? f.path,
-						}
-					: f,
-			);
-			set({ files: newFiles });
-			try {
-				window.electronAPI?.saveAppState?.({
-					files: newFiles.map((f) => ({
-						id: f.id,
-						name: f.name,
-						path: f.path,
-					})),
-					activeFileId: state.activeFileId,
-				});
-			} catch {}
+
+			const oldPath = file.path;
+			const newPath = result.newPath ?? file.path;
+			const updatedName = result.newName ?? finalName;
+
+			set((state) => {
+				const target = state.files.find((f) => f.id === id);
+				if (!target) return {};
+
+				const shouldUpdateId =
+					target.id === oldPath || target.id === target.path;
+
+				const newFiles = state.files.map((f) =>
+					f.id === id
+						? {
+								...f,
+								id: shouldUpdateId ? newPath : f.id,
+								name: updatedName,
+								path: newPath,
+							}
+						: f,
+				);
+
+				const newActiveFileId =
+					shouldUpdateId && state.activeFileId === id
+						? newPath
+						: state.activeFileId;
+
+				const newTree = renameNodeInTree(state.fileTree, oldPath, newPath);
+
+				return {
+					files: newFiles,
+					activeFileId: newActiveFileId,
+					fileTree: newTree,
+				};
+			});
 			return true;
 		} catch (err) {
 			console.error("renameFile error:", err);
@@ -458,25 +845,14 @@ export const useAppStore = create<AppState>((set, get) => ({
 	},
 
 	setActiveFile: (id) => {
-		set((state) => {
-			const newState = { ...state, activeFileId: id };
-			try {
-				window.electronAPI?.saveAppState?.({
-					files: newState.files.map((f) => ({
-						id: f.id,
-						name: f.name,
-						path: f.path,
-					})),
-					activeFileId: newState.activeFileId,
-				});
-			} catch {}
-			return { activeFileId: id };
-		});
+		set({ activeFileId: id });
 	},
 
 	updateFileContent: (id, content) => {
 		set((state) => ({
-			files: state.files.map((f) => (f.id === id ? { ...f, content } : f)),
+			files: state.files.map((f) =>
+				f.id === id ? { ...f, content, contentLoaded: true } : f,
+			),
 		}));
 	},
 
@@ -553,25 +929,15 @@ export const useAppStore = create<AppState>((set, get) => ({
 
 	initialize: async () => {
 		try {
-			// 注意：语言设置不需要在这里恢复
-			// appStore.locale 的初始值已通过 getInitialLocale() 从 i18n.language 同步
-			// i18n 在导入时已从 localStorage 初始化，因此 appStore.locale 已经是正确的值
+			const repos = await window.electronAPI?.loadRepos?.();
+			if (repos) {
+				set({ repos });
+			}
 
-			// 检查 electronAPI 是否可用
-			if (
-				typeof window !== "undefined" &&
-				window.electronAPI &&
-				window.electronAPI.loadAppState
-			) {
-				const result = await window.electronAPI.loadAppState();
-				if (result?.files) {
-					const restored = result.files.map((f) => ({
-						id: f.id ?? crypto.randomUUID(),
-						name: f.name,
-						path: f.path,
-						content: f.content ?? "",
-					}));
-					set({ files: restored, activeFileId: result.activeFileId });
+			if (repos) {
+				const activeRepo = repos.find((r) => r.id === get().activeRepoId);
+				if (activeRepo) {
+					await get().switchRepo(activeRepo.id);
 				}
 			}
 		} catch (err) {
@@ -579,3 +945,135 @@ export const useAppStore = create<AppState>((set, get) => ({
 		}
 	},
 }));
+
+// Hydrate locale and delete behavior from global settings at startup
+void (async () => {
+	try {
+		const settings = await loadGlobalSettings();
+		const store = useAppStore.getState();
+		if (settings.locale && settings.locale !== store.locale) {
+			store.setLocale(settings.locale);
+		}
+		if (
+			settings.deleteBehavior &&
+			settings.deleteBehavior !== store.deleteBehavior
+		) {
+			store.setDeleteBehavior(settings.deleteBehavior);
+		}
+	} catch {}
+})();
+
+// 辅助函数：将 FileNode 树扁平化为 FileItem 数组
+function flattenFileNodes(nodes: FileNode[]): FileItem[] {
+	const result: FileItem[] = [];
+	for (const node of nodes) {
+		if (node.type === "file") {
+			result.push({
+				id: node.id,
+				name: node.name,
+				path: node.path,
+				content: node.content || "",
+				contentLoaded: typeof node.content === "string",
+			});
+		} else if (node.children) {
+			result.push(...flattenFileNodes(node.children));
+		}
+	}
+	return result;
+}
+
+function basenameFromPath(p: string): string {
+	const normalized = p.replace(/\\/g, "/");
+	const parts = normalized.split("/");
+	return parts[parts.length - 1] || normalized;
+}
+
+function replacePathPrefix(
+	p: string,
+	oldPrefix: string,
+	newPrefix: string,
+): string {
+	if (p === oldPrefix) return newPrefix;
+	if (!p.startsWith(oldPrefix)) return p;
+	const rest = p.slice(oldPrefix.length);
+	if (rest === "" || rest.startsWith("/") || rest.startsWith("\\")) {
+		return `${newPrefix}${rest}`;
+	}
+	return p;
+}
+
+function renameNodeInTree(
+	nodes: FileNode[],
+	oldPath: string,
+	newPath: string,
+): FileNode[] {
+	let changed = false;
+	const next = nodes.map((node) => {
+		const nodeMatches = node.id === oldPath || node.path === oldPath;
+		if (nodeMatches) {
+			changed = true;
+			if (node.type === "folder" && node.children) {
+				const updatedChildren = renameDescendants(
+					node.children,
+					oldPath,
+					newPath,
+				);
+				return {
+					...node,
+					id: newPath,
+					path: newPath,
+					name: basenameFromPath(newPath),
+					children: updatedChildren,
+				};
+			}
+			return {
+				...node,
+				id: newPath,
+				path: newPath,
+				name: basenameFromPath(newPath),
+			};
+		}
+
+		if (node.type === "folder" && node.children) {
+			const updatedChildren = renameNodeInTree(node.children, oldPath, newPath);
+			if (updatedChildren !== node.children) {
+				changed = true;
+				return { ...node, children: updatedChildren };
+			}
+		}
+		return node;
+	});
+	return changed ? next : nodes;
+}
+
+function renameDescendants(
+	nodes: FileNode[],
+	oldPrefix: string,
+	newPrefix: string,
+): FileNode[] {
+	return nodes.map((node) => {
+		const updatedId = replacePathPrefix(node.id, oldPrefix, newPrefix);
+		const updatedPath = replacePathPrefix(node.path, oldPrefix, newPrefix);
+		const updatedName = basenameFromPath(updatedPath);
+		if (node.type === "folder" && node.children) {
+			const updatedChildren = renameDescendants(
+				node.children,
+				oldPrefix,
+				newPrefix,
+			);
+			return {
+				...node,
+				id: updatedId,
+				path: updatedPath,
+				name: updatedName,
+				children: updatedChildren,
+			};
+		}
+		return {
+			...node,
+			id: updatedId,
+			path: updatedPath,
+			name: updatedName,
+		};
+	});
+}

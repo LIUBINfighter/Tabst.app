@@ -43,11 +43,7 @@ const resources = {
 const LOCALE_STORAGE_KEY = "locale";
 
 function getInitialLanguage(): "en" | "zh-cn" {
-	if (typeof window === "undefined") return "zh-cn";
-	try {
-		const saved = localStorage.getItem(LOCALE_STORAGE_KEY);
-		if (saved === "en" || saved === "zh-cn") return saved;
-	} catch {}
+	// Default to zh-cn; actual persisted locale is applied via appStore
 	return "zh-cn";
 }
 

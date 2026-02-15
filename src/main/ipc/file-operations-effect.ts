@@ -1,13 +1,12 @@
 import path from "node:path";
 import { Effect, Exit } from "effect";
 import {
-	copyFile,
 	fileExists,
 	getDefaultSaveDir,
 	readFile,
 	readJsonFile,
+	renamePath,
 	showOpenDialog,
-	unlinkFile,
 	writeFile,
 	writeJsonFile,
 } from "../effects/file-system";
@@ -119,8 +118,7 @@ export async function handleRenameFileEffect(
 			return { success: false, error: "target-exists" };
 		}
 
-		yield* copyFile(oldPath, newPath);
-		yield* unlinkFile(oldPath);
+		yield* renamePath(oldPath, newPath);
 
 		return {
 			success: true,
@@ -141,7 +139,7 @@ export async function handleRenameFileEffect(
 			}
 			return { success: false, error: "Unknown error" };
 		},
-		onSuccess: () => ({ success: true }),
+		onSuccess: (value) => value,
 	});
 }
 
@@ -235,5 +233,24 @@ export async function handleSaveAppStateEffect(
 			return { success: false, error: "Unknown error" };
 		},
 		onSuccess: () => ({ success: true }),
+	});
+}
+
+export async function handleReadFileEffect(
+	_event: Electron.IpcMainInvokeEvent,
+	filePath: string,
+): Promise<{ content: string; error?: string }> {
+	const program = readFile(filePath);
+	const result = await Effect.runPromiseExit(program);
+
+	return Exit.match(result, {
+		onFailure: (error) => {
+			console.error("Read file failed:", error);
+			if (error._tag === "Fail") {
+				return { content: "", error: error.error.message };
+			}
+			return { content: "", error: "Unknown error" };
+		},
+		onSuccess: (content) => ({ content }),
 	});
 }

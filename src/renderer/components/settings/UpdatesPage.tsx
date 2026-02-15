@@ -26,7 +26,7 @@ export function UpdatesPage() {
 		try {
 			const result = await window.electronAPI.fetchReleasesFeed();
 			if (!result.success || !result.data) {
-				throw new Error(result.error || "Failed to fetch releases");
+				throw new Error(result.error || t("fetchReleasesFailed"));
 			}
 
 			const parser = new DOMParser();
@@ -34,7 +34,7 @@ export function UpdatesPage() {
 
 			const parseErr = xmlDoc.querySelector("parsererror");
 			if (parseErr) {
-				throw new Error("Failed to parse XML");
+				throw new Error(t("parseXmlFailed"));
 			}
 
 			const entries = xmlDoc.querySelectorAll("entry");

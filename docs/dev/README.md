@@ -1,194 +1,73 @@
-# 开发文档导航
+# Tabst 开发文档
 
-> 显然，这种文档随着开发的进程，开发文档快速累积，非常容易过时，看个乐就好。
+本目录包含 Tabst 项目的开发技术文档，按功能模块组织。
 
-## 📚 alphaTab 主题切换的完整技术文档
-
-这个项目的暗黑模式实现涉及 Electron、React、alphaTab Worker 线程等多个层级。我们为此编写了**五份互补的文档**：
-
-### 1. 🏗️ [系统架构分析](./ALPHATAB_ARCHITECTURE.md)
-
-**针对**：想要理解整个系统如何运作的开发者
-
-**包含内容**：
-
-- 系统架构概览（JS 侧、Worker 侧、通信机制）
-- 两种颜色更新方案的完整对比
-  - ❌ 方案 A：简单修改 + render()（为什么不工作）
-  - ✅ 方案 B：完全重建（为什么工作）
-- 主题切换的时序图（从 0ms 到 100ms 的完整过程）
-- 关键设计决策解析
-- 数据流追踪（CSS 变量 → JS → Worker）
-- 潜在改进方向
-
-**最佳阅读场景**：
-
-- 第一次深入了解项目的同学
-- 需要理解为什么采用这种架构
-- 想要改进现有实现
+> **提示**：文档按重要性排序，新手建议按顺序阅读。
 
 ---
 
-### 2. 📋 [重建和刷新机制](./REBUILD_REFRESH_MECHANISMS.md)
+## 📁 文档结构
 
-**针对**：需要维护和修改 alphaTab 集成代码的开发者
+### alphatab/ - alphaTab 集成
 
-**包含内容**：
+alphaTab 乐谱渲染引擎的集成文档。
 
-- 5 个层级的重建/刷新机制详解
-  1. `api.render()` - 轻量级刷新
-  2. `api.renderTracks()` - 部分音轨重新渲染
-  3. `api.tex()` - 重新加载乐谱内容
-  4. 完全重建 - API 销毁和重新创建
-  5. 播放状态保留（高级场景）
-- 每个机制的工作原理、何时使用、代价对比
-- 完整的代码框架和实现细节
-- 异步处理的考虑（为什么用 `void (async () => {})()`）
-- 故障排查指南
-- 性能优化建议
+| 文档 | 内容 | 推荐阅读 |
+|------|------|----------|
+| [ARCHITECTURE.md](./alphatab/ARCHITECTURE.md) | 系统架构分析（Worker 缓存、颜色配置流） | ⭐⭐⭐⭐⭐ |
+| [THEME_SWITCH_GUIDE.md](./alphatab/THEME_SWITCH_GUIDE.md) | 主题切换完全指南（重建机制、tracks 参数问题） | ⭐⭐⭐⭐⭐ |
+| [REBUILD_MECHANISMS.md](./alphatab/REBUILD_MECHANISMS.md) | 5 层重建/刷新机制详解 | ⭐⭐⭐⭐ |
+| [TRACKS_CONFIGURATION.md](./alphatab/TRACKS_CONFIGURATION.md) | Tracks 参数保存/恢复方案 | ⭐⭐⭐⭐ |
+| [SELECTION_SYNC.md](./alphatab/SELECTION_SYNC.md) | 选区同步技术文档（Selection API、编辑器同步） | ⭐⭐⭐⭐ |
 
-**最佳阅读场景**：
-
-- 需要修改现有的主题切换逻辑
-- 遇到颜色不更新的问题
-- 想要优化重建性能
-- 需要添加播放状态保留功能
+**快速入口**：
+- 第一次了解 alphaTab 集成？→ [ARCHITECTURE.md](./alphatab/ARCHITECTURE.md)
+- 修改主题切换逻辑？→ [THEME_SWITCH_GUIDE.md](./alphatab/THEME_SWITCH_GUIDE.md)
+- 实现选区同步功能？→ [SELECTION_SYNC.md](./alphatab/SELECTION_SYNC.md)
 
 ---
 
-### 3. ⚡ [主题切换速查表](./THEME_SWITCH_QUICK_REFERENCE.md)
+### alphatex/ - AlphaTex 编辑器
 
-**针对**：需要快速查找答案或应急修复的开发者
+AlphaTex 编辑器实现文档。
 
-**包含内容**：
-
-- 核心问题一句话总结
-- 快速对比表（不同场景 vs 调用方法）
-- 实现代码框架（复制即用）
-- 关键细节的简明说明
-- 故障排查快速清单
-- 文件导航
-- 性能建议速查
-
-**最佳阅读场景**：
-
-- 需要快速找到某个特定问题的答案
-- 需要代码框架参考
-- 在线上问题时需要快速了解概况
-- 想要快速回顾关键点
+| 文档 | 内容 |
+|------|------|
+| [LSP_INTEGRATION.md](./alphatex/LSP_INTEGRATION.md) | LSP Worker、语法高亮、自动补全集成 |
 
 ---
 
-### 4. 🔴 [初始化流程问题分析](./INITIALIZATION_FLOW_PROBLEM.md)
+### ops/ - 运维与工程
 
-**针对**：遇到主题切换时 tracks 参数丢失问题的开发者
+项目运维、部署、重构相关文档。
 
-**包含内容**：
-
-- 问题的详细复现：初次加载 vs 主题切换时的流程对比
-- 5 个时序图，展示参数丢失的发生位置
-- 根本原因分析：为什么首次加载时正常，主题切换时参数丢失
-- 代码中的 12 个关键问题位置（带行号）
-- 3 个解决方向的简述
-- 完整的故障排查清单
-
-**最佳阅读场景**：
-
-- 调试 tracks 参数丢失问题
-- 理解初始化流程中 settings 和 tracks 的相互作用
-- 了解 content props 变化和主题切换的时序关系
+| 文档 | 内容 |
+|------|------|
+| [AUTO_UPDATE.md](./ops/AUTO_UPDATE.md) | 自动更新实现（electron-builder + electron-updater） |
+| [REFACTORING.md](./ops/REFACTORING.md) | Effect-TS 重构总结 |
+| [SECURITY.md](./ops/SECURITY.md) | 安全审计记录 |
 
 ---
 
-### 5. 🔧 [tracks 参数丢失的修复方案](./TRACKS_PARAMETER_FIX.md)
+### roadmap/ - 未来规划
 
-**针对**：需要实施修复的开发者
+未完成的功能规划。
 
-**包含内容**：
-
-- **方案 A**：使用 Ref 保存 tracks 配置（推荐 ⭐⭐⭐⭐）
-  - 改进 1-5：具体的代码修改步骤
-  - 最小化改动，最大化可靠性
-- **方案 B**：创建高阶初始化函数（最完整 ⭐⭐⭐⭐⭐）
-  - 完整的 `initializeAlphaTabInstance()` 函数
-  - 统一首次初始化和主题重建
-  - 示例代码可直接使用
-- **方案 C**：引入初始化状态管理
-  - 通过 state 追踪初始化进度
-- 方案对比表 + 验证清单
-
-**最佳阅读场景**：
-
-- 选择修复方案
-- 复制现成的代码片段
-- 指导修复实施
+| 文档 | 内容 |
+|------|------|
+| [I18N_PLAN.md](./roadmap/I18N_PLAN.md) | 国际化适配计划 |
+| [CHORD_DIAGRAMS.md](./roadmap/CHORD_DIAGRAMS.md) | 和弦图显示方案 |
 
 ---
 
-## 📚 文档导航
+### archived/ - 归档
 
-```
-你的情况是...                                    推荐阅读
-─────────────────────────────────────────────────────────────
-我是新开发者，想理解整个系统                   → ALPHATAB_ARCHITECTURE.md
-我需要修改主题切换逻辑                         → REBUILD_REFRESH_MECHANISMS.md
-我需要快速找到答案                             → THEME_SWITCH_QUICK_REFERENCE.md
-我遇到了 tracks 参数丢失问题                   → INITIALIZATION_FLOW_PROBLEM.md
-我想修复 tracks 参数丢失问题                   → TRACKS_PARAMETER_FIX.md
-我遇到了 useEffect 依赖项回归问题              → USEEFFECT_DEPENDENCY_REGRESSION.md
-我想全面学习这个实现                           → 按顺序读所有文档
-```
+当前活跃的开发文档（完成后归档）。
 
----
-
-## 🔑 核心概念快速回顾
-
-### 问题
-
-alphaTab 的 Web Worker 在初始化时缓存颜色配置。简单的颜色修改 + `render()` 无法更新 Worker 的缓存。
-
-### 解决方案
-
-完全重建：销毁旧 API → 创建新 API（新颜色）→ 重新加载乐谱
-
-### 关键代码
-
-```typescript
-// 主题切换回调
-setupThemeObserver(() => {
-  void (async () => {
-    // 保存当前乐谱内容
-    const currentContent = content;
-
-    // 销毁旧 API
-    apiRef.current?.destroy();
-
-    // 获取新颜色
-    const newColors = getAlphaTabColorsForTheme();
-
-    // 创建新 API（包含新颜色）
-    apiRef.current = new alphaTab.AlphaTabApi(el, {
-      // ... settings with new colors ...
-    });
-
-    // 重新加载乐谱（用新颜色渲染）
-    await loadSoundFontFromUrl(apiRef.current, urls.soundFontUrl);
-    apiRef.current.tex(currentContent);
-  })();
-});
-```
-
----
-
-## 📄 相关代码文件
-
-| 文件                                        | 作用                                     | 推荐查看时机           |
-| ------------------------------------------- | ---------------------------------------- | ---------------------- |
-| `src/renderer/components/Preview.tsx`       | 主要集成点，包含 setupThemeObserver 回调 | 修改主题切换逻辑时     |
-| `src/renderer/lib/themeManager.ts`          | 颜色管理和 MutationObserver 设置         | 理解颜色如何获取和监听 |
-| `src/renderer/lib/resourceLoaderService.ts` | Worker URL 和资源路径获取                | 理解资源加载机制       |
-| `src/renderer/lib/assets.ts`                | 字体和音频加载                           | 理解资源加载细节       |
-| `src/renderer/index.css`                    | CSS 变量定义（亮→暗主题）                | 修改颜色值时           |
+| 文档 | 内容 |
+|------|------|
+| `REPO_FEATURE_HANDOFF.md` | Repo 功能交接文档 |
+| `REPO_REFACTOR_CONTEXT.md` | Repo 重构上下文 |
 
 ---
 
@@ -198,76 +77,43 @@ setupThemeObserver(() => {
 
 1. 编辑 `src/renderer/index.css` 中的 `.dark` 区块
 2. 修改 `--alphatab-*` CSS 变量值
-3. 不需要修改代码，改变会自动被 `getAlphaTabColorsForTheme()` 读取
+3. 颜色自动被 `getAlphaTabColorsForTheme()` 读取
 
-### 任务 2：添加第三种主题（比如高对比度）
+参考：[THEME_SWITCH_GUIDE.md](./alphatab/THEME_SWITCH_GUIDE.md)
 
-1. 在 `src/renderer/index.css` 中添加新的 class（如 `.high-contrast`）
-2. 修改 `src/renderer/lib/themeManager.ts` 中的 `getAlphaTabColorsForTheme()` 函数
-3. 添加新的主题检测逻辑
+### 任务 2：调试主题切换问题
 
-### 任务 3：优化主题切换性能
+1. 检查是否调用了 `destroy()`
+2. 验证新的 `settings` 对象包含新颜色
+3. 检查是否使用了 `trackConfigRef` 保存 tracks 配置
 
-1. 查看 [重建和刷新机制] 文档中的"性能优化建议"
-2. 考虑添加防抖或节流
-3. 可能需要保留播放状态以改进用户体验
+参考：[THEME_SWITCH_GUIDE.md#故障排查](./alphatab/THEME_SWITCH_GUIDE.md#故障排查)
 
-### 任务 4：调试颜色不更新问题
+### 任务 3：实现选区同步功能
 
-1. 查看 [主题切换速查表] 中的"故障排查"部分
-2. 检查是否调用了 `destroy()`
-3. 验证新的 `settings` 对象中是否包含新颜色
-4. 检查浏览器控制台是否有错误
+1. 监听 `api.playbackRangeHighlightChanged` 事件
+2. 使用 AST 解析器获取代码位置
+3. 通过 CodeMirror Decoration 实现高亮
 
----
-
-## 💡 关键学习点
-
-### 为什么 render() 不工作？
-
-Worker 线程有自己的内存空间。初始化时读取的颜色被缓存到 Worker 内部。JavaScript 侧修改颜色后，Worker 看不到这个改变。
-
-### 为什么完全重建工作？
-
-销毁旧 Worker → 创建新 Worker → 新 Worker 初始化时用新颜色。这样强制 Worker 重新读取颜色配置。
-
-### 为什么用 MutationObserver？
-
-Tailwind CSS 通过添加/移除 `.dark` class 来实现主题切换。MutationObserver 可以自动检测任何 class 变化，不需要手动协调。
-
-### 为什么用 CSS 变量？
-
-- 单一源真值：CSS 和 JS 使用同一个颜色定义
-- 易于维护：修改颜色只需改一个地方
-- 与设计系统一致：Tailwind 的标准做法
+参考：[SELECTION_SYNC.md](./alphatab/SELECTION_SYNC.md)
 
 ---
 
 ## 🔗 外部参考
 
 - [alphaTab 官方文档](https://www.alphatab.net/)
-- [Web Workers 概念](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API)
-- [MutationObserver API](https://developer.mozilla.org/en-US/docs/Web/API/MutationObserver)
-- [Tailwind CSS 暗模式](https://tailwindcss.com/docs/dark-mode)
+- [alphaTab GitHub](https://github.com/CoderLine/alphaTab)
+- [CodeMirror 6 文档](https://codemirror.net/)
+- [Effect-TS 文档](https://effect.website/)
 
 ---
 
-## 📝 版本信息
+## 📝 文档维护
 
-- **更新日期**：2025 年 12 月
-- **项目**：Tabst (minimal 分支)
-- **alphaTab 版本**：@coderline/alphatab
-- **关键特性**：暗黑模式、Worker 线程管理、动态颜色配置
-
----
-
-## ❓ 有问题？
-
-1. **快速查找**：使用 [主题切换速查表](./THEME_SWITCH_QUICK_REFERENCE.md)
-2. **深入理解**：查看 [系统架构分析](./ALPHATAB_ARCHITECTURE.md)
-3. **实现细节**：参考 [重建和刷新机制](./REBUILD_REFRESH_MECHANISMS.md)
-4. **代码参考**：查看 `src/renderer/components/Preview.tsx`
+- **新增文档**：请按功能放入对应子目录
+- **文档更新**：修改后请在文档头部更新日期
+- **过时文档**：确认无用后可移入 `archived/` 或直接删除
 
 ---
 
-**祝你开发愉快！** 🎉
+**最后更新**：2026-02-09

@@ -1,5 +1,6 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { loadGlobalSettings, saveGlobalSettings } from "../lib/global-settings";
+// Persist to ~/.tabst/settings.json via helper, not localStorage
 import {
 	getDefaultEditorThemeForUI,
 	getUITheme,
@@ -10,7 +11,7 @@ import type {
 	ThemeState,
 } from "../lib/theme-system/types";
 
-const THEME_STORAGE_KEY = "tabst-theme-preference";
+// Removed localStorage storage key; using global settings file instead
 
 interface ThemeStore extends ThemeState {
 	setUITheme: (themeId: string) => void;
@@ -27,65 +28,96 @@ function getSystemTheme(): "light" | "dark" {
 		: "light";
 }
 
-export const useThemeStore = create<ThemeStore>()(
-	persist(
-		(set, get) => ({
-			currentUITheme: "github",
-			currentEditorTheme: "github",
-			themeMode: "system",
-			savedPreference: undefined,
+export const useThemeStore = create<ThemeStore>()((set, get) => ({
+	currentUITheme: "github",
+	currentEditorTheme: "github",
+	themeMode: "system",
+	savedPreference: undefined,
 
-			setUITheme: (themeId) => {
-				const uiTheme = getUITheme(themeId);
-				if (!uiTheme) return;
+	setUITheme: (themeId) => {
+		const uiTheme = getUITheme(themeId);
+		if (!uiTheme) return;
 
-				const defaultEditor = getDefaultEditorThemeForUI(themeId);
-				set({
-					currentUITheme: themeId,
-					currentEditorTheme: defaultEditor,
-					savedPreference: {
-						uiThemeId: themeId,
-						editorThemeId: defaultEditor,
-					},
-				});
+		const defaultEditor = getDefaultEditorThemeForUI(themeId);
+		set({
+			currentUITheme: themeId,
+			currentEditorTheme: defaultEditor,
+			savedPreference: {
+				uiThemeId: themeId,
+				editorThemeId: defaultEditor,
 			},
-
-			setEditorTheme: (themeId) => {
-				set((state) => ({
-					currentEditorTheme: themeId,
-					savedPreference: {
-						uiThemeId: state.currentUITheme,
-						editorThemeId: themeId,
-					},
-				}));
+		});
+		void saveGlobalSettings({
+			theme: {
+				uiThemeId: themeId,
+				editorThemeId: defaultEditor,
+				mode: get().themeMode,
 			},
+		});
+	},
 
-			setThemeMode: (mode) => {
-				set({ themeMode: mode });
+	setEditorTheme: (themeId) => {
+		set((state) => ({
+			currentEditorTheme: themeId,
+			savedPreference: {
+				uiThemeId: state.currentUITheme,
+				editorThemeId: themeId,
 			},
+		}));
+		void saveGlobalSettings({
+			theme: {
+				uiThemeId: get().currentUITheme,
+				editorThemeId: themeId,
+				mode: get().themeMode,
+			},
+		});
+	},
 
-			setCombinedTheme: (combined) => {
-				set({
-					currentUITheme: combined.uiThemeId,
-					currentEditorTheme: combined.editorThemeId,
-					savedPreference: combined,
-				});
+	setThemeMode: (mode) => {
+		set({ themeMode: mode });
+		void saveGlobalSettings({
+			theme: {
+				uiThemeId: get().currentUITheme,
+				editorThemeId: get().currentEditorTheme,
+				mode: mode,
 			},
+		});
+	},
 
-			getEffectiveVariant: () => {
-				const state = get();
-				if (state.themeMode === "system") {
-					return getSystemTheme();
-				}
-				return state.themeMode;
+	setCombinedTheme: (combined) => {
+		set({
+			currentUITheme: combined.uiThemeId,
+			currentEditorTheme: combined.editorThemeId,
+			savedPreference: combined,
+		});
+		void saveGlobalSettings({
+			theme: {
+				uiThemeId: combined.uiThemeId,
+				editorThemeId: combined.editorThemeId,
+				mode: get().themeMode,
 			},
-		}),
-		{
-			name: THEME_STORAGE_KEY,
-			partialize: (state) => ({
-				savedPreference: state.savedPreference,
-				themeMode: state.themeMode,
-			}),
-		},
-	),
-);
+		});
+	},
+
+	getEffectiveVariant: () => {
+		const state = get();
+		if (state.themeMode === "system") {
+			return getSystemTheme();
+		}
+		return state.themeMode;
+	},
+}));
+
+// Hydrate initial theme preference from global settings file
+void (async () => {
+	try {
+		const settings = await loadGlobalSettings();
+		if (settings.theme) {
+			useThemeStore.getState().setCombinedTheme({
+				uiThemeId: settings.theme.uiThemeId,
+				editorThemeId: settings.theme.editorThemeId,
+			});
+			useThemeStore.getState().setThemeMode(settings.theme.mode);
+		}
+	} catch {}
+})();

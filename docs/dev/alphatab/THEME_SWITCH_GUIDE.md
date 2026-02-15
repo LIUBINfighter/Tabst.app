@@ -133,6 +133,123 @@ setupThemeObserver(() => {
 
 ---
 
+## 关键问题：Tracks 参数丢失
+
+### 问题现象
+
+- ✅ **初次加载**：settings（颜色） + tracks（显示选项）都正确应用
+- ❌ **主题切换**：settings（颜色）更新了，但 tracks（showTablature/showStandardNotation 等）丢失了
+
+### 根本原因：流程不对称
+
+```
+初次加载（正常）：
+┌─ createAPI(settings)
+├─ tex(content) → scoreLoaded 事件
+├─ 修改 tracks 显示选项
+├─ setFirstStaffOptions()  ← React state 记录了这些值
+└─ renderTracks()  ← 显示生效
+
+主题切换（异常）：
+┌─ destroy()  ← ❌ 销毁了所有状态
+├─ createAPI(newSettings)  ← ⚠️ 新 settings，但没有 tracks 配置
+├─ tex(content) → scoreLoaded 事件
+├─ 修改 tracks 显示选项  ← 重新设置，但...
+├─ setFirstStaffOptions()  ← ❌ React state 被覆盖
+└─ renderTracks()  ← 显示生效（但丢失了之前的记录）
+
+问题：tracks 配置只保存在 React state 中，重建时没有恢复机制
+```
+
+### 解决方案
+
+**添加 trackConfigRef 保存 tracks 配置**：
+
+```typescript
+// 1. 添加 ref 保存配置
+const trackConfigRef = useRef<{
+  showTablature?: boolean;
+  showStandardNotation?: boolean;
+  showSlash?: boolean;
+  showNumbered?: boolean;
+} | null>(null);
+
+// 2. 在 toggle 时保存
+const toggleFirstStaffOpt = (key) => {
+  // ... 修改 tracks ...
+  trackConfigRef.current = {
+    ...trackConfigRef.current,
+    [key]: newValue,
+  };
+  setFirstStaffOptions((prev) => ({ ...prev, [key]: newValue }));
+  api.renderTracks([firstTrack]);
+};
+
+// 3. 在 scoreLoaded 时恢复
+apiRef.current.scoreLoaded.on((score) => {
+  if (score?.tracks?.length > 0) {
+    const firstTrack = score.tracks[0];
+    const config = trackConfigRef.current || {
+      showTablature: true,
+      showStandardNotation: false,
+      showSlash: false,
+      showNumbered: false,
+    };
+    firstTrack.staves.forEach((st) => {
+      Object.assign(st, config);
+    });
+    setFirstStaffOptions({ ...config });
+    apiRef.current?.renderTracks([firstTrack]);
+  }
+});
+```
+
+---
+
+## 时序问题与异步处理
+
+### 主题切换的完整时序
+
+```
+时间轴：
+T0: 亮色模式，乐谱已正确加载
+    ├─ API 已创建
+    ├─ tracks 已设置为 {showTablature: true, ...}
+    └─ 乐谱显示正确
+
+T1: 用户切换到暗色模式
+    └─ MutationObserver 检测 .dark class 变化
+       └─ setupThemeObserver() 回调触发
+          ├─ 获取 currentContent = content
+          ├─ apiRef.current?.destroy()  ← 销毁旧 API
+          ├─ 创建 newSettings（新颜色）
+          ├─ new AlphaTabApi(el, newSettings)  ← 新 API
+          ├─ await loadSoundFont()  ← 异步等待
+          └─ apiRef.current.tex(currentContent)  ← 重新加载
+
+T2: scoreLoaded 事件触发
+    └─ 应用 tracks 配置（从 trackConfigRef 恢复）
+       └─ ✅ 参数正确恢复
+```
+
+### 关键注意事项
+
+1. **异步操作使用 `void (async () => {})()`**：
+   - `setupThemeObserver` 期望同步回调
+   - 但重建需要异步操作（加载字体）
+   - 使用 `void` 操作符启动后台异步任务
+
+2. **保存 content 的快照**：
+   - 在 destroy 前捕获 `const currentContent = content`
+   - 防止异步操作期间 content 变化
+
+3. **tracks 配置持久化**：
+   - 使用 `trackConfigRef` 保存用户选择
+   - 在 `scoreLoaded` 回调中恢复
+   - 避免每次重建都重置为默认值
+
+---
+
 ## 关键细节
 
 ### 为什么用 `void (async () => { ... })()`？
@@ -193,6 +310,15 @@ apiRef.current.tex(currentContent);  // 使用捕获的值
 3. ✅ 新 `settings` 中是否包含新颜色？
 4. ✅ 是否调用了 `tex(currentContent)`？
 5. 📋 检查浏览器控制台是否有错误
+
+### 问题：tracks 参数丢失
+
+**检查清单**：
+
+1. ✅ 是否使用了 `trackConfigRef` 保存配置？
+2. ✅ 是否在 `toggleFirstStaffOpt` 中更新 ref？
+3. ✅ 是否在 `scoreLoaded` 回调中恢复配置？
+4. ✅ 检查配置恢复逻辑是否在 `renderTracks` 之前
 
 ### 问题：颜色没有更新
 

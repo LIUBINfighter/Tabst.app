@@ -1,88 +1,185 @@
-import { Edit, FileDown, FileMusic, FileText, FolderOpen } from "lucide-react";
-import { useEffect, useRef } from "react";
+import {
+	ChevronDown,
+	ChevronRight,
+	FileDown,
+	FileMusic,
+	FileText,
+	Folder,
+	FolderOpen,
+} from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { FileItem } from "../store/appStore";
 import { useAppStore } from "../store/appStore";
+import type { FileNode } from "../types/repo";
+import { FileContextMenu } from "./FileContextMenu";
 
 export interface FileTreeItemProps {
-	file: FileItem;
-	isEditing: boolean;
-	renameValue: string;
-	renameExt: string;
-	onRenameValueChange: (value: string) => void;
-	onRenameClick: (e: React.MouseEvent, file: FileItem) => void;
-	onRenameSubmit: (id: string) => void;
-	onRenameCancel: (e?: React.KeyboardEvent | React.FocusEvent) => void;
-	splitName: (name: string) => { base: string; ext: string };
+	node: FileNode;
+	level?: number;
+	onFileSelect?: (node: FileNode) => void;
+	onFolderToggle?: (node: FileNode) => void;
+	onRename?: (node: FileNode, newName: string) => void;
+	onReveal?: (node: FileNode) => void;
+	onCopyPath?: (node: FileNode) => void;
+	onDelete?: (node: FileNode) => void;
 }
 
 export function FileTreeItem({
-	file,
-	isEditing,
-	renameValue,
-	renameExt,
-	onRenameValueChange,
-	onRenameClick,
-	onRenameSubmit,
-	onRenameCancel,
-	splitName,
+	node,
+	level = 0,
+	onFileSelect,
+	onFolderToggle,
+	onRename,
+	onReveal,
+	onCopyPath,
+	onDelete,
 }: FileTreeItemProps) {
 	const { t } = useTranslation("sidebar");
 	const activeFileId = useAppStore((s) => s.activeFileId);
-	const setActiveFile = useAppStore((s) => s.setActiveFile);
-	const setWorkspaceMode = useAppStore((s) => s.setWorkspaceMode);
-	const inputRef = useRef<HTMLInputElement | null>(null);
+	const expandFolder = useAppStore((s) => s.expandFolder);
+	const collapseFolder = useAppStore((s) => s.collapseFolder);
 
-	const isActive = activeFileId === file.id;
-	const fileExt = isEditing ? renameExt : splitName(file.name).ext;
+	const [isEditing, setIsEditing] = useState(false);
+	const [editValue, setEditValue] = useState("");
+	const inputRef = useRef<HTMLInputElement | null>(null);
+	const preventCloseAutoFocusRef = useRef(false);
+
+	const focusRenameInput = useCallback(() => {
+		const el = inputRef.current;
+		if (!el) return false;
+		el.focus();
+		try {
+			el.setSelectionRange(0, el.value.length);
+		} catch {
+			// ignore (e.g. unsupported input type)
+		}
+		return true;
+	}, []);
+
+	const isActive = activeFileId === node.id;
+	const isFolder = node.type === "folder";
+	const isExpanded = node.isExpanded ?? false;
+
+	const fileExt = node.name.split(".").pop()?.toLowerCase() || "";
+	const baseName = node.name.replace(/\.[^/.]+$/, "");
+
+	useEffect(() => {
+		if (!isEditing) {
+			setEditValue(isFolder ? node.name : baseName);
+		}
+	}, [isEditing, isFolder, node.name, baseName]);
+
+	useEffect(() => {
+		if (!isEditing) return;
+		// Focus after paint to ensure the input is mounted.
+		const id = requestAnimationFrame(() => {
+			focusRenameInput();
+		});
+		return () => cancelAnimationFrame(id);
+	}, [isEditing, focusRenameInput]);
+
+	const handleContextMenuCloseAutoFocus = useCallback(
+		(event: Event) => {
+			if (preventCloseAutoFocusRef.current) {
+				event.preventDefault();
+				preventCloseAutoFocusRef.current = false;
+				// After the menu closes, force focus back into the rename input.
+				requestAnimationFrame(() => focusRenameInput());
+				requestAnimationFrame(() => focusRenameInput());
+			}
+		},
+		[focusRenameInput],
+	);
+
+	const handleClick = () => {
+		if (isFolder) {
+			if (isExpanded) {
+				collapseFolder(node.path);
+			} else {
+				expandFolder(node.path);
+			}
+			onFolderToggle?.(node);
+		} else {
+			onFileSelect?.(node);
+		}
+	};
+
+	const handleRenameSubmit = () => {
+		const trimmed = editValue.trim();
+		if (!trimmed) {
+			setEditValue(isFolder ? node.name : baseName);
+			setIsEditing(false);
+			return;
+		}
+
+		if (isFolder) {
+			if (trimmed !== node.name) {
+				onRename?.(node, trimmed);
+			}
+			setIsEditing(false);
+			return;
+		}
+
+		const finalName = fileExt ? `${trimmed}.${fileExt}` : trimmed;
+		if (finalName !== node.name) {
+			onRename?.(node, finalName);
+		}
+		setIsEditing(false);
+	};
+
+	const handleRenameCancel = () => {
+		setEditValue(node.name);
+		setIsEditing(false);
+	};
+
+	const handleContextMenuAction = (action: () => void) => {
+		if (!isEditing) {
+			action();
+		}
+	};
+
 	const iconClass = `shrink-0 h-3.5 w-3.5 transition-colors ${
 		isActive
 			? "text-[var(--highlight-text)]"
 			: "text-muted-foreground group-hover:text-[var(--hover-text)]"
 	}`;
 
-	useEffect(() => {
-		if (isEditing && inputRef.current) {
-			inputRef.current.focus();
-			inputRef.current.select();
-		}
-	}, [isEditing]);
+	const indentStyle = { paddingLeft: `${12 + level * 16}px` };
 
-	return (
+	const content = (
 		<div
-			onClick={(e) => {
-				if ((e.target as HTMLElement).closest("button")) {
-					return;
-				}
-				if (isActive) {
-					setActiveFile(null);
-				} else {
-					setActiveFile(file.id);
-					setWorkspaceMode("editor");
-				}
-			}}
-			onKeyDown={(e) => {
-				if ((e.target as HTMLElement).closest("button")) {
-					return;
-				}
-				if (e.key === "Enter" || e.key === " ") {
-					if (isActive) {
-						setActiveFile(null);
-					} else {
-						setActiveFile(file.id);
-						setWorkspaceMode("editor");
-					}
-				}
-			}}
 			role="button"
 			tabIndex={0}
+			onClick={handleClick}
+			onKeyDown={(e) => {
+				if (e.key === "Enter" || e.key === " ") {
+					handleClick();
+				}
+			}}
 			className={`
 				w-full max-w-full group flex items-center gap-2 px-3 py-1.5 cursor-pointer overflow-hidden
 				text-xs text-muted-foreground transition-colors text-left
 				${isActive ? "bg-[var(--highlight-bg)] text-[var(--highlight-text)]" : "hover:bg-[var(--hover-bg)] hover:text-[var(--hover-text)]"}
 			`}
+			style={indentStyle}
 		>
-			{fileExt === "atex" ? (
+			{isFolder ? (
+				isExpanded ? (
+					<ChevronDown className="shrink-0 h-3 w-3 text-muted-foreground" />
+				) : (
+					<ChevronRight className="shrink-0 h-3 w-3 text-muted-foreground" />
+				)
+			) : (
+				<div className="w-3 shrink-0" />
+			)}
+
+			{isFolder ? (
+				isExpanded ? (
+					<FolderOpen className={iconClass} />
+				) : (
+					<Folder className={iconClass} />
+				)
+			) : fileExt === "atex" ? (
 				<FileMusic className={iconClass} />
 			) : fileExt === "md" ? (
 				<FileDown className={iconClass} />
@@ -94,63 +191,32 @@ export function FileTreeItem({
 				{isEditing ? (
 					<input
 						ref={inputRef}
-						value={renameValue}
-						onChange={(e) => onRenameValueChange(e.target.value)}
-						onBlur={() => onRenameSubmit(file.id)}
+						value={editValue}
+						onChange={(e) => setEditValue(e.target.value)}
+						onBlur={handleRenameSubmit}
 						onKeyDown={(e) => {
 							if (e.key === "Enter") {
-								onRenameSubmit(file.id);
+								e.preventDefault();
+								e.stopPropagation();
+								handleRenameSubmit();
 							} else if (e.key === "Escape") {
-								onRenameCancel(e);
+								e.preventDefault();
+								e.stopPropagation();
+								handleRenameCancel();
 							}
 						}}
 						className="w-full bg-transparent text-xs h-6 leading-6 px-1 border border-border rounded-sm outline-none"
 						spellCheck={false}
 						autoComplete="off"
 						aria-label={t("renameFile")}
+						onClick={(e) => e.stopPropagation()}
 					/>
 				) : (
-					splitName(file.name).base
+					baseName
 				)}
 			</span>
 
-			<div className="shrink-0 flex items-center gap-0.5">
-				<button
-					type="button"
-					onClick={(e) => onRenameClick(e, file)}
-					className={`opacity-0 group-hover:opacity-100 focus-visible:opacity-100 p-1 rounded transition-opacity w-6 h-6 flex items-center justify-center hover:bg-[var(--hover-bg)] focus-visible:bg-[var(--highlight-bg)] ${
-						isActive
-							? "text-[var(--highlight-text)]"
-							: "text-muted-foreground hover:text-[var(--hover-text)] focus-visible:text-[var(--highlight-text)]"
-					}`}
-					aria-label={t("rename")}
-				>
-					<span className="sr-only">{t("renameFile")}</span>
-					<Edit className="h-3 w-3" />
-				</button>
-				<button
-					type="button"
-					onClick={async (e) => {
-						e.stopPropagation();
-						try {
-							await window.electronAPI.revealInFolder(file.path);
-						} catch (err) {
-							console.error("revealInFolder failed:", err);
-						}
-					}}
-					className={`opacity-0 group-hover:opacity-100 focus-visible:opacity-100 p-1 rounded transition-opacity w-6 h-6 flex items-center justify-center hover:bg-[var(--hover-bg)] focus-visible:bg-[var(--highlight-bg)] ${
-						isActive
-							? "text-[var(--highlight-text)]"
-							: "text-muted-foreground hover:text-[var(--hover-text)] focus-visible:text-[var(--highlight-text)]"
-					}`}
-					aria-label={t("showInExplorer")}
-				>
-					<span className="sr-only">{t("showInExplorer")}</span>
-					<FolderOpen className="h-3.5 w-3.5" />
-				</button>
-			</div>
-
-			{fileExt === "md" && (
+			{!isFolder && fileExt === "md" && (
 				<code
 					className={`shrink-0 font-mono bg-muted/50 px-1 rounded text-xs h-6 leading-6 select-none ${
 						isActive ? "text-[var(--highlight-text)]" : "text-muted-foreground"
@@ -158,6 +224,45 @@ export function FileTreeItem({
 				>
 					{fileExt}
 				</code>
+			)}
+		</div>
+	);
+
+	return (
+		<div className="w-full">
+			<FileContextMenu
+				node={node}
+				onOpen={() => handleContextMenuAction(() => onFileSelect?.(node))}
+				onRename={() =>
+					handleContextMenuAction(() => {
+						preventCloseAutoFocusRef.current = true;
+						setIsEditing(true);
+					})
+				}
+				onReveal={() => handleContextMenuAction(() => onReveal?.(node))}
+				onCopyPath={() => handleContextMenuAction(() => onCopyPath?.(node))}
+				onDelete={() => handleContextMenuAction(() => onDelete?.(node))}
+				onCloseAutoFocus={handleContextMenuCloseAutoFocus}
+			>
+				{content}
+			</FileContextMenu>
+
+			{isFolder && isExpanded && node.children && (
+				<div className="w-full">
+					{node.children.map((child) => (
+						<FileTreeItem
+							key={child.id}
+							node={child}
+							level={level + 1}
+							onFileSelect={onFileSelect}
+							onFolderToggle={onFolderToggle}
+							onRename={onRename}
+							onReveal={onReveal}
+							onCopyPath={onCopyPath}
+							onDelete={onDelete}
+						/>
+					))}
+				</div>
 			)}
 		</div>
 	);

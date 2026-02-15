@@ -29,10 +29,11 @@ export function useFileOperations() {
 			const result = await window.electronAPI.openFile(ALLOWED_EXTENSIONS);
 			if (result) {
 				const file: FileItem = {
-					id: crypto.randomUUID(),
+					id: result.path,
 					name: result.name,
 					path: result.path,
 					content: result.content,
+					contentLoaded: true,
 				};
 				addFile(file);
 			}
@@ -47,10 +48,11 @@ export function useFileOperations() {
 				const result = await window.electronAPI.createFile(ext);
 				if (result) {
 					const file: FileItem = {
-						id: crypto.randomUUID(),
+						id: result.path,
 						name: result.name,
 						path: result.path,
 						content: result.content,
+						contentLoaded: true,
 					};
 					addFile(file);
 				}

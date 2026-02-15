@@ -3,6 +3,10 @@
 	"backToEditor": "Back to editor",
 	"appearance": "Appearance",
 	"appearanceDesc": "Theme and display",
+	"light": "Light",
+	"dark": "Dark",
+	"system": "System",
+	"themeMode": "Theme Mode",
 	"playback": "Playback",
 	"playbackDesc": "Speed and mode",
 	"updates": "Updates",
@@ -47,9 +51,30 @@
 		"customPlayerHint": "Configure which player controls to show and their order"
 	},
 	"playerConfigurator": {
+		"dragDropArea": "Drag to reorder player components",
+		"dragToReorder": "Press enter or space to toggle, drag to reorder {{component}}",
 		"hide": "Hide",
 		"show": "Show",
 		"hint": "Drag to reorder • Toggle checkbox to show/hide controls",
-		"reset": "Reset to default"
+		"reset": "Reset to default",
+		"staffControls": "Staff Controls",
+		"staffControlsDesc": "TAB/Staff display toggle",
+		"tracksControls": "Tracks Controls",
+		"tracksControlsDesc": "Track selection panel toggle",
+		"zoomControls": "Zoom Controls",
+		"zoomControlsDesc": "Zoom in/out and percentage input",
+		"playbackSpeedControls": "Playback Speed",
+		"playbackSpeedControlsDesc": "Speed selector and metronome toggle",
+		"playbackTransport": "Transport Controls",
+		"playbackTransportDesc": "Play, pause, stop, and refresh buttons"
+	},
+	"uiThemes": {
+		"github": "GitHub's classic theme",
+		"vscode": "Visual Studio Code default theme",
+		"obsidian": "Obsidian note's purple color theme",
+		"dracula": "Dracula's classic high-contrast theme",
+		"nord": "Arctic-style blue-gray theme",
+		"monokai": "Monokai's classic code editor theme",
+		"solarized": "Eye-friendly warm color theme"
 	}
 }

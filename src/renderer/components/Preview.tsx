@@ -19,7 +19,7 @@ import type { ResourceUrls } from "../lib/resourceLoaderService";
 import { getResourceUrls } from "../lib/resourceLoaderService";
 import {
 	applyStaffConfig,
-	type StaffDisplayOptions,
+	getFirstStaffOptions,
 	toggleFirstStaffOption,
 } from "../lib/staff-config";
 import {
@@ -30,7 +30,6 @@ import { useAppStore } from "../store/appStore";
 import PreviewToolbar from "./PreviewToolbar";
 import PrintPreview from "./PrintPreview";
 import TopBar from "./TopBar";
-import { TracksPanel } from "./TracksPanel";
 import {
 	Tooltip,
 	TooltipContent,
@@ -42,12 +41,14 @@ export interface PreviewProps {
 	fileName?: string;
 	content?: string;
 	className?: string;
+	onApiChange?: (api: alphaTab.AlphaTabApi | null) => void;
 }
 
 export default function Preview({
 	fileName,
 	content,
 	className,
+	onApiChange,
 }: PreviewProps) {
 	const { t } = useTranslation(["common", "errors", "print", "toolbar"]);
 	const containerRef = useRef<HTMLDivElement | null>(null);
@@ -64,6 +65,13 @@ export default function Preview({
 		showTablature?: boolean;
 		showStandardNotation?: boolean;
 	} | null>(null);
+	// On first load, try to prefer TAB silently. If alphaTab errors, rollback and keep default.
+	const tabProbeRef = useRef<{
+		active: boolean;
+		prev: ReturnType<typeof getFirstStaffOptions>;
+		timeoutId: number | null;
+		lastProbeAt: number;
+	}>({ active: false, prev: null, timeoutId: null });
 	// Error recovery: parse timeout + last valid score restore
 	const errorRecovery = usePreviewErrorRecovery();
 	const {
@@ -79,6 +87,8 @@ export default function Preview({
 	} = errorRecovery;
 	// Store latest content for async callbacks and theme rebuild
 	const latestContentRef = useRef<string>(content ?? "");
+	// Queue for content updates when API is not ready yet
+	const pendingContentRef = useRef<string | null>(null);
 	// Print preview state and reinitialization trigger
 	const [showPrintPreview, setShowPrintPreview] = useState(false);
 	const [reinitTrigger, setReinitTrigger] = useState(0);
@@ -96,9 +106,6 @@ export default function Preview({
 	const _scoreVersion = useAppStore((s) => s.scoreVersion);
 	const bumpApiInstanceId = useAppStore((s) => s.bumpApiInstanceId);
 	const bumpScoreVersion = useAppStore((s) => s.bumpScoreVersion);
-	// Tracks panel state
-	const isTracksPanelOpen = useAppStore((s) => s.isTracksPanelOpen);
-	const setTracksPanelOpen = useAppStore((s) => s.setTracksPanelOpen);
 	// Store latest playback speed/metronome volume in ref to avoid triggering API rebuild useEffect
 	const playbackSpeedRef = useRef(playbackSpeed);
 	const metronomeVolumeRef = useRef(metronomeVolume);
@@ -113,6 +120,13 @@ export default function Preview({
 		score: alphaTab.model.Score | null;
 	} | null>(null);
 	const pendingBarColorRef = useRef<number | null>(null);
+
+	const emitApiChange = useCallback(
+		(api: alphaTab.AlphaTabApi | null) => {
+			onApiChange?.(api);
+		},
+		[onApiChange],
+	);
 	// Prevent loop from cursor updates triggered by score selection
 	const isEditorCursorFromScoreRef = useRef(false);
 	// Track whether current highlight is triggered by editor cursor (to distinguish from manual selection)
@@ -244,20 +258,58 @@ export default function Preview({
 	 */
 	const applyTracksConfig = useCallback(
 		(api: alphaTab.AlphaTabApi) => {
-			// Get saved configuration from ref, use defaults if not available
-			const config: StaffDisplayOptions = trackConfigRef.current || {
-				showTablature: true,
-				showStandardNotation: false,
-				showSlash: false,
-				showNumbered: false,
-			};
+			// First load: try to prefer TAB (silent dry-run). If it errors, keep alphaTab default.
+			if (!trackConfigRef.current) {
+				if (tabProbeRef.current.active) return;
+				const current = getFirstStaffOptions(api);
+				if (!current) return;
 
-			// Apply configuration
-			const appliedConfig = applyStaffConfig(api, config);
-			if (appliedConfig) {
-				// Update UI state
-				setFirstStaffOptions(appliedConfig);
+				const preferTab = {
+					...current,
+					showTablature: true,
+					showStandardNotation: false,
+				};
+
+				tabProbeRef.current.active = true;
+				tabProbeRef.current.prev = current;
+				tabProbeRef.current.lastProbeAt = Date.now();
+				if (tabProbeRef.current.timeoutId != null) {
+					clearTimeout(tabProbeRef.current.timeoutId);
+				}
+				// Failsafe: finalize even if renderFinished never arrives.
+				tabProbeRef.current.timeoutId = window.setTimeout(() => {
+					if (!tabProbeRef.current.active) return;
+					tabProbeRef.current.active = false;
+					const applied = getFirstStaffOptions(api) ?? tabProbeRef.current.prev;
+					if (applied) {
+						trackConfigRef.current = applied;
+						setFirstStaffOptions(applied);
+					}
+				}, 1200);
+
+				try {
+					// This may trigger async worker errors; those are handled in api.error while probe is active.
+					applyStaffConfig(api, preferTab);
+				} catch (e) {
+					// Sync failure: rollback immediately, without surfacing to UI.
+					tabProbeRef.current.active = false;
+					if (tabProbeRef.current.timeoutId != null) {
+						clearTimeout(tabProbeRef.current.timeoutId);
+						tabProbeRef.current.timeoutId = null;
+					}
+					try {
+						applyStaffConfig(api, current);
+					} catch {}
+					trackConfigRef.current = current;
+					setFirstStaffOptions(current);
+					console.warn("[Preview] TAB probe sync-failed; kept default.", e);
+				}
+				return;
 			}
+
+			// Subsequent loads / rebuild: apply saved config (e.g. user toggled)
+			const appliedConfig = applyStaffConfig(api, trackConfigRef.current);
+			if (appliedConfig) setFirstStaffOptions(appliedConfig);
 		},
 		[setFirstStaffOptions],
 	);
@@ -309,6 +361,23 @@ export default function Preview({
 			// 2. 渲染完成（处理光标，注意：不要修改播放状态）
 			api.renderFinished.on((r) => {
 				console.info("[Preview] alphaTab render complete:", r);
+				// If we are probing TAB on first load, wait a short grace period before finalizing.
+				// Some worker errors can arrive slightly after renderFinished.
+				if (tabProbeRef.current.active) {
+					if (tabProbeRef.current.timeoutId != null) {
+						clearTimeout(tabProbeRef.current.timeoutId);
+					}
+					tabProbeRef.current.timeoutId = window.setTimeout(() => {
+						if (!tabProbeRef.current.active) return;
+						tabProbeRef.current.active = false;
+						const applied =
+							getFirstStaffOptions(api) ?? tabProbeRef.current.prev;
+						if (applied) {
+							trackConfigRef.current = applied;
+							setFirstStaffOptions(applied);
+						}
+					}, 250);
+				}
 				// 暂时关闭自定义播放器光标隐藏
 				// const cursor = _cursorRef.current;
 				// if (cursor) cursor.classList.add("hidden");
@@ -708,8 +777,45 @@ export default function Preview({
 
 			// 4. 改进的错误处理：保留上一次成功的渲染
 			api.error.on((err: unknown) => {
-				console.error("[Preview] alphaTab error:", err);
 				const fullError = formatFullError(err);
+				const now = Date.now();
+				const recentlyProbed =
+					(tabProbeRef.current.lastProbeAt ?? 0) > 0 &&
+					now - (tabProbeRef.current.lastProbeAt ?? 0) < 2000;
+				// Keep this intentionally narrow: we only want to rollback for the known
+				// non-guitar TAB crash (undefined staves). Don't swallow other errors.
+				const looksLikeProbeStavesError =
+					fullError.includes("(reading 'staves')") ||
+					(fullError.includes("Cannot read properties of undefined") &&
+						fullError.includes("staves"));
+
+				// During TAB probe (or immediately after), swallow internal TypeErrors and rollback.
+				if (
+					(tabProbeRef.current.active || recentlyProbed) &&
+					looksLikeProbeStavesError
+				) {
+					console.warn(
+						"[Preview] TAB probe internal error; rollback to default.",
+						fullError,
+					);
+					tabProbeRef.current.active = false;
+					if (tabProbeRef.current.timeoutId != null) {
+						clearTimeout(tabProbeRef.current.timeoutId);
+						tabProbeRef.current.timeoutId = null;
+					}
+					const prev = tabProbeRef.current.prev;
+					if (prev) {
+						try {
+							applyStaffConfig(api, prev);
+						} catch {}
+						trackConfigRef.current = prev;
+						setFirstStaffOptions(prev);
+					}
+					// Ensure user does not see an error banner from internal probe failure.
+					setParseError(null);
+					return;
+				}
+				console.error("[Preview] alphaTab error:", err);
 				console.error("[Preview] Setting error state:", fullError);
 				onErrorRecovery(apiRef.current, fullError);
 			});
@@ -785,6 +891,7 @@ export default function Preview({
 					});
 
 					apiRef.current = new alphaTab.AlphaTabApi(el, settings);
+					emitApiChange(apiRef.current);
 					bumpApiInstanceId();
 
 					// 🆕 新建 API 时清除选区高亮（避免旧 API 的选区残留）
@@ -828,6 +935,7 @@ export default function Preview({
 
 									// 销毁旧的 API
 									apiRef.current?.destroy();
+									emitApiChange(null);
 
 									// 🆕 销毁旧 API 时清除选区高亮（避免旧 API 的选区残留）
 									useAppStore.getState().clearScoreSelection();
@@ -850,6 +958,7 @@ export default function Preview({
 
 									// 创建新的 API
 									apiRef.current = new alphaTab.AlphaTabApi(el, newSettings);
+									emitApiChange(apiRef.current);
 									bumpApiInstanceId();
 
 									// 🆕 新建 API 时清除选区高亮（避免旧 API 的选区残留）
@@ -903,14 +1012,17 @@ export default function Preview({
 					} catch {
 						// Could not load soundfont (this is optional)
 					}
-				} // 7. 设置内容
-				if (apiRef.current && latestContentRef.current) {
+				}
+				const initialContent =
+					pendingContentRef.current ?? latestContentRef.current;
+				pendingContentRef.current = null;
+
+				if (apiRef.current && initialContent) {
 					try {
-						scheduleTexTimeout(latestContentRef.current);
+						scheduleTexTimeout(initialContent);
 						markLoadAsUserContent(true);
-						apiRef.current.tex(latestContentRef.current);
+						apiRef.current.tex(initialContent);
 					} catch (syncError) {
-						// 同步错误：记录到控制台，但不要修改 parseError UI state.
 						console.error("[Preview] Synchronous error in tex():", syncError);
 						const errorMsg =
 							syncError instanceof Error
@@ -921,7 +1033,7 @@ export default function Preview({
 							errorMsg,
 						);
 					}
-				} else if (apiRef.current && !latestContentRef.current) {
+				} else if (apiRef.current && !initialContent) {
 					clearTexTimeout();
 					setParseError(null);
 					markLoadAsUserContent(true);
@@ -946,6 +1058,7 @@ export default function Preview({
 				}
 				apiRef.current.destroy();
 				apiRef.current = null;
+				emitApiChange(null);
 
 				// 🆕 销毁 API 时清除选区高亮（避免旧 API 的选区残留）
 				useAppStore.getState().clearScoreSelection();
@@ -959,6 +1072,7 @@ export default function Preview({
 		applyEditorBarNumberColor,
 		bumpScoreVersion,
 		bumpApiInstanceId,
+		emitApiChange,
 		sanitizeAllBarStyles,
 		applyThemeColorsToPreviousBars,
 		scheduleTexTimeout,
@@ -967,21 +1081,30 @@ export default function Preview({
 		onErrorRecovery,
 		onScoreLoadedMatch,
 		setParseError,
+		setFirstStaffOptions,
 	]);
 
 	// 内容更新：仅调用 tex，不销毁 API，避免闪烁
 	useEffect(() => {
 		const api = apiRef.current;
-		if (!api) return;
 
-		// 🆕 内容变化时，清除选区高亮（避免旧文件的选区残留在新文件中）
+		// Queue content update if API is not ready yet
+		if (!api) {
+			pendingContentRef.current = content ?? "";
+			return;
+		}
+
+		// Apply any pending content first
+		const contentToApply = pendingContentRef.current ?? content ?? "";
+		pendingContentRef.current = null;
+
 		useAppStore.getState().clearScoreSelection();
 
-		if (content) {
+		if (contentToApply) {
 			try {
-				scheduleTexTimeout(content);
+				scheduleTexTimeout(contentToApply);
 				markLoadAsUserContent(true);
-				api.tex(content);
+				api.tex(contentToApply);
 			} catch (syncError) {
 				console.error("[Preview] Synchronous error in tex():", syncError);
 				const errorMsg =
@@ -1030,6 +1153,7 @@ export default function Preview({
 				}
 				apiRef.current.destroy();
 				apiRef.current = null;
+				emitApiChange(null);
 
 				// 🆕 销毁 API 时清除选区高亮（避免旧 API 的选区残留）
 				useAppStore.getState().clearScoreSelection();
@@ -1041,7 +1165,7 @@ export default function Preview({
 			}, 150);
 			return () => clearTimeout(timer);
 		}
-	}, [showPrintPreview]);
+	}, [showPrintPreview, emitApiChange]);
 
 	return (
 		<TooltipProvider delayDuration={200}>
@@ -1090,16 +1214,10 @@ export default function Preview({
 								/>
 								*/}
 							</div>
-							{/* 音轨选择面板（浮动在滚动区域之上） */}
-							<TracksPanel
-								api={apiRef.current}
-								isOpen={isTracksPanelOpen}
-								onClose={() => setTracksPanelOpen(false)}
-							/>
 						</div>
 						{parseError && (
 							<div className="bg-destructive/10 text-destructive px-3 py-2 text-xs border-t border-destructive/20 flex items-start gap-2">
-								<span className="font-semibold shrink-0">⚠️</span>
+								<span className="font-semibold shrink-0"></span>
 								<div className="flex-1 min-w-0">
 									<div className="font-medium">{t("errors:parseError")}</div>
 									<div className="mt-0.5 text-destructive/80 break-words">

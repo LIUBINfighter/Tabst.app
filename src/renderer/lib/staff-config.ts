@@ -29,10 +29,8 @@ export type StaffOptionKey =
  * 默认 Staff 显示选项
  */
 export const DEFAULT_STAFF_OPTIONS: StaffDisplayOptions = {
-	showTablature: true,
-	showStandardNotation: false,
-	showSlash: false,
-	showNumbered: false,
+	// Keep empty by default to respect alphaTab's own adaptation
+	// (e.g. non-guitar instruments may not support tablature).
 };
 
 /**
@@ -187,12 +185,33 @@ export function applyStaffConfig(
 	const firstTrack = api.score.tracks[0];
 	if (!firstTrack.staves?.length) return null;
 
-	// 应用配置到所有 staff
+	let changed = false;
+	// 应用配置到所有 staff：仅当调用方显式提供 boolean 值时才覆盖
 	firstTrack.staves.forEach((st: alphaTab.model.Staff) => {
-		st.showTablature = config.showTablature ?? true;
-		st.showStandardNotation = config.showStandardNotation ?? false;
-		st.showSlash = config.showSlash ?? false;
-		st.showNumbered = config.showNumbered ?? false;
+		if (typeof config.showTablature === "boolean") {
+			if (st.showTablature !== config.showTablature) {
+				changed = true;
+			}
+			st.showTablature = config.showTablature;
+		}
+		if (typeof config.showStandardNotation === "boolean") {
+			if (st.showStandardNotation !== config.showStandardNotation) {
+				changed = true;
+			}
+			st.showStandardNotation = config.showStandardNotation;
+		}
+		if (typeof config.showSlash === "boolean") {
+			if (st.showSlash !== config.showSlash) {
+				changed = true;
+			}
+			st.showSlash = config.showSlash;
+		}
+		if (typeof config.showNumbered === "boolean") {
+			if (st.showNumbered !== config.showNumbered) {
+				changed = true;
+			}
+			st.showNumbered = config.showNumbered;
+		}
 	});
 
 	// 获取应用后的配置（从第一个 staff）
@@ -204,8 +223,8 @@ export function applyStaffConfig(
 		showNumbered: s0.showNumbered,
 	};
 
-	// 重新渲染
-	api.renderTracks([firstTrack]);
+	// 仅在确实发生变更时重新渲染（避免不必要的闪烁）
+	if (changed) api.renderTracks([firstTrack]);
 
 	return appliedConfig;
 }
