@@ -57,14 +57,26 @@ export async function getResourceUrls(): Promise<ResourceUrls> {
 			}
 
 			// HTTP 环境：使用 Vite BASE_URL，兼容 GitHub Pages 子路径部署（如 /Tabst.app/）
+			// 注意：当页面 URL 是 https://host/Tabst.app（无尾斜杠）时，必须先规范成目录基准 URL
+			const pageBaseUrl = new URL(".", href);
 			const baseWithSlash = viteBaseUrl.endsWith("/")
 				? viteBaseUrl
 				: `${viteBaseUrl}/`;
-			const relativeOrAbsolute =
-				baseWithSlash === "/"
-					? `/${assetPath}`
-					: `${baseWithSlash}${assetPath}`;
-			const url = new URL(relativeOrAbsolute, href).toString();
+
+			let url: string;
+			if (baseWithSlash === "/") {
+				url = new URL(`/${assetPath}`, pageBaseUrl).toString();
+			} else if (
+				baseWithSlash.startsWith("./") ||
+				baseWithSlash.startsWith("../")
+			) {
+				url = new URL(`${baseWithSlash}${assetPath}`, pageBaseUrl).toString();
+			} else {
+				const absoluteBase = baseWithSlash.startsWith("/")
+					? baseWithSlash
+					: `/${baseWithSlash}`;
+				url = new URL(`${absoluteBase}${assetPath}`, pageBaseUrl).toString();
+			}
 			return url;
 		} catch (err) {
 			console.warn(

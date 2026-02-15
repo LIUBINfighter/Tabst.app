@@ -55,3 +55,26 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+      - name: Verify deployed assets
+        run: |
+          PAGE_URL="${{ steps.deployment.outputs.page_url }}"
+          if [ -z "$PAGE_URL" ]; then
+            echo "page_url output is empty"
+            exit 1
+          fi
+
+          for asset in \
+            assets/Bravura.woff2 \
+            assets/sonivox.sf3 \
+            assets/alphaTab.worker.mjs \
+            assets/alphaTab.core.mjs
+          do
+            URL="${PAGE_URL%/}/$asset"
+            echo "Checking $URL"
+            STATUS=$(curl -L -o /dev/null -s -w "%{http_code}" "$URL")
+            if [ "$STATUS" -lt 200 ] || [ "$STATUS" -ge 400 ]; then
+              echo "Asset check failed: $URL => HTTP $STATUS"
+              exit 1
+            fi
+          done
