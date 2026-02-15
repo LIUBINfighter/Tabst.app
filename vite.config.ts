@@ -1,12 +1,12 @@
 // vite.config.ts
 
-import react from "@vitejs/plugin-react";
 import mdx from "@mdx-js/rollup";
-import remarkGfm from "remark-gfm";
+import react from "@vitejs/plugin-react";
+import fs from "fs";
 import path from "path";
+import remarkGfm from "remark-gfm";
 import { fileURLToPath } from "url";
 import { defineConfig } from "vite";
-import fs from "fs";
 
 // ESM-friendly __dirname shim
 const __filename = fileURLToPath(import.meta.url);
@@ -16,7 +16,7 @@ const __dirname = path.dirname(__filename);
 const copyDocsPlugin = () => {
 	const copyDocs = () => {
 		const targetDir = path.join(__dirname, "public", "docs");
-		
+
 		// Ensure target directory exists
 		if (!fs.existsSync(targetDir)) {
 			fs.mkdirSync(targetDir, { recursive: true });
@@ -88,10 +88,10 @@ export default defineConfig({
 	build: {
 		outDir: path.join(__dirname, "dist"),
 		emptyOutDir: true,
-		// Because the root changed, we must explicitly tell Rollup (Vite) where the HTML entry is
+		// Build from workspace root index.html so dist always contains index.html for preview/static hosting
 		rollupOptions: {
 			input: {
-				main: path.resolve(__dirname, "src/renderer/index.html"),
+				main: path.resolve(__dirname, "index.html"),
 			},
 		},
 	},
