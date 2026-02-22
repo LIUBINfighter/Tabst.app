@@ -75,6 +75,8 @@
 		"dracula": "经典的 Dracula 高对比度主题",
 		"nord": "北极风格的蓝灰色主题",
 		"monokai": "经典的 Monokai 代码编辑器主题",
-		"solarized": "护眼暖色调主题"
+		"solarized": "护眼暖色调主题",
+		"tokyo-night": "Tokyo Night 霓虹蓝紫主题",
+		"catppuccin": "Catppuccin 柔和马卡龙主题"
 	}
 }
