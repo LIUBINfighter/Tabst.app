@@ -1,10 +1,11 @@
 /**
  * File Operations Hook
  *
- * Encapsulates file operations: open, create, rename.
+ * Simplified to stable callbacks only (no local hook state),
+ * and includes folder creation helper.
  */
 
-import { useCallback, useState } from "react";
+import { useCallback } from "react";
 import type { FileItem } from "../store/appStore";
 import { useAppStore } from "../store/appStore";
 
@@ -15,10 +16,6 @@ export function useFileOperations() {
 	const renameFile = useAppStore((s) => s.renameFile);
 	const refreshFileTree = useAppStore((s) => s.refreshFileTree);
 
-	const [editingId, setEditingId] = useState<string | null>(null);
-	const [renameValue, setRenameValue] = useState<string>("");
-	const [renameExt, setRenameExt] = useState<string>("");
-
 	const splitName = useCallback((name: string) => {
 		const idx = name.lastIndexOf(".");
 		if (idx > 0) return { base: name.slice(0, idx), ext: name.slice(idx + 1) };
@@ -28,98 +25,97 @@ export function useFileOperations() {
 	const handleOpenFile = useCallback(async () => {
 		try {
 			const result = await window.electronAPI.openFile(ALLOWED_EXTENSIONS);
-			if (result) {
-				const file: FileItem = {
-					id: result.path,
-					name: result.name,
-					path: result.path,
-					content: result.content,
-					contentLoaded: true,
-				};
-				addFile(file);
-			}
+			if (!result) return;
+
+			addFile({
+				id: result.path,
+				name: result.name,
+				path: result.path,
+				content: result.content,
+				contentLoaded: true,
+			});
 		} catch (error) {
 			console.error("打开文件失败:", error);
 		}
 	}, [addFile]);
 
-	const handleNewFile = useCallback(
-		async (ext: string) => {
-			try {
-				const state = useAppStore.getState();
-				const activeRepo = state.repos.find((r) => r.id === state.activeRepoId);
-				const targetDir = activeRepo?.path;
+	const resolveTargetDir = useCallback((targetDirectory?: string) => {
+		if (targetDirectory && targetDirectory.trim().length > 0) {
+			return targetDirectory;
+		}
+		const state = useAppStore.getState();
+		const activeRepo = state.repos.find((r) => r.id === state.activeRepoId);
+		return activeRepo?.path;
+	}, []);
 
+	const handleNewFile = useCallback(
+		async (ext: string, targetDirectory?: string) => {
+			try {
+				const targetDir = resolveTargetDir(targetDirectory);
 				const result = await window.electronAPI.createFile(ext, targetDir);
-				if (result) {
-					const file: FileItem = {
-						id: result.path,
-						name: result.name,
-						path: result.path,
-						content: result.content,
-						contentLoaded: true,
-					};
-					addFile(file);
-					await refreshFileTree();
-				}
+				if (!result) return;
+
+				addFile({
+					id: result.path,
+					name: result.name,
+					path: result.path,
+					content: result.content,
+					contentLoaded: true,
+				});
+				await refreshFileTree();
 			} catch (error) {
 				console.error("创建文件失败:", error);
 			}
 		},
-		[addFile, refreshFileTree],
+		[addFile, refreshFileTree, resolveTargetDir],
 	);
 
-	const handleRenameClick = useCallback(
-		(e: React.MouseEvent, file: FileItem) => {
-			e.stopPropagation();
-			setEditingId(file.id);
-			const { base, ext } = splitName(file.name);
-			setRenameValue(base);
-			setRenameExt(ext);
-		},
-		[splitName],
-	);
-
-	const handleRenameCancel = useCallback(
-		(e?: React.KeyboardEvent | React.FocusEvent) => {
-			if (e && "key" in e && e.key === "Escape") {
-				e.stopPropagation();
+	const handleNewFolder = useCallback(
+		async (targetDirectory?: string, folderName?: string) => {
+			try {
+				const targetDir = resolveTargetDir(targetDirectory);
+				await window.electronAPI.createFolder(folderName, targetDir);
+				await refreshFileTree();
+			} catch (error) {
+				console.error("创建文件夹失败:", error);
 			}
-			setEditingId(null);
-			setRenameValue("");
-			setRenameExt("");
 		},
-		[],
+		[refreshFileTree, resolveTargetDir],
 	);
 
 	const handleRenameSubmit = useCallback(
-		async (id: string) => {
-			if (!renameValue?.trim()) {
-				handleRenameCancel();
-				return;
-			}
-			const finalName = renameExt
-				? `${renameValue.trim()}.${renameExt}`
-				: `${renameValue.trim()}`;
-			if (!finalName) return;
-			const ok = await renameFile(id, finalName);
+		async (id: string, nextName?: string) => {
+			if (!nextName || !nextName.trim()) return;
+			const ok = await renameFile(id, nextName.trim());
 			if (!ok) {
 				console.error("failed to rename file");
-				return;
 			}
-			setEditingId(null);
-			setRenameExt("");
 		},
-		[renameValue, renameExt, renameFile, handleRenameCancel],
+		[renameFile],
+	);
+
+	// Kept for backward compatibility with older call sites.
+	const handleRenameClick = useCallback(
+		(_e: React.MouseEvent, _file: FileItem) => {},
+		[],
+	);
+
+	// Kept for backward compatibility with older call sites.
+	const handleRenameCancel = useCallback(
+		(_e?: React.KeyboardEvent | React.FocusEvent) => {},
+		[],
 	);
 
 	return {
 		handleOpenFile,
 		handleNewFile,
-		editingId,
-		renameValue,
-		renameExt,
-		setRenameValue,
+		handleNewFolder,
+
+		// backward-compatible fields (now stateless)
+		editingId: null as string | null,
+		renameValue: "",
+		renameExt: "",
+		setRenameValue: (_v: string) => {},
 		handleRenameClick,
 		handleRenameCancel,
 		handleRenameSubmit,

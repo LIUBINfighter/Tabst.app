@@ -9,6 +9,7 @@ import {
 } from "./autoUpdater";
 import {
 	handleCreateFileEffect,
+	handleCreateFolderEffect,
 	handleLoadAppStateEffect,
 	handleOpenFileEffect,
 	handleReadFileEffect,
@@ -95,6 +96,7 @@ app.on("window-all-closed", () => {
 // IPC Handlers (Effect-based)
 ipcMain.handle("open-file", handleOpenFileEffect);
 ipcMain.handle("create-file", handleCreateFileEffect);
+ipcMain.handle("create-folder", handleCreateFolderEffect);
 ipcMain.handle("save-file", handleSaveFileEffect);
 ipcMain.handle("rename-file", handleRenameFileEffect);
 

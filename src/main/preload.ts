@@ -31,6 +31,13 @@ contextBridge.exposeInMainWorld("electronAPI", {
 	): Promise<FileResult | null> =>
 		ipcRenderer.invoke("create-file", ext, targetDirectory),
 
+	// 创建新文件夹
+	createFolder: (
+		folderName?: string,
+		targetDirectory?: string,
+	): Promise<{ path: string; name: string } | null> =>
+		ipcRenderer.invoke("create-folder", folderName, targetDirectory),
+
 	// 保存文件
 	saveFile: (filePath: string, content: string): Promise<SaveResult> =>
 		ipcRenderer.invoke("save-file", filePath, content),

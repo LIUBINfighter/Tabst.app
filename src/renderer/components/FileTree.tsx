@@ -11,6 +11,8 @@ export interface FileTreeProps {
 	onReveal: (node: FileNode) => void;
 	onCopyPath: (node: FileNode) => void;
 	onDelete: (node: FileNode) => void;
+	onCreateFileInFolder?: (folder: FileNode, ext: ".md" | ".atex") => void;
+	onCreateFolderInFolder?: (folder: FileNode) => void;
 }
 
 export function FileTree({
@@ -22,6 +24,8 @@ export function FileTree({
 	onReveal,
 	onCopyPath,
 	onDelete,
+	onCreateFileInFolder,
+	onCreateFolderInFolder,
 }: FileTreeProps) {
 	const { t } = useTranslation("sidebar");
 
@@ -46,6 +50,8 @@ export function FileTree({
 					onReveal={onReveal}
 					onCopyPath={onCopyPath}
 					onDelete={onDelete}
+					onCreateFileInFolder={onCreateFileInFolder}
+					onCreateFolderInFolder={onCreateFolderInFolder}
 				/>
 			))}
 		</div>

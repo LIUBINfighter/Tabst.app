@@ -3,6 +3,7 @@ import { Effect, Exit } from "effect";
 import {
 	fileExists,
 	getDefaultSaveDir,
+	mkdir,
 	readFile,
 	readJsonFile,
 	renamePath,
@@ -22,6 +23,11 @@ interface OperationResult {
 	newPath?: string;
 	newName?: string;
 	error?: string;
+}
+
+interface FolderResult {
+	path: string;
+	name: string;
 }
 
 export async function handleOpenFileEffect(
@@ -71,6 +77,49 @@ export async function handleCreateFileEffect(
 	return Exit.match(result, {
 		onFailure: (error) => {
 			console.error("Create file failed:", error);
+			throw error;
+		},
+		onSuccess: (value) => value,
+	});
+}
+
+export async function handleCreateFolderEffect(
+	_event: Electron.IpcMainInvokeEvent,
+	folderName?: string,
+	preferredDir?: string,
+): Promise<FolderResult> {
+	const program = Effect.gen(function* () {
+		const targetDir =
+			typeof preferredDir === "string" && preferredDir.trim().length > 0
+				? preferredDir
+				: yield* getDefaultSaveDir();
+
+		const rawName =
+			typeof folderName === "string" && folderName.trim().length > 0
+				? folderName.trim()
+				: `untitled_folder_${Date.now()}`;
+
+		const safeBaseName = rawName.replace(/[\\/:*?"<>|]/g, "_");
+		let finalName = safeBaseName;
+		let folderPath = path.join(targetDir, finalName);
+		let suffix = 1;
+
+		while (yield* fileExists(folderPath)) {
+			finalName = `${safeBaseName}_${suffix}`;
+			folderPath = path.join(targetDir, finalName);
+			suffix += 1;
+		}
+
+		yield* mkdir(folderPath);
+
+		return { path: folderPath, name: finalName };
+	});
+
+	const result = await Effect.runPromiseExit(program);
+
+	return Exit.match(result, {
+		onFailure: (error) => {
+			console.error("Create folder failed:", error);
 			throw error;
 		},
 		onSuccess: (value) => value,

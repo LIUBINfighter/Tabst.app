@@ -23,6 +23,10 @@ export interface ElectronAPI {
 		ext?: string,
 		preferredDir?: string,
 	) => Promise<FileResult | null>;
+	createFolder: (
+		folderName?: string,
+		preferredDir?: string,
+	) => Promise<{ path: string; name: string } | null>;
 	saveFile: (filePath: string, content: string) => Promise<SaveResult>;
 
 	loadAppState: () => Promise<{

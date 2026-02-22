@@ -32,13 +32,17 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 	const deleteBehavior = useAppStore((s) => s.deleteBehavior);
 
 	const { themeMode, setThemeMode } = useTheme();
-	const { handleOpenFile, handleNewFile } = useFileOperations();
+	const { handleOpenFile, handleNewFile, handleNewFolder } =
+		useFileOperations();
 
 	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 	const [pendingDeleteNode, setPendingDeleteNode] = useState<FileNode | null>(
 		null,
 	);
 	const [sidebarToast, setSidebarToast] = useState<string | null>(null);
+	const [createTargetDir, setCreateTargetDir] = useState<string | undefined>(
+		undefined,
+	);
 	const toastTimerRef = useRef<number | null>(null);
 
 	useEffect(() => {
@@ -71,6 +75,12 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 		reason && reason.trim().length > 0 ? reason : "unknown";
 
 	const normalizePath = (p: string) => p.replace(/\\/g, "/");
+	const getParentDirectory = (p: string): string | undefined => {
+		const normalized = normalizePath(p);
+		const idx = normalized.lastIndexOf("/");
+		if (idx <= 0) return undefined;
+		return normalized.slice(0, idx);
+	};
 
 	const closeOpenedFilesForDeletedNode = (node: FileNode) => {
 		const state = useAppStore.getState();
@@ -129,6 +139,7 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 
 	const handleFileSelect = async (node: FileNode) => {
 		if (node.type === "file") {
+			setCreateTargetDir(getParentDirectory(node.path));
 			const currentFiles = useAppStore.getState().files;
 			const normalizedNodePath = normalizePath(node.path);
 			const existingFile = currentFiles.find(
@@ -176,6 +187,7 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 
 	const handleFolderToggle = (node: FileNode) => {
 		if (node.type === "folder") {
+			setCreateTargetDir(node.path);
 			if (node.isExpanded) {
 				collapseFolder(node.path);
 			} else {
@@ -290,6 +302,14 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 				onReveal={handleReveal}
 				onCopyPath={handleCopyPath}
 				onDelete={handleDelete}
+				onCreateFileInFolder={(folder, ext) => {
+					setCreateTargetDir(folder.path);
+					void handleNewFile(ext ?? ".md", folder.path);
+				}}
+				onCreateFolderInFolder={(folder) => {
+					setCreateTargetDir(folder.path);
+					void handleNewFolder(folder.path);
+				}}
 			/>
 		);
 	};
@@ -300,7 +320,8 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 				<SidebarCommands
 					onCollapse={onCollapse}
 					onOpenFile={handleOpenFile}
-					onNewFile={handleNewFile}
+					onNewFile={(ext) => handleNewFile(ext, createTargetDir)}
+					onNewFolder={() => handleNewFolder(createTargetDir)}
 					onToggleTheme={handleToggleTheme}
 					themeMode={themeMode}
 				/>

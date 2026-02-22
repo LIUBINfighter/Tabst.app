@@ -4,6 +4,7 @@
 	"openFile": "打开文件",
 	"newAtex": "新建 .atex",
 	"newMd": "新建 .md",
+	"newFolder": "新建文件夹",
 	"toggleTheme": "明暗切换",
 	"themeLight": "亮色模式",
 	"themeDark": "暗色模式",

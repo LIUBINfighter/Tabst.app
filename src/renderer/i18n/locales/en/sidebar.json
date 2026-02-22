@@ -4,6 +4,7 @@
 	"openFile": "Open file",
 	"newAtex": "New .atex",
 	"newMd": "New .md",
+	"newFolder": "New folder",
 	"toggleTheme": "Toggle light/dark theme",
 	"themeLight": "Light mode",
 	"themeDark": "Dark mode",
