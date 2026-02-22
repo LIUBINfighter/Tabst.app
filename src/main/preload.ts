@@ -45,11 +45,13 @@ contextBridge.exposeInMainWorld("electronAPI", {
 	// 应用状态持久化：读取和写入已打开/创建文件的元数据
 	loadAppState: (): Promise<{
 		files: FileResult[];
+		activeRepoId?: string | null;
 		activeFileId: string | null;
 	} | null> => ipcRenderer.invoke("load-app-state"),
 
 	saveAppState: (state: {
 		files: { id: string; name: string; path: string }[];
+		activeRepoId?: string | null;
 		activeFileId: string | null;
 	}) => ipcRenderer.invoke("save-app-state", state),
 

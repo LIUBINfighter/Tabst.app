@@ -281,11 +281,13 @@ export async function handleMovePathEffect(
 
 interface AppState {
 	files: { id: string; name: string; path: string }[];
+	activeRepoId?: string | null;
 	activeFileId: string | null;
 }
 
 interface AppStateWithContent {
 	files: { id: string; name: string; path: string; content: string }[];
+	activeRepoId: string | null;
 	activeFileId: string | null;
 }
 
@@ -302,7 +304,7 @@ export async function handleLoadAppStateEffect(): Promise<AppStateWithContent> {
 		const state = yield* readJsonFile<AppState>(filePath);
 
 		if (!state) {
-			return { files: [], activeFileId: null };
+			return { files: [], activeRepoId: null, activeFileId: null };
 		}
 
 		const files = (yield* Effect.all(
@@ -330,7 +332,11 @@ export async function handleLoadAppStateEffect(): Promise<AppStateWithContent> {
 				? files[0].id
 				: null;
 
-		return { files, activeFileId };
+		return {
+			files,
+			activeRepoId: state.activeRepoId ?? null,
+			activeFileId,
+		};
 	});
 
 	const result = await Effect.runPromiseExit(program);
@@ -338,9 +344,12 @@ export async function handleLoadAppStateEffect(): Promise<AppStateWithContent> {
 	return Exit.match(result, {
 		onFailure: (error) => {
 			console.error("Load app state failed:", error);
-			return { files: [], activeFileId: null };
+			return { files: [], activeRepoId: null, activeFileId: null };
 		},
-		onSuccess: (value) => value,
+		onSuccess: (value) => ({
+			...value,
+			activeRepoId: value.activeRepoId ?? null,
+		}),
 	});
 }
 

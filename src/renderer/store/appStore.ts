@@ -332,6 +332,34 @@ async function mergeAndSaveWorkspacePreferences(partial: RepoPreferences) {
 
 const EXPANDED_FOLDERS_SAVE_DEBOUNCE_MS = 250;
 const expandedFoldersSaveTimers = new Map<string, number>();
+const APP_STATE_SAVE_DEBOUNCE_MS = 180;
+let appStateSaveTimer: number | null = null;
+let isRestoringAppState = false;
+
+function scheduleSaveAppState() {
+	if (isRestoringAppState) return;
+	if (appStateSaveTimer) {
+		window.clearTimeout(appStateSaveTimer);
+	}
+
+	appStateSaveTimer = window.setTimeout(() => {
+		appStateSaveTimer = null;
+		const state = useAppStore.getState();
+		void window.electronAPI
+			.saveAppState({
+				files: state.files.map((f) => ({
+					id: f.id,
+					name: f.name,
+					path: f.path,
+				})),
+				activeRepoId: state.activeRepoId,
+				activeFileId: state.activeFileId,
+			})
+			.catch((err) => {
+				console.error("saveAppState failed:", err);
+			});
+	}, APP_STATE_SAVE_DEBOUNCE_MS);
+}
 
 async function saveExpandedFoldersForActiveRepo() {
 	const s = useAppStore.getState();
@@ -440,6 +468,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 				files: newActiveId ? state.files : [],
 			};
 		});
+		scheduleSaveAppState();
 	},
 
 	switchRepo: async (id: string) => {
@@ -468,6 +497,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 					};
 					return baseState;
 				});
+				scheduleSaveAppState();
 
 				// hydrate workspace preferences and expanded folders
 				try {
@@ -598,6 +628,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 					files: nextFiles,
 					activeFileId: nextActiveFileId,
 				});
+				scheduleSaveAppState();
 			}
 		} catch (err) {
 			console.error("Failed to refresh file tree:", err);
@@ -785,6 +816,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 				activeFileId: file.id,
 			};
 		});
+		scheduleSaveAppState();
 	},
 
 	removeFile: (id) => {
@@ -798,6 +830,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 					: state.activeFileId;
 			return { files: newFiles, activeFileId: newActiveId };
 		});
+		scheduleSaveAppState();
 	},
 
 	renameFile: async (id, newName) => {
@@ -857,6 +890,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 					fileTree: newTree,
 				};
 			});
+			scheduleSaveAppState();
 			return true;
 		} catch (err) {
 			console.error("renameFile error:", err);
@@ -866,6 +900,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
 	setActiveFile: (id) => {
 		set({ activeFileId: id });
+		scheduleSaveAppState();
 	},
 
 	updateFileContent: (id, content) => {
@@ -949,19 +984,66 @@ export const useAppStore = create<AppState>((set, get) => ({
 
 	initialize: async () => {
 		try {
-			const repos = await window.electronAPI?.loadRepos?.();
-			if (repos) {
-				set({ repos });
-			}
+			isRestoringAppState = true;
+			const [repos, appState] = await Promise.all([
+				window.electronAPI?.loadRepos?.(),
+				window.electronAPI?.loadAppState?.(),
+			]);
 
-			if (repos) {
-				const activeRepo = repos.find((r) => r.id === get().activeRepoId);
-				if (activeRepo) {
-					await get().switchRepo(activeRepo.id);
+			if (!repos) return;
+			set({ repos });
+
+			const persistedRepoId = appState?.activeRepoId ?? null;
+			const fallbackRepoId =
+				repos.length > 0
+					? [...repos].sort((a, b) => b.lastOpenedAt - a.lastOpenedAt)[0]?.id
+					: null;
+			const targetRepoId =
+				persistedRepoId && repos.some((r) => r.id === persistedRepoId)
+					? persistedRepoId
+					: fallbackRepoId;
+
+			if (!targetRepoId) return;
+
+			await get().switchRepo(targetRepoId);
+
+			const restoredActiveFileId = appState?.activeFileId;
+			if (restoredActiveFileId) {
+				const state = get();
+				const targetFile = state.files.find(
+					(f) => f.id === restoredActiveFileId,
+				);
+				if (targetFile) {
+					if (!targetFile.contentLoaded) {
+						try {
+							const readResult = await window.electronAPI.readFile(
+								targetFile.path,
+							);
+							if (!readResult.error) {
+								set((current) => ({
+									files: current.files.map((f) =>
+										f.id === targetFile.id
+											? {
+													...f,
+													content: readResult.content,
+													contentLoaded: true,
+												}
+											: f,
+									),
+								}));
+							}
+						} catch (e) {
+							console.error("restore active file content failed", e);
+						}
+					}
+					set({ activeFileId: restoredActiveFileId, workspaceMode: "editor" });
 				}
 			}
 		} catch (err) {
 			console.error("初始化应用状态失败:", err);
+		} finally {
+			isRestoringAppState = false;
+			scheduleSaveAppState();
 		}
 	},
 }));

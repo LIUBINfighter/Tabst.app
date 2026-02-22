@@ -37,10 +37,12 @@ export interface ElectronAPI {
 
 	loadAppState: () => Promise<{
 		files: FileResult[];
+		activeRepoId?: string | null;
 		activeFileId: string | null;
 	} | null>;
 	saveAppState: (state: {
 		files: { id: string; name: string; path: string }[];
+		activeRepoId?: string | null;
 		activeFileId: string | null;
 	}) => Promise<{ success: boolean; error?: string } | null>;
 	renameFile: (
