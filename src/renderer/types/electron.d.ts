@@ -19,7 +19,10 @@ export interface ScanDirectoryResult {
 
 export interface ElectronAPI {
 	openFile: (extensions: string[]) => Promise<FileResult | null>;
-	createFile: (ext?: string) => Promise<FileResult | null>;
+	createFile: (
+		ext?: string,
+		preferredDir?: string,
+	) => Promise<FileResult | null>;
 	saveFile: (filePath: string, content: string) => Promise<SaveResult>;
 
 	loadAppState: () => Promise<{

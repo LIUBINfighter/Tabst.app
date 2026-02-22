@@ -25,8 +25,11 @@ contextBridge.exposeInMainWorld("electronAPI", {
 		ipcRenderer.invoke("select-folder"),
 
 	// 创建新文件, ext 可选, 例如 '.md' 或 '.atex'
-	createFile: (ext?: string): Promise<FileResult | null> =>
-		ipcRenderer.invoke("create-file", ext),
+	createFile: (
+		ext?: string,
+		targetDirectory?: string,
+	): Promise<FileResult | null> =>
+		ipcRenderer.invoke("create-file", ext, targetDirectory),
 
 	// 保存文件
 	saveFile: (filePath: string, content: string): Promise<SaveResult> =>

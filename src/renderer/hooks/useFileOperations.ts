@@ -13,6 +13,7 @@ const ALLOWED_EXTENSIONS = [".md", ".atex"];
 export function useFileOperations() {
 	const addFile = useAppStore((s) => s.addFile);
 	const renameFile = useAppStore((s) => s.renameFile);
+	const refreshFileTree = useAppStore((s) => s.refreshFileTree);
 
 	const [editingId, setEditingId] = useState<string | null>(null);
 	const [renameValue, setRenameValue] = useState<string>("");
@@ -45,7 +46,11 @@ export function useFileOperations() {
 	const handleNewFile = useCallback(
 		async (ext: string) => {
 			try {
-				const result = await window.electronAPI.createFile(ext);
+				const state = useAppStore.getState();
+				const activeRepo = state.repos.find((r) => r.id === state.activeRepoId);
+				const targetDir = activeRepo?.path;
+
+				const result = await window.electronAPI.createFile(ext, targetDir);
 				if (result) {
 					const file: FileItem = {
 						id: result.path,
@@ -55,12 +60,13 @@ export function useFileOperations() {
 						contentLoaded: true,
 					};
 					addFile(file);
+					await refreshFileTree();
 				}
 			} catch (error) {
 				console.error("创建文件失败:", error);
 			}
 		},
-		[addFile],
+		[addFile, refreshFileTree],
 	);
 
 	const handleRenameClick = useCallback(

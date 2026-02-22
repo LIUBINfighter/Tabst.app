@@ -44,9 +44,13 @@ export async function handleOpenFileEffect(
 export async function handleCreateFileEffect(
 	_event: Electron.IpcMainInvokeEvent,
 	ext?: string,
+	preferredDir?: string,
 ): Promise<FileResult> {
 	const program = Effect.gen(function* () {
-		const saveDir = yield* getDefaultSaveDir();
+		const saveDir =
+			typeof preferredDir === "string" && preferredDir.trim().length > 0
+				? preferredDir
+				: yield* getDefaultSaveDir();
 
 		let normalizedExt = ".md";
 		if (ext && typeof ext === "string") {
