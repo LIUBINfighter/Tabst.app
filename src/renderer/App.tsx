@@ -21,6 +21,12 @@ function App() {
 	const activeRepoId = useAppStore((s) => s.activeRepoId);
 	const repos = useAppStore((s) => s.repos);
 	const refreshFileTree = useAppStore((s) => s.refreshFileTree);
+	const fsRefreshTimerRef = useRef<number | null>(null);
+	const fsRecentEventRef = useRef<Map<string, number>>(new Map());
+
+	const SUPPORTED_EXTENSIONS = useRef(
+		new Set([".md", ".atex", ".gp", ".gp3", ".gp4", ".gp5", ".gpx"]),
+	);
 
 	useEffect(() => {
 		initialize();
@@ -30,28 +36,51 @@ function App() {
 		const activeRepo = repos.find((r) => r.id === activeRepoId);
 		if (!activeRepo) return;
 
-		let refreshTimer: number | null = null;
-		const scheduleRefresh = () => {
-			if (refreshTimer) {
-				window.clearTimeout(refreshTimer);
+		const shouldProcessChange = (changedPath?: string) => {
+			if (!changedPath) return true;
+			const normalized = changedPath.replace(/\\/g, "/");
+			if (normalized.includes("/.tabst/")) return false;
+			const base = normalized.split("/").pop() ?? "";
+			if (!base) return true;
+			if (base.startsWith(".")) return false;
+			const dot = base.lastIndexOf(".");
+			if (dot <= 0) return true;
+			const ext = base.slice(dot).toLowerCase();
+			return SUPPORTED_EXTENSIONS.current.has(ext);
+		};
+
+		const scheduleRefresh = (eventType: string, changedPath?: string) => {
+			if (!shouldProcessChange(changedPath)) return;
+
+			const now = Date.now();
+			const eventKey = `${eventType}:${changedPath ?? ""}`;
+			const lastTs = fsRecentEventRef.current.get(eventKey) ?? 0;
+			if (now - lastTs < 120) return;
+			fsRecentEventRef.current.set(eventKey, now);
+
+			if (fsRefreshTimerRef.current) {
+				window.clearTimeout(fsRefreshTimerRef.current);
 			}
-			refreshTimer = window.setTimeout(() => {
+
+			fsRefreshTimerRef.current = window.setTimeout(() => {
 				void refreshFileTree();
-				refreshTimer = null;
-			}, 220);
+				fsRefreshTimerRef.current = null;
+			}, 180);
 		};
 
 		void window.electronAPI.startRepoWatch(activeRepo.path);
 
 		const unsubscribe = window.electronAPI.onRepoFsChanged((event) => {
 			if (event.repoPath !== activeRepo.path) return;
-			scheduleRefresh();
+			scheduleRefresh(event.eventType, event.changedPath);
 		});
 
 		return () => {
-			if (refreshTimer) {
-				window.clearTimeout(refreshTimer);
+			if (fsRefreshTimerRef.current) {
+				window.clearTimeout(fsRefreshTimerRef.current);
+				fsRefreshTimerRef.current = null;
 			}
+			fsRecentEventRef.current.clear();
 			unsubscribe();
 			void window.electronAPI.stopRepoWatch();
 		};

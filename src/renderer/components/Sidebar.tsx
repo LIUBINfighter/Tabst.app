@@ -47,11 +47,15 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 		null,
 	);
 	const toastTimerRef = useRef<number | null>(null);
+	const backgroundRefreshTimerRef = useRef<number | null>(null);
 
 	useEffect(() => {
 		return () => {
 			if (toastTimerRef.current) {
 				window.clearTimeout(toastTimerRef.current);
+			}
+			if (backgroundRefreshTimerRef.current) {
+				window.clearTimeout(backgroundRefreshTimerRef.current);
 			}
 		};
 	}, []);
@@ -114,6 +118,116 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 				activeFileId: nextActiveFileId,
 			};
 		});
+	};
+
+	const sortTreeNodes = (nodes: FileNode[]) => {
+		nodes.sort((a, b) => {
+			if (a.type === "folder" && b.type !== "folder") return -1;
+			if (a.type !== "folder" && b.type === "folder") return 1;
+			return a.name.localeCompare(b.name);
+		});
+	};
+
+	const addNodeToTree = (
+		nodes: FileNode[],
+		targetDirPath: string,
+		nodeToAdd: FileNode,
+	): FileNode[] => {
+		const walk = (items: FileNode[]): FileNode[] => {
+			let changed = false;
+			const next = items.map((item) => {
+				if (item.type === "folder") {
+					if (item.path === targetDirPath) {
+						const children = [...(item.children ?? [])];
+						if (!children.some((c) => c.path === nodeToAdd.path)) {
+							children.push(nodeToAdd);
+							sortTreeNodes(children);
+						}
+						changed = true;
+						return { ...item, children, isExpanded: true };
+					}
+					if (item.children) {
+						const updatedChildren = walk(item.children);
+						if (updatedChildren !== item.children) {
+							changed = true;
+							return { ...item, children: updatedChildren };
+						}
+					}
+				}
+				return item;
+			});
+
+			return changed ? next : items;
+		};
+
+		return walk(nodes);
+	};
+
+	const removeNodeFromTree = (
+		nodes: FileNode[],
+		targetPath: string,
+	): { tree: FileNode[]; removed: FileNode | null } => {
+		let removed: FileNode | null = null;
+		const walk = (items: FileNode[]): FileNode[] => {
+			let changed = false;
+			const filtered: FileNode[] = [];
+			for (const item of items) {
+				if (item.path === targetPath) {
+					removed = item;
+					changed = true;
+					continue;
+				}
+				if (item.type === "folder" && item.children) {
+					const nextChildren = walk(item.children);
+					if (nextChildren !== item.children) {
+						changed = true;
+						filtered.push({ ...item, children: nextChildren });
+						continue;
+					}
+				}
+				filtered.push(item);
+			}
+			return changed ? filtered : items;
+		};
+
+		return { tree: walk(nodes), removed };
+	};
+
+	const remapNodePath = (
+		node: FileNode,
+		oldPrefix: string,
+		newPrefix: string,
+	): FileNode => {
+		const mappedPath = replacePathPrefix(node.path, oldPrefix, newPrefix);
+		const mappedId = replacePathPrefix(node.id, oldPrefix, newPrefix);
+		const mappedName = mappedPath.split(/[\\/]/).pop() ?? node.name;
+		if (node.type === "folder" && node.children) {
+			return {
+				...node,
+				id: mappedId,
+				path: mappedPath,
+				name: mappedName,
+				children: node.children.map((child) =>
+					remapNodePath(child, oldPrefix, newPrefix),
+				),
+			};
+		}
+		return {
+			...node,
+			id: mappedId,
+			path: mappedPath,
+			name: mappedName,
+		};
+	};
+
+	const scheduleBackgroundRefresh = () => {
+		if (backgroundRefreshTimerRef.current) {
+			window.clearTimeout(backgroundRefreshTimerRef.current);
+		}
+		backgroundRefreshTimerRef.current = window.setTimeout(() => {
+			void refreshFileTree();
+			backgroundRefreshTimerRef.current = null;
+		}, 180);
 	};
 
 	const normalizePath = (p: string) => p.replace(/\\/g, "/");
@@ -323,9 +437,20 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 				showSidebarToast(t("moveFailed", { name: sourceNode.name, reason }));
 				return;
 			}
+			const newPath = result.newPath;
 
-			syncOpenedFilesAfterMove(sourceNode.path, result.newPath);
-			await refreshFileTree();
+			syncOpenedFilesAfterMove(sourceNode.path, newPath);
+			useAppStore.setState((state) => {
+				const { tree, removed } = removeNodeFromTree(
+					state.fileTree,
+					sourceNode.path,
+				);
+				if (!removed) return {};
+				const remapped = remapNodePath(removed, sourceNode.path, newPath);
+				const nextTree = addNodeToTree(tree, targetFolder.path, remapped);
+				return { fileTree: nextTree };
+			});
+			scheduleBackgroundRefresh();
 		} catch (err) {
 			const reason =
 				err instanceof Error ? err.message : getFailureReason(String(err));
@@ -374,14 +499,40 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 					setCreateTargetDir(folder.path);
 					void (async () => {
 						const createdPath = await handleNewFile(ext ?? ".md", folder.path);
-						if (createdPath) setPendingRenamePath(createdPath);
+						if (!createdPath) return;
+						const name = createdPath.split(/[\\/]/).pop() ?? createdPath;
+						const newNode: FileNode = {
+							id: createdPath,
+							name,
+							path: createdPath,
+							type: "file",
+						};
+						useAppStore.setState((state) => ({
+							fileTree: addNodeToTree(state.fileTree, folder.path, newNode),
+						}));
+						setPendingRenamePath(createdPath);
+						scheduleBackgroundRefresh();
 					})();
 				}}
 				onCreateFolderInFolder={(folder) => {
 					setCreateTargetDir(folder.path);
 					void (async () => {
 						const createdPath = await handleNewFolder(folder.path);
-						if (createdPath) setPendingRenamePath(createdPath);
+						if (!createdPath) return;
+						const name = createdPath.split(/[\\/]/).pop() ?? createdPath;
+						const newNode: FileNode = {
+							id: createdPath,
+							name,
+							path: createdPath,
+							type: "folder",
+							children: [],
+							isExpanded: true,
+						};
+						useAppStore.setState((state) => ({
+							fileTree: addNodeToTree(state.fileTree, folder.path, newNode),
+						}));
+						setPendingRenamePath(createdPath);
+						scheduleBackgroundRefresh();
 					})();
 				}}
 			/>
@@ -397,13 +548,65 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 					onNewFile={(ext) =>
 						void (async () => {
 							const createdPath = await handleNewFile(ext, createTargetDir);
-							if (createdPath) setPendingRenamePath(createdPath);
+							if (!createdPath) return;
+							const state = useAppStore.getState();
+							const activeRepo = state.repos.find(
+								(r) => r.id === state.activeRepoId,
+							);
+							const targetDir =
+								createTargetDir && createTargetDir.trim().length > 0
+									? createTargetDir
+									: activeRepo?.path;
+							if (!targetDir) return;
+							const name = createdPath.split(/[\\/]/).pop() ?? createdPath;
+							const newNode: FileNode = {
+								id: createdPath,
+								name,
+								path: createdPath,
+								type: "file",
+							};
+							useAppStore.setState((storeState) => ({
+								fileTree: addNodeToTree(
+									storeState.fileTree,
+									targetDir,
+									newNode,
+								),
+							}));
+							setPendingRenamePath(createdPath);
+							scheduleBackgroundRefresh();
 						})()
 					}
 					onNewFolder={() =>
 						void (async () => {
 							const createdPath = await handleNewFolder(createTargetDir);
-							if (createdPath) setPendingRenamePath(createdPath);
+							if (!createdPath) return;
+							const state = useAppStore.getState();
+							const activeRepo = state.repos.find(
+								(r) => r.id === state.activeRepoId,
+							);
+							const targetDir =
+								createTargetDir && createTargetDir.trim().length > 0
+									? createTargetDir
+									: activeRepo?.path;
+							if (!targetDir) return;
+							const name = createdPath.split(/[\\/]/).pop() ?? createdPath;
+							const newNode: FileNode = {
+								id: createdPath,
+								name,
+								path: createdPath,
+								type: "folder",
+								children: [],
+								isExpanded: true,
+							};
+							useAppStore.setState((storeState) => ({
+								fileTree: addNodeToTree(
+									storeState.fileTree,
+									targetDir,
+									newNode,
+								),
+							}));
+							setPendingRenamePath(createdPath);
+							scheduleBackgroundRefresh();
 						})()
 					}
 					onToggleTheme={handleToggleTheme}

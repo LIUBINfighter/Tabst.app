@@ -14,7 +14,6 @@ const ALLOWED_EXTENSIONS = [".md", ".atex"];
 export function useFileOperations() {
 	const addFile = useAppStore((s) => s.addFile);
 	const renameFile = useAppStore((s) => s.renameFile);
-	const refreshFileTree = useAppStore((s) => s.refreshFileTree);
 
 	const splitName = useCallback((name: string) => {
 		const idx = name.lastIndexOf(".");
@@ -62,14 +61,13 @@ export function useFileOperations() {
 					content: result.content,
 					contentLoaded: true,
 				});
-				await refreshFileTree();
 				return result.path;
 			} catch (error) {
 				console.error("创建文件失败:", error);
 				return null;
 			}
 		},
-		[addFile, refreshFileTree, resolveTargetDir],
+		[addFile, resolveTargetDir],
 	);
 
 	const handleNewFolder = useCallback(
@@ -81,14 +79,13 @@ export function useFileOperations() {
 					targetDir,
 				);
 				if (!result) return null;
-				await refreshFileTree();
 				return result.path;
 			} catch (error) {
 				console.error("创建文件夹失败:", error);
 				return null;
 			}
 		},
-		[refreshFileTree, resolveTargetDir],
+		[resolveTargetDir],
 	);
 
 	const handleRenameSubmit = useCallback(
