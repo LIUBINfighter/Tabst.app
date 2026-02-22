@@ -98,6 +98,33 @@ contextBridge.exposeInMainWorld("electronAPI", {
 	): Promise<{ success: boolean; error?: string }> =>
 		ipcRenderer.invoke("delete-file", filePath, behavior, repoPath),
 
+	// Repo 文件系统监听（用于外部变更实时同步）
+	startRepoWatch: (
+		repoPath: string,
+	): Promise<{ success: boolean; error?: string }> =>
+		ipcRenderer.invoke("start-repo-watch", repoPath),
+	stopRepoWatch: (): Promise<{ success: boolean }> =>
+		ipcRenderer.invoke("stop-repo-watch"),
+	onRepoFsChanged: (
+		callback: (event: {
+			repoPath: string;
+			eventType: string;
+			changedPath?: string;
+		}) => void,
+	) => {
+		const listener = (_event: Electron.IpcRendererEvent, payload: unknown) => {
+			callback(
+				payload as {
+					repoPath: string;
+					eventType: string;
+					changedPath?: string;
+				},
+			);
+		};
+		ipcRenderer.on("repo-fs-changed", listener);
+		return () => ipcRenderer.removeListener("repo-fs-changed", listener);
+	},
+
 	// Auto-update
 	checkForUpdates: (): Promise<{ supported: boolean; message?: string }> =>
 		ipcRenderer.invoke("check-for-updates"),

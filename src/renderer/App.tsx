@@ -18,10 +18,44 @@ function App() {
 
 	// 初始化 store：从主进程恢复上次打开的文件和选中项
 	const initialize = useAppStore((s) => s.initialize);
+	const activeRepoId = useAppStore((s) => s.activeRepoId);
+	const repos = useAppStore((s) => s.repos);
+	const refreshFileTree = useAppStore((s) => s.refreshFileTree);
 
 	useEffect(() => {
 		initialize();
 	}, [initialize]);
+
+	useEffect(() => {
+		const activeRepo = repos.find((r) => r.id === activeRepoId);
+		if (!activeRepo) return;
+
+		let refreshTimer: number | null = null;
+		const scheduleRefresh = () => {
+			if (refreshTimer) {
+				window.clearTimeout(refreshTimer);
+			}
+			refreshTimer = window.setTimeout(() => {
+				void refreshFileTree();
+				refreshTimer = null;
+			}, 220);
+		};
+
+		void window.electronAPI.startRepoWatch(activeRepo.path);
+
+		const unsubscribe = window.electronAPI.onRepoFsChanged((event) => {
+			if (event.repoPath !== activeRepo.path) return;
+			scheduleRefresh();
+		});
+
+		return () => {
+			if (refreshTimer) {
+				window.clearTimeout(refreshTimer);
+			}
+			unsubscribe();
+			void window.electronAPI.stopRepoWatch();
+		};
+	}, [activeRepoId, repos, refreshFileTree]);
 
 	// 当从教程/设置界面返回编辑器时，如果侧边栏是收起的，则展开它
 	useEffect(() => {

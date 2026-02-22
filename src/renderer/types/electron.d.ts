@@ -17,6 +17,12 @@ export interface ScanDirectoryResult {
 	expandedFolders: string[];
 }
 
+export interface RepoFsChangedEvent {
+	repoPath: string;
+	eventType: string;
+	changedPath?: string;
+}
+
 export interface ElectronAPI {
 	openFile: (extensions: string[]) => Promise<FileResult | null>;
 	createFile: (
@@ -66,6 +72,14 @@ export interface ElectronAPI {
 		behavior: "system-trash" | "repo-trash" | "ask-every-time",
 		repoPath?: string,
 	) => Promise<{ success: boolean; error?: string }>;
+
+	startRepoWatch: (
+		repoPath: string,
+	) => Promise<{ success: boolean; error?: string }>;
+	stopRepoWatch: () => Promise<{ success: boolean }>;
+	onRepoFsChanged: (
+		callback: (event: RepoFsChangedEvent) => void,
+	) => () => void;
 
 	// Auto-update
 	checkForUpdates: () => Promise<{ supported: boolean; message?: string }>;
