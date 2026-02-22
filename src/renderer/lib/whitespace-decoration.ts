@@ -83,7 +83,7 @@ const whitespaceTheme = EditorView.theme({
 		right: "0",
 		top: "0",
 		textAlign: "center",
-		color: "hsl(var(--muted-foreground) / 0.5)",
+		color: "hsl(var(--muted-foreground) / 0.68)",
 		pointerEvents: "none",
 	},
 });

@@ -1,4 +1,12 @@
-import { Copy, ExternalLink, FileEdit, FolderOpen, Trash2 } from "lucide-react";
+import {
+	Copy,
+	ExternalLink,
+	FileEdit,
+	FilePlus,
+	FolderOpen,
+	FolderPlus,
+	Trash2,
+} from "lucide-react";
 import { useTranslation } from "react-i18next";
 import {
 	ContextMenu,
@@ -18,6 +26,8 @@ export interface FileContextMenuProps {
 	onReveal: () => void;
 	onCopyPath: () => void;
 	onDelete: () => void;
+	onCreateFileInFolder?: (ext: ".md" | ".atex") => void;
+	onCreateFolderInFolder?: () => void;
 	onCloseAutoFocus?: (event: Event) => void;
 }
 
@@ -29,6 +39,8 @@ export function FileContextMenu({
 	onReveal,
 	onCopyPath,
 	onDelete,
+	onCreateFileInFolder,
+	onCreateFolderInFolder,
 	onCloseAutoFocus,
 }: FileContextMenuProps) {
 	const { t } = useTranslation("sidebar");
@@ -44,6 +56,25 @@ export function FileContextMenu({
 						<ContextMenuShortcut>↵</ContextMenuShortcut>
 					</ContextMenuItem>
 				)}
+
+				{node.type === "folder" && (
+					<>
+						<ContextMenuItem onClick={() => onCreateFileInFolder?.(".atex")}>
+							<FilePlus className="mr-2 h-4 w-4" />
+							{t("newAtex")}
+						</ContextMenuItem>
+						<ContextMenuItem onClick={() => onCreateFileInFolder?.(".md")}>
+							<FilePlus className="mr-2 h-4 w-4" />
+							{t("newMd")}
+						</ContextMenuItem>
+						<ContextMenuItem onClick={() => onCreateFolderInFolder?.()}>
+							<FolderPlus className="mr-2 h-4 w-4" />
+							{t("newFolder")}
+						</ContextMenuItem>
+						<ContextMenuSeparator />
+					</>
+				)}
+
 				<ContextMenuItem onClick={onRename}>
 					<FileEdit className="mr-2 h-4 w-4" />
 					{t("rename")}

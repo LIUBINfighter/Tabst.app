@@ -4,6 +4,7 @@
 	"openFile": "打开文件",
 	"newAtex": "新建 .atex",
 	"newMd": "新建 .md",
+	"newFolder": "新建文件夹",
 	"toggleTheme": "明暗切换",
 	"themeLight": "亮色模式",
 	"themeDark": "暗色模式",
@@ -17,5 +18,9 @@
 	"enterTutorial": "进入教程",
 	"exitTutorial": "退出教程",
 	"openSettings": "打开设置",
-	"settings": "设置"
+	"settings": "设置",
+	"renameTargetExists": "目标名称已存在",
+	"renameFailed": "重命名失败「{{name}}」：{{reason}}",
+	"moveFailed": "移动失败「{{name}}」：{{reason}}",
+	"deleteFailed": "删除失败「{{name}}」：{{reason}}"
 }

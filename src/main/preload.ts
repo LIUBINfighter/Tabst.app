@@ -25,8 +25,18 @@ contextBridge.exposeInMainWorld("electronAPI", {
 		ipcRenderer.invoke("select-folder"),
 
 	// 创建新文件, ext 可选, 例如 '.md' 或 '.atex'
-	createFile: (ext?: string): Promise<FileResult | null> =>
-		ipcRenderer.invoke("create-file", ext),
+	createFile: (
+		ext?: string,
+		targetDirectory?: string,
+	): Promise<FileResult | null> =>
+		ipcRenderer.invoke("create-file", ext, targetDirectory),
+
+	// 创建新文件夹
+	createFolder: (
+		folderName?: string,
+		targetDirectory?: string,
+	): Promise<{ path: string; name: string } | null> =>
+		ipcRenderer.invoke("create-folder", folderName, targetDirectory),
 
 	// 保存文件
 	saveFile: (filePath: string, content: string): Promise<SaveResult> =>
@@ -35,17 +45,22 @@ contextBridge.exposeInMainWorld("electronAPI", {
 	// 应用状态持久化：读取和写入已打开/创建文件的元数据
 	loadAppState: (): Promise<{
 		files: FileResult[];
+		activeRepoId?: string | null;
 		activeFileId: string | null;
 	} | null> => ipcRenderer.invoke("load-app-state"),
 
 	saveAppState: (state: {
 		files: { id: string; name: string; path: string }[];
+		activeRepoId?: string | null;
 		activeFileId: string | null;
 	}) => ipcRenderer.invoke("save-app-state", state),
 
 	// 重命名（复制并删除原文件）
 	renameFile: (oldPath: string, newName: string) =>
 		ipcRenderer.invoke("rename-file", oldPath, newName),
+
+	movePath: (sourcePath: string, targetFolderPath: string) =>
+		ipcRenderer.invoke("move-path", sourcePath, targetFolderPath),
 
 	// 在系统文件管理器中显示并选中文件
 	revealInFolder: (filePath: string) =>
@@ -84,8 +99,36 @@ contextBridge.exposeInMainWorld("electronAPI", {
 	deleteFile: (
 		filePath: string,
 		behavior: "system-trash" | "repo-trash" | "ask-every-time",
+		repoPath?: string,
 	): Promise<{ success: boolean; error?: string }> =>
-		ipcRenderer.invoke("delete-file", filePath, behavior),
+		ipcRenderer.invoke("delete-file", filePath, behavior, repoPath),
+
+	// Repo 文件系统监听（用于外部变更实时同步）
+	startRepoWatch: (
+		repoPath: string,
+	): Promise<{ success: boolean; error?: string }> =>
+		ipcRenderer.invoke("start-repo-watch", repoPath),
+	stopRepoWatch: (): Promise<{ success: boolean }> =>
+		ipcRenderer.invoke("stop-repo-watch"),
+	onRepoFsChanged: (
+		callback: (event: {
+			repoPath: string;
+			eventType: string;
+			changedPath?: string;
+		}) => void,
+	) => {
+		const listener = (_event: Electron.IpcRendererEvent, payload: unknown) => {
+			callback(
+				payload as {
+					repoPath: string;
+					eventType: string;
+					changedPath?: string;
+				},
+			);
+		};
+		ipcRenderer.on("repo-fs-changed", listener);
+		return () => ipcRenderer.removeListener("repo-fs-changed", listener);
+	},
 
 	// Auto-update
 	checkForUpdates: (): Promise<{ supported: boolean; message?: string }> =>
