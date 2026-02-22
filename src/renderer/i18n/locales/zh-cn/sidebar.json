@@ -17,5 +17,8 @@
 	"enterTutorial": "进入教程",
 	"exitTutorial": "退出教程",
 	"openSettings": "打开设置",
-	"settings": "设置"
+	"settings": "设置",
+	"renameTargetExists": "目标名称已存在",
+	"renameFailed": "重命名失败「{{name}}」：{{reason}}",
+	"deleteFailed": "删除失败「{{name}}」：{{reason}}"
 }

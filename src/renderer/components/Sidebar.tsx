@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useFileOperations } from "../hooks/useFileOperations";
 import { useTheme } from "../lib/theme-system/use-theme";
@@ -38,6 +38,16 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 	const [pendingDeleteNode, setPendingDeleteNode] = useState<FileNode | null>(
 		null,
 	);
+	const [sidebarToast, setSidebarToast] = useState<string | null>(null);
+	const toastTimerRef = useRef<number | null>(null);
+
+	useEffect(() => {
+		return () => {
+			if (toastTimerRef.current) {
+				window.clearTimeout(toastTimerRef.current);
+			}
+		};
+	}, []);
 
 	const handleToggleTheme = () => {
 		const modes = ["light", "dark", "system"] as const;
@@ -45,6 +55,20 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 		const nextMode = modes[(currentIndex + 1) % modes.length];
 		setThemeMode(nextMode);
 	};
+
+	const showSidebarToast = (message: string) => {
+		if (toastTimerRef.current) {
+			window.clearTimeout(toastTimerRef.current);
+		}
+		setSidebarToast(message);
+		toastTimerRef.current = window.setTimeout(() => {
+			setSidebarToast(null);
+			toastTimerRef.current = null;
+		}, 2400);
+	};
+
+	const getFailureReason = (reason?: string) =>
+		reason && reason.trim().length > 0 ? reason : "unknown";
 
 	const normalizePath = (p: string) => p.replace(/\\/g, "/");
 
@@ -87,14 +111,19 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 				repoPath,
 			);
 			if (!result?.success) {
-				console.error("Delete failed:", result?.error);
+				const reason = getFailureReason(result?.error);
+				console.error("Delete failed:", reason);
+				showSidebarToast(t("deleteFailed", { name: node.name, reason }));
 				return;
 			}
 
 			closeOpenedFilesForDeletedNode(node);
 			await refreshFileTree();
 		} catch (err) {
+			const reason =
+				err instanceof Error ? err.message : getFailureReason(String(err));
 			console.error("Delete error:", err);
+			showSidebarToast(t("deleteFailed", { name: node.name, reason }));
 		}
 	};
 
@@ -195,7 +224,15 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 
 		try {
 			if (node.type === "file") {
-				await renameFile(node.id, newName.trim());
+				const ok = await renameFile(node.id, newName.trim());
+				if (!ok) {
+					showSidebarToast(
+						t("renameFailed", {
+							name: node.name,
+							reason: "unknown",
+						}),
+					);
+				}
 				return;
 			}
 
@@ -205,12 +242,17 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 				newName.trim(),
 			);
 			if (!result?.success) {
-				console.error("rename folder failed:", result?.error);
+				const reason = getFailureReason(result?.error);
+				console.error("rename folder failed:", reason);
+				showSidebarToast(t("renameFailed", { name: node.name, reason }));
 				return;
 			}
 			await refreshFileTree();
 		} catch (err) {
+			const reason =
+				err instanceof Error ? err.message : getFailureReason(String(err));
 			console.error("rename failed:", err);
+			showSidebarToast(t("renameFailed", { name: node.name, reason }));
 		}
 	};
 
@@ -269,6 +311,12 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 
 				<SidebarBottomBar />
 			</div>
+
+			{sidebarToast && (
+				<div className="fixed left-1/2 -translate-x-1/2 bottom-4 z-[70] px-3 py-2 rounded-md border border-border bg-popover text-popover-foreground text-xs shadow-lg">
+					{sidebarToast}
+				</div>
+			)}
 
 			<DeleteConfirmDialog
 				isOpen={deleteDialogOpen}
