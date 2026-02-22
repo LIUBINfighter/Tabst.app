@@ -1,8 +1,10 @@
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useFileOperations } from "../hooks/useFileOperations";
 import { useTheme } from "../lib/theme-system/use-theme";
 import { useAppStore } from "../store/appStore";
-import type { FileNode } from "../types/repo";
+import type { DeleteBehavior, FileNode } from "../types/repo";
+import { DeleteConfirmDialog } from "./DeleteConfirmDialog";
 import { FileTree } from "./FileTree";
 import { SettingsSidebar } from "./SettingsSidebar";
 import { SidebarBottomBar, SidebarCommands } from "./SidebarCommands";
@@ -26,9 +28,16 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 	const refreshFileTree = useAppStore((s) => s.refreshFileTree);
 	const addFile = useAppStore((s) => s.addFile);
 	const renameFile = useAppStore((s) => s.renameFile);
-	const { themeMode, setThemeMode } = useTheme();
+	const removeFile = useAppStore((s) => s.removeFile);
+	const deleteBehavior = useAppStore((s) => s.deleteBehavior);
 
+	const { themeMode, setThemeMode } = useTheme();
 	const { handleOpenFile, handleNewFile } = useFileOperations();
+
+	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+	const [pendingDeleteNode, setPendingDeleteNode] = useState<FileNode | null>(
+		null,
+	);
 
 	const handleToggleTheme = () => {
 		const modes = ["light", "dark", "system"] as const;
@@ -38,6 +47,56 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 	};
 
 	const normalizePath = (p: string) => p.replace(/\\/g, "/");
+
+	const closeOpenedFilesForDeletedNode = (node: FileNode) => {
+		const state = useAppStore.getState();
+		const nodePath = normalizePath(node.path).replace(/\/+$/, "");
+
+		const shouldRemove = (filePath: string) => {
+			const p = normalizePath(filePath);
+			if (node.type === "file") return p === nodePath;
+			return p === nodePath || p.startsWith(`${nodePath}/`);
+		};
+
+		const opened = state.files.filter((f) => shouldRemove(f.path));
+		for (const file of opened) {
+			removeFile(file.id);
+		}
+
+		if (state.activeFileId) {
+			const active = state.files.find((f) => f.id === state.activeFileId);
+			if (active && shouldRemove(active.path)) {
+				setActiveFile(null);
+			}
+		}
+	};
+
+	const executeDelete = async (node: FileNode, behavior: DeleteBehavior) => {
+		if (behavior === "ask-every-time") {
+			return;
+		}
+
+		const state = useAppStore.getState();
+		const activeRepo = state.repos.find((r) => r.id === state.activeRepoId);
+		const repoPath = behavior === "repo-trash" ? activeRepo?.path : undefined;
+
+		try {
+			const result = await window.electronAPI.deleteFile(
+				node.path,
+				behavior,
+				repoPath,
+			);
+			if (!result?.success) {
+				console.error("Delete failed:", result?.error);
+				return;
+			}
+
+			closeOpenedFilesForDeletedNode(node);
+			await refreshFileTree();
+		} catch (err) {
+			console.error("Delete error:", err);
+		}
+	};
 
 	const handleFileSelect = async (node: FileNode) => {
 		if (node.type === "file") {
@@ -111,8 +170,24 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 	};
 
 	const handleDelete = async (node: FileNode) => {
-		console.log("Delete:", node);
-		await refreshFileTree();
+		if (deleteBehavior === "ask-every-time") {
+			setPendingDeleteNode(node);
+			setDeleteDialogOpen(true);
+			return;
+		}
+		await executeDelete(node, deleteBehavior);
+	};
+
+	const handleDeleteConfirm = async (behavior: DeleteBehavior) => {
+		const target = pendingDeleteNode;
+		setDeleteDialogOpen(false);
+		setPendingDeleteNode(null);
+
+		if (!target || behavior === "ask-every-time") {
+			return;
+		}
+
+		await executeDelete(target, behavior);
 	};
 
 	const handleRename = async (node: FileNode, newName: string) => {
@@ -194,6 +269,16 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 
 				<SidebarBottomBar />
 			</div>
+
+			<DeleteConfirmDialog
+				isOpen={deleteDialogOpen}
+				onClose={() => {
+					setDeleteDialogOpen(false);
+					setPendingDeleteNode(null);
+				}}
+				onConfirm={handleDeleteConfirm}
+				fileName={pendingDeleteNode?.name ?? ""}
+			/>
 		</TooltipProvider>
 	);
 }

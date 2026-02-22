@@ -84,8 +84,9 @@ contextBridge.exposeInMainWorld("electronAPI", {
 	deleteFile: (
 		filePath: string,
 		behavior: "system-trash" | "repo-trash" | "ask-every-time",
+		repoPath?: string,
 	): Promise<{ success: boolean; error?: string }> =>
-		ipcRenderer.invoke("delete-file", filePath, behavior),
+		ipcRenderer.invoke("delete-file", filePath, behavior, repoPath),
 
 	// Auto-update
 	checkForUpdates: (): Promise<{ supported: boolean; message?: string }> =>

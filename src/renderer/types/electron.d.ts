@@ -57,6 +57,7 @@ export interface ElectronAPI {
 	deleteFile: (
 		filePath: string,
 		behavior: "system-trash" | "repo-trash" | "ask-every-time",
+		repoPath?: string,
 	) => Promise<{ success: boolean; error?: string }>;
 
 	// Auto-update
