@@ -52,6 +52,15 @@ export interface ElectronAPI {
 		newName?: string;
 		error?: string;
 	} | null>;
+	movePath: (
+		sourcePath: string,
+		targetFolderPath: string,
+	) => Promise<{
+		success: boolean;
+		newPath?: string;
+		newName?: string;
+		error?: string;
+	} | null>;
 	revealInFolder: (
 		filePath: string,
 	) => Promise<{ success: boolean; error?: string } | null>;

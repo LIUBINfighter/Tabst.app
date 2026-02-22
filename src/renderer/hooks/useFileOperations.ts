@@ -53,7 +53,7 @@ export function useFileOperations() {
 			try {
 				const targetDir = resolveTargetDir(targetDirectory);
 				const result = await window.electronAPI.createFile(ext, targetDir);
-				if (!result) return;
+				if (!result) return null;
 
 				addFile({
 					id: result.path,
@@ -63,8 +63,10 @@ export function useFileOperations() {
 					contentLoaded: true,
 				});
 				await refreshFileTree();
+				return result.path;
 			} catch (error) {
 				console.error("创建文件失败:", error);
+				return null;
 			}
 		},
 		[addFile, refreshFileTree, resolveTargetDir],
@@ -74,10 +76,16 @@ export function useFileOperations() {
 		async (targetDirectory?: string, folderName?: string) => {
 			try {
 				const targetDir = resolveTargetDir(targetDirectory);
-				await window.electronAPI.createFolder(folderName, targetDir);
+				const result = await window.electronAPI.createFolder(
+					folderName,
+					targetDir,
+				);
+				if (!result) return null;
 				await refreshFileTree();
+				return result.path;
 			} catch (error) {
 				console.error("创建文件夹失败:", error);
+				return null;
 			}
 		},
 		[refreshFileTree, resolveTargetDir],

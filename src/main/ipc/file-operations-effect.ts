@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import path from "node:path";
 import { Effect, Exit } from "effect";
 import {
@@ -177,6 +178,88 @@ export async function handleRenameFileEffect(
 			success: true,
 			newPath,
 			newName: path.basename(newPath),
+		};
+	});
+
+	const result = await Effect.runPromiseExit(program);
+
+	return Exit.match(result, {
+		onFailure: (error) => {
+			if (error._tag === "Fail") {
+				return {
+					success: false,
+					error: error.error.message,
+				};
+			}
+			return { success: false, error: "Unknown error" };
+		},
+		onSuccess: (value) => value,
+	});
+}
+
+export async function handleMovePathEffect(
+	_event: Electron.IpcMainInvokeEvent,
+	sourcePath: string,
+	targetFolderPath: string,
+): Promise<OperationResult> {
+	const program = Effect.gen(function* () {
+		const normalizedSource = sourcePath.trim();
+		const normalizedTarget = targetFolderPath.trim();
+
+		if (!normalizedSource || !normalizedTarget) {
+			return { success: false, error: "invalid-path" };
+		}
+
+		const sourceExists = yield* fileExists(normalizedSource);
+		if (!sourceExists) {
+			return { success: false, error: "source-not-found" };
+		}
+
+		const targetStat = yield* Effect.tryPromise({
+			try: () => fs.promises.stat(normalizedTarget),
+			catch: () => new Error("target-not-found"),
+		});
+
+		if (!targetStat.isDirectory()) {
+			return { success: false, error: "target-not-folder" };
+		}
+
+		const sourceStat = yield* Effect.tryPromise({
+			try: () => fs.promises.stat(normalizedSource),
+			catch: () => new Error("source-not-found"),
+		});
+
+		const destPath = path.join(
+			normalizedTarget,
+			path.basename(normalizedSource),
+		);
+
+		if (destPath === normalizedSource) {
+			return {
+				success: true,
+				newPath: destPath,
+				newName: path.basename(destPath),
+			};
+		}
+
+		if (sourceStat.isDirectory()) {
+			const sourceWithSep = `${normalizedSource}${path.sep}`;
+			if (normalizedTarget.startsWith(sourceWithSep)) {
+				return { success: false, error: "invalid-target" };
+			}
+		}
+
+		const targetExists = yield* fileExists(destPath);
+		if (targetExists) {
+			return { success: false, error: "target-exists" };
+		}
+
+		yield* renamePath(normalizedSource, destPath);
+
+		return {
+			success: true,
+			newPath: destPath,
+			newName: path.basename(destPath),
 		};
 	});
 

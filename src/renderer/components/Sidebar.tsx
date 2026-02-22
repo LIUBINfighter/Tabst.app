@@ -43,6 +43,9 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 	const [createTargetDir, setCreateTargetDir] = useState<string | undefined>(
 		undefined,
 	);
+	const [pendingRenamePath, setPendingRenamePath] = useState<string | null>(
+		null,
+	);
 	const toastTimerRef = useRef<number | null>(null);
 
 	useEffect(() => {
@@ -73,6 +76,45 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 
 	const getFailureReason = (reason?: string) =>
 		reason && reason.trim().length > 0 ? reason : "unknown";
+
+	const replacePathPrefix = (
+		value: string,
+		oldPrefix: string,
+		newPrefix: string,
+	): string => {
+		if (value === oldPrefix) return newPrefix;
+		if (!value.startsWith(oldPrefix)) return value;
+		const rest = value.slice(oldPrefix.length);
+		if (rest === "" || rest.startsWith("/") || rest.startsWith("\\")) {
+			return `${newPrefix}${rest}`;
+		}
+		return value;
+	};
+
+	const syncOpenedFilesAfterMove = (fromPath: string, toPath: string) => {
+		useAppStore.setState((state) => {
+			const updatedFiles = state.files.map((file) => {
+				const nextPath = replacePathPrefix(file.path, fromPath, toPath);
+				if (nextPath === file.path) return file;
+				const nextName = nextPath.split(/[\\/]/).pop() ?? file.name;
+				return {
+					...file,
+					id: replacePathPrefix(file.id, fromPath, toPath),
+					path: nextPath,
+					name: nextName,
+				};
+			});
+
+			const nextActiveFileId = state.activeFileId
+				? replacePathPrefix(state.activeFileId, fromPath, toPath)
+				: null;
+
+			return {
+				files: updatedFiles,
+				activeFileId: nextActiveFileId,
+			};
+		});
+	};
 
 	const normalizePath = (p: string) => p.replace(/\\/g, "/");
 	const getParentDirectory = (p: string): string | undefined => {
@@ -268,6 +310,29 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 		}
 	};
 
+	const handleMove = async (sourceNode: FileNode, targetFolder: FileNode) => {
+		if (targetFolder.type !== "folder") return;
+
+		try {
+			const result = await window.electronAPI.movePath(
+				sourceNode.path,
+				targetFolder.path,
+			);
+			if (!result?.success || !result.newPath) {
+				const reason = getFailureReason(result?.error);
+				showSidebarToast(t("moveFailed", { name: sourceNode.name, reason }));
+				return;
+			}
+
+			syncOpenedFilesAfterMove(sourceNode.path, result.newPath);
+			await refreshFileTree();
+		} catch (err) {
+			const reason =
+				err instanceof Error ? err.message : getFailureReason(String(err));
+			showSidebarToast(t("moveFailed", { name: sourceNode.name, reason }));
+		}
+	};
+
 	const renderContent = () => {
 		if (workspaceMode === "tutorial") {
 			return <TutorialsSidebar />;
@@ -296,19 +361,28 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 		return (
 			<FileTree
 				nodes={fileTree}
+				pendingRenamePath={pendingRenamePath}
+				onPendingRenameConsumed={() => setPendingRenamePath(null)}
 				onFileSelect={handleFileSelect}
 				onFolderToggle={handleFolderToggle}
 				onRename={handleRename}
+				onMove={handleMove}
 				onReveal={handleReveal}
 				onCopyPath={handleCopyPath}
 				onDelete={handleDelete}
 				onCreateFileInFolder={(folder, ext) => {
 					setCreateTargetDir(folder.path);
-					void handleNewFile(ext ?? ".md", folder.path);
+					void (async () => {
+						const createdPath = await handleNewFile(ext ?? ".md", folder.path);
+						if (createdPath) setPendingRenamePath(createdPath);
+					})();
 				}}
 				onCreateFolderInFolder={(folder) => {
 					setCreateTargetDir(folder.path);
-					void handleNewFolder(folder.path);
+					void (async () => {
+						const createdPath = await handleNewFolder(folder.path);
+						if (createdPath) setPendingRenamePath(createdPath);
+					})();
 				}}
 			/>
 		);
@@ -320,8 +394,18 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 				<SidebarCommands
 					onCollapse={onCollapse}
 					onOpenFile={handleOpenFile}
-					onNewFile={(ext) => handleNewFile(ext, createTargetDir)}
-					onNewFolder={() => handleNewFolder(createTargetDir)}
+					onNewFile={(ext) =>
+						void (async () => {
+							const createdPath = await handleNewFile(ext, createTargetDir);
+							if (createdPath) setPendingRenamePath(createdPath);
+						})()
+					}
+					onNewFolder={() =>
+						void (async () => {
+							const createdPath = await handleNewFolder(createTargetDir);
+							if (createdPath) setPendingRenamePath(createdPath);
+						})()
+					}
 					onToggleTheme={handleToggleTheme}
 					themeMode={themeMode}
 				/>

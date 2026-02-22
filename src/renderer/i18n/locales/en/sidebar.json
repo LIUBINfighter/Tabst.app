@@ -13,6 +13,7 @@
 	"rename": "Rename",
 	"renameFile": "Rename file",
 	"renameFailed": "Failed to rename \"{{name}}\": {{reason}}",
+	"moveFailed": "Failed to move \"{{name}}\": {{reason}}",
 	"showInExplorer": "Show in file manager",
 	"deleteFailed": "Failed to delete \"{{name}}\": {{reason}}",
 	"tutorial": "Tutorial",

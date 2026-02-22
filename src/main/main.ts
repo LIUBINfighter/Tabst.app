@@ -11,6 +11,7 @@ import {
 	handleCreateFileEffect,
 	handleCreateFolderEffect,
 	handleLoadAppStateEffect,
+	handleMovePathEffect,
 	handleOpenFileEffect,
 	handleReadFileEffect,
 	handleRenameFileEffect,
@@ -213,6 +214,7 @@ ipcMain.handle("create-file", handleCreateFileEffect);
 ipcMain.handle("create-folder", handleCreateFolderEffect);
 ipcMain.handle("save-file", handleSaveFileEffect);
 ipcMain.handle("rename-file", handleRenameFileEffect);
+ipcMain.handle("move-path", handleMovePathEffect);
 
 ipcMain.handle("reveal-in-folder", handleRevealInFolderEffect);
 ipcMain.handle("read-asset", handleReadAssetEffect);

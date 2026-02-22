@@ -57,6 +57,9 @@ contextBridge.exposeInMainWorld("electronAPI", {
 	renameFile: (oldPath: string, newName: string) =>
 		ipcRenderer.invoke("rename-file", oldPath, newName),
 
+	movePath: (sourcePath: string, targetFolderPath: string) =>
+		ipcRenderer.invoke("move-path", sourcePath, targetFolderPath),
+
 	// 在系统文件管理器中显示并选中文件
 	revealInFolder: (filePath: string) =>
 		ipcRenderer.invoke("reveal-in-folder", filePath),
