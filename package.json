@@ -16,6 +16,8 @@
 		"build:main": "esbuild src/main/main.ts src/main/preload.ts --bundle --platform=node --outdir=dist-electron --out-extension:.js=.cjs --external:electron --format=cjs",
 		"build": "pnpm type-check && pnpm build:react && pnpm build:main",
 		"build:react": "vite build",
+		"build:web": "pnpm type-check && pnpm build:react",
+		"serve:web": "vite preview --host 127.0.0.1 --port 4173 --strictPort",
 		"type-check": "tsc --noEmit",
 		"lint:fix": "biome check --write --linter-enabled=true --formatter-enabled=false --assist-enabled=true src",
 		"check": "pnpm format:check && pnpm lint && pnpm type-check",

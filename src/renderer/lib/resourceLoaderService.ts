@@ -32,6 +32,18 @@ export async function getResourceUrls(): Promise<ResourceUrls> {
 		}
 
 		const href = window.location.href;
+		const viteBaseUrlRaw =
+			typeof import.meta !== "undefined" &&
+			"env" in import.meta &&
+			typeof (import.meta as unknown as { env?: { BASE_URL?: unknown } })
+				.env === "object"
+				? (import.meta as unknown as { env?: { BASE_URL?: unknown } }).env
+						?.BASE_URL
+				: undefined;
+		const viteBaseUrl =
+			typeof viteBaseUrlRaw === "string" && viteBaseUrlRaw.trim().length > 0
+				? viteBaseUrlRaw
+				: "/";
 
 		try {
 			// 打包环境：Electron 使用 file:// 协议加载 HTML
@@ -44,11 +56,27 @@ export async function getResourceUrls(): Promise<ResourceUrls> {
 				return url;
 			}
 
-			// 开发环境：Vite 开发服务器运行在 http://127.0.0.1:port
-			// 但由于 vite.config.ts 的中间件重定向，实际加载的是 /src/renderer/index.html
-			// 此时用绝对路径 /assets/... 相对于 HTTP 根目录
-			const baseUrl = new URL("/", href);
-			const url = new URL(assetPath, baseUrl).toString();
+			// HTTP 环境：使用 Vite BASE_URL，兼容 GitHub Pages 子路径部署（如 /Tabst.app/）
+			// 注意：当页面 URL 是 https://host/Tabst.app（无尾斜杠）时，必须先规范成目录基准 URL
+			const pageBaseUrl = new URL(".", href);
+			const baseWithSlash = viteBaseUrl.endsWith("/")
+				? viteBaseUrl
+				: `${viteBaseUrl}/`;
+
+			let url: string;
+			if (baseWithSlash === "/") {
+				url = new URL(`/${assetPath}`, pageBaseUrl).toString();
+			} else if (
+				baseWithSlash.startsWith("./") ||
+				baseWithSlash.startsWith("../")
+			) {
+				url = new URL(`${baseWithSlash}${assetPath}`, pageBaseUrl).toString();
+			} else {
+				const absoluteBase = baseWithSlash.startsWith("/")
+					? baseWithSlash
+					: `/${baseWithSlash}`;
+				url = new URL(`${absoluteBase}${assetPath}`, pageBaseUrl).toString();
+			}
 			return url;
 		} catch (err) {
 			console.warn(

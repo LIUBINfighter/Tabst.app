@@ -1,0 +1,80 @@
+name: Deploy Website to GitHub Pages
+
+"on":
+  push:
+    branches:
+      - website
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build Website
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "20.x"
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build static website
+        run: pnpm build:web
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: dist
+
+  deploy:
+    name: Deploy Website
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Verify deployed assets
+        run: |
+          PAGE_URL="${{ steps.deployment.outputs.page_url }}"
+          if [ -z "$PAGE_URL" ]; then
+            echo "page_url output is empty"
+            exit 1
+          fi
+
+          for asset in \
+            assets/Bravura.woff2 \
+            assets/sonivox.sf3 \
+            assets/alphaTab.worker.mjs \
+            assets/alphaTab.core.mjs
+          do
+            URL="${PAGE_URL%/}/$asset"
+            echo "Checking $URL"
+            STATUS=$(curl -L -o /dev/null -s -w "%{http_code}" "$URL")
+            if [ "$STATUS" -lt 200 ] || [ "$STATUS" -ge 400 ]; then
+              echo "Asset check failed: $URL => HTTP $STATUS"
+              exit 1
+            fi
+          done
