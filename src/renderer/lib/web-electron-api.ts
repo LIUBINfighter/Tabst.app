@@ -187,20 +187,26 @@ export function createWebElectronAPI(): ElectronAPI {
 			};
 		},
 
-		createFile: async (ext?: string): Promise<FileResult | null> => {
+		createFile: async (
+			ext?: string,
+			preferredDir?: string,
+		): Promise<FileResult | null> => {
 			const sanitizedExt = (ext ?? ".md").startsWith(".")
 				? (ext ?? ".md")
 				: `.${ext}`;
 			const defaultName = `untitled${sanitizedExt}`;
+			const repoPath = preferredDir?.startsWith("web://")
+				? preferredDir
+				: "web://scratch";
 			const path = makeFilePath(
-				"web://scratch",
+				repoPath,
 				`${crypto.randomUUID()}-${defaultName}`,
 			);
 			const nextFile: BrowserStoredFile = {
 				path,
 				name: defaultName,
 				content: "",
-				repoPath: "web://scratch",
+				repoPath,
 				updatedAt: Date.now(),
 			};
 			const allFiles = getAllFiles();
@@ -211,6 +217,23 @@ export function createWebElectronAPI(): ElectronAPI {
 				path,
 				name: defaultName,
 				content: "",
+			};
+		},
+
+		createFolder: async (
+			folderName?: string,
+			preferredDir?: string,
+		): Promise<{ path: string; name: string } | null> => {
+			const safeName = (folderName?.trim() || "New Folder").replace(
+				/[\\/:*?"<>|]/g,
+				"-",
+			);
+			const basePath = preferredDir?.startsWith("web://")
+				? preferredDir
+				: "web://scratch";
+			return {
+				path: `${basePath}/${safeName}`,
+				name: safeName,
 			};
 		},
 
@@ -268,6 +291,35 @@ export function createWebElectronAPI(): ElectronAPI {
 
 			saveAllFiles(allFiles);
 			return { success: true, newPath, newName };
+		},
+
+		movePath: async (sourcePath: string, targetFolderPath: string) => {
+			const allFiles = getAllFiles();
+			const entries = Object.entries(allFiles).filter(
+				([path]) => path === sourcePath || path.startsWith(`${sourcePath}/`),
+			);
+
+			if (!entries.length) {
+				return { success: false, error: "Path not found" };
+			}
+
+			const sourceName = fileNameFromPath(sourcePath);
+			const newPath = `${targetFolderPath.replace(/\/$/, "")}/${sourceName}`;
+
+			for (const [path, file] of entries) {
+				delete allFiles[path];
+				const targetPath =
+					path === sourcePath ? newPath : path.replace(sourcePath, newPath);
+				allFiles[targetPath] = {
+					...file,
+					path: targetPath,
+					name: fileNameFromPath(targetPath),
+					updatedAt: Date.now(),
+				};
+			}
+
+			saveAllFiles(allFiles);
+			return { success: true, newPath, newName: sourceName };
 		},
 
 		revealInFolder: async () => ({
@@ -364,6 +416,12 @@ export function createWebElectronAPI(): ElectronAPI {
 			saveAllFiles(allFiles);
 			return { success: true };
 		},
+
+		startRepoWatch: async () => ({ success: true }),
+
+		stopRepoWatch: async () => ({ success: true }),
+
+		onRepoFsChanged: () => () => {},
 
 		checkForUpdates: async () => ({
 			supported: false,
