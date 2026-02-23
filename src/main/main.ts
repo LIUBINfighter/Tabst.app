@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { app, BrowserWindow, ipcMain } from "electron";
+import { app, BrowserWindow, ipcMain, type WebContents } from "electron";
 import {
 	checkForUpdates,
 	initAutoUpdater,
@@ -9,7 +9,9 @@ import {
 } from "./autoUpdater";
 import {
 	handleCreateFileEffect,
+	handleCreateFolderEffect,
 	handleLoadAppStateEffect,
+	handleMovePathEffect,
 	handleOpenFileEffect,
 	handleReadFileEffect,
 	handleRenameFileEffect,
@@ -34,6 +36,115 @@ import {
 } from "./ipc/repo-operations-effect";
 
 const isDev = process.env.NODE_ENV === "development" || !app.isPackaged;
+
+interface RepoWatchState {
+	repoPath: string;
+	watcher: fs.FSWatcher;
+}
+
+const repoWatchersByWebContents = new Map<number, RepoWatchState>();
+
+function stopRepoWatchForSender(webContentsId: number) {
+	const existing = repoWatchersByWebContents.get(webContentsId);
+	if (!existing) return;
+
+	try {
+		existing.watcher.close();
+	} catch (err) {
+		console.error("[repo-watch] close failed:", err);
+	}
+	repoWatchersByWebContents.delete(webContentsId);
+}
+
+function stopAllRepoWatches() {
+	for (const webContentsId of repoWatchersByWebContents.keys()) {
+		stopRepoWatchForSender(webContentsId);
+	}
+}
+
+function sendRepoFsChanged(
+	sender: WebContents,
+	repoPath: string,
+	eventType: string,
+	changedPath?: string,
+) {
+	try {
+		sender.send("repo-fs-changed", {
+			repoPath,
+			eventType,
+			changedPath,
+		});
+	} catch (err) {
+		console.error("[repo-watch] send event failed:", err);
+	}
+}
+
+async function handleStartRepoWatch(
+	event: Electron.IpcMainInvokeEvent,
+	repoPath: string,
+): Promise<{ success: boolean; error?: string }> {
+	const sender = event.sender;
+	const webContentsId = sender.id;
+
+	const normalizedRepoPath = repoPath?.trim();
+	if (!normalizedRepoPath) {
+		return { success: false, error: "invalid-repo-path" };
+	}
+
+	try {
+		const existing = repoWatchersByWebContents.get(webContentsId);
+		if (existing?.repoPath === normalizedRepoPath) {
+			return { success: true };
+		}
+
+		if (existing) {
+			stopRepoWatchForSender(webContentsId);
+		}
+
+		const watcher = fs.watch(
+			normalizedRepoPath,
+			{ recursive: true },
+			(eventType, filename) => {
+				const changedPath =
+					typeof filename === "string"
+						? path.join(normalizedRepoPath, filename)
+						: undefined;
+				sendRepoFsChanged(sender, normalizedRepoPath, eventType, changedPath);
+			},
+		);
+
+		watcher.on("error", (err) => {
+			console.error("[repo-watch] watcher error:", err);
+			sendRepoFsChanged(sender, normalizedRepoPath, "error");
+		});
+
+		repoWatchersByWebContents.set(webContentsId, {
+			repoPath: normalizedRepoPath,
+			watcher,
+		});
+
+		const cleanup = () => {
+			stopRepoWatchForSender(webContentsId);
+			sender.removeListener("destroyed", cleanup);
+		};
+		sender.once("destroyed", cleanup);
+
+		return { success: true };
+	} catch (err) {
+		console.error("[repo-watch] start failed:", err);
+		return {
+			success: false,
+			error: err instanceof Error ? err.message : "unknown-error",
+		};
+	}
+}
+
+async function handleStopRepoWatch(
+	event: Electron.IpcMainInvokeEvent,
+): Promise<{ success: boolean }> {
+	stopRepoWatchForSender(event.sender.id);
+	return { success: true };
+}
 
 function _getDefaultSaveDir(): string {
 	const documentsDir = app.getPath("documents");
@@ -88,15 +199,22 @@ app.whenReady().then(() => {
 	initAutoUpdater();
 });
 
+app.on("before-quit", () => {
+	stopAllRepoWatches();
+});
+
 app.on("window-all-closed", () => {
+	stopAllRepoWatches();
 	if (process.platform !== "darwin") app.quit();
 });
 
 // IPC Handlers (Effect-based)
 ipcMain.handle("open-file", handleOpenFileEffect);
 ipcMain.handle("create-file", handleCreateFileEffect);
+ipcMain.handle("create-folder", handleCreateFolderEffect);
 ipcMain.handle("save-file", handleSaveFileEffect);
 ipcMain.handle("rename-file", handleRenameFileEffect);
+ipcMain.handle("move-path", handleMovePathEffect);
 
 ipcMain.handle("reveal-in-folder", handleRevealInFolderEffect);
 ipcMain.handle("read-asset", handleReadAssetEffect);
@@ -119,3 +237,6 @@ ipcMain.handle("delete-file", handleDeleteFileEffect);
 ipcMain.handle("select-folder", handleSelectFolderEffect);
 ipcMain.handle("load-global-settings", handleLoadGlobalSettingsEffect);
 ipcMain.handle("save-global-settings", handleSaveGlobalSettingsEffect);
+
+ipcMain.handle("start-repo-watch", handleStartRepoWatch);
+ipcMain.handle("stop-repo-watch", handleStopRepoWatch);

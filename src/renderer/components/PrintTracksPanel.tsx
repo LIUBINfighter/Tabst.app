@@ -6,8 +6,8 @@
  */
 
 import type * as AlphaTab from "@coderline/alphatab";
-import { Check, Eye, EyeOff, Layers } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { Check, Eye, EyeOff, Layers, Music } from "lucide-react";
+import { type ReactNode, useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { StaffConfigWithIndex } from "../lib/staff-config";
 import { Button } from "./ui/button";
@@ -629,7 +629,7 @@ function PrintTrackStaffRow({
 			<div className="flex gap-1">
 				<StaffOptionButton
 					label={t("staffShort.standard")}
-					icon="𝅘𝅥"
+					icon={<Music className="h-3 w-3" />}
 					isActive={staffConfig.showStandardNotation}
 					onClick={() =>
 						onToggleStaffOption(
@@ -650,7 +650,7 @@ function PrintTrackStaffRow({
 				/>
 				<StaffOptionButton
 					label={t("staffShort.slash")}
-					icon="𝄍"
+					icon="/"
 					isActive={staffConfig.showSlash}
 					onClick={() =>
 						onToggleStaffOption(index, staffConfig.staffIndex, "showSlash")
@@ -743,7 +743,7 @@ function TrackItem({
  */
 interface StaffOptionButtonProps {
 	label: string;
-	icon?: string;
+	icon?: ReactNode;
 	isActive: boolean;
 	onClick: () => void;
 	title: string;
@@ -761,7 +761,7 @@ function StaffOptionButton({
 			<TooltipTrigger asChild>
 				<button
 					type="button"
-					className={`h-5 px-1.5 text-xs rounded transition-colors ${
+					className={`h-5 px-1.5 text-xs rounded transition-colors inline-flex items-center justify-center ${
 						isActive
 							? "bg-primary text-primary-foreground"
 							: "bg-muted text-muted-foreground hover:bg-muted/80"

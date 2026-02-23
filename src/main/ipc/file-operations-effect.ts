@@ -1,8 +1,10 @@
+import fs from "node:fs";
 import path from "node:path";
 import { Effect, Exit } from "effect";
 import {
 	fileExists,
 	getDefaultSaveDir,
+	mkdir,
 	readFile,
 	readJsonFile,
 	renamePath,
@@ -22,6 +24,11 @@ interface OperationResult {
 	newPath?: string;
 	newName?: string;
 	error?: string;
+}
+
+interface FolderResult {
+	path: string;
+	name: string;
 }
 
 export async function handleOpenFileEffect(
@@ -44,9 +51,13 @@ export async function handleOpenFileEffect(
 export async function handleCreateFileEffect(
 	_event: Electron.IpcMainInvokeEvent,
 	ext?: string,
+	preferredDir?: string,
 ): Promise<FileResult> {
 	const program = Effect.gen(function* () {
-		const saveDir = yield* getDefaultSaveDir();
+		const saveDir =
+			typeof preferredDir === "string" && preferredDir.trim().length > 0
+				? preferredDir
+				: yield* getDefaultSaveDir();
 
 		let normalizedExt = ".md";
 		if (ext && typeof ext === "string") {
@@ -67,6 +78,49 @@ export async function handleCreateFileEffect(
 	return Exit.match(result, {
 		onFailure: (error) => {
 			console.error("Create file failed:", error);
+			throw error;
+		},
+		onSuccess: (value) => value,
+	});
+}
+
+export async function handleCreateFolderEffect(
+	_event: Electron.IpcMainInvokeEvent,
+	folderName?: string,
+	preferredDir?: string,
+): Promise<FolderResult> {
+	const program = Effect.gen(function* () {
+		const targetDir =
+			typeof preferredDir === "string" && preferredDir.trim().length > 0
+				? preferredDir
+				: yield* getDefaultSaveDir();
+
+		const rawName =
+			typeof folderName === "string" && folderName.trim().length > 0
+				? folderName.trim()
+				: `untitled_folder_${Date.now()}`;
+
+		const safeBaseName = rawName.replace(/[\\/:*?"<>|]/g, "_");
+		let finalName = safeBaseName;
+		let folderPath = path.join(targetDir, finalName);
+		let suffix = 1;
+
+		while (yield* fileExists(folderPath)) {
+			finalName = `${safeBaseName}_${suffix}`;
+			folderPath = path.join(targetDir, finalName);
+			suffix += 1;
+		}
+
+		yield* mkdir(folderPath);
+
+		return { path: folderPath, name: finalName };
+	});
+
+	const result = await Effect.runPromiseExit(program);
+
+	return Exit.match(result, {
+		onFailure: (error) => {
+			console.error("Create folder failed:", error);
 			throw error;
 		},
 		onSuccess: (value) => value,
@@ -143,13 +197,97 @@ export async function handleRenameFileEffect(
 	});
 }
 
+export async function handleMovePathEffect(
+	_event: Electron.IpcMainInvokeEvent,
+	sourcePath: string,
+	targetFolderPath: string,
+): Promise<OperationResult> {
+	const program = Effect.gen(function* () {
+		const normalizedSource = sourcePath.trim();
+		const normalizedTarget = targetFolderPath.trim();
+
+		if (!normalizedSource || !normalizedTarget) {
+			return { success: false, error: "invalid-path" };
+		}
+
+		const sourceExists = yield* fileExists(normalizedSource);
+		if (!sourceExists) {
+			return { success: false, error: "source-not-found" };
+		}
+
+		const targetStat = yield* Effect.tryPromise({
+			try: () => fs.promises.stat(normalizedTarget),
+			catch: () => new Error("target-not-found"),
+		});
+
+		if (!targetStat.isDirectory()) {
+			return { success: false, error: "target-not-folder" };
+		}
+
+		const sourceStat = yield* Effect.tryPromise({
+			try: () => fs.promises.stat(normalizedSource),
+			catch: () => new Error("source-not-found"),
+		});
+
+		const destPath = path.join(
+			normalizedTarget,
+			path.basename(normalizedSource),
+		);
+
+		if (destPath === normalizedSource) {
+			return {
+				success: true,
+				newPath: destPath,
+				newName: path.basename(destPath),
+			};
+		}
+
+		if (sourceStat.isDirectory()) {
+			const sourceWithSep = `${normalizedSource}${path.sep}`;
+			if (normalizedTarget.startsWith(sourceWithSep)) {
+				return { success: false, error: "invalid-target" };
+			}
+		}
+
+		const targetExists = yield* fileExists(destPath);
+		if (targetExists) {
+			return { success: false, error: "target-exists" };
+		}
+
+		yield* renamePath(normalizedSource, destPath);
+
+		return {
+			success: true,
+			newPath: destPath,
+			newName: path.basename(destPath),
+		};
+	});
+
+	const result = await Effect.runPromiseExit(program);
+
+	return Exit.match(result, {
+		onFailure: (error) => {
+			if (error._tag === "Fail") {
+				return {
+					success: false,
+					error: error.error.message,
+				};
+			}
+			return { success: false, error: "Unknown error" };
+		},
+		onSuccess: (value) => value,
+	});
+}
+
 interface AppState {
 	files: { id: string; name: string; path: string }[];
+	activeRepoId?: string | null;
 	activeFileId: string | null;
 }
 
 interface AppStateWithContent {
 	files: { id: string; name: string; path: string; content: string }[];
+	activeRepoId: string | null;
 	activeFileId: string | null;
 }
 
@@ -166,7 +304,7 @@ export async function handleLoadAppStateEffect(): Promise<AppStateWithContent> {
 		const state = yield* readJsonFile<AppState>(filePath);
 
 		if (!state) {
-			return { files: [], activeFileId: null };
+			return { files: [], activeRepoId: null, activeFileId: null };
 		}
 
 		const files = (yield* Effect.all(
@@ -194,7 +332,11 @@ export async function handleLoadAppStateEffect(): Promise<AppStateWithContent> {
 				? files[0].id
 				: null;
 
-		return { files, activeFileId };
+		return {
+			files,
+			activeRepoId: state.activeRepoId ?? null,
+			activeFileId,
+		};
 	});
 
 	const result = await Effect.runPromiseExit(program);
@@ -202,9 +344,12 @@ export async function handleLoadAppStateEffect(): Promise<AppStateWithContent> {
 	return Exit.match(result, {
 		onFailure: (error) => {
 			console.error("Load app state failed:", error);
-			return { files: [], activeFileId: null };
+			return { files: [], activeRepoId: null, activeFileId: null };
 		},
-		onSuccess: (value) => value,
+		onSuccess: (value) => ({
+			...value,
+			activeRepoId: value.activeRepoId ?? null,
+		}),
 	});
 }
 

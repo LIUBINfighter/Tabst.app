@@ -8,8 +8,8 @@ export function useEditorTheme() {
 	const themeCompartmentRef = useRef<Compartment>(new Compartment());
 
 	const createThemeExtension = useCallback(() => {
-		return createCMThemeFromEditorTheme(editorTheme);
-	}, [editorTheme]);
+		return createCMThemeFromEditorTheme(editorTheme, isDark);
+	}, [editorTheme, isDark]);
 
 	const themeExtension = useMemo(() => {
 		return createThemeExtension();

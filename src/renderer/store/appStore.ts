@@ -330,6 +330,76 @@ async function mergeAndSaveWorkspacePreferences(partial: RepoPreferences) {
 	}
 }
 
+const EXPANDED_FOLDERS_SAVE_DEBOUNCE_MS = 250;
+const expandedFoldersSaveTimers = new Map<string, number>();
+const APP_STATE_SAVE_DEBOUNCE_MS = 180;
+let appStateSaveTimer: number | null = null;
+let isRestoringAppState = false;
+
+function scheduleSaveAppState() {
+	if (isRestoringAppState) return;
+	if (appStateSaveTimer) {
+		window.clearTimeout(appStateSaveTimer);
+	}
+
+	appStateSaveTimer = window.setTimeout(() => {
+		appStateSaveTimer = null;
+		const state = useAppStore.getState();
+		void window.electronAPI
+			.saveAppState({
+				files: state.files.map((f) => ({
+					id: f.id,
+					name: f.name,
+					path: f.path,
+				})),
+				activeRepoId: state.activeRepoId,
+				activeFileId: state.activeFileId,
+			})
+			.catch((err) => {
+				console.error("saveAppState failed:", err);
+			});
+	}, APP_STATE_SAVE_DEBOUNCE_MS);
+}
+
+async function saveExpandedFoldersForActiveRepo() {
+	const s = useAppStore.getState();
+	const repo = s.repos.find((r) => r.id === s.activeRepoId);
+	if (!repo) return;
+	try {
+		const expanded = collectExpandedFolders(s.fileTree);
+		const existing = await window.electronAPI.loadWorkspaceMetadata(repo.path);
+		const next: RepoMetadata = {
+			id: repo.id,
+			name: repo.name,
+			openedAt: Date.now(),
+			expandedFolders: expanded,
+			preferences: existing?.preferences,
+		};
+		await window.electronAPI.saveWorkspaceMetadata(repo.path, next);
+	} catch (e) {
+		console.error("saveExpandedFolders failed", e);
+	}
+}
+
+function scheduleSaveExpandedFolders() {
+	const s = useAppStore.getState();
+	const repo = s.repos.find((r) => r.id === s.activeRepoId);
+	if (!repo) return;
+
+	const key = repo.path;
+	const prevTimer = expandedFoldersSaveTimers.get(key);
+	if (typeof prevTimer === "number") {
+		window.clearTimeout(prevTimer);
+	}
+
+	const timer = window.setTimeout(() => {
+		expandedFoldersSaveTimers.delete(key);
+		void saveExpandedFoldersForActiveRepo();
+	}, EXPANDED_FOLDERS_SAVE_DEBOUNCE_MS);
+
+	expandedFoldersSaveTimers.set(key, timer);
+}
+
 export const useAppStore = create<AppState>((set, get) => ({
 	// ===== Repo 初始状态 =====
 	repos: [],
@@ -398,6 +468,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 				files: newActiveId ? state.files : [],
 			};
 		});
+		scheduleSaveAppState();
 	},
 
 	switchRepo: async (id: string) => {
@@ -426,6 +497,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 					};
 					return baseState;
 				});
+				scheduleSaveAppState();
 
 				// hydrate workspace preferences and expanded folders
 				try {
@@ -518,54 +590,19 @@ export const useAppStore = create<AppState>((set, get) => ({
 		set((state) => ({
 			fileTree: updateNodeExpanded(state.fileTree, path, true),
 		}));
-		void (async () => {
-			const s = get();
-			const repo = s.repos.find((r) => r.id === s.activeRepoId);
-			if (!repo) return;
-			try {
-				const expanded = collectExpandedFolders(s.fileTree);
-				const existing = await window.electronAPI.loadWorkspaceMetadata(
-					repo.path,
-				);
-				const next: RepoMetadata = {
-					id: repo.id,
-					name: repo.name,
-					openedAt: Date.now(),
-					expandedFolders: expanded,
-					preferences: existing?.preferences,
-				};
-				await window.electronAPI.saveWorkspaceMetadata(repo.path, next);
-			} catch {}
-		})();
+		scheduleSaveExpandedFolders();
 	},
 
 	collapseFolder: (path: string) => {
 		set((state) => ({
 			fileTree: updateNodeExpanded(state.fileTree, path, false),
 		}));
-		void (async () => {
-			const s = get();
-			const repo = s.repos.find((r) => r.id === s.activeRepoId);
-			if (!repo) return;
-			try {
-				const expanded = collectExpandedFolders(s.fileTree);
-				const existing = await window.electronAPI.loadWorkspaceMetadata(
-					repo.path,
-				);
-				const next: RepoMetadata = {
-					id: repo.id,
-					name: repo.name,
-					openedAt: Date.now(),
-					expandedFolders: expanded,
-					preferences: existing?.preferences,
-				};
-				await window.electronAPI.saveWorkspaceMetadata(repo.path, next);
-			} catch {}
-		})();
+		scheduleSaveExpandedFolders();
 	},
 
 	refreshFileTree: async () => {
-		const { activeRepoId, repos } = get();
+		const state = get();
+		const { activeRepoId, repos, files, activeFileId } = state;
 		if (!activeRepoId) return;
 
 		const repo = repos.find((r) => r.id === activeRepoId);
@@ -574,10 +611,24 @@ export const useAppStore = create<AppState>((set, get) => ({
 		try {
 			const result = await window.electronAPI?.scanDirectory?.(repo.path);
 			if (result) {
+				const nextTree = result.nodes;
+				const nextFiles = reconcileFilesWithTree(nextTree, files);
+
+				const previousActivePath = files.find(
+					(f) => f.id === activeFileId,
+				)?.path;
+				const nextActiveFileId = resolveActiveFileId(
+					nextFiles,
+					activeFileId,
+					previousActivePath,
+				);
+
 				set({
-					fileTree: result.nodes,
-					files: flattenFileNodes(result.nodes),
+					fileTree: nextTree,
+					files: nextFiles,
+					activeFileId: nextActiveFileId,
 				});
+				scheduleSaveAppState();
 			}
 		} catch (err) {
 			console.error("Failed to refresh file tree:", err);
@@ -765,6 +816,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 				activeFileId: file.id,
 			};
 		});
+		scheduleSaveAppState();
 	},
 
 	removeFile: (id) => {
@@ -778,6 +830,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 					: state.activeFileId;
 			return { files: newFiles, activeFileId: newActiveId };
 		});
+		scheduleSaveAppState();
 	},
 
 	renameFile: async (id, newName) => {
@@ -837,6 +890,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 					fileTree: newTree,
 				};
 			});
+			scheduleSaveAppState();
 			return true;
 		} catch (err) {
 			console.error("renameFile error:", err);
@@ -846,6 +900,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
 	setActiveFile: (id) => {
 		set({ activeFileId: id });
+		scheduleSaveAppState();
 	},
 
 	updateFileContent: (id, content) => {
@@ -929,19 +984,66 @@ export const useAppStore = create<AppState>((set, get) => ({
 
 	initialize: async () => {
 		try {
-			const repos = await window.electronAPI?.loadRepos?.();
-			if (repos) {
-				set({ repos });
-			}
+			isRestoringAppState = true;
+			const [repos, appState] = await Promise.all([
+				window.electronAPI?.loadRepos?.(),
+				window.electronAPI?.loadAppState?.(),
+			]);
 
-			if (repos) {
-				const activeRepo = repos.find((r) => r.id === get().activeRepoId);
-				if (activeRepo) {
-					await get().switchRepo(activeRepo.id);
+			if (!repos) return;
+			set({ repos });
+
+			const persistedRepoId = appState?.activeRepoId ?? null;
+			const fallbackRepoId =
+				repos.length > 0
+					? [...repos].sort((a, b) => b.lastOpenedAt - a.lastOpenedAt)[0]?.id
+					: null;
+			const targetRepoId =
+				persistedRepoId && repos.some((r) => r.id === persistedRepoId)
+					? persistedRepoId
+					: fallbackRepoId;
+
+			if (!targetRepoId) return;
+
+			await get().switchRepo(targetRepoId);
+
+			const restoredActiveFileId = appState?.activeFileId;
+			if (restoredActiveFileId) {
+				const state = get();
+				const targetFile = state.files.find(
+					(f) => f.id === restoredActiveFileId,
+				);
+				if (targetFile) {
+					if (!targetFile.contentLoaded) {
+						try {
+							const readResult = await window.electronAPI.readFile(
+								targetFile.path,
+							);
+							if (!readResult.error) {
+								set((current) => ({
+									files: current.files.map((f) =>
+										f.id === targetFile.id
+											? {
+													...f,
+													content: readResult.content,
+													contentLoaded: true,
+												}
+											: f,
+									),
+								}));
+							}
+						} catch (e) {
+							console.error("restore active file content failed", e);
+						}
+					}
+					set({ activeFileId: restoredActiveFileId, workspaceMode: "editor" });
 				}
 			}
 		} catch (err) {
 			console.error("初始化应用状态失败:", err);
+		} finally {
+			isRestoringAppState = false;
+			scheduleSaveAppState();
 		}
 	},
 }));
@@ -980,6 +1082,55 @@ function flattenFileNodes(nodes: FileNode[]): FileItem[] {
 		}
 	}
 	return result;
+}
+
+function normalizePathForCompare(p: string): string {
+	return p.replace(/\\/g, "/");
+}
+
+function reconcileFilesWithTree(
+	nodes: FileNode[],
+	currentFiles: FileItem[],
+): FileItem[] {
+	const scanned = flattenFileNodes(nodes);
+	const byPath = new Map(
+		currentFiles.map((f) => [normalizePathForCompare(f.path), f]),
+	);
+
+	return scanned.map((next) => {
+		const existing = byPath.get(normalizePathForCompare(next.path));
+		if (!existing) return next;
+
+		return {
+			...next,
+			id: existing.id ?? next.id,
+			content: existing.content ?? next.content,
+			contentLoaded: existing.contentLoaded ?? next.contentLoaded,
+		};
+	});
+}
+
+function resolveActiveFileId(
+	nextFiles: FileItem[],
+	currentActiveId: string | null,
+	previousActivePath?: string,
+): string | null {
+	if (!currentActiveId) return null;
+
+	if (nextFiles.some((f) => f.id === currentActiveId)) {
+		return currentActiveId;
+	}
+
+	if (previousActivePath) {
+		const byPath = nextFiles.find(
+			(f) =>
+				normalizePathForCompare(f.path) ===
+				normalizePathForCompare(previousActivePath),
+		);
+		if (byPath) return byPath.id;
+	}
+
+	return null;
 }
 
 function basenameFromPath(p: string): string {

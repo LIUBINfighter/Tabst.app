@@ -5,23 +5,33 @@ import { FileTreeItem } from "./FileTreeItem";
 export interface FileTreeProps {
 	nodes: FileNode[];
 	level?: number;
+	pendingRenamePath?: string | null;
+	onPendingRenameConsumed?: () => void;
 	onFileSelect: (node: FileNode) => void;
 	onFolderToggle: (node: FileNode) => void;
 	onRename?: (node: FileNode, newName: string) => void;
+	onMove?: (sourceNode: FileNode, targetFolder: FileNode) => void;
 	onReveal: (node: FileNode) => void;
 	onCopyPath: (node: FileNode) => void;
 	onDelete: (node: FileNode) => void;
+	onCreateFileInFolder?: (folder: FileNode, ext: ".md" | ".atex") => void;
+	onCreateFolderInFolder?: (folder: FileNode) => void;
 }
 
 export function FileTree({
 	nodes,
 	level = 0,
+	pendingRenamePath,
+	onPendingRenameConsumed,
 	onFileSelect,
 	onFolderToggle,
 	onRename,
+	onMove,
 	onReveal,
 	onCopyPath,
 	onDelete,
+	onCreateFileInFolder,
+	onCreateFolderInFolder,
 }: FileTreeProps) {
 	const { t } = useTranslation("sidebar");
 
@@ -40,12 +50,17 @@ export function FileTree({
 					key={node.id}
 					node={node}
 					level={level}
+					pendingRenamePath={pendingRenamePath}
+					onPendingRenameConsumed={onPendingRenameConsumed}
 					onFileSelect={onFileSelect}
 					onFolderToggle={onFolderToggle}
 					onRename={onRename}
+					onMove={onMove}
 					onReveal={onReveal}
 					onCopyPath={onCopyPath}
 					onDelete={onDelete}
+					onCreateFileInFolder={onCreateFileInFolder}
+					onCreateFolderInFolder={onCreateFolderInFolder}
 				/>
 			))}
 		</div>

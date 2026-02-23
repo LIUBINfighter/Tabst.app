@@ -195,7 +195,15 @@ export const writeJsonFile = <T>(
 		yield* writeFile(filePath, content);
 	});
 
-const SUPPORTED_EXTENSIONS = [".atex", ".gp", ".gp3", ".gp4", ".gp5", ".gpx"];
+const SUPPORTED_EXTENSIONS = [
+	".md",
+	".atex",
+	".gp",
+	".gp3",
+	".gp4",
+	".gp5",
+	".gpx",
+];
 
 export const getGlobalMetadataDir = (): Effect.Effect<
 	string,

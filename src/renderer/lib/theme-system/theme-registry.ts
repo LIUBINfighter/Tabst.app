@@ -34,7 +34,7 @@ const github: UITheme = {
 			input: "213 27% 84%",
 			ring: "212 92% 45%",
 		},
-		selectionOverlay: "rgba(0, 0, 0, 0.03)",
+		selectionOverlay: "rgba(0, 0, 0, 0.08)",
 		scrollbar: "hsl(213 27% 84% / 0.9)",
 		focusRing: "rgb(59 130 246)",
 		highlight: {
@@ -129,7 +129,7 @@ const vscode: UITheme = {
 			input: "220 13% 85%",
 			ring: "207 82% 48%",
 		},
-		selectionOverlay: "rgba(0, 0, 0, 0.04)",
+		selectionOverlay: "rgba(0, 0, 0, 0.08)",
 		scrollbar: "hsl(220 13% 75% / 0.9)",
 		focusRing: "rgb(0 122 204)",
 		highlight: {
@@ -229,7 +229,7 @@ const obsidian: UITheme = {
 			input: "260 15% 85%",
 			ring: "262 52% 48%",
 		},
-		selectionOverlay: "rgba(139, 92, 246, 0.06)",
+		selectionOverlay: "rgba(139, 92, 246, 0.1)",
 		scrollbar: "hsl(260 15% 80% / 0.9)",
 		focusRing: "rgb(139 92 246)",
 		highlight: {
@@ -703,6 +703,154 @@ const solarized: UITheme = {
 	},
 };
 
+const tokyoNight: UITheme = {
+	id: "tokyo-night",
+	name: "Tokyo Night",
+	description: "Tokyo Night 蓝紫霓虹风格主题",
+	light: {
+		semantic: {
+			background: "225 25% 98%",
+			foreground: "232 28% 22%",
+			card: "225 25% 99%",
+			cardForeground: "232 28% 22%",
+			popover: "225 25% 99%",
+			popoverForeground: "232 28% 22%",
+			primary: "221 84% 62%",
+			primaryForeground: "0 0% 100%",
+			secondary: "223 24% 93%",
+			secondaryForeground: "232 28% 22%",
+			muted: "223 24% 93%",
+			mutedForeground: "230 14% 45%",
+			accent: "223 24% 93%",
+			accentForeground: "232 28% 22%",
+			destructive: "0 72% 53%",
+			destructiveForeground: "0 0% 100%",
+			border: "224 20% 86%",
+			input: "224 20% 86%",
+			ring: "221 84% 62%",
+		},
+		selectionOverlay: "rgba(122, 162, 247, 0.12)",
+		scrollbar: "hsl(224 20% 75% / 0.9)",
+		focusRing: "rgb(122 162 247)",
+		highlight: {
+			background: "rgba(122, 162, 247, 0.2)",
+			foreground: "rgb(58, 108, 217)",
+		},
+		hover: {
+			background: "rgba(122, 162, 247, 0.1)",
+			foreground: "rgb(58, 108, 217)",
+		},
+	},
+	dark: {
+		semantic: {
+			background: "234 27% 12%",
+			foreground: "226 64% 86%",
+			card: "233 27% 14%",
+			cardForeground: "226 64% 86%",
+			popover: "233 27% 14%",
+			popoverForeground: "226 64% 86%",
+			primary: "221 84% 72%",
+			primaryForeground: "233 27% 14%",
+			secondary: "233 23% 20%",
+			secondaryForeground: "226 64% 86%",
+			muted: "233 23% 20%",
+			mutedForeground: "230 28% 60%",
+			accent: "233 23% 24%",
+			accentForeground: "226 64% 86%",
+			destructive: "0 72% 60%",
+			destructiveForeground: "0 0% 100%",
+			border: "233 23% 24%",
+			input: "233 23% 24%",
+			ring: "221 84% 72%",
+		},
+		selectionOverlay: "rgba(122, 162, 247, 0.16)",
+		scrollbar: "hsl(233 23% 30% / 0.9)",
+		focusRing: "rgb(122 162 247)",
+		highlight: {
+			background: "rgba(122, 162, 247, 0.25)",
+			foreground: "rgb(122, 162, 247)",
+		},
+		hover: {
+			background: "rgba(122, 162, 247, 0.14)",
+			foreground: "rgb(122, 162, 247)",
+		},
+	},
+};
+
+const catppuccin: UITheme = {
+	id: "catppuccin",
+	name: "Catppuccin",
+	description: "Catppuccin 柔和马卡龙风格主题",
+	light: {
+		semantic: {
+			background: "220 23% 95%",
+			foreground: "234 16% 35%",
+			card: "220 23% 96%",
+			cardForeground: "234 16% 35%",
+			popover: "220 23% 96%",
+			popoverForeground: "234 16% 35%",
+			primary: "267 84% 58%",
+			primaryForeground: "0 0% 100%",
+			secondary: "220 20% 90%",
+			secondaryForeground: "234 16% 35%",
+			muted: "220 20% 90%",
+			mutedForeground: "230 10% 47%",
+			accent: "220 20% 90%",
+			accentForeground: "234 16% 35%",
+			destructive: "2 79% 58%",
+			destructiveForeground: "0 0% 100%",
+			border: "220 16% 85%",
+			input: "220 16% 85%",
+			ring: "267 84% 58%",
+		},
+		selectionOverlay: "rgba(136, 57, 239, 0.14)",
+		scrollbar: "hsl(220 16% 76% / 0.9)",
+		focusRing: "rgb(136 57 239)",
+		highlight: {
+			background: "rgba(136, 57, 239, 0.22)",
+			foreground: "rgb(111, 45, 191)",
+		},
+		hover: {
+			background: "rgba(136, 57, 239, 0.12)",
+			foreground: "rgb(111, 45, 191)",
+		},
+	},
+	dark: {
+		semantic: {
+			background: "240 21% 15%",
+			foreground: "227 70% 88%",
+			card: "240 21% 16%",
+			cardForeground: "227 70% 88%",
+			popover: "240 21% 16%",
+			popoverForeground: "227 70% 88%",
+			primary: "267 84% 81%",
+			primaryForeground: "240 21% 15%",
+			secondary: "240 16% 22%",
+			secondaryForeground: "227 70% 88%",
+			muted: "240 16% 22%",
+			mutedForeground: "228 18% 64%",
+			accent: "240 16% 26%",
+			accentForeground: "227 70% 88%",
+			destructive: "343 81% 75%",
+			destructiveForeground: "240 21% 15%",
+			border: "240 16% 26%",
+			input: "240 16% 26%",
+			ring: "267 84% 81%",
+		},
+		selectionOverlay: "rgba(203, 166, 247, 0.18)",
+		scrollbar: "hsl(240 16% 32% / 0.9)",
+		focusRing: "rgb(203 166 247)",
+		highlight: {
+			background: "rgba(203, 166, 247, 0.24)",
+			foreground: "rgb(203, 166, 247)",
+		},
+		hover: {
+			background: "rgba(203, 166, 247, 0.14)",
+			foreground: "rgb(203, 166, 247)",
+		},
+	},
+};
+
 // ===== 编辑器高亮主题预设 =====
 
 const githubEditorTheme: EditorTheme = {
@@ -860,6 +1008,68 @@ const nordEditorTheme: EditorTheme = {
 	},
 };
 
+const tokyoNightEditorTheme: EditorTheme = {
+	id: "tokyo-night",
+	name: "Tokyo Night",
+	variant: "dark",
+	colors: {
+		comment: "#565f89",
+		keyword: "#bb9af7",
+		operator: "#89ddff",
+		string: "#9ece6a",
+		number: "#ff9e64",
+		atom: "#e0af68",
+		function: "#7aa2f7",
+		tag: "#7dcfff",
+		attribute: "#73daca",
+		variable: "#c0caf5",
+		bracket: "#c0caf5",
+		atomBackground: "rgba(224, 175, 104, 0.18)",
+		matchBackground: "rgba(86, 95, 137, 0.25)",
+		selectionMatch: "rgba(122, 162, 247, 0.28)",
+	},
+	cmConfig: {
+		background: "hsl(var(--card))",
+		foreground: "#c0caf5",
+		gutterBackground: "transparent",
+		gutterForeground: "#565f89",
+		lineHighlight: "rgba(122, 162, 247, 0.08)",
+		selection: "rgba(122, 162, 247, 0.16)",
+		cursor: "#7aa2f7",
+	},
+};
+
+const catppuccinEditorTheme: EditorTheme = {
+	id: "catppuccin",
+	name: "Catppuccin",
+	variant: "dark",
+	colors: {
+		comment: "#9399b2",
+		keyword: "#cba6f7",
+		operator: "#89dceb",
+		string: "#a6e3a1",
+		number: "#fab387",
+		atom: "#f9e2af",
+		function: "#89b4fa",
+		tag: "#94e2d5",
+		attribute: "#89b4fa",
+		variable: "#cdd6f4",
+		bracket: "#bac2de",
+		atomBackground: "rgba(249, 226, 175, 0.18)",
+		matchBackground: "rgba(147, 153, 178, 0.24)",
+		selectionMatch: "rgba(203, 166, 247, 0.28)",
+	},
+	cmConfig: {
+		background: "hsl(var(--card))",
+		foreground: "#cdd6f4",
+		gutterBackground: "transparent",
+		gutterForeground: "#9399b2",
+		lineHighlight: "rgba(203, 166, 247, 0.08)",
+		selection: "rgba(203, 166, 247, 0.16)",
+		cursor: "#cba6f7",
+	},
+};
+
 // ===== 注册表 =====
 
 class ThemeRegistryImpl implements ThemeRegistry {
@@ -876,6 +1086,8 @@ class ThemeRegistryImpl implements ThemeRegistry {
 		this.registerUITheme(nord);
 		this.registerUITheme(monokai);
 		this.registerUITheme(solarized);
+		this.registerUITheme(tokyoNight);
+		this.registerUITheme(catppuccin);
 
 		// 注册编辑器主题
 		this.registerEditorTheme(githubEditorTheme);
@@ -883,6 +1095,8 @@ class ThemeRegistryImpl implements ThemeRegistry {
 		this.registerEditorTheme(monokaiEditorTheme);
 		this.registerEditorTheme(draculaEditorTheme);
 		this.registerEditorTheme(nordEditorTheme);
+		this.registerEditorTheme(tokyoNightEditorTheme);
+		this.registerEditorTheme(catppuccinEditorTheme);
 
 		// 设置默认组合
 		this.defaultCombinations.set("github", "github");
@@ -892,6 +1106,8 @@ class ThemeRegistryImpl implements ThemeRegistry {
 		this.defaultCombinations.set("nord", "nord");
 		this.defaultCombinations.set("monokai", "monokai");
 		this.defaultCombinations.set("solarized", "github");
+		this.defaultCombinations.set("tokyo-night", "tokyo-night");
+		this.defaultCombinations.set("catppuccin", "catppuccin");
 	}
 
 	registerUITheme(theme: UITheme): void {

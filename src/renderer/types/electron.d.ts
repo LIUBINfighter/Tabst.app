@@ -17,22 +17,46 @@ export interface ScanDirectoryResult {
 	expandedFolders: string[];
 }
 
+export interface RepoFsChangedEvent {
+	repoPath: string;
+	eventType: string;
+	changedPath?: string;
+}
+
 export interface ElectronAPI {
 	openFile: (extensions: string[]) => Promise<FileResult | null>;
-	createFile: (ext?: string) => Promise<FileResult | null>;
+	createFile: (
+		ext?: string,
+		preferredDir?: string,
+	) => Promise<FileResult | null>;
+	createFolder: (
+		folderName?: string,
+		preferredDir?: string,
+	) => Promise<{ path: string; name: string } | null>;
 	saveFile: (filePath: string, content: string) => Promise<SaveResult>;
 
 	loadAppState: () => Promise<{
 		files: FileResult[];
+		activeRepoId?: string | null;
 		activeFileId: string | null;
 	} | null>;
 	saveAppState: (state: {
 		files: { id: string; name: string; path: string }[];
+		activeRepoId?: string | null;
 		activeFileId: string | null;
 	}) => Promise<{ success: boolean; error?: string } | null>;
 	renameFile: (
 		oldPath: string,
 		newName: string,
+	) => Promise<{
+		success: boolean;
+		newPath?: string;
+		newName?: string;
+		error?: string;
+	} | null>;
+	movePath: (
+		sourcePath: string,
+		targetFolderPath: string,
 	) => Promise<{
 		success: boolean;
 		newPath?: string;
@@ -57,7 +81,16 @@ export interface ElectronAPI {
 	deleteFile: (
 		filePath: string,
 		behavior: "system-trash" | "repo-trash" | "ask-every-time",
+		repoPath?: string,
 	) => Promise<{ success: boolean; error?: string }>;
+
+	startRepoWatch: (
+		repoPath: string,
+	) => Promise<{ success: boolean; error?: string }>;
+	stopRepoWatch: () => Promise<{ success: boolean }>;
+	onRepoFsChanged: (
+		callback: (event: RepoFsChangedEvent) => void,
+	) => () => void;
 
 	// Auto-update
 	checkForUpdates: () => Promise<{ supported: boolean; message?: string }>;

@@ -75,6 +75,8 @@
 		"dracula": "Dracula's classic high-contrast theme",
 		"nord": "Arctic-style blue-gray theme",
 		"monokai": "Monokai's classic code editor theme",
-		"solarized": "Eye-friendly warm color theme"
+		"solarized": "Eye-friendly warm color theme",
+		"tokyo-night": "Tokyo Night neon blue-purple theme",
+		"catppuccin": "Catppuccin soft pastel theme"
 	}
 }
