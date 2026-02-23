@@ -3,10 +3,11 @@
 This file now tracks roadmap items with checkboxes.
 本文件现在使用复选框跟踪路线图事项。
 
-✅ Completed / 已完成
-🚧 WIP / 未完成
+## Future Planning / 未来规划（按类别分组 + 优先级）
 
-## 🚧 Future Planning / 未来规划（按类别分组 + 优先级）
+- **WIP**: currently focused in-progress items / 当前重点推进项
+- **Next**: next release candidates / 下个阶段候选项
+- **Later**: longer-term initiatives / 中长期规划项
 
 ### A. Core Stability & Consistency / 核心稳定性与一致性
 - [ ] [WIP] Preview/Playback Sync Stability / 预览与播放同步稳定性
@@ -19,7 +20,7 @@ This file now tracks roadmap items with checkboxes.
 - [ ] [WIP] Editor AST Enhancements / 编辑器 AST 增强
 - [ ] [Next] Editor Linter/Formatter / 编辑器 Linter/Formatter
 - [ ] [Next] Editor AlphaTex Templates / 编辑器 AlphaTex 模版
-- [ ] [Later] atdoc metadata comments (`/** */`) / atdoc 元数据批注（`/** */`）
+- [ ] [Later] atdoc metadata comments (/** */) / atdoc 元数据批注（/** */）
 
 ### C. Import/Export & Sharing / 导入导出与分享
 - [ ] [Next] GP File Import (Guitar Pro -> alphaTex) / GP 文件导入（Guitar Pro -> alphaTex）
@@ -27,18 +28,13 @@ This file now tracks roadmap items with checkboxes.
 - [ ] [Later] OMR Import (Image -> alphaTex) / OMR 导入（图片 -> alphaTex）
 
 ### D. Audio & Rendering Customization / 音频与渲染自定义
-- [ ] [Next] Custom SoundFont (`.sf*`) / 自定义 SoundFont（`.sf*` 文件）
+- [ ] [Next] Custom SoundFont (.sf*) / 自定义 SoundFont（.sf* 文件）
 
 ### E. Tutorial & Learning Experience / 教程与学习体验
 - [ ] [Next] Tutorial System Upgrade (Learning + Developer Editions) / 教程系统升级（学习版 + 开发版）
 - [ ] [Next] Interactive Tutorial Components / 教程内可交互练习组件
 
-### Priority Buckets / 优先级说明
-- **WIP**: currently focused in-progress items / 当前重点推进项
-- **Next**: next release candidates / 下个阶段候选项
-- **Later**: longer-term initiatives / 中长期规划项
-
-## ✅ Feature Tree 功能树
+##  Feature Tree 功能树
 
 ```text
 Tabst User Operation Path Tree / 用户操作路径总树
