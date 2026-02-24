@@ -8,6 +8,7 @@
 
 import { documentation } from "@coderline/alphatab-language-server";
 import commandsJSON from "../data/alphatex-commands.json";
+import { ATDOC_KEY_DEFINITIONS } from "../data/atdoc-keys";
 
 type CommandsJsonItem = {
 	name?: string;
@@ -351,12 +352,36 @@ function _getWordAtPosition(
 	position: number,
 ): { word: string; start: number } {
 	let start = position;
-	while (start > 0 && /[a-zA-Z0-9_]/.test(text[start - 1])) {
+	while (start > 0 && /[a-zA-Z0-9_.]/.test(text[start - 1])) {
 		start--;
 	}
 	const word = text.substring(start, position);
 	return { word, start };
 }
+
+const atDocSnippetBoolean = "$" + "{1:true}";
+const atDocSnippetLayout = "$" + "{1:Page}";
+const atDocSnippetScroll = "$" + "{1:OffScreen}";
+const atDocSnippetNumber = "$" + "{1:1}";
+
+const atDocCompletions = ATDOC_KEY_DEFINITIONS.map((def) => ({
+	label: def.key,
+	detail: `ATDOC ${def.valueType}`,
+	documentation: `${def.description}\n\nExample: \`${def.example}\``,
+	insertText: `${def.key}=${
+		def.valueType === "boolean"
+			? atDocSnippetBoolean
+			: def.valueType === "enum:layoutMode"
+				? atDocSnippetLayout
+				: def.valueType === "enum:scrollMode"
+					? atDocSnippetScroll
+					: atDocSnippetNumber
+	}`,
+}));
+
+const atDocByName = new Map(
+	ATDOC_KEY_DEFINITIONS.map((def) => [def.key.toLowerCase(), def]),
+);
 
 /**
  * Get completion items for a given word
@@ -374,6 +399,20 @@ function getCompletions(word: string): Array<{
 		documentation: string;
 		insertText?: string;
 	}> = [];
+
+	if (
+		String(word ?? "")
+			.toLowerCase()
+			.startsWith("at.")
+	) {
+		const prefix = String(word).toLowerCase();
+		for (const item of atDocCompletions) {
+			if (item.label.toLowerCase().startsWith(prefix)) {
+				completions.push(item);
+			}
+		}
+		return completions;
+	}
 
 	// Search properties from local registry first (local overrides), which already
 	// includes merged upstream properties as fallback from initialization.
@@ -563,6 +602,18 @@ function handleHover(params: unknown) {
 	// If the token starts with a backslash, remove it for matching.
 	if (typeof word === "string" && word.startsWith("\\")) word = word.slice(1);
 	const key = (word ?? "").toLowerCase();
+	if (key.startsWith("at.")) {
+		const atDocDef = atDocByName.get(key);
+		if (atDocDef) {
+			return {
+				contents: [
+					`**${atDocDef.key}**`,
+					atDocDef.description,
+					`Example: \`${atDocDef.example}\``,
+				].join("\n\n"),
+			};
+		}
+	}
 
 	// Try a direct lookup in the commands map, or fallback to a prefix search for helpful hover
 	const exact = commandsByName.get(key);

@@ -1,0 +1,41 @@
+/**
+ * ATDOC full sample (v0/v0.1)
+ * Includes all currently supported keys.
+ *
+ * Display
+ * at.display.scale=0.78
+ * at.display.layoutMode=Page
+ *
+ * Player
+ * at.player.scrollMode=OffScreen
+ * at.player.scrollSpeed=300
+ * at.player.playbackSpeed=0.92
+ * at.player.metronomeVolume=0.35
+ * at.player.countInEnabled=true
+ * at.player.enableCursor=true
+ * at.player.enableElementHighlighting=true
+ * at.player.enableUserInteraction=true
+ *
+ * Staff
+ * at.staff.showTablature=true
+ * at.staff.showStandardNotation=false
+ * at.staff.showSlash=false
+ * at.staff.showNumbered=false
+ *
+ * Print
+ * at.print.zoom=1.05
+ * at.print.barsPerRow=4
+ * at.print.stretchForce=1.0
+ */
+
+\title "ATDOC Full Sample"
+\artist "Tabst"
+\tempo 96
+\track "Lead Guitar"
+\staff {score tabs}
+.
+
+:4 3.2 5.2 7.2 8.2 |
+:4 8.2 7.2 5.2 3.2 |
+:8 (3.2 5.3) (7.2 8.3) (10.2 8.3) (7.2 5.3) |
+:4 3.2{v} 3.2{v} 5.2{b (0 2)} 7.2 |

@@ -34,6 +34,9 @@ AlphaTex 编辑器实现文档。
 | 文档 | 内容 |
 |------|------|
 | [LSP_INTEGRATION.md](./alphatex/LSP_INTEGRATION.md) | LSP Worker、语法高亮、自动补全集成 |
+| [ATDOC_V0.md](./alphatex/ATDOC_V0.md) | ATDOC v0 语法、白名单、应用分级与实现约束 |
+| [ATDOC_V0_1.md](./alphatex/ATDOC_V0_1.md) | ATDOC v0.1 设计（completion/hover 扩展） |
+| [ATDOC_NEXT_PHASE_DRAFT.md](./alphatex/ATDOC_NEXT_PHASE_DRAFT.md) | ATDOC 下一阶段草案（v0.2 讨论） |
 
 ---
 

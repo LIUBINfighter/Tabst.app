@@ -7,9 +7,10 @@ import {
 	Printer,
 	X,
 } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { createPrintSettings } from "../lib/alphatab-config";
+import { parseAtDoc } from "../lib/atdoc";
 import { paginateContent } from "../lib/pagination";
 import {
 	calculateContentDimensions,
@@ -67,18 +68,23 @@ export default function PrintPreview({
 	// Dedicated font name and URL for printing (dynamic, with timestamp)
 	const [printFontName, setPrintFontName] = useState<string>("");
 	const [printFontUrl, setPrintFontUrl] = useState<string>("");
+	const parsedAtDoc = useMemo(() => parseAtDoc(content), [content]);
+	const atDocPrint = parsedAtDoc.config.print;
+	const cleanContent = parsedAtDoc.cleanContent;
 
 	// Track selection sidebar state
 	const [isTracksPanelOpen, setIsTracksPanelOpen] = useState(true);
 
 	// Zoom scale state
-	const [zoom, setZoom] = useState(1.0);
+	const [zoom, setZoom] = useState(atDocPrint?.zoom ?? 1.0);
 	const [previewFitScale, setPreviewFitScale] = useState(1);
 	const zoomRef = useRef(zoom);
 
 	// Layout configuration state
-	const [barsPerRow, setBarsPerRow] = useState(-1); // -1 means auto mode
-	const [stretchForce, setStretchForce] = useState(1.0); // Note spacing stretch force
+	const [barsPerRow, setBarsPerRow] = useState(atDocPrint?.barsPerRow ?? -1); // -1 means auto mode
+	const [stretchForce, setStretchForce] = useState(
+		atDocPrint?.stretchForce ?? 1.0,
+	); // Note spacing stretch force
 	const barsPerRowRef = useRef(barsPerRow);
 	const stretchForceRef = useRef(stretchForce);
 
@@ -99,6 +105,21 @@ export default function PrintPreview({
 	const [printApi, setPrintApi] = useState<alphaTab.AlphaTabApi | null>(null);
 	const pageSizeRef = useRef(pageSize);
 	pageSizeRef.current = pageSize;
+
+	useEffect(() => {
+		for (const warning of parsedAtDoc.warnings) {
+			console.warn(`[ATDOC:${warning.line}] ${warning.message}`);
+		}
+	}, [parsedAtDoc.warnings]);
+
+	useEffect(() => {
+		if (typeof atDocPrint?.zoom === "number") setZoom(atDocPrint.zoom);
+		if (typeof atDocPrint?.barsPerRow === "number")
+			setBarsPerRow(atDocPrint.barsPerRow);
+		if (typeof atDocPrint?.stretchForce === "number") {
+			setStretchForce(atDocPrint.stretchForce);
+		}
+	}, [atDocPrint?.zoom, atDocPrint?.barsPerRow, atDocPrint?.stretchForce]);
 
 	useEffect(() => {
 		zoomRef.current = zoom;
@@ -240,13 +261,13 @@ export default function PrintPreview({
 			});
 
 			// Load content
-			apiRef.current.tex(content);
+			apiRef.current.tex(cleanContent);
 		} catch (err) {
 			console.error("[PrintPreview] Failed to initialize:", err);
 			setError(err instanceof Error ? err.message : "Initialization failed");
 			setIsLoading(false);
 		}
-	}, [content, contentWidthPx, handlePaginate]);
+	}, [cleanContent, contentWidthPx, handlePaginate]);
 
 	/**
 	 * Handle print/export PDF

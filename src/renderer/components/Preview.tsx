@@ -15,6 +15,7 @@ import {
 import { createPreviewSettings } from "../lib/alphatab-config";
 import { formatFullError } from "../lib/alphatab-error";
 import { loadBravuraFont, loadSoundFontFromUrl } from "../lib/assets";
+import { type AtDocConfig, parseAtDoc } from "../lib/atdoc";
 import type { ResourceUrls } from "../lib/resourceLoaderService";
 import { getResourceUrls } from "../lib/resourceLoaderService";
 import {
@@ -111,6 +112,7 @@ export default function Preview({
 	const metronomeVolumeRef = useRef(metronomeVolume);
 	const countInEnabledRef = useRef(countInEnabled);
 	const editorHasFocusRef = useRef(editorHasFocus);
+	const atDocConfigRef = useRef<AtDocConfig>({});
 	const _savedPlayerScrollRef = useRef<{
 		scrollElement?: HTMLElement | null;
 		scrollMode?: alphaTab.ScrollMode | undefined;
@@ -242,6 +244,118 @@ export default function Preview({
 		[],
 	);
 
+	const applyAtDocHotSettings = useCallback((api: alphaTab.AlphaTabApi) => {
+		const atCfg = atDocConfigRef.current;
+		if (!atCfg.player) return;
+
+		if (typeof atCfg.player.playbackSpeed === "number") {
+			try {
+				api.playbackSpeed = atCfg.player.playbackSpeed;
+			} catch (err) {
+				console.warn("[ATDOC] Failed to apply playbackSpeed", err);
+			}
+		}
+
+		if (typeof atCfg.player.metronomeVolume === "number") {
+			try {
+				api.metronomeVolume = atCfg.player.metronomeVolume;
+			} catch (err) {
+				console.warn("[ATDOC] Failed to apply metronomeVolume", err);
+			}
+		}
+
+		if (typeof atCfg.player.countInEnabled === "boolean") {
+			try {
+				api.countInVolume = atCfg.player.countInEnabled ? 1 : 0;
+			} catch (err) {
+				console.warn("[ATDOC] Failed to apply countInEnabled", err);
+			}
+		}
+	}, []);
+
+	const syncStoreFromAtDoc = useCallback((cfg: AtDocConfig) => {
+		const store = useAppStore.getState();
+		if (typeof cfg.display?.scale === "number") {
+			const pct = Math.max(
+				10,
+				Math.min(400, Math.round(cfg.display.scale * 100)),
+			);
+			zoomRef.current = pct;
+			store.setZoomPercent(pct);
+		}
+		if (typeof cfg.player?.playbackSpeed === "number") {
+			store.setPlaybackSpeed(cfg.player.playbackSpeed);
+		}
+		if (typeof cfg.player?.metronomeVolume === "number") {
+			store.setMetronomeVolume(cfg.player.metronomeVolume);
+		}
+		if (typeof cfg.player?.countInEnabled === "boolean") {
+			store.setCountInEnabled(cfg.player.countInEnabled);
+		}
+	}, []);
+
+	const applyAtDocWarmSettings = useCallback((api: alphaTab.AlphaTabApi) => {
+		const atCfg = atDocConfigRef.current;
+		if (!api.settings) return;
+
+		let changed = false;
+		const settings = api.settings as unknown as {
+			display?: { scale?: number; layoutMode?: alphaTab.LayoutMode };
+			player?: {
+				scrollMode?: alphaTab.ScrollMode;
+				scrollSpeed?: number;
+				enableCursor?: boolean;
+				enableElementHighlighting?: boolean;
+				enableUserInteraction?: boolean;
+			};
+		};
+
+		if (atCfg.display && settings.display) {
+			if (typeof atCfg.display.scale === "number") {
+				settings.display.scale = atCfg.display.scale;
+				changed = true;
+			}
+			if (typeof atCfg.display.layoutMode === "number") {
+				settings.display.layoutMode = atCfg.display.layoutMode;
+				changed = true;
+			}
+		}
+
+		if (atCfg.player && settings.player) {
+			if (typeof atCfg.player.scrollMode === "number") {
+				settings.player.scrollMode = atCfg.player.scrollMode;
+				changed = true;
+			}
+			if (typeof atCfg.player.scrollSpeed === "number") {
+				settings.player.scrollSpeed = atCfg.player.scrollSpeed;
+				changed = true;
+			}
+			if (typeof atCfg.player.enableCursor === "boolean") {
+				settings.player.enableCursor = atCfg.player.enableCursor;
+				changed = true;
+			}
+			if (typeof atCfg.player.enableElementHighlighting === "boolean") {
+				settings.player.enableElementHighlighting =
+					atCfg.player.enableElementHighlighting;
+				changed = true;
+			}
+			if (typeof atCfg.player.enableUserInteraction === "boolean") {
+				settings.player.enableUserInteraction =
+					atCfg.player.enableUserInteraction;
+				changed = true;
+			}
+		}
+
+		if (changed) {
+			try {
+				api.updateSettings?.();
+				api.render?.();
+			} catch (err) {
+				console.warn("[ATDOC] Failed to apply warm settings", err);
+			}
+		}
+	}, []);
+
 	usePreviewBarHighlight(
 		apiRef,
 		editorCursor,
@@ -268,6 +382,18 @@ export default function Preview({
 	 */
 	const applyTracksConfig = useCallback(
 		(api: alphaTab.AlphaTabApi) => {
+			if (atDocConfigRef.current.staff) {
+				const appliedFromAtDoc = applyStaffConfig(
+					api,
+					atDocConfigRef.current.staff,
+				);
+				if (appliedFromAtDoc) {
+					trackConfigRef.current = appliedFromAtDoc;
+					setFirstStaffOptions(appliedFromAtDoc);
+					return;
+				}
+			}
+
 			// First load: try to prefer TAB (silent dry-run). If it errors, keep alphaTab default.
 			if (!trackConfigRef.current) {
 				if (tabProbeRef.current.active) return;
@@ -857,8 +983,14 @@ export default function Preview({
 								err,
 							);
 						}
-						const currentContent = latestContentRef.current ?? "";
+						const currentContent = parseAtDoc(
+							latestContentRef.current ?? "",
+						).cleanContent;
 						onScoreLoadedMatch(score, currentContent);
+						if (apiRef.current) {
+							applyAtDocWarmSettings(apiRef.current);
+							applyAtDocHotSettings(apiRef.current);
+						}
 						// 🆕 统一调用 applyTracksConfig，无论是首次还是重建
 						if (apiRef.current) applyTracksConfig(apiRef.current);
 						// 🆕 如果有挂起的小节号高亮请求，scoreLoaded 后执行
@@ -878,6 +1010,13 @@ export default function Preview({
 
 		const initAlphaTab = async () => {
 			try {
+				const parsedAtDoc = parseAtDoc(latestContentRef.current ?? "");
+				atDocConfigRef.current = parsedAtDoc.config;
+				syncStoreFromAtDoc(parsedAtDoc.config);
+				for (const warning of parsedAtDoc.warnings) {
+					console.warn(`[ATDOC:${warning.line}] ${warning.message}`);
+				}
+
 				// 1. 获取所有资源 URL（自动适配 dev 和打包环境）
 				const urls = await getResourceUrls();
 				const el = containerRef.current as HTMLElement;
@@ -949,7 +1088,9 @@ export default function Preview({
 									}
 
 									// 保存当前的乐谱内容（使用最新值，避免闭包过期）
-									const currentContent = latestContentRef.current;
+									const currentContent = parseAtDoc(
+										latestContentRef.current,
+									).cleanContent;
 
 									// 销毁旧的 API
 									apiRef.current?.destroy();
@@ -1034,8 +1175,9 @@ export default function Preview({
 						// Could not load soundfont (this is optional)
 					}
 				}
-				const initialContent =
+				const initialContentRaw =
 					pendingContentRef.current ?? latestContentRef.current;
+				const initialContent = parseAtDoc(initialContentRaw).cleanContent;
 				pendingContentRef.current = null;
 
 				if (apiRef.current && initialContent) {
@@ -1099,6 +1241,9 @@ export default function Preview({
 		scheduleTexTimeout,
 		markLoadAsUserContent,
 		clearTexTimeout,
+		applyAtDocHotSettings,
+		applyAtDocWarmSettings,
+		syncStoreFromAtDoc,
 		onErrorRecovery,
 		onScoreLoadedMatch,
 		setParseError,
@@ -1116,7 +1261,14 @@ export default function Preview({
 		}
 
 		// Apply any pending content first
-		const contentToApply = pendingContentRef.current ?? content ?? "";
+		const contentToApplyRaw = pendingContentRef.current ?? content ?? "";
+		const parsedAtDoc = parseAtDoc(contentToApplyRaw);
+		atDocConfigRef.current = parsedAtDoc.config;
+		syncStoreFromAtDoc(parsedAtDoc.config);
+		for (const warning of parsedAtDoc.warnings) {
+			console.warn(`[ATDOC:${warning.line}] ${warning.message}`);
+		}
+		const contentToApply = parsedAtDoc.cleanContent;
 		pendingContentRef.current = null;
 
 		useAppStore.getState().clearScoreSelection();
@@ -1150,6 +1302,7 @@ export default function Preview({
 		scheduleTexTimeout,
 		markLoadAsUserContent,
 		clearTexTimeout,
+		syncStoreFromAtDoc,
 		setParseError,
 	]);
 
