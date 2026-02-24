@@ -299,21 +299,36 @@ function scrollToPlaybackHighlight(
 			const targetPos = codeRange.from;
 			const coords = view.coordsAtPos(targetPos);
 			const scrollDOM = view.scrollDOM;
-			const editorRect = scrollDOM.getBoundingClientRect();
-
-			const topThreshold = editorRect.top + editorRect.height * 0.15;
-			const bottomThreshold = editorRect.top + editorRect.height * 0.7;
-
-			const needsScroll =
-				!coords || coords.top < topThreshold || coords.top > bottomThreshold;
-
-			if (needsScroll) {
+			if (!coords) {
 				view.dispatch({
 					effects: EditorView.scrollIntoView(targetPos, {
-						y: "start",
-						yMargin: 50,
+						y: "center",
 					}),
 				});
+				return;
+			}
+
+			const editorRect = scrollDOM.getBoundingClientRect();
+			const viewportHeight = editorRect.height;
+			const localTop = coords.top - editorRect.top;
+
+			const topClamp = viewportHeight * 0.08;
+			const bottomTurnTrigger = viewportHeight * 0.9;
+			const pageStep = Math.floor(viewportHeight * 0.72);
+
+			if (localTop < topClamp) {
+				const targetTop = Math.max(
+					0,
+					scrollDOM.scrollTop - (topClamp - localTop) - 12,
+				);
+				scrollDOM.scrollTo({ top: targetTop, behavior: "auto" });
+				return;
+			}
+
+			if (localTop > bottomTurnTrigger) {
+				const maxTop = Math.max(0, scrollDOM.scrollHeight - viewportHeight);
+				const targetTop = Math.min(maxTop, scrollDOM.scrollTop + pageStep);
+				scrollDOM.scrollTo({ top: targetTop, behavior: "auto" });
 			}
 		} catch (err) {
 			console.error(
@@ -345,24 +360,36 @@ function scrollToBarHighlight(view: EditorView, codeRange: CodeRange): void {
 			const targetPos = codeRange.from;
 			const coords = view.coordsAtPos(targetPos);
 			const scrollDOM = view.scrollDOM;
-			const editorRect = scrollDOM.getBoundingClientRect();
-
-			const topThreshold = editorRect.top + editorRect.height * 0.2;
-			const bottomThreshold = editorRect.top + editorRect.height * 0.8;
-
-			const needsScroll =
-				!coords || coords.top < topThreshold || coords.top > bottomThreshold;
-
-			if (needsScroll) {
-				const viewportHeight = editorRect.height;
-				const targetMargin = Math.floor(viewportHeight * 0.33);
-
+			if (!coords) {
 				view.dispatch({
 					effects: EditorView.scrollIntoView(targetPos, {
-						y: "start",
-						yMargin: targetMargin,
+						y: "center",
 					}),
 				});
+				return;
+			}
+
+			const editorRect = scrollDOM.getBoundingClientRect();
+			const viewportHeight = editorRect.height;
+			const localTop = coords.top - editorRect.top;
+
+			const topThreshold = viewportHeight * 0.12;
+			const bottomTurnTrigger = viewportHeight * 0.88;
+			const pageStep = Math.floor(viewportHeight * 0.7);
+
+			if (localTop < topThreshold) {
+				const targetTop = Math.max(
+					0,
+					scrollDOM.scrollTop - (topThreshold - localTop) - 12,
+				);
+				scrollDOM.scrollTo({ top: targetTop, behavior: "auto" });
+				return;
+			}
+
+			if (localTop > bottomTurnTrigger) {
+				const maxTop = Math.max(0, scrollDOM.scrollHeight - viewportHeight);
+				const targetTop = Math.min(maxTop, scrollDOM.scrollTop + pageStep);
+				scrollDOM.scrollTo({ top: targetTop, behavior: "auto" });
 			}
 		} catch (err) {
 			console.error("[PlaybackSync] Failed to scroll to bar highlight:", err);
