@@ -1,6 +1,7 @@
 import {
 	ChevronLeft,
 	ChevronRight,
+	Hourglass,
 	ListMusic,
 	Minus,
 	Music2,
@@ -8,6 +9,7 @@ import {
 	Play,
 	Plus,
 	RotateCw,
+	Settings,
 	Square,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -144,9 +146,15 @@ function EditorBottomBar({
 	playbackBpmMode,
 	metronomeVolume,
 	setMetronomeVolume,
+	countInEnabled,
+	setCountInEnabled,
 	playerIsPlaying,
 	isTracksPanelOpen,
 	toggleTracksPanel,
+	setWorkspaceMode,
+	setActiveSettingsPageId,
+	workspaceMode,
+	activeSettingsPageId,
 	t,
 }: {
 	firstStaffOptions: ReturnType<
@@ -163,9 +171,15 @@ function EditorBottomBar({
 	playbackBpmMode: boolean;
 	metronomeVolume: number;
 	setMetronomeVolume: (v: number) => void;
+	countInEnabled: boolean;
+	setCountInEnabled: (v: boolean) => void;
 	playerIsPlaying: boolean;
 	isTracksPanelOpen: boolean;
 	toggleTracksPanel: () => void;
+	setWorkspaceMode: (mode: "editor" | "tutorial" | "settings") => void;
+	setActiveSettingsPageId: (id: string | null) => void;
+	workspaceMode: "editor" | "tutorial" | "settings";
+	activeSettingsPageId: string | null;
 	t: (key: string) => string;
 }) {
 	// 获取自定义播放器配置
@@ -286,10 +300,38 @@ function EditorBottomBar({
 		</div>
 	);
 
+	const countInControls = (
+		<div className="flex items-center">
+			<Tooltip>
+				<TooltipTrigger asChild>
+					<IconButton
+						active={countInEnabled}
+						onClick={() => {
+							const nextEnabled = !countInEnabled;
+							setCountInEnabled(nextEnabled);
+							playerControls?.setCountInEnabled?.(nextEnabled);
+						}}
+						aria-label={t("toolbar:countIn.label")}
+					>
+						<Hourglass className="h-4 w-4" />
+					</IconButton>
+				</TooltipTrigger>
+				<TooltipContent side="top">
+					<p>
+						{countInEnabled
+							? t("toolbar:countIn.disable")
+							: t("toolbar:countIn.enable")}
+					</p>
+				</TooltipContent>
+			</Tooltip>
+		</div>
+	);
+
 	const playbackSpeedControls = (
 		<div className="flex items-center gap-1 text-xs">
 			{playbackSpeedControl}
 			{metronomeControls}
+			{countInControls}
 		</div>
 	);
 
@@ -359,6 +401,33 @@ function EditorBottomBar({
 				</TooltipTrigger>
 				<TooltipContent side="top">
 					<p>{t("toolbar:refresh")}</p>
+				</TooltipContent>
+			</Tooltip>
+			<Tooltip>
+				<TooltipTrigger asChild>
+					<IconButton
+						active={
+							workspaceMode === "settings" &&
+							activeSettingsPageId === "playback"
+						}
+						onClick={() => {
+							if (
+								workspaceMode === "settings" &&
+								activeSettingsPageId === "playback"
+							) {
+								setWorkspaceMode("editor");
+								return;
+							}
+							setActiveSettingsPageId("playback");
+							setWorkspaceMode("settings");
+						}}
+						aria-label={t("common:settings")}
+					>
+						<Settings className="h-4 w-4" />
+					</IconButton>
+				</TooltipTrigger>
+				<TooltipContent side="top">
+					<p>{t("common:settings")}</p>
 				</TooltipContent>
 			</Tooltip>
 		</>
@@ -439,6 +508,8 @@ export default function GlobalBottomBar() {
 	const playbackBpmMode = useAppStore((s) => s.playbackBpmMode);
 	const metronomeVolume = useAppStore((s) => s.metronomeVolume);
 	const setMetronomeVolume = useAppStore((s) => s.setMetronomeVolume);
+	const countInEnabled = useAppStore((s) => s.countInEnabled);
+	const setCountInEnabled = useAppStore((s) => s.setCountInEnabled);
 
 	const isTracksPanelOpen = useAppStore((s) => s.isTracksPanelOpen);
 	const toggleTracksPanel = useAppStore((s) => s.toggleTracksPanel);
@@ -447,6 +518,8 @@ export default function GlobalBottomBar() {
 	const activeTutorialId = useAppStore((s) => s.activeTutorialId);
 	const setActiveTutorialId = useAppStore((s) => s.setActiveTutorialId);
 	const activeSettingsPageId = useAppStore((s) => s.activeSettingsPageId);
+	const setActiveSettingsPageId = useAppStore((s) => s.setActiveSettingsPageId);
+	const setWorkspaceMode = useAppStore((s) => s.setWorkspaceMode);
 	const isTutorialMode = workspaceMode === "tutorial";
 	const isSettingsMode = workspaceMode === "settings";
 
@@ -478,9 +551,15 @@ export default function GlobalBottomBar() {
 				playbackBpmMode={playbackBpmMode}
 				metronomeVolume={metronomeVolume}
 				setMetronomeVolume={setMetronomeVolume}
+				countInEnabled={countInEnabled}
+				setCountInEnabled={setCountInEnabled}
 				playerIsPlaying={playerIsPlaying}
 				isTracksPanelOpen={isTracksPanelOpen}
 				toggleTracksPanel={toggleTracksPanel}
+				setWorkspaceMode={setWorkspaceMode}
+				setActiveSettingsPageId={setActiveSettingsPageId}
+				workspaceMode={workspaceMode}
+				activeSettingsPageId={activeSettingsPageId}
 				t={t}
 			/>
 		) : isSettingsMode ? (
@@ -497,9 +576,15 @@ export default function GlobalBottomBar() {
 				playbackBpmMode={playbackBpmMode}
 				metronomeVolume={metronomeVolume}
 				setMetronomeVolume={setMetronomeVolume}
+				countInEnabled={countInEnabled}
+				setCountInEnabled={setCountInEnabled}
 				playerIsPlaying={playerIsPlaying}
 				isTracksPanelOpen={isTracksPanelOpen}
 				toggleTracksPanel={toggleTracksPanel}
+				setWorkspaceMode={setWorkspaceMode}
+				setActiveSettingsPageId={setActiveSettingsPageId}
+				workspaceMode={workspaceMode}
+				activeSettingsPageId={activeSettingsPageId}
 				t={t}
 			/>
 		) : null;

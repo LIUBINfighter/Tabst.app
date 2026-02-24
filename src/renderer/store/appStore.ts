@@ -162,6 +162,7 @@ interface AppState {
 		applyZoom?: (percent: number) => void;
 		applyPlaybackSpeed?: (speed: number) => void;
 		setMetronomeVolume?: (volume: number) => void;
+		setCountInEnabled?: (enabled: boolean) => void;
 	} | null;
 	registerPlayerControls: (controls: NonNullable<object>) => void;
 	unregisterPlayerControls: () => void;
@@ -182,6 +183,9 @@ interface AppState {
 	/** 节拍器音量 (0-1) */
 	metronomeVolume: number;
 	setMetronomeVolume: (v: number) => void;
+
+	countInEnabled: boolean;
+	setCountInEnabled: (v: boolean) => void;
 
 	/** 是否启用编辑器播放同步滚动 */
 	enableSyncScroll: boolean;
@@ -530,6 +534,10 @@ export const useAppStore = create<AppState>((set, get) => ({
 							set({ metronomeVolume: prefs.metronomeVolume });
 							get().playerControls?.setMetronomeVolume?.(prefs.metronomeVolume);
 						}
+						if (typeof prefs.countInEnabled === "boolean") {
+							set({ countInEnabled: prefs.countInEnabled });
+							get().playerControls?.setCountInEnabled?.(prefs.countInEnabled);
+						}
 						if (typeof prefs.enableSyncScroll === "boolean") {
 							set({ enableSyncScroll: prefs.enableSyncScroll });
 						}
@@ -683,6 +691,11 @@ export const useAppStore = create<AppState>((set, get) => ({
 	setMetronomeVolume: (v) => {
 		set({ metronomeVolume: v });
 		void mergeAndSaveWorkspacePreferences({ metronomeVolume: v });
+	},
+	countInEnabled: false,
+	setCountInEnabled: (v) => {
+		set({ countInEnabled: v });
+		void mergeAndSaveWorkspacePreferences({ countInEnabled: v });
 	},
 	// 是否启用编辑器播放同步滚动
 	enableSyncScroll: false,

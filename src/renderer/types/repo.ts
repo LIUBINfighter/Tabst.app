@@ -19,6 +19,7 @@ export interface RepoPreferences {
 	playbackSpeed?: number;
 	playbackBpmMode?: boolean;
 	metronomeVolume?: number;
+	countInEnabled?: boolean;
 	enableSyncScroll?: boolean;
 	enableCursorBroadcast?: boolean;
 	customPlayerConfig?: {

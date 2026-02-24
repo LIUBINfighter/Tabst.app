@@ -12,6 +12,11 @@
 		"enable": "Enable metronome",
 		"disable": "Disable metronome"
 	},
+	"countIn": {
+		"label": "Count-in",
+		"enable": "Enable count-in",
+		"disable": "Disable count-in"
+	},
 	"tutorial": {
 		"prev": "Previous",
 		"next": "Next",
