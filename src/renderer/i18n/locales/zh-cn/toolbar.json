@@ -12,6 +12,11 @@
 		"enable": "开启节拍器",
 		"disable": "关闭节拍器"
 	},
+	"countIn": {
+		"label": "预备拍",
+		"enable": "开启预备拍",
+		"disable": "关闭预备拍"
+	},
 	"tutorial": {
 		"prev": "前一页",
 		"next": "后一页",

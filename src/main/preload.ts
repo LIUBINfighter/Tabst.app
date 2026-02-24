@@ -71,6 +71,10 @@ contextBridge.exposeInMainWorld("electronAPI", {
 
 	readFile: (filePath: string): Promise<{ content: string; error?: string }> =>
 		ipcRenderer.invoke("read-file", filePath),
+	readFileBytes: (
+		filePath: string,
+	): Promise<{ data?: Uint8Array; error?: string }> =>
+		ipcRenderer.invoke("read-file-bytes", filePath),
 
 	// ===== Repo 管理 =====
 	// 扫描目录，返回文件树

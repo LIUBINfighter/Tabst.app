@@ -13,6 +13,7 @@ import {
 	handleLoadAppStateEffect,
 	handleMovePathEffect,
 	handleOpenFileEffect,
+	handleReadFileBytesEffect,
 	handleReadFileEffect,
 	handleRenameFileEffect,
 	handleSaveAppStateEffect,
@@ -227,6 +228,7 @@ ipcMain.handle("get-app-version", async () => app.getVersion());
 ipcMain.handle("load-app-state", handleLoadAppStateEffect);
 ipcMain.handle("save-app-state", handleSaveAppStateEffect);
 ipcMain.handle("read-file", handleReadFileEffect);
+ipcMain.handle("read-file-bytes", handleReadFileBytesEffect);
 
 ipcMain.handle("scan-directory", handleScanDirectoryEffect);
 ipcMain.handle("load-repos", handleLoadReposEffect);

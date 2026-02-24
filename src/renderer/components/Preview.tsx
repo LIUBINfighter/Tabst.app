@@ -102,13 +102,14 @@ export default function Preview({
 	);
 	const playbackSpeed = useAppStore((s) => s.playbackSpeed);
 	const metronomeVolume = useAppStore((s) => s.metronomeVolume);
+	const countInEnabled = useAppStore((s) => s.countInEnabled);
 	const editorHasFocus = useAppStore((s) => s.editorHasFocus);
 	const _scoreVersion = useAppStore((s) => s.scoreVersion);
 	const bumpApiInstanceId = useAppStore((s) => s.bumpApiInstanceId);
 	const bumpScoreVersion = useAppStore((s) => s.bumpScoreVersion);
-	// Store latest playback speed/metronome volume in ref to avoid triggering API rebuild useEffect
 	const playbackSpeedRef = useRef(playbackSpeed);
 	const metronomeVolumeRef = useRef(metronomeVolume);
+	const countInEnabledRef = useRef(countInEnabled);
 	const editorHasFocusRef = useRef(editorHasFocus);
 	const _savedPlayerScrollRef = useRef<{
 		scrollElement?: HTMLElement | null;
@@ -168,6 +169,15 @@ export default function Preview({
 			// Failed to apply metronome volume
 		}
 	}, [metronomeVolume]);
+
+	useEffect(() => {
+		countInEnabledRef.current = countInEnabled;
+		const api = apiRef.current;
+		if (!api) return;
+		try {
+			api.countInVolume = countInEnabled ? 1 : 0;
+		} catch {}
+	}, [countInEnabled]);
 
 	// Unified scroll buffer: calculate bottom padding as 60% of preview scroll container height (px)
 	useEffect(() => {
@@ -681,6 +691,13 @@ export default function Preview({
 							console.error("Failed to set metronome volume:", err);
 						}
 					},
+					setCountInEnabled: (enabled: boolean) => {
+						try {
+							api.countInVolume = enabled ? 1 : 0;
+						} catch (err) {
+							console.error("Failed to set count-in:", err);
+						}
+					},
 					applyZoom: (pct: number) => applyZoom(pct),
 				});
 			} catch {
@@ -901,6 +918,7 @@ export default function Preview({
 					try {
 						apiRef.current.playbackSpeed = playbackSpeedRef.current;
 						apiRef.current.metronomeVolume = metronomeVolumeRef.current;
+						apiRef.current.countInVolume = countInEnabledRef.current ? 1 : 0;
 					} catch {
 						// Failed to apply initial speed/metronome
 					}
@@ -968,6 +986,9 @@ export default function Preview({
 									try {
 										apiRef.current.playbackSpeed = playbackSpeedRef.current;
 										apiRef.current.metronomeVolume = metronomeVolumeRef.current;
+										apiRef.current.countInVolume = countInEnabledRef.current
+											? 1
+											: 0;
 									} catch {
 										// Failed to reapply speed/metronome after rebuild
 									}

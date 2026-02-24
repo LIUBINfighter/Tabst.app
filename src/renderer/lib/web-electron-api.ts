@@ -373,6 +373,16 @@ export function createWebElectronAPI(): ElectronAPI {
 			return { content: file.content };
 		},
 
+		readFileBytes: async (filePath: string) => {
+			const allFiles = getAllFiles();
+			const file = allFiles[filePath];
+			if (!file) {
+				return { error: "File not found" };
+			}
+			const data = new TextEncoder().encode(file.content);
+			return { data };
+		},
+
 		scanDirectory: async (
 			path: string,
 		): Promise<ScanDirectoryResult | null> => {
