@@ -74,7 +74,7 @@
 		"electron-squirrel-startup": "^1.0.1",
 		"electron-updater": "^6.7.3",
 		"i18next": "^25.8.10",
-		"lucide-react": "^0.556.0",
+		"lucide-react": "^0.575.0",
 		"moment": "^2.30.1",
 		"react": "^19.2.4",
 		"react-dom": "^19.2.4",
