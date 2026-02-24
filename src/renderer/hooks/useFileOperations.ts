@@ -6,14 +6,26 @@
  */
 
 import { useCallback } from "react";
+import { convertGpBytesToAlphaTex, isGpFilePath } from "../lib/gp-import";
 import type { FileItem } from "../store/appStore";
 import { useAppStore } from "../store/appStore";
 
-const ALLOWED_EXTENSIONS = [".md", ".atex"];
+const ALLOWED_EXTENSIONS = [
+	".md",
+	".atex",
+	".gp",
+	".gp3",
+	".gp4",
+	".gp5",
+	".gpx",
+];
 
 export function useFileOperations() {
 	const addFile = useAppStore((s) => s.addFile);
 	const renameFile = useAppStore((s) => s.renameFile);
+	const setWorkspaceMode = useAppStore((s) => s.setWorkspaceMode);
+	const setActiveFile = useAppStore((s) => s.setActiveFile);
+	const refreshFileTree = useAppStore((s) => s.refreshFileTree);
 
 	const splitName = useCallback((name: string) => {
 		const idx = name.lastIndexOf(".");
@@ -21,22 +33,55 @@ export function useFileOperations() {
 		return { base: name, ext: "" };
 	}, []);
 
-	const handleOpenFile = useCallback(async () => {
-		try {
-			const result = await window.electronAPI.openFile(ALLOWED_EXTENSIONS);
-			if (!result) return;
+	const getFileNameFromPath = useCallback((input: string) => {
+		const normalized = input.replace(/\\/g, "/");
+		return normalized.split("/").pop() ?? input;
+	}, []);
 
-			addFile({
-				id: result.path,
-				name: result.name,
-				path: result.path,
-				content: result.content,
-				contentLoaded: true,
-			});
-		} catch (error) {
-			console.error("打开文件失败:", error);
-		}
-	}, [addFile]);
+	const getBaseNameWithoutExt = useCallback(
+		(input: string) => {
+			const fileName = getFileNameFromPath(input);
+			const idx = fileName.lastIndexOf(".");
+			if (idx > 0) return fileName.slice(0, idx);
+			return fileName;
+		},
+		[getFileNameFromPath],
+	);
+
+	const tryRenameImportedAtex = useCallback(
+		async (createdPath: string, sourceName?: string) => {
+			if (!sourceName || sourceName.trim().length === 0) {
+				return { path: createdPath, name: getFileNameFromPath(createdPath) };
+			}
+
+			const baseName = getBaseNameWithoutExt(sourceName).trim();
+			if (!baseName) {
+				return { path: createdPath, name: getFileNameFromPath(createdPath) };
+			}
+
+			for (let i = 0; i < 200; i += 1) {
+				const suffix = i === 0 ? "" : `_${i}`;
+				const nextName = `${baseName}${suffix}.atex`;
+				const result = await window.electronAPI.renameFile(
+					createdPath,
+					nextName,
+				);
+				if (result?.success) {
+					return {
+						path: result.newPath ?? createdPath,
+						name: result.newName ?? nextName,
+					};
+				}
+				if (result?.error !== "target-exists") {
+					console.error("重命名导入的 atex 文件失败:", result?.error);
+					break;
+				}
+			}
+
+			return { path: createdPath, name: getFileNameFromPath(createdPath) };
+		},
+		[getBaseNameWithoutExt, getFileNameFromPath],
+	);
 
 	const resolveTargetDir = useCallback((targetDirectory?: string) => {
 		if (targetDirectory && targetDirectory.trim().length > 0) {
@@ -46,6 +91,102 @@ export function useFileOperations() {
 		const activeRepo = state.repos.find((r) => r.id === state.activeRepoId);
 		return activeRepo?.path;
 	}, []);
+
+	const importGpToNewAtex = useCallback(
+		async (
+			gpBytes: Uint8Array,
+			targetDirectory?: string,
+			sourceName?: string,
+		) => {
+			const alphaTex = convertGpBytesToAlphaTex(gpBytes);
+			const targetDir = resolveTargetDir(targetDirectory);
+			const created = await window.electronAPI.createFile(".atex", targetDir);
+			if (!created) return null;
+			const renamed = await tryRenameImportedAtex(created.path, sourceName);
+
+			const saveResult = await window.electronAPI.saveFile(
+				renamed.path,
+				alphaTex,
+			);
+			if (!saveResult.success) {
+				console.error("写入转换后的 atex 文件失败:", saveResult.error);
+				return null;
+			}
+
+			addFile({
+				id: renamed.path,
+				name: renamed.name,
+				path: renamed.path,
+				content: alphaTex,
+				contentLoaded: true,
+			});
+
+			setWorkspaceMode("editor");
+			setActiveFile(renamed.path);
+			void refreshFileTree();
+			return renamed.path;
+		},
+		[
+			addFile,
+			refreshFileTree,
+			resolveTargetDir,
+			setActiveFile,
+			setWorkspaceMode,
+			tryRenameImportedAtex,
+		],
+	);
+
+	const handleImportGpFile = useCallback(
+		async (gpFilePath: string, targetDirectory?: string) => {
+			if (!isGpFilePath(gpFilePath)) return null;
+			const readResult = await window.electronAPI.readFileBytes(gpFilePath);
+			if (!readResult.data) {
+				console.error("读取 GP 文件二进制失败:", readResult.error);
+				return null;
+			}
+			return importGpToNewAtex(
+				readResult.data,
+				targetDirectory,
+				getFileNameFromPath(gpFilePath),
+			);
+		},
+		[getFileNameFromPath, importGpToNewAtex],
+	);
+
+	const handleImportGpBytes = useCallback(
+		async (
+			gpBytes: Uint8Array,
+			targetDirectory?: string,
+			sourceName?: string,
+		) => {
+			return importGpToNewAtex(gpBytes, targetDirectory, sourceName);
+		},
+		[importGpToNewAtex],
+	);
+
+	const handleOpenFile = useCallback(
+		async (targetDirectory?: string) => {
+			try {
+				const result = await window.electronAPI.openFile(ALLOWED_EXTENSIONS);
+				if (!result) return;
+				if (isGpFilePath(result.path)) {
+					await handleImportGpFile(result.path, targetDirectory);
+					return;
+				}
+
+				addFile({
+					id: result.path,
+					name: result.name,
+					path: result.path,
+					content: result.content,
+					contentLoaded: true,
+				});
+			} catch (error) {
+				console.error("打开文件失败:", error);
+			}
+		},
+		[addFile, handleImportGpFile],
+	);
 
 	const handleNewFile = useCallback(
 		async (ext: string, targetDirectory?: string) => {
@@ -113,6 +254,8 @@ export function useFileOperations() {
 
 	return {
 		handleOpenFile,
+		handleImportGpFile,
+		handleImportGpBytes,
 		handleNewFile,
 		handleNewFolder,
 

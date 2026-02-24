@@ -544,7 +544,9 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 			<div className="w-60 max-w-[15rem] h-full border-r border-border flex flex-col bg-card box-border overflow-x-hidden shrink-0">
 				<SidebarCommands
 					onCollapse={onCollapse}
-					onOpenFile={handleOpenFile}
+					onOpenFile={() => {
+						void handleOpenFile(createTargetDir);
+					}}
 					onNewFile={(ext) =>
 						void (async () => {
 							const createdPath = await handleNewFile(ext, createTargetDir);

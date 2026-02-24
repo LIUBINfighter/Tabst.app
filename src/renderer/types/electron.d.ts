@@ -69,6 +69,9 @@ export interface ElectronAPI {
 	readAsset: (relPath: string) => Promise<Uint8Array>;
 	selectFolder: () => Promise<string | null>;
 	readFile: (filePath: string) => Promise<{ content: string; error?: string }>;
+	readFileBytes: (
+		filePath: string,
+	) => Promise<{ data?: Uint8Array; error?: string }>;
 
 	scanDirectory: (path: string) => Promise<ScanDirectoryResult | null>;
 	loadRepos: () => Promise<Repo[]>;

@@ -6,6 +6,7 @@ import {
 	getDefaultSaveDir,
 	mkdir,
 	readFile,
+	readFileAsUint8Array,
 	readJsonFile,
 	renamePath,
 	showOpenDialog,
@@ -397,5 +398,24 @@ export async function handleReadFileEffect(
 			return { content: "", error: "Unknown error" };
 		},
 		onSuccess: (content) => ({ content }),
+	});
+}
+
+export async function handleReadFileBytesEffect(
+	_event: Electron.IpcMainInvokeEvent,
+	filePath: string,
+): Promise<{ data?: Uint8Array; error?: string }> {
+	const program = readFileAsUint8Array(filePath);
+	const result = await Effect.runPromiseExit(program);
+
+	return Exit.match(result, {
+		onFailure: (error) => {
+			console.error("Read file bytes failed:", error);
+			if (error._tag === "Fail") {
+				return { error: error.error.message };
+			}
+			return { error: "Unknown error" };
+		},
+		onSuccess: (data) => ({ data }),
 	});
 }

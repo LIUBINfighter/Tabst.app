@@ -5,6 +5,7 @@ import SettingsView from "./components/SettingsView";
 import { Sidebar } from "./components/Sidebar";
 import TutorialView from "./components/TutorialView";
 import UpdateToast from "./components/UpdateToast";
+import { useFileOperations } from "./hooks/useFileOperations";
 import { getAlphaTexHighlight } from "./lib/alphatex-highlight";
 import { createAlphaTexLSPClient } from "./lib/alphatex-lsp";
 import { useAppStore } from "./store/appStore";
@@ -21,6 +22,7 @@ function App() {
 	const activeRepoId = useAppStore((s) => s.activeRepoId);
 	const repos = useAppStore((s) => s.repos);
 	const refreshFileTree = useAppStore((s) => s.refreshFileTree);
+	const { handleImportGpBytes } = useFileOperations();
 	const fsRefreshTimerRef = useRef<number | null>(null);
 	const fsRecentEventRef = useRef<Map<string, number>>(new Map());
 
@@ -31,6 +33,51 @@ function App() {
 	useEffect(() => {
 		initialize();
 	}, [initialize]);
+
+	useEffect(() => {
+		const preventWindowDropDefault = (event: DragEvent) => {
+			if (!event.dataTransfer?.files?.length) return;
+			event.preventDefault();
+		};
+
+		const handleWindowDrop = (event: DragEvent) => {
+			if (!event.dataTransfer?.files?.length) return;
+			event.preventDefault();
+
+			const state = useAppStore.getState();
+			const activeRepo = state.repos.find((r) => r.id === state.activeRepoId);
+			const targetDir = activeRepo?.path;
+			const files = Array.from(event.dataTransfer.files);
+
+			for (const file of files) {
+				const lower = file.name.toLowerCase();
+				const isGp =
+					lower.endsWith(".gp") ||
+					lower.endsWith(".gp3") ||
+					lower.endsWith(".gp4") ||
+					lower.endsWith(".gp5") ||
+					lower.endsWith(".gpx");
+				if (!isGp) continue;
+
+				void (async () => {
+					try {
+						const bytes = new Uint8Array(await file.arrayBuffer());
+						await handleImportGpBytes(bytes, targetDir, file.name);
+					} catch (error) {
+						console.error("拖入 GP 文件转换失败:", error);
+					}
+				})();
+			}
+		};
+
+		window.addEventListener("dragover", preventWindowDropDefault);
+		window.addEventListener("drop", handleWindowDrop);
+
+		return () => {
+			window.removeEventListener("dragover", preventWindowDropDefault);
+			window.removeEventListener("drop", handleWindowDrop);
+		};
+	}, [handleImportGpBytes]);
 
 	useEffect(() => {
 		const activeRepo = repos.find((r) => r.id === activeRepoId);
