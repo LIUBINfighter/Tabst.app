@@ -1,6 +1,7 @@
 export type AtDocValueType =
 	| "number"
 	| "boolean"
+	| "color"
 	| "enum:layoutMode"
 	| "enum:scrollMode";
 
@@ -71,6 +72,48 @@ export const ATDOC_KEY_DEFINITIONS: AtDocKeyDefinition[] = [
 		valueType: "boolean",
 		description: "Enable alphaTab user interaction in preview",
 		example: "at.player.enableUserInteraction=true",
+	},
+	{
+		key: "at.coloring.enabled",
+		valueType: "boolean",
+		description: "Enable ATDOC score coloring pipeline",
+		example: "at.coloring.enabled=true",
+	},
+	{
+		key: "at.coloring.barNumberColor",
+		valueType: "color",
+		description: "Bar number color override",
+		example: "at.coloring.barNumberColor=#ef4444",
+	},
+	{
+		key: "at.coloring.staffLineColor",
+		valueType: "color",
+		description: "Staff line color override",
+		example: "at.coloring.staffLineColor=#334155",
+	},
+	{
+		key: "at.coloring.barSeparatorColor",
+		valueType: "color",
+		description: "Bar separator color override",
+		example: "at.coloring.barSeparatorColor=#64748b",
+	},
+	{
+		key: "at.coloring.noteHeadColor",
+		valueType: "color",
+		description: "Standard notation note head color override",
+		example: "at.coloring.noteHeadColor=#22c55e",
+	},
+	{
+		key: "at.coloring.fretNumberColor",
+		valueType: "color",
+		description: "Guitar tab fret number color override",
+		example: "at.coloring.fretNumberColor=#38bdf8",
+	},
+	{
+		key: "at.coloring.colorizeByFret",
+		valueType: "boolean",
+		description: "Color notes by fret range palette",
+		example: "at.coloring.colorizeByFret=true",
 	},
 	{
 		key: "at.staff.showTablature",
