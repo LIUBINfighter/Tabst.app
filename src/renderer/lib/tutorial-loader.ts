@@ -1,6 +1,13 @@
 import type { MDXModule } from "mdx/types";
 import type { TutorialMetadata } from "../data/tutorials";
 import { tutorialsRegistry } from "../data/tutorials";
+import i18n from "../i18n";
+
+export type TutorialAudience = "user" | "power-user" | "developer";
+
+function resolveAudience(t: TutorialMetadata): TutorialAudience {
+	return t.audience ?? "developer";
+}
 
 /**
  * 使用 import.meta.glob 预声明所有教程模块，确保打包后（app.asar）也能正确加载。
@@ -13,19 +20,29 @@ const mdGlob = import.meta.glob<string>("../data/tutorials/**/*.md", {
 });
 
 function getMdxCandidates(id: string): string[] {
+	const locale = i18n.language === "zh-cn" ? "zh-cn" : "en";
+	const fallbackLocale = locale === "en" ? "zh-cn" : "en";
 	return [
-		`../data/tutorials/en/${id}.mdx`,
-		`../data/tutorials/zh-cn/${id}.mdx`,
+		`../data/tutorials/${locale}/${id}.mdx`,
+		`../data/tutorials/${fallbackLocale}/${id}.mdx`,
 		`../data/tutorials/${id}.mdx`,
 	];
 }
 
 function getMdCandidates(id: string): string[] {
+	const locale = i18n.language === "zh-cn" ? "zh-cn" : "en";
+	const fallbackLocale = locale === "en" ? "zh-cn" : "en";
 	return [
-		`../data/tutorials/en/${id}.md`,
-		`../data/tutorials/zh-cn/${id}.md`,
+		`../data/tutorials/${locale}/${id}.md`,
+		`../data/tutorials/${fallbackLocale}/${id}.md`,
 		`../data/tutorials/${id}.md`,
 	];
+}
+
+export function getTutorialDisplayTitle(t: TutorialMetadata): string {
+	const locale = i18n.language === "zh-cn" ? "zh-cn" : "en";
+	if (locale === "zh-cn") return t.titleZhCn ?? t.title;
+	return t.titleEn ?? t.title;
 }
 
 /**
@@ -87,6 +104,12 @@ export function getReleasedTutorials(): TutorialMetadata[] {
 		.sort((a, b) => a.order - b.order);
 }
 
+export function getReleasedTutorialsByAudience(
+	audience: TutorialAudience,
+): TutorialMetadata[] {
+	return getReleasedTutorials().filter((t) => resolveAudience(t) === audience);
+}
+
 /**
  * 获取所有教程（按 order 排序）
  */
@@ -97,8 +120,13 @@ export function getAllTutorials(): TutorialMetadata[] {
 /**
  * 获取前一个教程（基于已发布列表）
  */
-export function getPrevTutorial(currentId: string): TutorialMetadata | null {
-	const all = getReleasedTutorials();
+export function getPrevTutorial(
+	currentId: string,
+	audience?: TutorialAudience,
+): TutorialMetadata | null {
+	const all = audience
+		? getReleasedTutorialsByAudience(audience)
+		: getReleasedTutorials();
 	const currentIndex = all.findIndex((t) => t.id === currentId);
 	return currentIndex > 0 ? all[currentIndex - 1] : null;
 }
@@ -106,8 +134,13 @@ export function getPrevTutorial(currentId: string): TutorialMetadata | null {
 /**
  * 获取下一个教程（基于已发布列表）
  */
-export function getNextTutorial(currentId: string): TutorialMetadata | null {
-	const all = getReleasedTutorials();
+export function getNextTutorial(
+	currentId: string,
+	audience?: TutorialAudience,
+): TutorialMetadata | null {
+	const all = audience
+		? getReleasedTutorialsByAudience(audience)
+		: getReleasedTutorials();
 	const currentIndex = all.findIndex((t) => t.id === currentId);
 	return currentIndex >= 0 && currentIndex < all.length - 1
 		? all[currentIndex + 1]

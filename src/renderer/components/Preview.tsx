@@ -16,6 +16,7 @@ import { createPreviewSettings } from "../lib/alphatab-config";
 import { formatFullError } from "../lib/alphatab-error";
 import { loadBravuraFont, loadSoundFontFromUrl } from "../lib/assets";
 import { type AtDocConfig, parseAtDoc } from "../lib/atdoc";
+import { applyAtDocColoring } from "../lib/atdoc-coloring";
 import type { ResourceUrls } from "../lib/resourceLoaderService";
 import { getResourceUrls } from "../lib/resourceLoaderService";
 import {
@@ -990,6 +991,11 @@ export default function Preview({
 						if (apiRef.current) {
 							applyAtDocWarmSettings(apiRef.current);
 							applyAtDocHotSettings(apiRef.current);
+							applyAtDocColoring(
+								apiRef.current,
+								atDocConfigRef.current,
+								(message) => console.warn(message),
+							);
 						}
 						// 🆕 统一调用 applyTracksConfig，无论是首次还是重建
 						if (apiRef.current) applyTracksConfig(apiRef.current);

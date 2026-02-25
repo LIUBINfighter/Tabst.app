@@ -2,6 +2,7 @@ import { create } from "zustand";
 import i18n, { type Locale } from "../i18n";
 import { loadGlobalSettings, saveGlobalSettings } from "../lib/global-settings";
 import type { StaffDisplayOptions } from "../lib/staff-config";
+import type { TutorialAudience } from "../lib/tutorial-loader";
 import type {
 	DeleteBehavior,
 	FileNode,
@@ -219,6 +220,8 @@ interface AppState {
 	// 教程选择（用于侧边栏与教程视图间同步）
 	activeTutorialId: string | null;
 	setActiveTutorialId: (id: string | null) => void;
+	tutorialAudience: TutorialAudience;
+	setTutorialAudience: (audience: TutorialAudience) => void;
 	// 设置页选择（用于侧边栏与设置视图间同步）
 	activeSettingsPageId: string | null;
 	setActiveSettingsPageId: (id: string | null) => void;
@@ -782,6 +785,8 @@ export const useAppStore = create<AppState>((set, get) => ({
 	pendingStaffToggle: null,
 	activeTutorialId: null,
 	setActiveTutorialId: (id) => set({ activeTutorialId: id }),
+	tutorialAudience: "power-user",
+	setTutorialAudience: (audience) => set({ tutorialAudience: audience }),
 
 	activeSettingsPageId: null,
 	setActiveSettingsPageId: (id) => set({ activeSettingsPageId: id }),

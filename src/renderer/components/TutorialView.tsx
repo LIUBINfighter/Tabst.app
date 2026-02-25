@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import {
 	getNextTutorial,
 	getPrevTutorial,
+	getTutorialDisplayTitle,
 	getTutorialMetadata,
 	loadTutorial,
 	loadTutorialComponent,
@@ -36,6 +37,7 @@ export default function TutorialView({
 	const setWorkspaceMode = useAppStore((s) => s.setWorkspaceMode);
 	const activeTutorialId = useAppStore((s) => s.activeTutorialId);
 	const setActiveTutorialId = useAppStore((s) => s.setActiveTutorialId);
+	const tutorialAudience = useAppStore((s) => s.tutorialAudience);
 
 	const [mdxModule, setMdxModule] = useState<MDXModule | null>(null);
 	const [content, setContent] = useState<string>("");
@@ -47,10 +49,10 @@ export default function TutorialView({
 		: null;
 
 	const prevTutorial = activeTutorialId
-		? getPrevTutorial(activeTutorialId)
+		? getPrevTutorial(activeTutorialId, tutorialAudience)
 		: null;
 	const nextTutorial = activeTutorialId
-		? getNextTutorial(activeTutorialId)
+		? getNextTutorial(activeTutorialId, tutorialAudience)
 		: null;
 
 	// 加载教程内容（优先尝试 MDX，如果不存在则回退到 Markdown）
@@ -196,7 +198,9 @@ export default function TutorialView({
 
 						{!loading && !error && !mdxModule && !content && metadata && (
 							<div>
-								<h2 className="text-lg font-semibold mb-2">{metadata.title}</h2>
+								<h2 className="text-lg font-semibold mb-2">
+									{getTutorialDisplayTitle(metadata)}
+								</h2>
 								<p className="text-sm text-muted-foreground">教程内容为空</p>
 							</div>
 						)}

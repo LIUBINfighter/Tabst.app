@@ -14,7 +14,11 @@ import {
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { TutorialMetadata } from "../data/tutorials";
-import { getNextTutorial, getPrevTutorial } from "../lib/tutorial-loader";
+import {
+	getNextTutorial,
+	getPrevTutorial,
+	getTutorialDisplayTitle,
+} from "../lib/tutorial-loader";
 import { useAppStore } from "../store/appStore";
 import BpmStepper from "./BpmStepper";
 import StaffControls from "./StaffControls";
@@ -46,6 +50,8 @@ function TutorialBottomBar({
 	t: (key: string, opts?: Record<string, string>) => string;
 }) {
 	if (!prevTutorial && !nextTutorial) return null;
+	const prevTitle = prevTutorial ? getTutorialDisplayTitle(prevTutorial) : "";
+	const nextTitle = nextTutorial ? getTutorialDisplayTitle(nextTutorial) : "";
 	return (
 		<div className="flex items-center gap-3">
 			<span className="text-xs text-muted-foreground/70 hidden sm:inline">
@@ -60,13 +66,13 @@ function TutorialBottomBar({
 								onClick={() => onSelectTutorial(prevTutorial.id)}
 								className="flex items-center gap-1.5 px-2 py-1 rounded hover:bg-accent hover:text-accent-foreground transition-colors text-xs"
 								aria-label={t("toolbar:tutorial.prevWithTitle", {
-									title: prevTutorial.title,
+									title: prevTitle,
 								})}
 							>
 								<ChevronLeft className="h-3.5 w-3.5" />
 								<span className="text-xs">
 									{t("toolbar:tutorial.prevWithTitle", {
-										title: prevTutorial.title,
+										title: prevTitle,
 									})}
 								</span>
 							</button>
@@ -74,7 +80,7 @@ function TutorialBottomBar({
 						<TooltipContent side="top">
 							<p>
 								{t("toolbar:tutorial.prevTooltip", {
-									title: prevTutorial.title,
+									title: prevTitle,
 								})}
 							</p>
 						</TooltipContent>
@@ -88,12 +94,12 @@ function TutorialBottomBar({
 								onClick={() => onSelectTutorial(nextTutorial.id)}
 								className="flex items-center gap-1.5 px-2 py-1 rounded hover:bg-accent hover:text-accent-foreground transition-colors text-xs"
 								aria-label={t("toolbar:tutorial.nextWithTitle", {
-									title: nextTutorial.title,
+									title: nextTitle,
 								})}
 							>
 								<span className="text-xs">
 									{t("toolbar:tutorial.nextWithTitle", {
-										title: nextTutorial.title,
+										title: nextTitle,
 									})}
 								</span>
 								<ChevronRight className="h-3.5 w-3.5" />
@@ -102,7 +108,7 @@ function TutorialBottomBar({
 						<TooltipContent side="top">
 							<p>
 								{t("toolbar:tutorial.nextTooltip", {
-									title: nextTutorial.title,
+									title: nextTitle,
 								})}
 							</p>
 						</TooltipContent>
@@ -517,6 +523,7 @@ export default function GlobalBottomBar() {
 	const workspaceMode = useAppStore((s) => s.workspaceMode);
 	const activeTutorialId = useAppStore((s) => s.activeTutorialId);
 	const setActiveTutorialId = useAppStore((s) => s.setActiveTutorialId);
+	const tutorialAudience = useAppStore((s) => s.tutorialAudience);
 	const activeSettingsPageId = useAppStore((s) => s.activeSettingsPageId);
 	const setActiveSettingsPageId = useAppStore((s) => s.setActiveSettingsPageId);
 	const setWorkspaceMode = useAppStore((s) => s.setWorkspaceMode);
@@ -524,10 +531,10 @@ export default function GlobalBottomBar() {
 	const isSettingsMode = workspaceMode === "settings";
 
 	const prevTutorial = activeTutorialId
-		? getPrevTutorial(activeTutorialId)
+		? getPrevTutorial(activeTutorialId, tutorialAudience)
 		: null;
 	const nextTutorial = activeTutorialId
-		? getNextTutorial(activeTutorialId)
+		? getNextTutorial(activeTutorialId, tutorialAudience)
 		: null;
 
 	const bottomBarContent =
