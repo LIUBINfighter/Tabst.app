@@ -40,42 +40,71 @@ function App() {
 			event.preventDefault();
 		};
 
-		const handleWindowDrop = (event: DragEvent) => {
-			if (!event.dataTransfer?.files?.length) return;
-			event.preventDefault();
+		const isGpFileName = (fileName: string) => {
+			const lower = fileName.toLowerCase();
+			return (
+				lower.endsWith(".gp") ||
+				lower.endsWith(".gp3") ||
+				lower.endsWith(".gp4") ||
+				lower.endsWith(".gp5") ||
+				lower.endsWith(".gpx")
+			);
+		};
 
+		const importGpFiles = (files: File[]) => {
 			const state = useAppStore.getState();
 			const activeRepo = state.repos.find((r) => r.id === state.activeRepoId);
 			const targetDir = activeRepo?.path;
-			const files = Array.from(event.dataTransfer.files);
 
 			for (const file of files) {
-				const lower = file.name.toLowerCase();
-				const isGp =
-					lower.endsWith(".gp") ||
-					lower.endsWith(".gp3") ||
-					lower.endsWith(".gp4") ||
-					lower.endsWith(".gp5") ||
-					lower.endsWith(".gpx");
-				if (!isGp) continue;
+				if (!isGpFileName(file.name)) continue;
 
 				void (async () => {
 					try {
 						const bytes = new Uint8Array(await file.arrayBuffer());
 						await handleImportGpBytes(bytes, targetDir, file.name);
 					} catch (error) {
-						console.error("拖入 GP 文件转换失败:", error);
+						console.error("导入 GP 文件转换失败:", error);
 					}
 				})();
 			}
 		};
 
+		const handleWindowDrop = (event: DragEvent) => {
+			if (!event.dataTransfer?.files?.length) return;
+			event.preventDefault();
+			importGpFiles(Array.from(event.dataTransfer.files));
+		};
+
+		const shouldIgnorePaste = (target: EventTarget | null) => {
+			if (!(target instanceof HTMLElement)) return false;
+			if (target.isContentEditable) return true;
+			const tag = target.tagName;
+			return tag === "INPUT" || tag === "TEXTAREA";
+		};
+
+		const handleWindowPaste = (event: ClipboardEvent) => {
+			if (shouldIgnorePaste(event.target)) return;
+
+			const clipboardData = event.clipboardData;
+			if (!clipboardData?.files?.length) return;
+
+			const files = Array.from(clipboardData.files);
+			const gpFiles = files.filter((file) => isGpFileName(file.name));
+			if (gpFiles.length === 0) return;
+
+			event.preventDefault();
+			importGpFiles(gpFiles);
+		};
+
 		window.addEventListener("dragover", preventWindowDropDefault);
 		window.addEventListener("drop", handleWindowDrop);
+		window.addEventListener("paste", handleWindowPaste);
 
 		return () => {
 			window.removeEventListener("dragover", preventWindowDropDefault);
 			window.removeEventListener("drop", handleWindowDrop);
+			window.removeEventListener("paste", handleWindowPaste);
 		};
 	}, [handleImportGpBytes]);
 
