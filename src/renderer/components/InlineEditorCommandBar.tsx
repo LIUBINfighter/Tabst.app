@@ -65,6 +65,7 @@ export default function InlineEditorCommandBar({
 	onRunCommand,
 }: InlineEditorCommandBarProps) {
 	const rootRef = useRef<HTMLDivElement | null>(null);
+	const optionRefs = useRef<Array<HTMLButtonElement | null>>([]);
 	const [query, setQuery] = useState("");
 	const [selectedIndex, setSelectedIndex] = useState(0);
 
@@ -98,6 +99,19 @@ export default function InlineEditorCommandBar({
 			);
 		});
 	}, [allCommands, query]);
+
+	useEffect(() => {
+		setSelectedIndex((prev) =>
+			Math.min(prev, Math.max(filtered.length - 1, 0)),
+		);
+	}, [filtered.length]);
+
+	useEffect(() => {
+		if (!open) return;
+		const active = optionRefs.current[selectedIndex];
+		if (!active) return;
+		active.scrollIntoView({ block: "nearest" });
+	}, [open, selectedIndex]);
 
 	useEffect(() => {
 		if (!open) return;
@@ -176,6 +190,9 @@ export default function InlineEditorCommandBar({
 							<button
 								type="button"
 								key={command.id}
+								ref={(node) => {
+									optionRefs.current[index] = node;
+								}}
 								onMouseEnter={() => setSelectedIndex(index)}
 								onClick={() => {
 									onRunCommand(command.id);

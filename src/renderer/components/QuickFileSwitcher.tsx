@@ -122,6 +122,7 @@ export default function QuickFileSwitcher({
 	const [candidates, setCandidates] = useState<AtexCandidate[]>([]);
 	const [selectedIndex, setSelectedIndex] = useState(0);
 	const wasOpenRef = useRef(false);
+	const optionRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
 	const loadCandidates = useCallback(async () => {
 		const atexNodes = flattenFileNodes(fileTree).filter((node) =>
@@ -301,6 +302,19 @@ export default function QuickFileSwitcher({
 		return withScore.map((entry) => entry.item);
 	}, [candidates, query]);
 
+	useEffect(() => {
+		setSelectedIndex((prev) =>
+			Math.min(prev, Math.max(filtered.length - 1, 0)),
+		);
+	}, [filtered.length]);
+
+	useEffect(() => {
+		if (!open) return;
+		const active = optionRefs.current[selectedIndex];
+		if (!active) return;
+		active.scrollIntoView({ block: "nearest" });
+	}, [open, selectedIndex]);
+
 	const openCandidate = useCallback(
 		async (candidate: AtexCandidate | undefined) => {
 			if (!candidate) return;
@@ -421,6 +435,9 @@ export default function QuickFileSwitcher({
 								<button
 									type="button"
 									key={item.path}
+									ref={(node) => {
+										optionRefs.current[index] = node;
+									}}
 									onMouseEnter={() => setSelectedIndex(index)}
 									onClick={() => void openCandidate(item)}
 									className={`w-full rounded-md px-3 py-2 text-left transition-colors ${

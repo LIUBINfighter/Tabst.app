@@ -1,5 +1,5 @@
 import { Command, FileSearch, ListTree, Sparkles } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Dialog, DialogContent, DialogTitle } from "./ui/dialog";
 import { Input } from "./ui/input";
 
@@ -79,6 +79,7 @@ export default function GlobalCommandPalette({
 }: GlobalCommandPaletteProps) {
 	const [query, setQuery] = useState("");
 	const [selectedIndex, setSelectedIndex] = useState(0);
+	const optionRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
 	const filtered = useMemo(() => {
 		const q = query.trim().toLowerCase();
@@ -91,6 +92,19 @@ export default function GlobalCommandPalette({
 			);
 		});
 	}, [query]);
+
+	useEffect(() => {
+		setSelectedIndex((prev) =>
+			Math.min(prev, Math.max(filtered.length - 1, 0)),
+		);
+	}, [filtered.length]);
+
+	useEffect(() => {
+		if (!open) return;
+		const active = optionRefs.current[selectedIndex];
+		if (!active) return;
+		active.scrollIntoView({ block: "nearest" });
+	}, [open, selectedIndex]);
 
 	return (
 		<Dialog
@@ -148,6 +162,9 @@ export default function GlobalCommandPalette({
 								<button
 									type="button"
 									key={command.id}
+									ref={(node) => {
+										optionRefs.current[index] = node;
+									}}
 									onMouseEnter={() => setSelectedIndex(index)}
 									onClick={() => {
 										onRunCommand(command.id);
