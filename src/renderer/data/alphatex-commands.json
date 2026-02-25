@@ -12,5 +12,33 @@
 		"cho": "\\chord \"${1}\"",
 		"/*": "/* ${1} */"
 	},
-	"properties": []
+	"properties": [],
+	"atdoc": {
+		"keys": [
+			{
+				"key": "at.meta.status",
+				"valueType": "enum:status",
+				"description": "Document lifecycle status: draft | active | done | released",
+				"example": "at.meta.status=active"
+			},
+			{
+				"key": "at.meta.license",
+				"valueType": "enum:license",
+				"description": "Creative Commons license id",
+				"example": "at.meta.license=CC-BY-4.0"
+			}
+		],
+		"enums": {
+			"status": ["draft", "active", "done", "released"],
+			"license": [
+				"CC0-1.0",
+				"CC-BY-4.0",
+				"CC-BY-SA-4.0",
+				"CC-BY-NC-4.0",
+				"CC-BY-NC-SA-4.0",
+				"CC-BY-ND-4.0",
+				"CC-BY-NC-ND-4.0"
+			]
+		}
+	}
 }

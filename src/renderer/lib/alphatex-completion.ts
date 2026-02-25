@@ -10,12 +10,21 @@ import {
 	type CompletionContext,
 	type CompletionResult,
 	completionKeymap,
+	completionStatus,
 	snippet,
+	startCompletion,
 } from "@codemirror/autocomplete";
 import { syntaxTree } from "@codemirror/language";
 import type { Extension } from "@codemirror/state";
 import { Prec } from "@codemirror/state";
-import { keymap } from "@codemirror/view";
+import { EditorView, keymap } from "@codemirror/view";
+import {
+	ATDOC_KEY_DEFINITIONS,
+	ATDOC_LAYOUT_MODE_VALUES,
+	ATDOC_META_LICENSE_VALUES,
+	ATDOC_META_STATUS_VALUES,
+	ATDOC_SCROLL_MODE_VALUES,
+} from "./../data/atdoc-keys";
 import type { AlphaTexLSPClient } from "./alphatex-lsp";
 
 // Minimal LSP CompletionItem shape we currently use
@@ -26,6 +35,185 @@ interface LspCompletionItem {
 	insertText?: string;
 }
 
+interface LayeredContext {
+	kind: "domain" | "key" | "value";
+	domainPrefix: string;
+	keyPrefix: string;
+	valuePrefix: string;
+	replaceFrom: number;
+	replaceTo: number;
+	domain?: string;
+	key?: string;
+}
+
+function getAtDocLayeredContext(
+	context: CompletionContext,
+): LayeredContext | null {
+	const line = context.state.doc.lineAt(context.pos);
+	const before = line.text.slice(0, context.pos - line.from);
+	const node = syntaxTree(context.state).resolveInner(context.pos, -1);
+	const inSyntaxComment = node.name.toLowerCase().includes("comment");
+	const trimmed = before.trimStart();
+	const inCommentLikeLine =
+		trimmed.startsWith("*") ||
+		trimmed.startsWith("/**") ||
+		trimmed.startsWith("/*") ||
+		trimmed.startsWith("//");
+	if (!inCommentLikeLine && !inSyntaxComment) return null;
+
+	const atIndex = Math.max(before.lastIndexOf("at."), before.lastIndexOf("at"));
+	if (atIndex < 0) return null;
+
+	const fragment = before.slice(atIndex).trim();
+	const replaceFrom = line.from + atIndex;
+	const replaceTo = context.pos;
+
+	if (fragment === "at") {
+		return {
+			kind: "domain",
+			domainPrefix: "",
+			keyPrefix: "",
+			valuePrefix: "",
+			replaceFrom,
+			replaceTo,
+		};
+	}
+
+	if (fragment.startsWith("at.") && !fragment.includes("=")) {
+		const rest = fragment.slice(3);
+		const parts = rest.split(".");
+		if (parts.length === 1) {
+			return {
+				kind: "domain",
+				domainPrefix: parts[0] ?? "",
+				keyPrefix: "",
+				valuePrefix: "",
+				replaceFrom,
+				replaceTo,
+			};
+		}
+		if (parts.length >= 2) {
+			const domain = parts[0] ?? "";
+			const keyPrefix = parts.slice(1).join(".");
+			return {
+				kind: "key",
+				domainPrefix: domain,
+				keyPrefix,
+				valuePrefix: "",
+				replaceFrom,
+				replaceTo,
+				domain,
+			};
+		}
+	}
+
+	if (fragment.startsWith("at.") && fragment.includes("=")) {
+		const [left, valuePrefixRaw = ""] = fragment.split("=");
+		const leftParts = left.slice(3).split(".");
+		if (leftParts.length >= 2) {
+			const domain = leftParts[0] ?? "";
+			const key = leftParts.slice(1).join(".");
+			return {
+				kind: "value",
+				domainPrefix: domain,
+				keyPrefix: key,
+				valuePrefix: valuePrefixRaw,
+				replaceFrom,
+				replaceTo,
+				domain,
+				key,
+			};
+		}
+	}
+
+	return null;
+}
+
+function buildLayeredCompletions(context: LayeredContext): CompletionResult {
+	const domainSet = new Set<string>();
+	for (const def of ATDOC_KEY_DEFINITIONS) {
+		const [, domain] = def.key.split(".");
+		if (domain) domainSet.add(domain);
+	}
+	const domains = [...domainSet].sort();
+
+	if (context.kind === "domain") {
+		const filteredDomains = domains.filter((domain) =>
+			domain.toLowerCase().startsWith(context.domainPrefix.toLowerCase()),
+		);
+		return {
+			from: context.replaceFrom,
+			to: context.replaceTo,
+			options: filteredDomains.map((domain) => ({
+				label: domain,
+				detail: "ATDOC domain",
+				apply: `at.${domain}.`,
+			})),
+		};
+	}
+
+	if (context.kind === "key") {
+		const domain = context.domain ?? "";
+		const prefix = `at.${domain}.`;
+		const keys = ATDOC_KEY_DEFINITIONS.filter((def) =>
+			def.key.startsWith(prefix),
+		)
+			.map((def) => ({
+				name: def.key.slice(prefix.length),
+				detail: def.valueType,
+				doc: `${def.description}\n\nExample: ${def.example}`,
+			}))
+			.filter((item) =>
+				item.name.toLowerCase().startsWith(context.keyPrefix.toLowerCase()),
+			);
+
+		return {
+			from: context.replaceFrom,
+			to: context.replaceTo,
+			options: keys.map((item) => ({
+				label: item.name,
+				detail: item.detail,
+				info: item.doc,
+				apply: `at.${domain}.${item.name}=`,
+			})),
+		};
+	}
+
+	const keyName = context.key ?? "";
+	const fullKey = `at.${context.domain}.${keyName}`;
+	const def = ATDOC_KEY_DEFINITIONS.find((item) => item.key === fullKey);
+	if (!def) {
+		return { from: context.replaceFrom, to: context.replaceTo, options: [] };
+	}
+
+	const rawValuePrefix = context.valuePrefix.trim().replace(/^"|"$/g, "");
+	const values: string[] =
+		def.valueType === "enum:status"
+			? [...ATDOC_META_STATUS_VALUES]
+			: def.valueType === "enum:license"
+				? [...ATDOC_META_LICENSE_VALUES]
+				: def.valueType === "enum:layoutMode"
+					? [...ATDOC_LAYOUT_MODE_VALUES]
+					: def.valueType === "enum:scrollMode"
+						? [...ATDOC_SCROLL_MODE_VALUES]
+						: def.valueType === "boolean"
+							? ["true", "false"]
+							: [];
+
+	const filtered = values.filter((value) =>
+		value.toLowerCase().startsWith(rawValuePrefix.toLowerCase()),
+	);
+	return {
+		from: context.replaceFrom,
+		to: context.replaceTo,
+		options: filtered.map((value) => ({
+			label: value,
+			detail: `value for ${fullKey}`,
+			apply: `at.${context.domain}.${keyName}=${value}`,
+		})),
+	};
+}
+
 /**
  * Create a completion source that queries the LSP worker
  */
@@ -33,35 +221,36 @@ export function createAlphaTexCompletionSource(lspClient: AlphaTexLSPClient) {
 	return async (
 		context: CompletionContext,
 	): Promise<CompletionResult | null> => {
-		// Check if we are inside a comment using syntax tree
-		const node = syntaxTree(context.state).resolveInner(context.pos, -1);
-		if (node.name.toLowerCase().includes("comment")) {
-			return null;
+		const layeredContext = getAtDocLayeredContext(context);
+		if (layeredContext) {
+			return buildLayeredCompletions(layeredContext);
 		}
 
-		// Manual check for line comments as a fallback
-		const line = context.state.doc.lineAt(context.pos);
-		const textBefore = line.text.slice(0, context.pos - line.from);
-		if (textBefore.trim().startsWith("//") || textBefore.includes(" //")) {
-			return null;
-		}
-
-		// Get the word being completed (allow backslash prefix to trigger completion)
-		// This will match either `\` or `\xxx` as well as normal word prefixes like `b`, and supports hyphen in property names (e.g. fade-in)
-		const word = context.matchBefore(/\\?[\w-]*/);
+		// Get the word being completed
+		// Include dot so fragments like `at.` are captured as non-empty tokens.
+		const word = context.matchBefore(/\\?[\w.-]*/);
 		if (!word) return null;
 
 		// Don't offer completions unless the user explicitly asked for them
 		// (by pressing Ctrl+Space or after typing a trigger character).
 		// However, if the previous character is a backslash (`\`), treat it as a trigger.
 		if (!context.explicit && word.from === word.to) {
-			const prev = context.state.doc.sliceString(
-				Math.max(0, context.pos - 1),
-				context.pos,
-			);
-			// If the previous character is not a backslash, don't trigger completions
-			if (prev !== "\\") {
-				return null;
+			const line = context.state.doc.lineAt(context.pos);
+			const textBefore = line.text
+				.slice(0, context.pos - line.from)
+				.trimStart();
+			const inAtDocHint = /\bat(?:\.[\w.]*)?(?:=[^\s]*)?$/.test(textBefore);
+			if (inAtDocHint) {
+				// Allow ATDOC fragments to trigger completion without requiring '\\'.
+			} else {
+				const prev = context.state.doc.sliceString(
+					Math.max(0, context.pos - 1),
+					context.pos,
+				);
+				// If the previous character is not a backslash, don't trigger completions
+				if (prev !== "\\") {
+					return null;
+				}
 			}
 		}
 
@@ -152,6 +341,30 @@ export function createAlphaTexAutocomplete(
 	lspClient: AlphaTexLSPClient,
 ): Extension[] {
 	const completionSource = createAlphaTexCompletionSource(lspClient);
+	const triggerAtDocCompletion = EditorView.updateListener.of((update) => {
+		if (!update.docChanged) return;
+		if (!update.state.selection.main.empty) return;
+
+		const pos = update.state.selection.main.head;
+		const line = update.state.doc.lineAt(pos);
+		const before = line.text.slice(0, pos - line.from);
+		const node = syntaxTree(update.state).resolveInner(pos, -1);
+		const inSyntaxComment = node.name.toLowerCase().includes("comment");
+		const trimmed = before.trimStart();
+		const inCommentLikeLine =
+			trimmed.startsWith("*") ||
+			trimmed.startsWith("/**") ||
+			trimmed.startsWith("/*") ||
+			trimmed.startsWith("//");
+		if (!inCommentLikeLine && !inSyntaxComment) return;
+
+		const shouldTrigger = /\bat(?:\.[\w.]*)?(?:=[^\s]*)?$/.test(trimmed);
+		if (!shouldTrigger) return;
+
+		if (completionStatus(update.state) !== "active") {
+			startCompletion(update.view);
+		}
+	});
 
 	return [
 		autocompletion({
@@ -159,6 +372,7 @@ export function createAlphaTexAutocomplete(
 			// Ensure typing characters (like `\`) can activate completions without requiring explicit Ctrl+Space
 			activateOnTyping: true,
 		}),
+		triggerAtDocCompletion,
 		// Use Prec.highest to ensure completionKeymap has highest precedence
 		// This ensures arrow keys navigate the autocomplete menu instead of moving the cursor
 		Prec.highest(keymap.of(completionKeymap)),

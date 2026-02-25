@@ -1,3 +1,5 @@
+import commandsJSON from "./alphatex-commands.json";
+
 export type AtDocValueType =
 	| "number"
 	| "boolean"
@@ -15,7 +17,28 @@ export interface AtDocKeyDefinition {
 	example: string;
 }
 
-export const ATDOC_KEY_DEFINITIONS: AtDocKeyDefinition[] = [
+type CommandsJsonAtDocKey = {
+	key?: string;
+	valueType?: string;
+	description?: string;
+	example?: string;
+};
+
+type CommandsJsonAtDoc = {
+	keys?: CommandsJsonAtDocKey[];
+	enums?: {
+		layoutMode?: string[];
+		scrollMode?: string[];
+		status?: string[];
+		license?: string[];
+	};
+};
+
+type CommandsJsonRoot = {
+	atdoc?: CommandsJsonAtDoc;
+};
+
+const DEFAULT_ATDOC_KEY_DEFINITIONS: AtDocKeyDefinition[] = [
 	{
 		key: "at.meta.class",
 		valueType: "string",
@@ -228,17 +251,22 @@ export const ATDOC_KEY_DEFINITIONS: AtDocKeyDefinition[] = [
 	},
 ];
 
-export const ATDOC_LAYOUT_MODE_VALUES = ["Page", "Horizontal", "Parchment"];
-export const ATDOC_SCROLL_MODE_VALUES = [
+const DEFAULT_ATDOC_LAYOUT_MODE_VALUES = ["Page", "Horizontal", "Parchment"];
+const DEFAULT_ATDOC_SCROLL_MODE_VALUES = [
 	"Off",
 	"Continuous",
 	"OffScreen",
 	"Smooth",
 ];
 
-export const ATDOC_META_STATUS_VALUES = ["draft", "active", "done", "released"];
+const DEFAULT_ATDOC_META_STATUS_VALUES = [
+	"draft",
+	"active",
+	"done",
+	"released",
+];
 
-export const ATDOC_META_LICENSE_VALUES = [
+const DEFAULT_ATDOC_META_LICENSE_VALUES = [
 	"CC0-1.0",
 	"CC-BY-4.0",
 	"CC-BY-SA-4.0",
@@ -247,3 +275,90 @@ export const ATDOC_META_LICENSE_VALUES = [
 	"CC-BY-ND-4.0",
 	"CC-BY-NC-ND-4.0",
 ];
+
+function isAtDocValueType(value: string): value is AtDocValueType {
+	return (
+		value === "number" ||
+		value === "boolean" ||
+		value === "string" ||
+		value === "enum:status" ||
+		value === "enum:license" ||
+		value === "color" ||
+		value === "enum:layoutMode" ||
+		value === "enum:scrollMode"
+	);
+}
+
+function sanitizeStringList(input: unknown): string[] | null {
+	if (!Array.isArray(input)) return null;
+	const values = input
+		.filter((item): item is string => typeof item === "string")
+		.map((item) => item.trim())
+		.filter((item) => item.length > 0);
+	return values.length > 0 ? [...new Set(values)] : null;
+}
+
+function parseJsonAtDocKey(
+	raw: CommandsJsonAtDocKey,
+): AtDocKeyDefinition | null {
+	const key = typeof raw.key === "string" ? raw.key.trim() : "";
+	const valueTypeRaw =
+		typeof raw.valueType === "string" ? raw.valueType.trim() : "";
+	const description =
+		typeof raw.description === "string" ? raw.description.trim() : "";
+	const example = typeof raw.example === "string" ? raw.example.trim() : "";
+
+	if (!key || !valueTypeRaw || !description || !example) return null;
+	if (!isAtDocValueType(valueTypeRaw)) return null;
+
+	return {
+		key,
+		valueType: valueTypeRaw,
+		description,
+		example,
+	};
+}
+
+function mergeAtDocKeyDefinitions(
+	defaults: AtDocKeyDefinition[],
+	overrides: unknown,
+): AtDocKeyDefinition[] {
+	const merged = new Map<string, AtDocKeyDefinition>(
+		defaults.map((definition) => [definition.key, definition]),
+	);
+
+	if (!Array.isArray(overrides)) {
+		return [...merged.values()];
+	}
+
+	for (const item of overrides) {
+		const parsed = parseJsonAtDocKey(item as CommandsJsonAtDocKey);
+		if (!parsed) continue;
+		merged.set(parsed.key, parsed);
+	}
+
+	return [...merged.values()];
+}
+
+const atDocFromJson = (commandsJSON as CommandsJsonRoot)?.atdoc;
+
+export const ATDOC_KEY_DEFINITIONS = mergeAtDocKeyDefinitions(
+	DEFAULT_ATDOC_KEY_DEFINITIONS,
+	atDocFromJson?.keys,
+);
+
+export const ATDOC_LAYOUT_MODE_VALUES =
+	sanitizeStringList(atDocFromJson?.enums?.layoutMode) ??
+	DEFAULT_ATDOC_LAYOUT_MODE_VALUES;
+
+export const ATDOC_SCROLL_MODE_VALUES =
+	sanitizeStringList(atDocFromJson?.enums?.scrollMode) ??
+	DEFAULT_ATDOC_SCROLL_MODE_VALUES;
+
+export const ATDOC_META_STATUS_VALUES =
+	sanitizeStringList(atDocFromJson?.enums?.status) ??
+	DEFAULT_ATDOC_META_STATUS_VALUES;
+
+export const ATDOC_META_LICENSE_VALUES =
+	sanitizeStringList(atDocFromJson?.enums?.license) ??
+	DEFAULT_ATDOC_META_LICENSE_VALUES;
