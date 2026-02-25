@@ -33,9 +33,16 @@ import {
 interface EditorProps {
 	showExpandSidebar?: boolean;
 	onExpandSidebar?: () => void;
+	hidePreview?: boolean;
+	sandboxMode?: boolean;
 }
 
-export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
+export function Editor({
+	showExpandSidebar,
+	onExpandSidebar,
+	hidePreview = false,
+	sandboxMode = false,
+}: EditorProps) {
 	const { t } = useTranslation(["sidebar", "common"]);
 	const editorRef = useRef<HTMLDivElement | null>(null);
 	const viewRef = useRef<EditorView | null>(null);
@@ -87,20 +94,22 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 				}
 
 				saveTimerRef.current = window.setTimeout(async () => {
-					const state = useAppStore.getState();
-					const file = state.files.find((f) => f.id === state.activeFileId);
-					if (file) {
-						try {
-							await window.electronAPI.saveFile(file.path, newContent);
-						} catch (err) {
-							console.error("Failed to save file:", err);
+					if (!sandboxMode) {
+						const state = useAppStore.getState();
+						const file = state.files.find((f) => f.id === state.activeFileId);
+						if (file) {
+							try {
+								await window.electronAPI.saveFile(file.path, newContent);
+							} catch (err) {
+								console.error("Failed to save file:", err);
+							}
 						}
 					}
 					saveTimerRef.current = null;
 				}, 800);
 			}
 		});
-	}, []);
+	}, [sandboxMode]);
 
 	// Main effect: Create editor or update it when file changes
 	useEffect(() => {
@@ -458,7 +467,7 @@ export function Editor({ showExpandSidebar, onExpandSidebar }: EditorProps) {
 	return (
 		<div className="flex-1 flex flex-col h-full overflow-hidden">
 			{/* If the active file is AlphaTex, render a two-column editor/preview layout */}
-			{languageForActive === "alphatex" ? (
+			{languageForActive === "alphatex" && !hidePreview ? (
 				<div className="flex-1 overflow-hidden flex">
 					{/* Left: Editor */}
 					<div className="w-1/2 border-r border-border flex flex-col min-h-0">

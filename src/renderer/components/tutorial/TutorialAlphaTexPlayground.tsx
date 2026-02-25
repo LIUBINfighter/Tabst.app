@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import { type FileItem, useAppStore } from "../../store/appStore";
 import Editor from "../Editor";
+import Preview from "../Preview";
 
 interface TutorialAlphaTexPlaygroundProps {
 	initialContent: string;
@@ -65,12 +66,21 @@ export function TutorialAlphaTexPlayground({
 	}, [tempFile, tempFileId]);
 
 	return (
-		<div className="my-4 rounded-lg border border-border overflow-hidden bg-card h-[620px]">
+		<div className="not-prose my-4 rounded-lg border border-border overflow-hidden bg-card h-[620px]">
 			<div className="px-3 py-2 border-b border-border text-xs text-muted-foreground">
 				Interactive AlphaTex Playground
 			</div>
-			<div className="h-[580px]">
-				<Editor />
+			<div className="grid grid-cols-2 h-[580px]">
+				<div className="border-r border-border overflow-hidden">
+					<Editor hidePreview sandboxMode />
+				</div>
+				<div className="overflow-hidden">
+					<Preview
+						fileName={fileName}
+						content={initialContent}
+						className="h-full"
+					/>
+				</div>
 			</div>
 		</div>
 	);
