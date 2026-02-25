@@ -26,6 +26,15 @@ export interface AtDocConfig {
 		enableElementHighlighting?: boolean;
 		enableUserInteraction?: boolean;
 	};
+	coloring?: {
+		enabled?: boolean;
+		barNumberColor?: string;
+		staffLineColor?: string;
+		barSeparatorColor?: string;
+		noteHeadColor?: string;
+		fretNumberColor?: string;
+		colorizeByFret?: boolean;
+	};
 	staff?: StaffDisplayOptions;
 	print?: {
 		zoom?: number;
@@ -217,6 +226,41 @@ function applyDirective(
 			config.player = player;
 			return;
 		}
+		case "at.coloring.enabled":
+		case "at.coloring.colorizeByFret": {
+			const b = toBoolean(value);
+			if (b === null) {
+				warnings.push({ line, message: `${key} must be true or false` });
+				return;
+			}
+			const coloring = { ...(config.coloring ?? {}) };
+			if (key === "at.coloring.enabled") coloring.enabled = b;
+			if (key === "at.coloring.colorizeByFret") coloring.colorizeByFret = b;
+			config.coloring = coloring;
+			return;
+		}
+		case "at.coloring.barNumberColor":
+		case "at.coloring.staffLineColor":
+		case "at.coloring.barSeparatorColor":
+		case "at.coloring.noteHeadColor":
+		case "at.coloring.fretNumberColor": {
+			if (!value) {
+				warnings.push({ line, message: `${key} must be a valid color string` });
+				return;
+			}
+			const coloring = { ...(config.coloring ?? {}) };
+			if (key === "at.coloring.barNumberColor") coloring.barNumberColor = value;
+			if (key === "at.coloring.staffLineColor") coloring.staffLineColor = value;
+			if (key === "at.coloring.barSeparatorColor") {
+				coloring.barSeparatorColor = value;
+			}
+			if (key === "at.coloring.noteHeadColor") coloring.noteHeadColor = value;
+			if (key === "at.coloring.fretNumberColor") {
+				coloring.fretNumberColor = value;
+			}
+			config.coloring = coloring;
+			return;
+		}
 		case "at.staff.showTablature":
 		case "at.staff.showStandardNotation":
 		case "at.staff.showSlash":
@@ -320,6 +364,7 @@ export function buildAtDocCompletionItems(): AtDocCompletionItem[] {
 	const snippetBoolean = "$" + "{1:true}";
 	const snippetLayoutMode = "$" + "{1:Page}";
 	const snippetScrollMode = "$" + "{1:OffScreen}";
+	const snippetColor = "$" + "{1:#22c55e}";
 	const snippetNumber = "$" + "{1:1}";
 
 	return ATDOC_KEY_DEFINITIONS.map((def) => ({
@@ -333,7 +378,9 @@ export function buildAtDocCompletionItems(): AtDocCompletionItem[] {
 					? snippetLayoutMode
 					: def.valueType === "enum:scrollMode"
 						? snippetScrollMode
-						: snippetNumber
+						: def.valueType === "color"
+							? snippetColor
+							: snippetNumber
 		}`,
 	}));
 }

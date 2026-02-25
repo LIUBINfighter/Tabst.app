@@ -1,0 +1,26 @@
+/**
+ * ATDOC coloring sample (v0.2 draft)
+ *
+ * at.coloring.enabled=true
+ * at.coloring.barNumberColor=#ef4444
+ * at.coloring.staffLineColor=#334155
+ * at.coloring.barSeparatorColor=#64748b
+ * at.coloring.noteHeadColor=#22c55e
+ * at.coloring.fretNumberColor=#38bdf8
+ * at.coloring.colorizeByFret=true
+ *
+ * other atdoc keys can still be used together:
+ * at.display.scale=0.8
+ * at.player.playbackSpeed=0.9
+ */
+
+\title "ATDOC Coloring Sample"
+\artist "Tabst"
+\tempo 110
+\track "Lead Guitar"
+\staff {score tabs}
+.
+
+:4 0.3 3.3 7.3 12.3 |
+:4 2.2 5.2 9.2 14.2 |
+:8 (0.4 3.3) (5.3 7.2) (9.2 12.2) (14.2 17.2) |
