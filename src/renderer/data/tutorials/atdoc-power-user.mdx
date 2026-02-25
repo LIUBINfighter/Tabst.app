@@ -1,0 +1,83 @@
+# ATDOC 实战（PowerUser）
+
+ATDOC 允许你在 AlphaTex 文件里写注释式配置，直接控制预览、播放器和打印行为。
+
+## 完整 ATDOC 抬头示例（当前最全）
+
+```alphatex
+/**
+ * at.display.scale=0.78
+ * at.display.layoutMode=Page
+ *
+ * at.player.scrollMode=OffScreen
+ * at.player.scrollSpeed=300
+ * at.player.playbackSpeed=0.92
+ * at.player.metronomeVolume=0.35
+ * at.player.countInEnabled=true
+ * at.player.enableCursor=true
+ * at.player.enableElementHighlighting=true
+ * at.player.enableUserInteraction=true
+ *
+ * at.coloring.enabled=true
+ * at.coloring.barNumberColor=#ef4444
+ * at.coloring.staffLineColor=#334155
+ * at.coloring.barSeparatorColor=#64748b
+ * at.coloring.noteHeadColor=#22c55e
+ * at.coloring.fretNumberColor=#38bdf8
+ * at.coloring.colorizeByFret=true
+ *
+ * at.staff.showTablature=true
+ * at.staff.showStandardNotation=false
+ * at.staff.showSlash=false
+ * at.staff.showNumbered=false
+ *
+ * at.print.zoom=1.05
+ * at.print.barsPerRow=4
+ * at.print.stretchForce=1.0
+ */
+```
+
+## 1) 基础写法
+
+```alphatex
+/**
+ * at.display.scale=0.8
+ * at.player.playbackSpeed=0.9
+ * at.player.metronomeVolume=0.35
+ * at.player.countInEnabled=true
+ */
+```
+
+规则：
+
+- 每行一个 `at.xxx=...`
+- 同 key 重复时最后一条生效
+- 非法值会 warning，但不会阻断渲染
+
+## 2) 播放器联动
+
+ATDOC 会同步到底部栏关键状态（缩放、速度、节拍器、Count-In），便于在 UI 中继续微调。
+
+## 3) 着色（v0.2 Draft）
+
+```alphatex
+/**
+ * at.coloring.enabled=true
+ * at.coloring.barNumberColor=#ef4444
+ * at.coloring.noteHeadColor=#22c55e
+ * at.coloring.fretNumberColor=#38bdf8
+ * at.coloring.colorizeByFret=true
+ */
+```
+
+说明：
+
+- `colorizeByFret=true` 时按品位区间调色；
+- 未设置的颜色键不会覆盖原样式；
+- 颜色值无效时仅 warning。
+
+## 4) 推荐实践
+
+1. 用 ATDOC 设“文档默认值”；
+2. 用底部栏做会话内微调；
+3. 涉及主题资源色（`display.resources.*`）仍走主题重建机制。

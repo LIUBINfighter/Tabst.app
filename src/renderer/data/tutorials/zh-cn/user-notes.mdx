@@ -1,0 +1,40 @@
+# 音符与和弦
+
+本页演示 AlphaTex 中最常见的音符编写方式。
+
+## 单音与休止
+
+- 音符格式：`fret.string.duration`
+- 休止格式：`r.duration`
+
+<AlphaTexPlayground sample="notes-single" />
+
+## 和弦
+
+同拍多音用括号分组，再指定时值。
+
+<AlphaTexPlayground sample="notes-chords" />
+
+## 时值范围
+
+使用 `:duration` 指定后续音符时值。
+
+<AlphaTexPlayground sample="notes-duration" />
+
+## 节拍重复
+
+使用 `*N` 快速重复某个节拍。
+
+<AlphaTexPlayground sample="notes-repeat" />
+
+## 多声部
+
+通过 `\\voice` 编写独立声部。
+
+<AlphaTexPlayground sample="notes-voices" />
+
+## 变音记号
+
+对比 explicit 与 auto 两种变音处理。
+
+<AlphaTexPlayground sample="notes-accidentals" />
