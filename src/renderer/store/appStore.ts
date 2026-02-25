@@ -44,6 +44,9 @@ export interface FileItem {
 	content: string;
 	metaClass?: string[];
 	metaTags?: string[];
+	metaStatus?: "draft" | "active" | "done";
+	metaAlias?: string[];
+	metaTitle?: string;
 	/** Whether `content` is hydrated from disk/user input (vs empty placeholder from file tree scan). */
 	contentLoaded?: boolean;
 }
@@ -248,11 +251,21 @@ interface AppState {
 	renameFile: (id: string, newName: string) => Promise<boolean>;
 	setActiveFile: (id: string | null) => void;
 	updateFileContent: (id: string, content: string) => void;
-	setFileMeta: (id: string, metaClass: string[], metaTags: string[]) => void;
+	setFileMeta: (
+		id: string,
+		metaClass: string[],
+		metaTags: string[],
+		metaStatus?: "draft" | "active" | "done",
+		metaAlias?: string[],
+		metaTitle?: string,
+	) => void;
 	setFileMetaByPath: (
 		path: string,
 		metaClass: string[],
 		metaTags: string[],
+		metaStatus?: "draft" | "active" | "done",
+		metaAlias?: string[],
+		metaTitle?: string,
 	) => void;
 	getActiveFile: () => FileItem | undefined;
 
@@ -836,6 +849,11 @@ export const useAppStore = create<AppState>((set, get) => ({
 			const incomingMetaTags =
 				file.metaTags ??
 				(parsedMeta.metaTags.length > 0 ? parsedMeta.metaTags : undefined);
+			const incomingMetaStatus = file.metaStatus ?? parsedMeta.metaStatus;
+			const incomingMetaAlias =
+				file.metaAlias ??
+				(parsedMeta.metaAlias.length > 0 ? parsedMeta.metaAlias : undefined);
+			const incomingMetaTitle = file.metaTitle ?? parsedMeta.metaTitle;
 			const existing = state.files.find((f) => f.path === file.path);
 			if (existing) {
 				const merged = {
@@ -845,6 +863,9 @@ export const useAppStore = create<AppState>((set, get) => ({
 					content: file.content ?? existing.content,
 					metaClass: incomingMetaClass ?? existing.metaClass,
 					metaTags: incomingMetaTags ?? existing.metaTags,
+					metaStatus: incomingMetaStatus ?? existing.metaStatus,
+					metaAlias: incomingMetaAlias ?? existing.metaAlias,
+					metaTitle: incomingMetaTitle ?? existing.metaTitle,
 					contentLoaded: file.contentLoaded ?? true,
 				};
 				return {
@@ -861,6 +882,9 @@ export const useAppStore = create<AppState>((set, get) => ({
 						...file,
 						metaClass: incomingMetaClass,
 						metaTags: incomingMetaTags,
+						metaStatus: incomingMetaStatus,
+						metaAlias: incomingMetaAlias,
+						metaTitle: incomingMetaTitle,
 						contentLoaded: file.contentLoaded ?? true,
 					},
 				],
@@ -970,6 +994,12 @@ export const useAppStore = create<AppState>((set, get) => ({
 								parsedMeta.metaTags.length > 0
 									? parsedMeta.metaTags
 									: undefined,
+							metaStatus: parsedMeta.metaStatus,
+							metaAlias:
+								parsedMeta.metaAlias.length > 0
+									? parsedMeta.metaAlias
+									: undefined,
+							metaTitle: parsedMeta.metaTitle,
 							contentLoaded: true,
 						}
 					: f,
@@ -977,16 +1007,23 @@ export const useAppStore = create<AppState>((set, get) => ({
 		}));
 	},
 
-	setFileMeta: (id, metaClass, metaTags) => {
+	setFileMeta: (id, metaClass, metaTags, metaStatus, metaAlias, metaTitle) => {
 		set((state) => {
 			let changed = false;
 			const nextFiles = state.files.map((f) => {
 				if (f.id !== id) return f;
 				const nextClass = metaClass.length > 0 ? [...metaClass] : undefined;
 				const nextTags = metaTags.length > 0 ? [...metaTags] : undefined;
+				const nextStatus = metaStatus;
+				const nextAlias =
+					metaAlias && metaAlias.length > 0 ? [...metaAlias] : undefined;
+				const nextTitle = metaTitle;
 				if (
 					isSameStringList(f.metaClass, nextClass) &&
-					isSameStringList(f.metaTags, nextTags)
+					isSameStringList(f.metaTags, nextTags) &&
+					f.metaStatus === nextStatus &&
+					isSameStringList(f.metaAlias, nextAlias) &&
+					f.metaTitle === nextTitle
 				) {
 					return f;
 				}
@@ -995,6 +1032,9 @@ export const useAppStore = create<AppState>((set, get) => ({
 					...f,
 					metaClass: nextClass,
 					metaTags: nextTags,
+					metaStatus: nextStatus,
+					metaAlias: nextAlias,
+					metaTitle: nextTitle,
 				};
 			});
 			if (!changed) return state;
@@ -1002,16 +1042,30 @@ export const useAppStore = create<AppState>((set, get) => ({
 		});
 	},
 
-	setFileMetaByPath: (path, metaClass, metaTags) => {
+	setFileMetaByPath: (
+		path,
+		metaClass,
+		metaTags,
+		metaStatus,
+		metaAlias,
+		metaTitle,
+	) => {
 		set((state) => {
 			let changed = false;
 			const nextFiles = state.files.map((f) => {
 				if (f.path !== path) return f;
 				const nextClass = metaClass.length > 0 ? [...metaClass] : undefined;
 				const nextTags = metaTags.length > 0 ? [...metaTags] : undefined;
+				const nextStatus = metaStatus;
+				const nextAlias =
+					metaAlias && metaAlias.length > 0 ? [...metaAlias] : undefined;
+				const nextTitle = metaTitle;
 				if (
 					isSameStringList(f.metaClass, nextClass) &&
-					isSameStringList(f.metaTags, nextTags)
+					isSameStringList(f.metaTags, nextTags) &&
+					f.metaStatus === nextStatus &&
+					isSameStringList(f.metaAlias, nextAlias) &&
+					f.metaTitle === nextTitle
 				) {
 					return f;
 				}
@@ -1020,6 +1074,9 @@ export const useAppStore = create<AppState>((set, get) => ({
 					...f,
 					metaClass: nextClass,
 					metaTags: nextTags,
+					metaStatus: nextStatus,
+					metaAlias: nextAlias,
+					metaTitle: nextTitle,
 				};
 			});
 			if (!changed) return state;
@@ -1223,6 +1280,9 @@ function reconcileFilesWithTree(
 			content: existing.content ?? next.content,
 			metaClass: existing.metaClass,
 			metaTags: existing.metaTags,
+			metaStatus: existing.metaStatus,
+			metaAlias: existing.metaAlias,
+			metaTitle: existing.metaTitle,
 			contentLoaded: existing.contentLoaded ?? next.contentLoaded,
 		};
 	});

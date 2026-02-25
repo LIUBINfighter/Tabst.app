@@ -2,6 +2,7 @@ export type AtDocValueType =
 	| "number"
 	| "boolean"
 	| "string"
+	| "enum:status"
 	| "color"
 	| "enum:layoutMode"
 	| "enum:scrollMode";
@@ -25,6 +26,24 @@ export const ATDOC_KEY_DEFINITIONS: AtDocKeyDefinition[] = [
 		valueType: "string",
 		description: "Document tags (comma-separated supported)",
 		example: 'at.meta.tag="warmup, caged"',
+	},
+	{
+		key: "at.meta.status",
+		valueType: "enum:status",
+		description: "Document lifecycle status: draft | active | done",
+		example: "at.meta.status=active",
+	},
+	{
+		key: "at.meta.alias",
+		valueType: "string",
+		description: "Alternative search aliases (comma-separated supported)",
+		example: 'at.meta.alias="cw1, caged-a"',
+	},
+	{
+		key: "at.meta.title",
+		valueType: "string",
+		description: "Display title override for navigation/search",
+		example: 'at.meta.title="CAGED Warmup 01"',
 	},
 	{
 		key: "at.display.scale",
@@ -179,3 +198,5 @@ export const ATDOC_SCROLL_MODE_VALUES = [
 	"OffScreen",
 	"Smooth",
 ];
+
+export const ATDOC_META_STATUS_VALUES = ["draft", "active", "done"];

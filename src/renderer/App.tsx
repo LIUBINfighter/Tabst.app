@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { Editor } from "./components/Editor";
 import GlobalBottomBar from "./components/GlobalBottomBar";
+import GlobalCommandPalette, {
+	type GlobalCommandId,
+} from "./components/GlobalCommandPalette";
 import QuickFileSwitcher from "./components/QuickFileSwitcher";
 import SettingsView from "./components/SettingsView";
 import { Sidebar } from "./components/Sidebar";
@@ -9,12 +12,19 @@ import UpdateToast from "./components/UpdateToast";
 import { useFileOperations } from "./hooks/useFileOperations";
 import { getAlphaTexHighlight } from "./lib/alphatex-highlight";
 import { createAlphaTexLSPClient } from "./lib/alphatex-lsp";
+import {
+	dispatchEditorCommand,
+	dispatchOpenInlineEditorCommand,
+	type EditorCommandId,
+} from "./lib/command-palette";
 import { useAppStore } from "./store/appStore";
 
 function App() {
 	const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 	const [quickSwitcherOpen, setQuickSwitcherOpen] = useState(false);
+	const [globalPaletteOpen, setGlobalPaletteOpen] = useState(false);
 	const workspaceMode = useAppStore((s) => s.workspaceMode);
+	const setWorkspaceMode = useAppStore((s) => s.setWorkspaceMode);
 	const prevWorkspaceModeRef = useRef<"editor" | "tutorial" | "settings">(
 		"editor",
 	);
@@ -38,17 +48,55 @@ function App() {
 
 	useEffect(() => {
 		const handleQuickSwitcherShortcut = (event: KeyboardEvent) => {
-			if (event.key.toLowerCase() !== "o") return;
-			if (!(event.metaKey || event.ctrlKey)) return;
-			if (event.shiftKey || event.altKey) return;
-			event.preventDefault();
-			setQuickSwitcherOpen(true);
+			if (event.key.toLowerCase() === "o") {
+				if (!(event.metaKey || event.ctrlKey)) return;
+				if (event.shiftKey || event.altKey) return;
+				event.preventDefault();
+				setQuickSwitcherOpen(true);
+				return;
+			}
+
+			if (event.key.toLowerCase() === "p") {
+				if (!(event.metaKey || event.ctrlKey)) return;
+				if (event.shiftKey) {
+					event.preventDefault();
+					setGlobalPaletteOpen(true);
+					return;
+				}
+				if (!event.altKey) {
+					event.preventDefault();
+					dispatchOpenInlineEditorCommand();
+					setWorkspaceMode("editor");
+				}
+			}
 		};
 
 		window.addEventListener("keydown", handleQuickSwitcherShortcut);
 		return () =>
 			window.removeEventListener("keydown", handleQuickSwitcherShortcut);
-	}, []);
+	}, [setWorkspaceMode]);
+
+	const runEditorCommand = (commandId: EditorCommandId) => {
+		dispatchEditorCommand(commandId);
+		setWorkspaceMode("editor");
+	};
+
+	const runGlobalCommand = (commandId: GlobalCommandId) => {
+		switch (commandId) {
+			case "open-quick-file":
+				setQuickSwitcherOpen(true);
+				return;
+			case "open-editor-command-palette":
+				dispatchOpenInlineEditorCommand();
+				setWorkspaceMode("editor");
+				return;
+			case "insert-atdoc-block":
+			case "insert-atdoc-directive":
+			case "insert-atdoc-meta-preset":
+				runEditorCommand(commandId);
+				return;
+		}
+	};
 
 	useEffect(() => {
 		const preventWindowDropDefault = (event: DragEvent) => {
@@ -258,6 +306,11 @@ function App() {
 			<QuickFileSwitcher
 				open={quickSwitcherOpen}
 				onOpenChange={setQuickSwitcherOpen}
+			/>
+			<GlobalCommandPalette
+				open={globalPaletteOpen}
+				onOpenChange={setGlobalPaletteOpen}
+				onRunCommand={runGlobalCommand}
 			/>
 		</div>
 	);

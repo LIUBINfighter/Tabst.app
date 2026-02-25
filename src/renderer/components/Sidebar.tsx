@@ -68,6 +68,9 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 		null,
 	);
 	const [selectedTagFilters, setSelectedTagFilters] = useState<string[]>([]);
+	const [selectedStatusFilters, setSelectedStatusFilters] = useState<
+		Array<"draft" | "active" | "done">
+	>([]);
 	const toastTimerRef = useRef<number | null>(null);
 	const backgroundRefreshTimerRef = useRef<number | null>(null);
 
@@ -272,6 +275,21 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 		return Array.from(set).sort((a, b) => a.localeCompare(b));
 	}, [files]);
 
+	const availableStatuses = useMemo(() => {
+		const set = new Set<"draft" | "active" | "done">();
+		for (const file of files) {
+			if (file.metaStatus) {
+				set.add(file.metaStatus);
+			}
+		}
+		const order: Array<"draft" | "active" | "done"> = [
+			"draft",
+			"active",
+			"done",
+		];
+		return order.filter((status) => set.has(status));
+	}, [files]);
+
 	const toggleTagFilter = (tag: string) => {
 		const lower = tag.toLowerCase();
 		setSelectedTagFilters((current) => {
@@ -283,10 +301,26 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 		});
 	};
 
+	const toggleStatusFilter = (status: "draft" | "active" | "done") => {
+		setSelectedStatusFilters((current) => {
+			if (current.includes(status)) {
+				return current.filter((item) => item !== status);
+			}
+			return [...current, status];
+		});
+	};
+
 	const filteredFileTree = useMemo(() => {
-		if (selectedTagFilters.length === 0) return fileTree;
+		if (selectedTagFilters.length === 0 && selectedStatusFilters.length === 0) {
+			return fileTree;
+		}
 
 		const required = selectedTagFilters.map((tag) => tag.toLowerCase());
+		const requiredStatuses = selectedStatusFilters;
+		const statusByPath = new Map<
+			string,
+			"draft" | "active" | "done" | undefined
+		>(files.map((file) => [normalizePath(file.path), file.metaStatus]));
 
 		const filterNodes = (nodes: FileNode[]): FileNode[] => {
 			const out: FileNode[] = [];
@@ -296,7 +330,11 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 						tagsByPath
 							.get(normalizePath(node.path))
 							?.map((tag) => tag.toLowerCase()) ?? [];
-					if (required.every((tag) => tags.includes(tag))) {
+					const status = statusByPath.get(normalizePath(node.path));
+					const statusMatched =
+						requiredStatuses.length === 0 ||
+						requiredStatuses.includes(status ?? "draft");
+					if (required.every((tag) => tags.includes(tag)) && statusMatched) {
 						out.push(node);
 					}
 					continue;
@@ -311,7 +349,7 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 		};
 
 		return filterNodes(fileTree);
-	}, [fileTree, selectedTagFilters, tagsByPath]);
+	}, [fileTree, files, selectedStatusFilters, selectedTagFilters, tagsByPath]);
 
 	useEffect(() => {
 		if (workspaceMode !== "editor" || !activeRepoId) return;
@@ -326,7 +364,14 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 			.map((node) => normalizePath(node.path))
 			.filter((path) => {
 				const file = openedByPath.get(path);
-				return !file || (!file.metaClass && !file.metaTags);
+				return (
+					!file ||
+					(!file.metaClass &&
+						!file.metaTags &&
+						!file.metaStatus &&
+						!file.metaAlias &&
+						!file.metaTitle)
+				);
 			});
 
 		if (pendingPaths.length === 0) return;
@@ -339,7 +384,14 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 					const readResult = await window.electronAPI.readFile(path);
 					if (readResult.error) continue;
 					const parsedMeta = extractAtDocFileMeta(readResult.content);
-					setFileMetaByPath(path, parsedMeta.metaClass, parsedMeta.metaTags);
+					setFileMetaByPath(
+						path,
+						parsedMeta.metaClass,
+						parsedMeta.metaTags,
+						parsedMeta.metaStatus,
+						parsedMeta.metaAlias,
+						parsedMeta.metaTitle,
+					);
 				} catch {}
 			}
 		})();
@@ -601,7 +653,10 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 			);
 		}
 
-		if (selectedTagFilters.length > 0 && filteredFileTree.length === 0) {
+		if (
+			(selectedTagFilters.length > 0 || selectedStatusFilters.length > 0) &&
+			filteredFileTree.length === 0
+		) {
 			return (
 				<div className="px-2 py-2 space-y-2">
 					<div className="flex flex-wrap items-center gap-1">
@@ -617,7 +672,10 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 						))}
 						<button
 							type="button"
-							onClick={() => setSelectedTagFilters([])}
+							onClick={() => {
+								setSelectedTagFilters([]);
+								setSelectedStatusFilters([]);
+							}}
 							className="text-[10px] text-muted-foreground underline underline-offset-2"
 						>
 							Clear
@@ -632,11 +690,47 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 
 		return (
 			<div className="w-full">
-				{availableTags.length > 0 ? (
+				{availableStatuses.length > 0 || availableTags.length > 0 ? (
 					<div className="px-2 pt-2 pb-1 border-b border-border/60">
-						<div className="mb-1 text-[10px] uppercase tracking-wide text-muted-foreground">
-							Tags
-						</div>
+						{availableStatuses.length > 0 ? (
+							<>
+								<div className="mb-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+									Status
+								</div>
+								<div className="mb-2 flex flex-wrap items-center gap-1">
+									{availableStatuses.map((status) => {
+										const active = selectedStatusFilters.includes(status);
+										const style =
+											status === "done"
+												? active
+													? "border-emerald-500/60 bg-emerald-500/15 text-emerald-600"
+													: "border-emerald-500/30 bg-emerald-500/10 text-emerald-600"
+												: status === "active"
+													? active
+														? "border-primary/60 bg-primary/15 text-primary"
+														: "border-primary/30 bg-primary/10 text-primary"
+													: active
+														? "border-border bg-muted text-foreground"
+														: "border-border bg-muted/70 text-muted-foreground";
+										return (
+											<button
+												type="button"
+												key={`status-filter-${status}`}
+												onClick={() => toggleStatusFilter(status)}
+												className={`inline-flex items-center rounded border px-1.5 py-0.5 text-[10px] uppercase transition-colors ${style}`}
+											>
+												{status}
+											</button>
+										);
+									})}
+								</div>
+							</>
+						) : null}
+						{availableTags.length > 0 ? (
+							<div className="mb-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+								Tags
+							</div>
+						) : null}
 						<div className="flex flex-wrap items-center gap-1">
 							{availableTags.map((tag) => {
 								const active = selectedTagFilters.some(
@@ -660,7 +754,10 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 							{selectedTagFilters.length > 0 ? (
 								<button
 									type="button"
-									onClick={() => setSelectedTagFilters([])}
+									onClick={() => {
+										setSelectedTagFilters([]);
+										setSelectedStatusFilters([]);
+									}}
 									className="text-[10px] text-muted-foreground underline underline-offset-2"
 								>
 									Clear

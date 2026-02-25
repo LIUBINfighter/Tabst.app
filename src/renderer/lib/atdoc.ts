@@ -2,6 +2,7 @@ import * as alphaTab from "@coderline/alphatab";
 import {
 	ATDOC_KEY_DEFINITIONS,
 	ATDOC_LAYOUT_MODE_VALUES,
+	ATDOC_META_STATUS_VALUES,
 	ATDOC_SCROLL_MODE_VALUES,
 } from "../data/atdoc-keys";
 import type { StaffDisplayOptions } from "./staff-config";
@@ -15,6 +16,9 @@ export interface AtDocConfig {
 	meta?: {
 		class?: string[];
 		tag?: string[];
+		status?: "draft" | "active" | "done";
+		alias?: string[];
+		title?: string;
 	};
 	display?: {
 		scale?: number;
@@ -63,6 +67,9 @@ export interface AtDocCompletionItem {
 export interface AtDocFileMeta {
 	metaClass: string[];
 	metaTags: string[];
+	metaStatus?: "draft" | "active" | "done";
+	metaAlias: string[];
+	metaTitle?: string;
 }
 
 const ATDOC_KEY_DEFINITION_MAP = new Map(
@@ -135,6 +142,14 @@ function parseScrollMode(value: string): alphaTab.ScrollMode | null {
 	return null;
 }
 
+function parseMetaStatus(value: string): "draft" | "active" | "done" | null {
+	const lowered = value.trim().toLowerCase();
+	if (lowered === "draft" || lowered === "active" || lowered === "done") {
+		return lowered;
+	}
+	return null;
+}
+
 function applyDirective(
 	key: string,
 	rawValue: string,
@@ -146,7 +161,8 @@ function applyDirective(
 
 	switch (key) {
 		case "at.meta.class":
-		case "at.meta.tag": {
+		case "at.meta.tag":
+		case "at.meta.alias": {
 			const values = parseStringList(value);
 			if (values.length === 0) {
 				warnings.push({
@@ -158,10 +174,36 @@ function applyDirective(
 			const meta = { ...(config.meta ?? {}) };
 			if (key === "at.meta.class") {
 				meta.class = mergeUnique(meta.class, values);
-			} else {
+			} else if (key === "at.meta.tag") {
 				meta.tag = mergeUnique(meta.tag, values);
+			} else {
+				meta.alias = mergeUnique(meta.alias, values);
 			}
 			config.meta = meta;
+			return;
+		}
+		case "at.meta.title": {
+			const title = unquote(rawValue).trim();
+			if (!title) {
+				warnings.push({
+					line,
+					message: "at.meta.title must be a non-empty string",
+				});
+				return;
+			}
+			config.meta = { ...(config.meta ?? {}), title };
+			return;
+		}
+		case "at.meta.status": {
+			const status = parseMetaStatus(value);
+			if (!status) {
+				warnings.push({
+					line,
+					message: "at.meta.status must be one of: draft, active, done",
+				});
+				return;
+			}
+			config.meta = { ...(config.meta ?? {}), status };
 			return;
 		}
 		case "at.display.scale": {
@@ -406,6 +448,7 @@ export function parseAtDoc(content: string | undefined): AtDocParseResult {
 export function buildAtDocCompletionItems(): AtDocCompletionItem[] {
 	const snippetBoolean = "$" + "{1:true}";
 	const snippetString = "$" + '{1:"value"}';
+	const snippetStatus = "$" + "{1:active}";
 	const snippetLayoutMode = "$" + "{1:Page}";
 	const snippetScrollMode = "$" + "{1:OffScreen}";
 	const snippetColor = "$" + "{1:#22c55e}";
@@ -420,13 +463,15 @@ export function buildAtDocCompletionItems(): AtDocCompletionItem[] {
 				? snippetBoolean
 				: def.valueType === "string"
 					? snippetString
-					: def.valueType === "enum:layoutMode"
-						? snippetLayoutMode
-						: def.valueType === "enum:scrollMode"
-							? snippetScrollMode
-							: def.valueType === "color"
-								? snippetColor
-								: snippetNumber
+					: def.valueType === "enum:status"
+						? snippetStatus
+						: def.valueType === "enum:layoutMode"
+							? snippetLayoutMode
+							: def.valueType === "enum:scrollMode"
+								? snippetScrollMode
+								: def.valueType === "color"
+									? snippetColor
+									: snippetNumber
 		}`,
 	}));
 }
@@ -441,6 +486,9 @@ export function getAtDocHoverText(key: string): string | null {
 	}
 	if (def.valueType === "enum:scrollMode") {
 		allowedValues = `Allowed: ${ATDOC_SCROLL_MODE_VALUES.join(" | ")}`;
+	}
+	if (def.valueType === "enum:status") {
+		allowedValues = `Allowed: ${ATDOC_META_STATUS_VALUES.join(" | ")}`;
 	}
 
 	return [
@@ -460,6 +508,7 @@ export function normalizeAtDocValueForDisplay(
 	const def = ATDOC_KEY_DEFINITION_MAP.get(key.toLowerCase());
 	if (!def) return value;
 	if (
+		def.valueType === "enum:status" ||
 		def.valueType === "enum:layoutMode" ||
 		def.valueType === "enum:scrollMode"
 	) {
@@ -475,5 +524,8 @@ export function extractAtDocFileMeta(
 	return {
 		metaClass: [...(parsed.config.meta?.class ?? [])],
 		metaTags: [...(parsed.config.meta?.tag ?? [])],
+		metaStatus: parsed.config.meta?.status,
+		metaAlias: [...(parsed.config.meta?.alias ?? [])],
+		metaTitle: parsed.config.meta?.title,
 	};
 }

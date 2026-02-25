@@ -17,6 +17,9 @@ interface AtexCandidate {
 	path: string;
 	metaTags: string[];
 	metaClass: string[];
+	metaStatus?: "draft" | "active" | "done";
+	metaAlias: string[];
+	metaTitle?: string;
 }
 
 function flattenFileNodes(nodes: FileNode[]): FileNode[] {
@@ -46,7 +49,11 @@ function sameStringArray(a: string[] | undefined, b: string[]): boolean {
 	return true;
 }
 
-function parseQuery(query: string): { text: string; tags: string[] } {
+function parseQuery(query: string): {
+	text: string;
+	tags: string[];
+	status?: "draft" | "active" | "done";
+} {
 	const tokens = query
 		.split(/\s+/)
 		.map((part) => part.trim())
@@ -54,6 +61,7 @@ function parseQuery(query: string): { text: string; tags: string[] } {
 
 	const tags: string[] = [];
 	const textParts: string[] = [];
+	let status: "draft" | "active" | "done" | undefined;
 
 	for (const token of tokens) {
 		const lower = token.toLowerCase();
@@ -67,10 +75,17 @@ function parseQuery(query: string): { text: string; tags: string[] } {
 			if (tag) tags.push(tag);
 			continue;
 		}
+		if (lower.startsWith("status:")) {
+			const value = lower.slice(7).trim();
+			if (value === "draft" || value === "active" || value === "done") {
+				status = value;
+			}
+			continue;
+		}
 		textParts.push(token);
 	}
 
-	return { text: textParts.join(" ").toLowerCase(), tags };
+	return { text: textParts.join(" ").toLowerCase(), tags, status };
 }
 
 export default function QuickFileSwitcher({
@@ -105,8 +120,17 @@ export default function QuickFileSwitcher({
 			const opened = byPath.get(normalizedPath);
 			let metaTags = [...(opened?.metaTags ?? [])];
 			let metaClass = [...(opened?.metaClass ?? [])];
+			let metaAlias = [...(opened?.metaAlias ?? [])];
+			let metaStatus = opened?.metaStatus;
+			let metaTitle = opened?.metaTitle;
 
-			if (metaTags.length === 0 && metaClass.length === 0) {
+			if (
+				metaTags.length === 0 &&
+				metaClass.length === 0 &&
+				metaAlias.length === 0 &&
+				!metaStatus &&
+				!metaTitle
+			) {
 				let content = opened?.content;
 				if (typeof content !== "string" || content.length === 0) {
 					const readResult = await window.electronAPI.readFile(node.path);
@@ -119,12 +143,25 @@ export default function QuickFileSwitcher({
 					const parsedMeta = extractAtDocFileMeta(content);
 					metaTags = parsedMeta.metaTags;
 					metaClass = parsedMeta.metaClass;
+					metaAlias = parsedMeta.metaAlias;
+					metaStatus = parsedMeta.metaStatus;
+					metaTitle = parsedMeta.metaTitle;
 					if (
 						opened &&
 						(!sameStringArray(opened.metaClass, metaClass) ||
-							!sameStringArray(opened.metaTags, metaTags))
+							!sameStringArray(opened.metaTags, metaTags) ||
+							opened.metaStatus !== metaStatus ||
+							!sameStringArray(opened.metaAlias, metaAlias) ||
+							opened.metaTitle !== metaTitle)
 					) {
-						setFileMeta(opened.id, metaClass, metaTags);
+						setFileMeta(
+							opened.id,
+							metaClass,
+							metaTags,
+							metaStatus,
+							metaAlias,
+							metaTitle,
+						);
 					}
 				}
 			}
@@ -135,6 +172,9 @@ export default function QuickFileSwitcher({
 				path: node.path,
 				metaTags,
 				metaClass,
+				metaAlias,
+				metaStatus,
+				metaTitle,
 			});
 		}
 
@@ -168,25 +208,35 @@ export default function QuickFileSwitcher({
 		const parsed = parseQuery(query);
 		const text = parsed.text;
 		const tags = parsed.tags;
+		const status = parsed.status;
 
 		const withScore = candidates
 			.filter((item) => {
+				if (status && item.metaStatus !== status) return false;
 				if (tags.length > 0) {
 					const itemTags = item.metaTags.map((tag) => tag.toLowerCase());
 					if (!tags.every((tag) => itemTags.includes(tag))) return false;
 				}
 				if (!text) return true;
-				return item.name.toLowerCase().includes(text);
+				const aliasHit = item.metaAlias.some((alias) =>
+					alias.toLowerCase().includes(text),
+				);
+				const titleHit = (item.metaTitle ?? "").toLowerCase().includes(text);
+				return item.name.toLowerCase().includes(text) || aliasHit || titleHit;
 			})
 			.map((item) => {
 				const name = item.name.toLowerCase();
+				const title = (item.metaTitle ?? "").toLowerCase();
+				const aliasExact = item.metaAlias.some(
+					(alias) => alias.toLowerCase() === text,
+				);
 				const score = !text
 					? 0
-					: name === text
-						? 3
-						: name.startsWith(text)
-							? 2
-							: 1;
+					: name === text || title === text || aliasExact
+						? 4
+						: name.startsWith(text) || title.startsWith(text)
+							? 3
+							: 2;
 				return { item, score };
 			})
 			.sort((a, b) => {
@@ -217,6 +267,9 @@ export default function QuickFileSwitcher({
 							content: readResult.content,
 							metaClass: existing.metaClass,
 							metaTags: existing.metaTags,
+							metaAlias: existing.metaAlias,
+							metaStatus: existing.metaStatus,
+							metaTitle: existing.metaTitle,
 							contentLoaded: true,
 						});
 					}
@@ -237,6 +290,9 @@ export default function QuickFileSwitcher({
 				content: readResult.content,
 				metaClass: candidate.metaClass,
 				metaTags: candidate.metaTags,
+				metaAlias: candidate.metaAlias,
+				metaStatus: candidate.metaStatus,
+				metaTitle: candidate.metaTitle,
 				contentLoaded: true,
 			});
 			setActiveFile(candidate.path);
@@ -275,7 +331,7 @@ export default function QuickFileSwitcher({
 				<div className="border-b border-border p-3">
 					<Input
 						autoFocus
-						placeholder="Search .atex files... use #tag or tag:#tag"
+						placeholder="Search .atex files... use #tag, tag:#tag, status:active"
 						value={query}
 						onChange={(event) => {
 							setQuery(event.target.value);
@@ -309,11 +365,23 @@ export default function QuickFileSwitcher({
 								>
 									<div className="flex items-center gap-2">
 										<FileMusic className="h-4 w-4 text-muted-foreground" />
-										<span className="text-sm font-medium">{item.name}</span>
+										<span className="text-sm font-medium">
+											{item.metaTitle?.trim() || item.name}
+										</span>
+										{item.metaStatus ? (
+											<span className="rounded border border-border bg-background/70 px-1.5 py-0.5 text-[10px] text-muted-foreground uppercase">
+												{item.metaStatus}
+											</span>
+										) : null}
 									</div>
 									<div className="mt-1 text-xs text-muted-foreground truncate">
 										{item.path}
 									</div>
+									{item.metaAlias.length > 0 ? (
+										<div className="mt-1 text-[11px] text-muted-foreground truncate">
+											aka: {item.metaAlias.join(", ")}
+										</div>
+									) : null}
 									{item.metaTags.length > 0 ? (
 										<div className="mt-2 flex flex-wrap items-center gap-1">
 											{item.metaTags.map((tag) => (

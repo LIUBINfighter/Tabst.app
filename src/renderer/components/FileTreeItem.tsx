@@ -121,6 +121,36 @@ export function FileTreeItem({
 			[isFolder, node.id, node.path],
 		),
 	);
+	const fileMetaTitle = useAppStore(
+		useCallback(
+			(s) => {
+				if (isFolder) return undefined;
+				const current = s.files.find(
+					(f) => f.id === node.id || f.path === node.path,
+				);
+				return current?.metaTitle;
+			},
+			[isFolder, node.id, node.path],
+		),
+	);
+	const fileMetaStatus = useAppStore(
+		useCallback(
+			(s) => {
+				if (isFolder) return undefined;
+				const current = s.files.find(
+					(f) => f.id === node.id || f.path === node.path,
+				);
+				return current?.metaStatus;
+			},
+			[isFolder, node.id, node.path],
+		),
+	);
+	const statusBadgeClass =
+		fileMetaStatus === "done"
+			? "shrink-0 rounded border border-emerald-500/40 bg-emerald-500/15 px-1 py-0 uppercase text-[9px] text-emerald-600"
+			: fileMetaStatus === "active"
+				? "shrink-0 rounded border border-primary/40 bg-primary/15 px-1 py-0 uppercase text-[9px] text-primary"
+				: "shrink-0 rounded border border-border bg-background/70 px-1 py-0 uppercase text-[9px]";
 	const shownTags: string[] = fileMetaTags.slice(0, 3);
 	const hiddenTagsCount = Math.max(fileMetaTags.length - shownTags.length, 0);
 	const activeRepoPath = useAppStore((s) => {
@@ -153,6 +183,7 @@ export function FileTreeItem({
 
 	const fileExt = node.name.split(".").pop()?.toLowerCase() || "";
 	const baseName = node.name.replace(/\.[^/.]+$/, "");
+	const displayName = fileMetaTitle?.trim() || baseName;
 
 	useEffect(() => {
 		if (!isEditing) {
@@ -406,10 +437,15 @@ export function FileTreeItem({
 					/>
 				) : (
 					<div className="min-w-0">
-						<div className="truncate h-6 leading-6 font-medium">{baseName}</div>
+						<div className="truncate h-6 leading-6 font-medium">
+							{displayName}
+						</div>
 						{!isFolder ? (
 							<div className="flex items-center gap-1 text-[10px] text-muted-foreground min-w-0">
 								<span className="truncate">{relativeDir}</span>
+								{fileMetaStatus ? (
+									<span className={statusBadgeClass}>{fileMetaStatus}</span>
+								) : null}
 								{relativeEditTime ? (
 									<span className="shrink-0">· {relativeEditTime}</span>
 								) : null}

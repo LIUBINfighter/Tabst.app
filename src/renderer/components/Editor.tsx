@@ -11,12 +11,20 @@ import {
 	useState,
 } from "react";
 import { useTranslation } from "react-i18next";
+import { ATDOC_KEY_DEFINITIONS } from "../data/atdoc-keys";
 import { useEditorLSP } from "../hooks/useEditorLSP";
 import { useEditorTheme } from "../hooks/useEditorTheme";
 import { updateEditorPlaybackHighlight } from "../lib/alphatex-playback-sync";
 import { updateEditorSelectionHighlight } from "../lib/alphatex-selection-sync";
+import {
+	ATDOC_INLINE_KEY_COMMAND_PREFIX,
+	EDITOR_COMMAND_EVENT,
+	EDITOR_OPEN_INLINE_COMMAND_EVENT,
+	type EditorCommandId,
+} from "../lib/command-palette";
 import { whitespaceDecoration } from "../lib/whitespace-decoration";
 import { type FileItem, useAppStore } from "../store/appStore";
+import InlineEditorCommandBar from "./InlineEditorCommandBar";
 import Preview from "./Preview";
 import QuoteCard from "./QuoteCard";
 import TopBar from "./TopBar";
@@ -54,6 +62,9 @@ export function Editor({
 	const lastContentRef = useRef<string>("");
 	const focusCleanupRef = useRef<(() => void) | null>(null);
 	const [previewApi, setPreviewApi] = useState<TracksPanelProps["api"]>(null);
+	const [inlineCommandOpen, setInlineCommandOpen] = useState(false);
+	const [inlineCommandTop, setInlineCommandTop] = useState(8);
+	const [inlineCommandLeft, setInlineCommandLeft] = useState(8);
 
 	// Track current file path to detect language changes
 	const currentFilePathRef = useRef<string>("");
@@ -307,6 +318,111 @@ export function Editor({
 		});
 	}, [themeExtension, themeCompartment]);
 
+	const runEditorCommand = useCallback((commandId: EditorCommandId) => {
+		const view = viewRef.current;
+		if (!view) return;
+
+		const insertTextAtSelection = (insertText: string) => {
+			const state = view.state;
+			const changes = state.selection.ranges.map((range) => ({
+				from: range.from,
+				to: range.to,
+				insert: insertText,
+			}));
+			view.dispatch({ changes });
+			view.focus();
+		};
+
+		switch (commandId) {
+			case "insert-atdoc-block": {
+				insertTextAtSelection("/**\n * \n */");
+				return;
+			}
+			case "insert-atdoc-directive": {
+				insertTextAtSelection("* at.meta.status=active");
+				return;
+			}
+			case "insert-atdoc-meta-preset": {
+				insertTextAtSelection(
+					[
+						'* at.meta.title=""',
+						'* at.meta.tag=""',
+						"* at.meta.status=done",
+						'* at.meta.alias=""',
+					].join("\n"),
+				);
+				return;
+			}
+		}
+
+		if (commandId.startsWith(ATDOC_INLINE_KEY_COMMAND_PREFIX)) {
+			const atdocKey = commandId.slice(ATDOC_INLINE_KEY_COMMAND_PREFIX.length);
+			const definition = ATDOC_KEY_DEFINITIONS.find(
+				(item) => item.key === atdocKey,
+			);
+			if (!definition) return;
+
+			const valueTemplate = (() => {
+				switch (definition.valueType) {
+					case "boolean":
+						return "true";
+					case "string":
+						return '""';
+					case "enum:status":
+						return "active";
+					case "enum:layoutMode":
+						return "Page";
+					case "enum:scrollMode":
+						return "OffScreen";
+					case "color":
+						return "#22c55e";
+					default:
+						return "1";
+				}
+			})();
+
+			insertTextAtSelection(`* ${definition.key}=${valueTemplate}`);
+			return;
+		}
+		setInlineCommandOpen(false);
+	}, []);
+
+	const openInlineCommandBar = useCallback(() => {
+		const view = viewRef.current;
+		const host = editorRef.current;
+		if (!view || !host) return;
+
+		const anchorPos = view.state.selection.main.head;
+		const coords = view.coordsAtPos(anchorPos);
+		const hostRect = host.getBoundingClientRect();
+
+		const rawLeft = (coords?.left ?? hostRect.left + 16) - hostRect.left;
+		const rawTop = (coords?.bottom ?? hostRect.top + 16) - hostRect.top + 8;
+
+		setInlineCommandLeft(Math.max(8, Math.min(rawLeft, hostRect.width - 440)));
+		setInlineCommandTop(Math.max(8, Math.min(rawTop, hostRect.height - 280)));
+		setInlineCommandOpen(true);
+	}, []);
+
+	useEffect(() => {
+		const handler = (event: Event) => {
+			const customEvent = event as CustomEvent<EditorCommandId>;
+			if (!customEvent.detail) return;
+			runEditorCommand(customEvent.detail);
+		};
+		window.addEventListener(EDITOR_COMMAND_EVENT, handler);
+		return () => window.removeEventListener(EDITOR_COMMAND_EVENT, handler);
+	}, [runEditorCommand]);
+
+	useEffect(() => {
+		const handler = () => {
+			openInlineCommandBar();
+		};
+		window.addEventListener(EDITOR_OPEN_INLINE_COMMAND_EVENT, handler);
+		return () =>
+			window.removeEventListener(EDITOR_OPEN_INLINE_COMMAND_EVENT, handler);
+	}, [openInlineCommandBar]);
+
 	// 🆕 监听乐谱选区变化，更新编辑器高亮
 	useEffect(() => {
 		const view = viewRef.current;
@@ -503,6 +619,13 @@ export function Editor({
 						<div className="flex-1 min-h-0 overflow-hidden relative">
 							{/* Host for CodeMirror */}
 							<div ref={editorRef} className="h-full" />
+							<InlineEditorCommandBar
+								open={inlineCommandOpen}
+								top={inlineCommandTop}
+								left={inlineCommandLeft}
+								onClose={() => setInlineCommandOpen(false)}
+								onRunCommand={runEditorCommand}
+							/>
 
 							<TracksPanel
 								api={previewApi}
@@ -546,6 +669,13 @@ export function Editor({
 						/>
 						{/* Host for CodeMirror */}
 						<div ref={editorRef} className="h-full" />
+						<InlineEditorCommandBar
+							open={inlineCommandOpen}
+							top={inlineCommandTop}
+							left={inlineCommandLeft}
+							onClose={() => setInlineCommandOpen(false)}
+							onRunCommand={runEditorCommand}
+						/>
 					</div>
 				</TooltipProvider>
 			)}
