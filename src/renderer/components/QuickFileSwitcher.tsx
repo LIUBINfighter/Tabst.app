@@ -17,7 +17,20 @@ interface AtexCandidate {
 	path: string;
 	metaTags: string[];
 	metaClass: string[];
-	metaStatus?: "draft" | "active" | "done";
+	metaStatus?: "draft" | "active" | "done" | "released";
+	metaTabist?: string;
+	metaApp?: string;
+	metaGithub?: string;
+	metaLicense?:
+		| "CC0-1.0"
+		| "CC-BY-4.0"
+		| "CC-BY-SA-4.0"
+		| "CC-BY-NC-4.0"
+		| "CC-BY-NC-SA-4.0"
+		| "CC-BY-ND-4.0"
+		| "CC-BY-NC-ND-4.0";
+	metaSource?: string;
+	metaRelease?: string;
 	metaAlias: string[];
 	metaTitle?: string;
 }
@@ -52,7 +65,7 @@ function sameStringArray(a: string[] | undefined, b: string[]): boolean {
 function parseQuery(query: string): {
 	text: string;
 	tags: string[];
-	status?: "draft" | "active" | "done";
+	status?: "draft" | "active" | "done" | "released";
 } {
 	const tokens = query
 		.split(/\s+/)
@@ -61,7 +74,7 @@ function parseQuery(query: string): {
 
 	const tags: string[] = [];
 	const textParts: string[] = [];
-	let status: "draft" | "active" | "done" | undefined;
+	let status: "draft" | "active" | "done" | "released" | undefined;
 
 	for (const token of tokens) {
 		const lower = token.toLowerCase();
@@ -77,7 +90,12 @@ function parseQuery(query: string): {
 		}
 		if (lower.startsWith("status:")) {
 			const value = lower.slice(7).trim();
-			if (value === "draft" || value === "active" || value === "done") {
+			if (
+				value === "draft" ||
+				value === "active" ||
+				value === "done" ||
+				value === "released"
+			) {
 				status = value;
 			}
 			continue;
@@ -122,6 +140,12 @@ export default function QuickFileSwitcher({
 			let metaClass = [...(opened?.metaClass ?? [])];
 			let metaAlias = [...(opened?.metaAlias ?? [])];
 			let metaStatus = opened?.metaStatus;
+			let metaTabist = opened?.metaTabist;
+			let metaApp = opened?.metaApp;
+			let metaGithub = opened?.metaGithub;
+			let metaLicense = opened?.metaLicense;
+			let metaSource = opened?.metaSource;
+			let metaRelease = opened?.metaRelease;
 			let metaTitle = opened?.metaTitle;
 
 			if (
@@ -129,6 +153,12 @@ export default function QuickFileSwitcher({
 				metaClass.length === 0 &&
 				metaAlias.length === 0 &&
 				!metaStatus &&
+				!metaTabist &&
+				!metaApp &&
+				!metaGithub &&
+				!metaLicense &&
+				!metaSource &&
+				!metaRelease &&
 				!metaTitle
 			) {
 				let content = opened?.content;
@@ -145,12 +175,24 @@ export default function QuickFileSwitcher({
 					metaClass = parsedMeta.metaClass;
 					metaAlias = parsedMeta.metaAlias;
 					metaStatus = parsedMeta.metaStatus;
+					metaTabist = parsedMeta.metaTabist;
+					metaApp = parsedMeta.metaApp;
+					metaGithub = parsedMeta.metaGithub;
+					metaLicense = parsedMeta.metaLicense;
+					metaSource = parsedMeta.metaSource;
+					metaRelease = parsedMeta.metaRelease;
 					metaTitle = parsedMeta.metaTitle;
 					if (
 						opened &&
 						(!sameStringArray(opened.metaClass, metaClass) ||
 							!sameStringArray(opened.metaTags, metaTags) ||
 							opened.metaStatus !== metaStatus ||
+							opened.metaTabist !== metaTabist ||
+							opened.metaApp !== metaApp ||
+							opened.metaGithub !== metaGithub ||
+							opened.metaLicense !== metaLicense ||
+							opened.metaSource !== metaSource ||
+							opened.metaRelease !== metaRelease ||
 							!sameStringArray(opened.metaAlias, metaAlias) ||
 							opened.metaTitle !== metaTitle)
 					) {
@@ -159,6 +201,12 @@ export default function QuickFileSwitcher({
 							metaClass,
 							metaTags,
 							metaStatus,
+							metaTabist,
+							metaApp,
+							metaGithub,
+							metaLicense,
+							metaSource,
+							metaRelease,
 							metaAlias,
 							metaTitle,
 						);
@@ -174,6 +222,12 @@ export default function QuickFileSwitcher({
 				metaClass,
 				metaAlias,
 				metaStatus,
+				metaTabist,
+				metaApp,
+				metaGithub,
+				metaLicense,
+				metaSource,
+				metaRelease,
 				metaTitle,
 			});
 		}
@@ -269,6 +323,12 @@ export default function QuickFileSwitcher({
 							metaTags: existing.metaTags,
 							metaAlias: existing.metaAlias,
 							metaStatus: existing.metaStatus,
+							metaTabist: existing.metaTabist,
+							metaApp: existing.metaApp,
+							metaGithub: existing.metaGithub,
+							metaLicense: existing.metaLicense,
+							metaSource: existing.metaSource,
+							metaRelease: existing.metaRelease,
 							metaTitle: existing.metaTitle,
 							contentLoaded: true,
 						});
@@ -292,6 +352,12 @@ export default function QuickFileSwitcher({
 				metaTags: candidate.metaTags,
 				metaAlias: candidate.metaAlias,
 				metaStatus: candidate.metaStatus,
+				metaTabist: candidate.metaTabist,
+				metaApp: candidate.metaApp,
+				metaGithub: candidate.metaGithub,
+				metaLicense: candidate.metaLicense,
+				metaSource: candidate.metaSource,
+				metaRelease: candidate.metaRelease,
 				metaTitle: candidate.metaTitle,
 				contentLoaded: true,
 			});
@@ -331,7 +397,7 @@ export default function QuickFileSwitcher({
 				<div className="border-b border-border p-3">
 					<Input
 						autoFocus
-						placeholder="Search .atex files... use #tag, tag:#tag, status:active"
+						placeholder="Search .atex files... use #tag, tag:#tag, status:released"
 						value={query}
 						onChange={(event) => {
 							setQuery(event.target.value);
@@ -369,7 +435,17 @@ export default function QuickFileSwitcher({
 											{item.metaTitle?.trim() || item.name}
 										</span>
 										{item.metaStatus ? (
-											<span className="rounded border border-border bg-background/70 px-1.5 py-0.5 text-[10px] text-muted-foreground uppercase">
+											<span
+												className={`rounded border px-1.5 py-0.5 text-[10px] uppercase ${
+													item.metaStatus === "done"
+														? "border-emerald-500/40 bg-emerald-500/15 text-emerald-600"
+														: item.metaStatus === "released"
+															? "border-amber-700/40 bg-amber-700/15 text-amber-700"
+															: item.metaStatus === "active"
+																? "border-primary/40 bg-primary/15 text-primary"
+																: "border-border bg-background/70 text-muted-foreground"
+												}`}
+											>
 												{item.metaStatus}
 											</span>
 										) : null}

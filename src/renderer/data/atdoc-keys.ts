@@ -3,6 +3,7 @@ export type AtDocValueType =
 	| "boolean"
 	| "string"
 	| "enum:status"
+	| "enum:license"
 	| "color"
 	| "enum:layoutMode"
 	| "enum:scrollMode";
@@ -30,8 +31,44 @@ export const ATDOC_KEY_DEFINITIONS: AtDocKeyDefinition[] = [
 	{
 		key: "at.meta.status",
 		valueType: "enum:status",
-		description: "Document lifecycle status: draft | active | done",
+		description: "Document lifecycle status: draft | active | done | released",
 		example: "at.meta.status=active",
+	},
+	{
+		key: "at.meta.tabist",
+		valueType: "string",
+		description: "Tab score author name",
+		example: 'at.meta.tabist="Your Name"',
+	},
+	{
+		key: "at.meta.app",
+		valueType: "string",
+		description: "Application identifier",
+		example: 'at.meta.app="tabst.app"',
+	},
+	{
+		key: "at.meta.github",
+		valueType: "string",
+		description: "Project GitHub URL",
+		example: 'at.meta.github="https://github.com/LIUBINfighter/Tabst.app"',
+	},
+	{
+		key: "at.meta.license",
+		valueType: "enum:license",
+		description: "Creative Commons license id",
+		example: "at.meta.license=CC-BY-4.0",
+	},
+	{
+		key: "at.meta.source",
+		valueType: "string",
+		description: "Source reference URL",
+		example: 'at.meta.source="https://example.com/original"',
+	},
+	{
+		key: "at.meta.release",
+		valueType: "string",
+		description: "Release link URL",
+		example: 'at.meta.release="https://example.com/release-note"',
 	},
 	{
 		key: "at.meta.alias",
@@ -199,4 +236,14 @@ export const ATDOC_SCROLL_MODE_VALUES = [
 	"Smooth",
 ];
 
-export const ATDOC_META_STATUS_VALUES = ["draft", "active", "done"];
+export const ATDOC_META_STATUS_VALUES = ["draft", "active", "done", "released"];
+
+export const ATDOC_META_LICENSE_VALUES = [
+	"CC0-1.0",
+	"CC-BY-4.0",
+	"CC-BY-SA-4.0",
+	"CC-BY-NC-4.0",
+	"CC-BY-NC-SA-4.0",
+	"CC-BY-ND-4.0",
+	"CC-BY-NC-ND-4.0",
+];

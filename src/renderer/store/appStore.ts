@@ -44,7 +44,20 @@ export interface FileItem {
 	content: string;
 	metaClass?: string[];
 	metaTags?: string[];
-	metaStatus?: "draft" | "active" | "done";
+	metaStatus?: "draft" | "active" | "done" | "released";
+	metaTabist?: string;
+	metaApp?: string;
+	metaGithub?: string;
+	metaLicense?:
+		| "CC0-1.0"
+		| "CC-BY-4.0"
+		| "CC-BY-SA-4.0"
+		| "CC-BY-NC-4.0"
+		| "CC-BY-NC-SA-4.0"
+		| "CC-BY-ND-4.0"
+		| "CC-BY-NC-ND-4.0";
+	metaSource?: string;
+	metaRelease?: string;
 	metaAlias?: string[];
 	metaTitle?: string;
 	/** Whether `content` is hydrated from disk/user input (vs empty placeholder from file tree scan). */
@@ -255,7 +268,20 @@ interface AppState {
 		id: string,
 		metaClass: string[],
 		metaTags: string[],
-		metaStatus?: "draft" | "active" | "done",
+		metaStatus?: "draft" | "active" | "done" | "released",
+		metaTabist?: string,
+		metaApp?: string,
+		metaGithub?: string,
+		metaLicense?:
+			| "CC0-1.0"
+			| "CC-BY-4.0"
+			| "CC-BY-SA-4.0"
+			| "CC-BY-NC-4.0"
+			| "CC-BY-NC-SA-4.0"
+			| "CC-BY-ND-4.0"
+			| "CC-BY-NC-ND-4.0",
+		metaSource?: string,
+		metaRelease?: string,
 		metaAlias?: string[],
 		metaTitle?: string,
 	) => void;
@@ -263,7 +289,20 @@ interface AppState {
 		path: string,
 		metaClass: string[],
 		metaTags: string[],
-		metaStatus?: "draft" | "active" | "done",
+		metaStatus?: "draft" | "active" | "done" | "released",
+		metaTabist?: string,
+		metaApp?: string,
+		metaGithub?: string,
+		metaLicense?:
+			| "CC0-1.0"
+			| "CC-BY-4.0"
+			| "CC-BY-SA-4.0"
+			| "CC-BY-NC-4.0"
+			| "CC-BY-NC-SA-4.0"
+			| "CC-BY-ND-4.0"
+			| "CC-BY-NC-ND-4.0",
+		metaSource?: string,
+		metaRelease?: string,
 		metaAlias?: string[],
 		metaTitle?: string,
 	) => void;
@@ -850,6 +889,12 @@ export const useAppStore = create<AppState>((set, get) => ({
 				file.metaTags ??
 				(parsedMeta.metaTags.length > 0 ? parsedMeta.metaTags : undefined);
 			const incomingMetaStatus = file.metaStatus ?? parsedMeta.metaStatus;
+			const incomingMetaTabist = file.metaTabist ?? parsedMeta.metaTabist;
+			const incomingMetaApp = file.metaApp ?? parsedMeta.metaApp;
+			const incomingMetaGithub = file.metaGithub ?? parsedMeta.metaGithub;
+			const incomingMetaLicense = file.metaLicense ?? parsedMeta.metaLicense;
+			const incomingMetaSource = file.metaSource ?? parsedMeta.metaSource;
+			const incomingMetaRelease = file.metaRelease ?? parsedMeta.metaRelease;
 			const incomingMetaAlias =
 				file.metaAlias ??
 				(parsedMeta.metaAlias.length > 0 ? parsedMeta.metaAlias : undefined);
@@ -864,6 +909,12 @@ export const useAppStore = create<AppState>((set, get) => ({
 					metaClass: incomingMetaClass ?? existing.metaClass,
 					metaTags: incomingMetaTags ?? existing.metaTags,
 					metaStatus: incomingMetaStatus ?? existing.metaStatus,
+					metaTabist: incomingMetaTabist ?? existing.metaTabist,
+					metaApp: incomingMetaApp ?? existing.metaApp,
+					metaGithub: incomingMetaGithub ?? existing.metaGithub,
+					metaLicense: incomingMetaLicense ?? existing.metaLicense,
+					metaSource: incomingMetaSource ?? existing.metaSource,
+					metaRelease: incomingMetaRelease ?? existing.metaRelease,
 					metaAlias: incomingMetaAlias ?? existing.metaAlias,
 					metaTitle: incomingMetaTitle ?? existing.metaTitle,
 					contentLoaded: file.contentLoaded ?? true,
@@ -883,6 +934,12 @@ export const useAppStore = create<AppState>((set, get) => ({
 						metaClass: incomingMetaClass,
 						metaTags: incomingMetaTags,
 						metaStatus: incomingMetaStatus,
+						metaTabist: incomingMetaTabist,
+						metaApp: incomingMetaApp,
+						metaGithub: incomingMetaGithub,
+						metaLicense: incomingMetaLicense,
+						metaSource: incomingMetaSource,
+						metaRelease: incomingMetaRelease,
 						metaAlias: incomingMetaAlias,
 						metaTitle: incomingMetaTitle,
 						contentLoaded: file.contentLoaded ?? true,
@@ -995,6 +1052,12 @@ export const useAppStore = create<AppState>((set, get) => ({
 									? parsedMeta.metaTags
 									: undefined,
 							metaStatus: parsedMeta.metaStatus,
+							metaTabist: parsedMeta.metaTabist,
+							metaApp: parsedMeta.metaApp,
+							metaGithub: parsedMeta.metaGithub,
+							metaLicense: parsedMeta.metaLicense,
+							metaSource: parsedMeta.metaSource,
+							metaRelease: parsedMeta.metaRelease,
 							metaAlias:
 								parsedMeta.metaAlias.length > 0
 									? parsedMeta.metaAlias
@@ -1007,7 +1070,20 @@ export const useAppStore = create<AppState>((set, get) => ({
 		}));
 	},
 
-	setFileMeta: (id, metaClass, metaTags, metaStatus, metaAlias, metaTitle) => {
+	setFileMeta: (
+		id,
+		metaClass,
+		metaTags,
+		metaStatus,
+		metaTabist,
+		metaApp,
+		metaGithub,
+		metaLicense,
+		metaSource,
+		metaRelease,
+		metaAlias,
+		metaTitle,
+	) => {
 		set((state) => {
 			let changed = false;
 			const nextFiles = state.files.map((f) => {
@@ -1015,6 +1091,12 @@ export const useAppStore = create<AppState>((set, get) => ({
 				const nextClass = metaClass.length > 0 ? [...metaClass] : undefined;
 				const nextTags = metaTags.length > 0 ? [...metaTags] : undefined;
 				const nextStatus = metaStatus;
+				const nextTabist = metaTabist;
+				const nextApp = metaApp;
+				const nextGithub = metaGithub;
+				const nextLicense = metaLicense;
+				const nextSource = metaSource;
+				const nextRelease = metaRelease;
 				const nextAlias =
 					metaAlias && metaAlias.length > 0 ? [...metaAlias] : undefined;
 				const nextTitle = metaTitle;
@@ -1022,6 +1104,12 @@ export const useAppStore = create<AppState>((set, get) => ({
 					isSameStringList(f.metaClass, nextClass) &&
 					isSameStringList(f.metaTags, nextTags) &&
 					f.metaStatus === nextStatus &&
+					f.metaTabist === nextTabist &&
+					f.metaApp === nextApp &&
+					f.metaGithub === nextGithub &&
+					f.metaLicense === nextLicense &&
+					f.metaSource === nextSource &&
+					f.metaRelease === nextRelease &&
 					isSameStringList(f.metaAlias, nextAlias) &&
 					f.metaTitle === nextTitle
 				) {
@@ -1033,6 +1121,12 @@ export const useAppStore = create<AppState>((set, get) => ({
 					metaClass: nextClass,
 					metaTags: nextTags,
 					metaStatus: nextStatus,
+					metaTabist: nextTabist,
+					metaApp: nextApp,
+					metaGithub: nextGithub,
+					metaLicense: nextLicense,
+					metaSource: nextSource,
+					metaRelease: nextRelease,
 					metaAlias: nextAlias,
 					metaTitle: nextTitle,
 				};
@@ -1047,6 +1141,12 @@ export const useAppStore = create<AppState>((set, get) => ({
 		metaClass,
 		metaTags,
 		metaStatus,
+		metaTabist,
+		metaApp,
+		metaGithub,
+		metaLicense,
+		metaSource,
+		metaRelease,
 		metaAlias,
 		metaTitle,
 	) => {
@@ -1057,6 +1157,12 @@ export const useAppStore = create<AppState>((set, get) => ({
 				const nextClass = metaClass.length > 0 ? [...metaClass] : undefined;
 				const nextTags = metaTags.length > 0 ? [...metaTags] : undefined;
 				const nextStatus = metaStatus;
+				const nextTabist = metaTabist;
+				const nextApp = metaApp;
+				const nextGithub = metaGithub;
+				const nextLicense = metaLicense;
+				const nextSource = metaSource;
+				const nextRelease = metaRelease;
 				const nextAlias =
 					metaAlias && metaAlias.length > 0 ? [...metaAlias] : undefined;
 				const nextTitle = metaTitle;
@@ -1064,6 +1170,12 @@ export const useAppStore = create<AppState>((set, get) => ({
 					isSameStringList(f.metaClass, nextClass) &&
 					isSameStringList(f.metaTags, nextTags) &&
 					f.metaStatus === nextStatus &&
+					f.metaTabist === nextTabist &&
+					f.metaApp === nextApp &&
+					f.metaGithub === nextGithub &&
+					f.metaLicense === nextLicense &&
+					f.metaSource === nextSource &&
+					f.metaRelease === nextRelease &&
 					isSameStringList(f.metaAlias, nextAlias) &&
 					f.metaTitle === nextTitle
 				) {
@@ -1075,6 +1187,12 @@ export const useAppStore = create<AppState>((set, get) => ({
 					metaClass: nextClass,
 					metaTags: nextTags,
 					metaStatus: nextStatus,
+					metaTabist: nextTabist,
+					metaApp: nextApp,
+					metaGithub: nextGithub,
+					metaLicense: nextLicense,
+					metaSource: nextSource,
+					metaRelease: nextRelease,
 					metaAlias: nextAlias,
 					metaTitle: nextTitle,
 				};
@@ -1281,6 +1399,12 @@ function reconcileFilesWithTree(
 			metaClass: existing.metaClass,
 			metaTags: existing.metaTags,
 			metaStatus: existing.metaStatus,
+			metaTabist: existing.metaTabist,
+			metaApp: existing.metaApp,
+			metaGithub: existing.metaGithub,
+			metaLicense: existing.metaLicense,
+			metaSource: existing.metaSource,
+			metaRelease: existing.metaRelease,
 			metaAlias: existing.metaAlias,
 			metaTitle: existing.metaTitle,
 			contentLoaded: existing.contentLoaded ?? next.contentLoaded,

@@ -34,7 +34,7 @@ const BASE_COMMANDS: EditorCommand[] = [
 	{
 		id: "insert-atdoc-directive",
 		label: "Insert ATDOC Directive",
-		description: "Insert * at.meta.status=active",
+		description: "Insert * at.meta.status=released",
 		keywords: ["atdoc", "line", "directive", "meta"],
 		icon: "line",
 	},

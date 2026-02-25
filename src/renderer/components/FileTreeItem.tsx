@@ -148,9 +148,11 @@ export function FileTreeItem({
 	const statusBadgeClass =
 		fileMetaStatus === "done"
 			? "shrink-0 rounded border border-emerald-500/40 bg-emerald-500/15 px-1 py-0 uppercase text-[9px] text-emerald-600"
-			: fileMetaStatus === "active"
-				? "shrink-0 rounded border border-primary/40 bg-primary/15 px-1 py-0 uppercase text-[9px] text-primary"
-				: "shrink-0 rounded border border-border bg-background/70 px-1 py-0 uppercase text-[9px]";
+			: fileMetaStatus === "released"
+				? "shrink-0 rounded border border-amber-700/40 bg-amber-700/15 px-1 py-0 uppercase text-[9px] text-amber-700"
+				: fileMetaStatus === "active"
+					? "shrink-0 rounded border border-primary/40 bg-primary/15 px-1 py-0 uppercase text-[9px] text-primary"
+					: "shrink-0 rounded border border-border bg-background/70 px-1 py-0 uppercase text-[9px]";
 	const shownTags: string[] = fileMetaTags.slice(0, 3);
 	const hiddenTagsCount = Math.max(fileMetaTags.length - shownTags.length, 0);
 	const activeRepoPath = useAppStore((s) => {

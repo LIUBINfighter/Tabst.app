@@ -339,7 +339,7 @@ export function Editor({
 				return;
 			}
 			case "insert-atdoc-directive": {
-				insertTextAtSelection("* at.meta.status=active");
+				insertTextAtSelection("* at.meta.status=released");
 				return;
 			}
 			case "insert-atdoc-meta-preset": {
@@ -347,7 +347,13 @@ export function Editor({
 					[
 						'* at.meta.title=""',
 						'* at.meta.tag=""',
-						"* at.meta.status=done",
+						"* at.meta.status=released",
+						'* at.meta.tabist=""',
+						'* at.meta.app="tabst.app"',
+						'* at.meta.github="https://github.com/LIUBINfighter/Tabst.app"',
+						"* at.meta.license=CC-BY-4.0",
+						'* at.meta.source=""',
+						'* at.meta.release=""',
 						'* at.meta.alias=""',
 					].join("\n"),
 				);
@@ -370,6 +376,8 @@ export function Editor({
 						return '""';
 					case "enum:status":
 						return "active";
+					case "enum:license":
+						return "CC-BY-4.0";
 					case "enum:layoutMode":
 						return "Page";
 					case "enum:scrollMode":

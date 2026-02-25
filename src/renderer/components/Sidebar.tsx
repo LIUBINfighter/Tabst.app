@@ -69,8 +69,23 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 	);
 	const [selectedTagFilters, setSelectedTagFilters] = useState<string[]>([]);
 	const [selectedStatusFilters, setSelectedStatusFilters] = useState<
-		Array<"draft" | "active" | "done">
+		Array<"draft" | "active" | "done" | "released">
 	>([]);
+
+	useEffect(() => {
+		if (selectedTagFilters.length === 0 && selectedStatusFilters.length === 0) {
+			return;
+		}
+
+		const clearFiltersOnEscape = (event: KeyboardEvent) => {
+			if (event.key !== "Escape") return;
+			setSelectedTagFilters([]);
+			setSelectedStatusFilters([]);
+		};
+
+		window.addEventListener("keydown", clearFiltersOnEscape);
+		return () => window.removeEventListener("keydown", clearFiltersOnEscape);
+	}, [selectedStatusFilters.length, selectedTagFilters.length]);
 	const toastTimerRef = useRef<number | null>(null);
 	const backgroundRefreshTimerRef = useRef<number | null>(null);
 
@@ -276,16 +291,17 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 	}, [files]);
 
 	const availableStatuses = useMemo(() => {
-		const set = new Set<"draft" | "active" | "done">();
+		const set = new Set<"draft" | "active" | "done" | "released">();
 		for (const file of files) {
 			if (file.metaStatus) {
 				set.add(file.metaStatus);
 			}
 		}
-		const order: Array<"draft" | "active" | "done"> = [
+		const order: Array<"draft" | "active" | "done" | "released"> = [
 			"draft",
 			"active",
 			"done",
+			"released",
 		];
 		return order.filter((status) => set.has(status));
 	}, [files]);
@@ -301,7 +317,9 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 		});
 	};
 
-	const toggleStatusFilter = (status: "draft" | "active" | "done") => {
+	const toggleStatusFilter = (
+		status: "draft" | "active" | "done" | "released",
+	) => {
 		setSelectedStatusFilters((current) => {
 			if (current.includes(status)) {
 				return current.filter((item) => item !== status);
@@ -319,7 +337,7 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 		const requiredStatuses = selectedStatusFilters;
 		const statusByPath = new Map<
 			string,
-			"draft" | "active" | "done" | undefined
+			"draft" | "active" | "done" | "released" | undefined
 		>(files.map((file) => [normalizePath(file.path), file.metaStatus]));
 
 		const filterNodes = (nodes: FileNode[]): FileNode[] => {
@@ -369,6 +387,12 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 					(!file.metaClass &&
 						!file.metaTags &&
 						!file.metaStatus &&
+						!file.metaTabist &&
+						!file.metaApp &&
+						!file.metaGithub &&
+						!file.metaLicense &&
+						!file.metaSource &&
+						!file.metaRelease &&
 						!file.metaAlias &&
 						!file.metaTitle)
 				);
@@ -389,6 +413,12 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 						parsedMeta.metaClass,
 						parsedMeta.metaTags,
 						parsedMeta.metaStatus,
+						parsedMeta.metaTabist,
+						parsedMeta.metaApp,
+						parsedMeta.metaGithub,
+						parsedMeta.metaLicense,
+						parsedMeta.metaSource,
+						parsedMeta.metaRelease,
 						parsedMeta.metaAlias,
 						parsedMeta.metaTitle,
 					);
@@ -653,49 +683,23 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 			);
 		}
 
-		if (
-			(selectedTagFilters.length > 0 || selectedStatusFilters.length > 0) &&
-			filteredFileTree.length === 0
-		) {
-			return (
-				<div className="px-2 py-2 space-y-2">
-					<div className="flex flex-wrap items-center gap-1">
-						{selectedTagFilters.map((tag) => (
-							<button
-								type="button"
-								key={`selected-${tag}`}
-								onClick={() => toggleTagFilter(tag)}
-								className="inline-flex items-center rounded border border-primary/40 bg-primary/10 px-1.5 py-0.5 text-[10px] text-primary"
-							>
-								#{tag}
-							</button>
-						))}
-						<button
-							type="button"
-							onClick={() => {
-								setSelectedTagFilters([]);
-								setSelectedStatusFilters([]);
-							}}
-							className="text-[10px] text-muted-foreground underline underline-offset-2"
-						>
-							Clear
-						</button>
-					</div>
-					<div className="p-3 text-xs text-muted-foreground text-center">
-						No files matched selected tags.
-					</div>
-				</div>
-			);
-		}
-
 		return (
 			<div className="w-full">
 				{availableStatuses.length > 0 || availableTags.length > 0 ? (
 					<div className="px-2 pt-2 pb-1 border-b border-border/60">
 						{availableStatuses.length > 0 ? (
 							<>
-								<div className="mb-1 text-[10px] uppercase tracking-wide text-muted-foreground">
-									Status
+								<div className="mb-1 flex items-center justify-between gap-2 text-[10px] uppercase tracking-wide text-muted-foreground">
+									<span>Status</span>
+									{selectedStatusFilters.length > 0 ? (
+										<button
+											type="button"
+											onClick={() => setSelectedStatusFilters([])}
+											className="normal-case text-[10px] text-muted-foreground underline underline-offset-2"
+										>
+											Clear (ESC)
+										</button>
+									) : null}
 								</div>
 								<div className="mb-2 flex flex-wrap items-center gap-1">
 									{availableStatuses.map((status) => {
@@ -705,13 +709,17 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 												? active
 													? "border-emerald-500/60 bg-emerald-500/15 text-emerald-600"
 													: "border-emerald-500/30 bg-emerald-500/10 text-emerald-600"
-												: status === "active"
+												: status === "released"
 													? active
-														? "border-primary/60 bg-primary/15 text-primary"
-														: "border-primary/30 bg-primary/10 text-primary"
-													: active
-														? "border-border bg-muted text-foreground"
-														: "border-border bg-muted/70 text-muted-foreground";
+														? "border-amber-700/60 bg-amber-700/20 text-amber-700"
+														: "border-amber-700/40 bg-amber-700/10 text-amber-700"
+													: status === "active"
+														? active
+															? "border-primary/60 bg-primary/15 text-primary"
+															: "border-primary/30 bg-primary/10 text-primary"
+														: active
+															? "border-border bg-muted text-foreground"
+															: "border-border bg-muted/70 text-muted-foreground";
 										return (
 											<button
 												type="button"
@@ -727,8 +735,17 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 							</>
 						) : null}
 						{availableTags.length > 0 ? (
-							<div className="mb-1 text-[10px] uppercase tracking-wide text-muted-foreground">
-								Tags
+							<div className="mb-1 flex items-center justify-between gap-2 text-[10px] uppercase tracking-wide text-muted-foreground">
+								<span>Tags</span>
+								{selectedTagFilters.length > 0 ? (
+									<button
+										type="button"
+										onClick={() => setSelectedTagFilters([])}
+										className="normal-case text-[10px] text-muted-foreground underline underline-offset-2"
+									>
+										Clear (ESC)
+									</button>
+								) : null}
 							</div>
 						) : null}
 						<div className="flex flex-wrap items-center gap-1">
@@ -751,18 +768,6 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 									</button>
 								);
 							})}
-							{selectedTagFilters.length > 0 ? (
-								<button
-									type="button"
-									onClick={() => {
-										setSelectedTagFilters([]);
-										setSelectedStatusFilters([]);
-									}}
-									className="text-[10px] text-muted-foreground underline underline-offset-2"
-								>
-									Clear
-								</button>
-							) : null}
 						</div>
 					</div>
 				) : null}
@@ -826,6 +831,12 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 						})();
 					}}
 				/>
+				{(selectedTagFilters.length > 0 || selectedStatusFilters.length > 0) &&
+				filteredFileTree.length === 0 ? (
+					<div className="p-3 text-xs text-muted-foreground text-center">
+						No files matched selected filters.
+					</div>
+				) : null}
 			</div>
 		);
 	};

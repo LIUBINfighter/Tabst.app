@@ -2,6 +2,7 @@ import * as alphaTab from "@coderline/alphatab";
 import {
 	ATDOC_KEY_DEFINITIONS,
 	ATDOC_LAYOUT_MODE_VALUES,
+	ATDOC_META_LICENSE_VALUES,
 	ATDOC_META_STATUS_VALUES,
 	ATDOC_SCROLL_MODE_VALUES,
 } from "../data/atdoc-keys";
@@ -16,7 +17,20 @@ export interface AtDocConfig {
 	meta?: {
 		class?: string[];
 		tag?: string[];
-		status?: "draft" | "active" | "done";
+		status?: "draft" | "active" | "done" | "released";
+		tabist?: string;
+		app?: string;
+		github?: string;
+		license?:
+			| "CC0-1.0"
+			| "CC-BY-4.0"
+			| "CC-BY-SA-4.0"
+			| "CC-BY-NC-4.0"
+			| "CC-BY-NC-SA-4.0"
+			| "CC-BY-ND-4.0"
+			| "CC-BY-NC-ND-4.0";
+		source?: string;
+		release?: string;
 		alias?: string[];
 		title?: string;
 	};
@@ -67,7 +81,20 @@ export interface AtDocCompletionItem {
 export interface AtDocFileMeta {
 	metaClass: string[];
 	metaTags: string[];
-	metaStatus?: "draft" | "active" | "done";
+	metaStatus?: "draft" | "active" | "done" | "released";
+	metaTabist?: string;
+	metaApp?: string;
+	metaGithub?: string;
+	metaLicense?:
+		| "CC0-1.0"
+		| "CC-BY-4.0"
+		| "CC-BY-SA-4.0"
+		| "CC-BY-NC-4.0"
+		| "CC-BY-NC-SA-4.0"
+		| "CC-BY-ND-4.0"
+		| "CC-BY-NC-ND-4.0";
+	metaSource?: string;
+	metaRelease?: string;
 	metaAlias: string[];
 	metaTitle?: string;
 }
@@ -142,10 +169,42 @@ function parseScrollMode(value: string): alphaTab.ScrollMode | null {
 	return null;
 }
 
-function parseMetaStatus(value: string): "draft" | "active" | "done" | null {
+function parseMetaStatus(
+	value: string,
+): "draft" | "active" | "done" | "released" | null {
 	const lowered = value.trim().toLowerCase();
-	if (lowered === "draft" || lowered === "active" || lowered === "done") {
+	if (
+		lowered === "draft" ||
+		lowered === "active" ||
+		lowered === "done" ||
+		lowered === "released"
+	) {
 		return lowered;
+	}
+	return null;
+}
+
+function parseMetaLicense(
+	value: string,
+):
+	| "CC0-1.0"
+	| "CC-BY-4.0"
+	| "CC-BY-SA-4.0"
+	| "CC-BY-NC-4.0"
+	| "CC-BY-NC-SA-4.0"
+	| "CC-BY-ND-4.0"
+	| "CC-BY-NC-ND-4.0"
+	| null {
+	const normalized = value.trim().toUpperCase();
+	if (ATDOC_META_LICENSE_VALUES.includes(normalized)) {
+		return normalized as
+			| "CC0-1.0"
+			| "CC-BY-4.0"
+			| "CC-BY-SA-4.0"
+			| "CC-BY-NC-4.0"
+			| "CC-BY-NC-SA-4.0"
+			| "CC-BY-ND-4.0"
+			| "CC-BY-NC-ND-4.0";
 	}
 	return null;
 }
@@ -194,12 +253,46 @@ function applyDirective(
 			config.meta = { ...(config.meta ?? {}), title };
 			return;
 		}
+		case "at.meta.tabist":
+		case "at.meta.app":
+		case "at.meta.github":
+		case "at.meta.source":
+		case "at.meta.release": {
+			const metaValue = unquote(rawValue).trim();
+			if (!metaValue) {
+				warnings.push({ line, message: `${key} must be a non-empty string` });
+				return;
+			}
+			const meta = { ...(config.meta ?? {}) };
+			if (key === "at.meta.tabist") meta.tabist = metaValue;
+			if (key === "at.meta.app") meta.app = metaValue;
+			if (key === "at.meta.github") meta.github = metaValue;
+			if (key === "at.meta.source") meta.source = metaValue;
+			if (key === "at.meta.release") meta.release = metaValue;
+			config.meta = meta;
+			return;
+		}
+		case "at.meta.license": {
+			const license = parseMetaLicense(value);
+			if (!license) {
+				warnings.push({
+					line,
+					message: `at.meta.license must be one of: ${ATDOC_META_LICENSE_VALUES.join(
+						", ",
+					)}`,
+				});
+				return;
+			}
+			config.meta = { ...(config.meta ?? {}), license };
+			return;
+		}
 		case "at.meta.status": {
 			const status = parseMetaStatus(value);
 			if (!status) {
 				warnings.push({
 					line,
-					message: "at.meta.status must be one of: draft, active, done",
+					message:
+						"at.meta.status must be one of: draft, active, done, released",
 				});
 				return;
 			}
@@ -449,6 +542,7 @@ export function buildAtDocCompletionItems(): AtDocCompletionItem[] {
 	const snippetBoolean = "$" + "{1:true}";
 	const snippetString = "$" + '{1:"value"}';
 	const snippetStatus = "$" + "{1:active}";
+	const snippetLicense = "$" + "{1:CC-BY-4.0}";
 	const snippetLayoutMode = "$" + "{1:Page}";
 	const snippetScrollMode = "$" + "{1:OffScreen}";
 	const snippetColor = "$" + "{1:#22c55e}";
@@ -465,13 +559,15 @@ export function buildAtDocCompletionItems(): AtDocCompletionItem[] {
 					? snippetString
 					: def.valueType === "enum:status"
 						? snippetStatus
-						: def.valueType === "enum:layoutMode"
-							? snippetLayoutMode
-							: def.valueType === "enum:scrollMode"
-								? snippetScrollMode
-								: def.valueType === "color"
-									? snippetColor
-									: snippetNumber
+						: def.valueType === "enum:license"
+							? snippetLicense
+							: def.valueType === "enum:layoutMode"
+								? snippetLayoutMode
+								: def.valueType === "enum:scrollMode"
+									? snippetScrollMode
+									: def.valueType === "color"
+										? snippetColor
+										: snippetNumber
 		}`,
 	}));
 }
@@ -489,6 +585,9 @@ export function getAtDocHoverText(key: string): string | null {
 	}
 	if (def.valueType === "enum:status") {
 		allowedValues = `Allowed: ${ATDOC_META_STATUS_VALUES.join(" | ")}`;
+	}
+	if (def.valueType === "enum:license") {
+		allowedValues = `Allowed: ${ATDOC_META_LICENSE_VALUES.join(" | ")}`;
 	}
 
 	return [
@@ -509,6 +608,7 @@ export function normalizeAtDocValueForDisplay(
 	if (!def) return value;
 	if (
 		def.valueType === "enum:status" ||
+		def.valueType === "enum:license" ||
 		def.valueType === "enum:layoutMode" ||
 		def.valueType === "enum:scrollMode"
 	) {
@@ -525,6 +625,12 @@ export function extractAtDocFileMeta(
 		metaClass: [...(parsed.config.meta?.class ?? [])],
 		metaTags: [...(parsed.config.meta?.tag ?? [])],
 		metaStatus: parsed.config.meta?.status,
+		metaTabist: parsed.config.meta?.tabist,
+		metaApp: parsed.config.meta?.app,
+		metaGithub: parsed.config.meta?.github,
+		metaLicense: parsed.config.meta?.license,
+		metaSource: parsed.config.meta?.source,
+		metaRelease: parsed.config.meta?.release,
 		metaAlias: [...(parsed.config.meta?.alias ?? [])],
 		metaTitle: parsed.config.meta?.title,
 	};
