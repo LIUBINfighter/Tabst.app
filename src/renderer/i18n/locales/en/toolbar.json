@@ -7,6 +7,8 @@
 	"zoomOut": "Zoom out",
 	"zoomPercent": "Zoom percentage",
 	"playbackSpeed": "Playback speed",
+	"playbackProgress": "Playback progress",
+	"playbackSeekDisabled": "Drag seek is disabled in settings",
 	"metronome": {
 		"label": "Metronome",
 		"enable": "Enable metronome",
@@ -36,6 +38,10 @@
 		"midi": "Export MIDI",
 		"wav": "Export WAV",
 		"gp": "Export GP"
+	},
+	"preview": {
+		"enterEnjoy": "Enjoy full score",
+		"exitEnjoy": "Back to editor"
 	},
 	"tracks": "Track selection"
 }

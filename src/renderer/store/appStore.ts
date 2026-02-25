@@ -113,6 +113,7 @@ export type PlayerComponentType =
 	| "tracksControls" // 轨道选择控件
 	| "zoomControls" // 缩放控件 (zoom out/input/zoom in)
 	| "playbackSpeedControls" // 播放速度和节拍器控件
+	| "playbackProgress"
 	| "playbackTransport"; // 播放控制 (play/pause/stop/refresh)
 
 /**
@@ -180,6 +181,10 @@ interface AppState {
 
 	// 🆕 播放器光标位置 - 暂停时也保留，用于显示黄色小节高亮
 	playerCursorPosition: PlaybackBeatInfo | null;
+	playbackPositionTick: number;
+	playbackEndTick: number;
+	playbackPositionMs: number;
+	playbackEndMs: number;
 	// 🆕 编辑器焦点状态（用于控制 player enable）
 	editorHasFocus: boolean;
 	setEditorHasFocus: (hasFocus: boolean) => void;
@@ -189,6 +194,7 @@ interface AppState {
 		pause?: () => void;
 		stop?: () => void;
 		refresh?: () => void;
+		seekPlaybackPosition?: (tick: number) => void;
 		applyZoom?: (percent: number) => void;
 		applyPlaybackSpeed?: (speed: number) => void;
 		setMetronomeVolume?: (volume: number) => void;
@@ -216,6 +222,10 @@ interface AppState {
 
 	countInEnabled: boolean;
 	setCountInEnabled: (v: boolean) => void;
+	enablePlaybackProgressBar: boolean;
+	setEnablePlaybackProgressBar: (v: boolean) => void;
+	enablePlaybackProgressSeek: boolean;
+	setEnablePlaybackProgressSeek: (v: boolean) => void;
 
 	/** 是否启用编辑器播放同步滚动 */
 	enableSyncScroll: boolean;
@@ -234,11 +244,16 @@ interface AppState {
 	// 🆕 alphaTab API / score 生命周期标识
 	apiInstanceId: number;
 	scoreVersion: number;
+	editorRefreshVersion: number;
+	bottomBarRefreshVersion: number;
 	bumpApiInstanceId: () => void;
 	bumpScoreVersion: () => void;
-	// 工作区模式：editor | tutorial | settings
-	workspaceMode: "editor" | "tutorial" | "settings";
-	setWorkspaceMode: (mode: "editor" | "tutorial" | "settings") => void;
+	bumpEditorRefreshVersion: () => void;
+	bumpBottomBarRefreshVersion: () => void;
+	workspaceMode: "editor" | "enjoy" | "tutorial" | "settings";
+	setWorkspaceMode: (
+		mode: "editor" | "enjoy" | "tutorial" | "settings",
+	) => void;
 
 	// 🆕 第一个谱表显示选项
 	firstStaffOptions: StaffDisplayOptions | null;
@@ -321,6 +336,13 @@ interface AppState {
 
 	// 🆕 播放器光标位置操作（暂停时也保留）
 	setPlayerCursorPosition: (position: PlaybackBeatInfo | null) => void;
+	setPlaybackProgress: (progress: {
+		positionTick: number;
+		endTick: number;
+		positionMs: number;
+		endMs: number;
+	}) => void;
+	resetPlaybackProgress: () => void;
 	/**
 	 * 🆕 清除"播放相关"高亮状态，回到无高亮状态
 	 * - 清除绿色当前 beat 高亮
@@ -612,6 +634,16 @@ export const useAppStore = create<AppState>((set, get) => ({
 							set({ countInEnabled: prefs.countInEnabled });
 							get().playerControls?.setCountInEnabled?.(prefs.countInEnabled);
 						}
+						if (typeof prefs.enablePlaybackProgressBar === "boolean") {
+							set({
+								enablePlaybackProgressBar: prefs.enablePlaybackProgressBar,
+							});
+						}
+						if (typeof prefs.enablePlaybackProgressSeek === "boolean") {
+							set({
+								enablePlaybackProgressSeek: prefs.enablePlaybackProgressSeek,
+							});
+						}
 						if (typeof prefs.enableSyncScroll === "boolean") {
 							set({ enableSyncScroll: prefs.enableSyncScroll });
 						}
@@ -732,6 +764,10 @@ export const useAppStore = create<AppState>((set, get) => ({
 	editorCursor: null,
 	playbackBeat: null,
 	playerCursorPosition: null,
+	playbackPositionTick: 0,
+	playbackEndTick: 0,
+	playbackPositionMs: 0,
+	playbackEndMs: 0,
 	editorHasFocus: false,
 	setEditorHasFocus: (hasFocus) => set({ editorHasFocus: hasFocus }),
 	playerControls: null,
@@ -770,6 +806,16 @@ export const useAppStore = create<AppState>((set, get) => ({
 	setCountInEnabled: (v) => {
 		set({ countInEnabled: v });
 		void mergeAndSaveWorkspacePreferences({ countInEnabled: v });
+	},
+	enablePlaybackProgressBar: true,
+	setEnablePlaybackProgressBar: (v) => {
+		set({ enablePlaybackProgressBar: v });
+		void mergeAndSaveWorkspacePreferences({ enablePlaybackProgressBar: v });
+	},
+	enablePlaybackProgressSeek: true,
+	setEnablePlaybackProgressSeek: (v) => {
+		set({ enablePlaybackProgressSeek: v });
+		void mergeAndSaveWorkspacePreferences({ enablePlaybackProgressSeek: v });
 	},
 	// 是否启用编辑器播放同步滚动
 	enableSyncScroll: false,
@@ -812,6 +858,12 @@ export const useAppStore = create<AppState>((set, get) => ({
 				description: "Speed selector and metronome toggle",
 			},
 			{
+				type: "playbackProgress",
+				enabled: true,
+				label: "Playback Progress",
+				description: "Draggable playback timeline",
+			},
+			{
 				type: "playbackTransport",
 				enabled: true,
 				label: "Transport Controls",
@@ -845,12 +897,20 @@ export const useAppStore = create<AppState>((set, get) => ({
 	},
 	apiInstanceId: 0,
 	scoreVersion: 0,
+	editorRefreshVersion: 0,
+	bottomBarRefreshVersion: 0,
 	bumpApiInstanceId: () =>
 		set((state) => ({ apiInstanceId: state.apiInstanceId + 1 })),
 	bumpScoreVersion: () =>
 		set((state) => ({ scoreVersion: state.scoreVersion + 1 })),
+	bumpEditorRefreshVersion: () =>
+		set((state) => ({ editorRefreshVersion: state.editorRefreshVersion + 1 })),
+	bumpBottomBarRefreshVersion: () =>
+		set((state) => ({
+			bottomBarRefreshVersion: state.bottomBarRefreshVersion + 1,
+		})),
 	workspaceMode: "editor",
-	setWorkspaceMode: (mode: "editor" | "tutorial" | "settings") =>
+	setWorkspaceMode: (mode: "editor" | "enjoy" | "tutorial" | "settings") =>
 		set({ workspaceMode: mode }),
 	firstStaffOptions: null,
 	pendingStaffToggle: null,
@@ -1236,10 +1296,31 @@ export const useAppStore = create<AppState>((set, get) => ({
 	setPlayerCursorPosition: (position) => {
 		set({ playerCursorPosition: position });
 	},
+	setPlaybackProgress: (progress) => {
+		set({
+			playbackPositionTick: progress.positionTick,
+			playbackEndTick: progress.endTick,
+			playbackPositionMs: progress.positionMs,
+			playbackEndMs: progress.endMs,
+		});
+	},
+	resetPlaybackProgress: () => {
+		set({
+			playbackPositionTick: 0,
+			playbackEndTick: 0,
+			playbackPositionMs: 0,
+			playbackEndMs: 0,
+		});
+	},
 
 	// 🆕 清除播放相关高亮（绿色 + 黄色）
 	clearPlaybackHighlights: () => {
-		set({ playbackBeat: null, playerCursorPosition: null });
+		set({
+			playbackBeat: null,
+			playerCursorPosition: null,
+			playbackPositionTick: 0,
+			playbackPositionMs: 0,
+		});
 	},
 
 	// 🆕 清除所有高亮（选区 + 播放）
@@ -1248,6 +1329,8 @@ export const useAppStore = create<AppState>((set, get) => ({
 			scoreSelection: null,
 			playbackBeat: null,
 			playerCursorPosition: null,
+			playbackPositionTick: 0,
+			playbackPositionMs: 0,
 		});
 	},
 

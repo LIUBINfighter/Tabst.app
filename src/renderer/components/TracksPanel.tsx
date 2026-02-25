@@ -54,6 +54,7 @@ export interface TracksPanelProps {
 	isOpen: boolean;
 	/** Callback to close panel */
 	onClose: () => void;
+	side?: "left" | "right";
 	/** Callback when track selection changes */
 	onTracksChange?: (tracks: AlphaTab.model.Track[]) => void;
 }
@@ -65,6 +66,7 @@ export function TracksPanel({
 	api,
 	isOpen,
 	onClose,
+	side = "right",
 	onTracksChange,
 }: TracksPanelProps) {
 	const { t } = useTranslation("print");
@@ -369,9 +371,15 @@ export function TracksPanel({
 
 	return (
 		<TooltipProvider delayDuration={200}>
-			<div className="w-64 border-l border-border bg-card flex flex-col h-full shrink-0 shadow-lg absolute right-0 top-0 bottom-0 z-[2001]">
+			<div
+				className={`w-64 bg-card flex flex-col h-full shrink-0 shadow-lg absolute top-0 bottom-0 z-[2001] ${
+					side === "left"
+						? "left-0 border-r border-border"
+						: "right-0 border-l border-border"
+				}`}
+			>
 				{/* Header */}
-				<div className="h-10 border-b border-border flex items-center justify-between px-3 shrink-0">
+				<div className="h-9 border-b border-border flex items-center justify-between px-3 shrink-0">
 					<div className="flex items-center gap-2">
 						<Layers className="h-4 w-4" />
 						<span className="text-sm font-medium">{t("trackSelect")}</span>
@@ -386,7 +394,7 @@ export function TracksPanel({
 								<X className="h-4 w-4" />
 							</button>
 						</TooltipTrigger>
-						<TooltipContent side="left">
+						<TooltipContent side={side === "left" ? "right" : "left"}>
 							<p>{t("close")}</p>
 						</TooltipContent>
 					</Tooltip>

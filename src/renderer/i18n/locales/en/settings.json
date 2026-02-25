@@ -43,6 +43,10 @@
 	},
 	"playbackPlaceholder": "Custom player coming soon",
 	"playbackSection": {
+		"enablePlaybackProgressBar": "Enable bottom playback progress bar",
+		"playbackProgressBarHint": "Show playback timeline and current progress in the bottom toolbar",
+		"enablePlaybackProgressSeek": "Enable draggable seek",
+		"playbackProgressSeekHint": "Allow dragging the progress bar to jump playback position",
 		"enableSyncScroll": "Enable editor sync scroll",
 		"syncScrollHint": "Auto-scroll editor to follow current note during playback",
 		"enableCursorBroadcast": "Enable cursor broadcast to Preview",
@@ -65,6 +69,8 @@
 		"zoomControlsDesc": "Zoom in/out and percentage input",
 		"playbackSpeedControls": "Playback Speed",
 		"playbackSpeedControlsDesc": "Speed selector and metronome toggle",
+		"playbackProgress": "Playback Progress",
+		"playbackProgressDesc": "Show current progress and support draggable seek",
 		"playbackTransport": "Transport Controls",
 		"playbackTransportDesc": "Play, pause, stop, and refresh buttons"
 	},

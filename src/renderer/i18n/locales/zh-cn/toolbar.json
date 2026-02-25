@@ -7,6 +7,8 @@
 	"zoomOut": "缩小",
 	"zoomPercent": "缩放百分比",
 	"playbackSpeed": "播放速度",
+	"playbackProgress": "播放进度",
+	"playbackSeekDisabled": "拖动定位已在设置中关闭",
 	"metronome": {
 		"label": "节拍器",
 		"enable": "开启节拍器",
@@ -36,6 +38,10 @@
 		"midi": "导出 MIDI",
 		"wav": "导出 WAV",
 		"gp": "导出 GP"
+	},
+	"preview": {
+		"enterEnjoy": "Enjoy 沉浸看谱",
+		"exitEnjoy": "返回编辑模式"
 	},
 	"tracks": "轨道选择"
 }

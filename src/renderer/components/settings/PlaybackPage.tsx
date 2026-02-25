@@ -11,6 +11,18 @@ export function PlaybackPage() {
 	const setEnableCursorBroadcast = useAppStore(
 		(s) => s.setEnableCursorBroadcast,
 	);
+	const enablePlaybackProgressBar = useAppStore(
+		(s) => s.enablePlaybackProgressBar,
+	);
+	const setEnablePlaybackProgressBar = useAppStore(
+		(s) => s.setEnablePlaybackProgressBar,
+	);
+	const enablePlaybackProgressSeek = useAppStore(
+		(s) => s.enablePlaybackProgressSeek,
+	);
+	const setEnablePlaybackProgressSeek = useAppStore(
+		(s) => s.setEnablePlaybackProgressSeek,
+	);
 
 	return (
 		<section className="bg-card border border-border rounded p-4 space-y-4">
@@ -20,6 +32,66 @@ export function PlaybackPage() {
 					<p className="text-xs text-muted-foreground">
 						{t("playbackPlaceholder")}
 					</p>
+				</div>
+			</div>
+
+			<div
+				className="bg-card border border-border rounded-lg p-3 hover:bg-accent/50 transition-colors cursor-pointer"
+				onClick={() => setEnablePlaybackProgressBar(!enablePlaybackProgressBar)}
+				onKeyDown={(event) => {
+					if (event.key === " " || event.key === "Enter") {
+						event.preventDefault();
+						setEnablePlaybackProgressBar(!enablePlaybackProgressBar);
+					}
+				}}
+				role="button"
+				tabIndex={0}
+			>
+				<div className="flex items-center gap-3">
+					<CheckboxToggle
+						checked={enablePlaybackProgressBar}
+						onCheckedChange={setEnablePlaybackProgressBar}
+						aria-label={t("playbackSection.enablePlaybackProgressBar")}
+					/>
+					<div className="flex-1 min-w-0">
+						<h4 className="text-sm font-medium">
+							{t("playbackSection.enablePlaybackProgressBar")}
+						</h4>
+						<p className="text-xs text-muted-foreground mt-1">
+							{t("playbackSection.playbackProgressBarHint")}
+						</p>
+					</div>
+				</div>
+			</div>
+
+			<div
+				className="bg-card border border-border rounded-lg p-3 hover:bg-accent/50 transition-colors cursor-pointer"
+				onClick={() =>
+					setEnablePlaybackProgressSeek(!enablePlaybackProgressSeek)
+				}
+				onKeyDown={(event) => {
+					if (event.key === " " || event.key === "Enter") {
+						event.preventDefault();
+						setEnablePlaybackProgressSeek(!enablePlaybackProgressSeek);
+					}
+				}}
+				role="button"
+				tabIndex={0}
+			>
+				<div className="flex items-center gap-3">
+					<CheckboxToggle
+						checked={enablePlaybackProgressSeek}
+						onCheckedChange={setEnablePlaybackProgressSeek}
+						aria-label={t("playbackSection.enablePlaybackProgressSeek")}
+					/>
+					<div className="flex-1 min-w-0">
+						<h4 className="text-sm font-medium">
+							{t("playbackSection.enablePlaybackProgressSeek")}
+						</h4>
+						<p className="text-xs text-muted-foreground mt-1">
+							{t("playbackSection.playbackProgressSeekHint")}
+						</p>
+					</div>
 				</div>
 			</div>
 

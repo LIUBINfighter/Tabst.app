@@ -39,6 +39,7 @@ import {
 } from "./ui/tooltip";
 
 interface EditorProps {
+	enjoyMode?: boolean;
 	showExpandSidebar?: boolean;
 	onExpandSidebar?: () => void;
 	hidePreview?: boolean;
@@ -48,6 +49,7 @@ interface EditorProps {
 }
 
 export function Editor({
+	enjoyMode = false,
 	showExpandSidebar,
 	onExpandSidebar,
 	hidePreview = false,
@@ -77,6 +79,7 @@ export function Editor({
 	);
 	const activeFile = sandboxFile ?? activeFileFromStore;
 	const setWorkspaceMode = useAppStore((s) => s.setWorkspaceMode);
+	const workspaceMode = useAppStore((s) => s.workspaceMode);
 	const isTracksPanelOpen = useAppStore((s) => s.isTracksPanelOpen);
 	const setTracksPanelOpen = useAppStore((s) => s.setTracksPanelOpen);
 
@@ -132,6 +135,7 @@ export function Editor({
 
 	// Main effect: Create editor or update it when file changes
 	useEffect(() => {
+		if (enjoyMode) return;
 		if (!editorRef.current) return;
 
 		// If there's no active file, destroy editor
@@ -277,6 +281,7 @@ export function Editor({
 			}
 		})();
 	}, [
+		enjoyMode,
 		activeFile?.id,
 		activeFile?.content,
 		activeFile?.path,
@@ -497,6 +502,25 @@ export function Editor({
 		};
 	}, [cleanupLSP]);
 
+	useEffect(() => {
+		if (!enjoyMode) return;
+		if (viewRef.current) {
+			viewRef.current.destroy();
+			viewRef.current = null;
+		}
+		if (focusCleanupRef.current) {
+			focusCleanupRef.current();
+			focusCleanupRef.current = null;
+			useAppStore.getState().setEditorHasFocus(false);
+		}
+		cleanupLSP();
+		currentFilePathRef.current = "";
+		if (saveTimerRef.current) {
+			clearTimeout(saveTimerRef.current);
+			saveTimerRef.current = null;
+		}
+	}, [cleanupLSP, enjoyMode]);
+
 	// Cleanup editor when no active file - use useLayoutEffect to ensure cleanup before render
 	useLayoutEffect(() => {
 		if (!activeFile?.id) {
@@ -602,54 +626,70 @@ export function Editor({
 			{languageForActive === "alphatex" && !hidePreview ? (
 				<div className="flex-1 overflow-hidden flex">
 					{/* Left: Editor */}
-					<div className="w-1/2 border-r border-border flex flex-col min-h-0">
-						{/* Column header to align with Preview header */}
-						<TopBar
-							leading={
-								showExpandSidebar ? (
-									<Button
-										variant="ghost"
-										size="icon"
-										className="h-8 w-8"
-										onClick={onExpandSidebar}
-										aria-label={t("expandSidebar")}
-									>
-										<ChevronRight className="h-4 w-4" />
-									</Button>
-								) : undefined
-							}
-							icon={
-								<Edit className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-							}
-							title={activeFile.name}
-						/>
-
-						<div className="flex-1 min-h-0 overflow-hidden relative">
-							{/* Host for CodeMirror */}
-							<div ref={editorRef} className="h-full" />
-							<InlineEditorCommandBar
-								open={inlineCommandOpen}
-								top={inlineCommandTop}
-								left={inlineCommandLeft}
-								onClose={() => setInlineCommandOpen(false)}
-								onRunCommand={runEditorCommand}
+					{!enjoyMode && (
+						<div className="w-1/2 border-r border-border flex flex-col min-h-0">
+							{/* Column header to align with Preview header */}
+							<TopBar
+								leading={
+									showExpandSidebar ? (
+										<Button
+											variant="ghost"
+											size="icon"
+											className="h-8 w-8"
+											onClick={onExpandSidebar}
+											aria-label={t("expandSidebar")}
+										>
+											<ChevronRight className="h-4 w-4" />
+										</Button>
+									) : undefined
+								}
+								icon={
+									<Edit className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+								}
+								title={activeFile.name}
 							/>
 
-							<TracksPanel
-								api={previewApi}
-								isOpen={isTracksPanelOpen && previewApi !== null}
-								onClose={() => setTracksPanelOpen(false)}
-							/>
+							<div className="flex-1 min-h-0 overflow-hidden relative">
+								{/* Host for CodeMirror */}
+								<div ref={editorRef} className="h-full" />
+								<InlineEditorCommandBar
+									open={inlineCommandOpen}
+									top={inlineCommandTop}
+									left={inlineCommandLeft}
+									onClose={() => setInlineCommandOpen(false)}
+									onRunCommand={runEditorCommand}
+								/>
+
+								<TracksPanel
+									api={previewApi}
+									isOpen={isTracksPanelOpen && previewApi !== null}
+									onClose={() => setTracksPanelOpen(false)}
+								/>
+							</div>
 						</div>
-					</div>
+					)}
 
 					{/* Right: Preview */}
-					<div className="w-1/2 flex flex-col bg-card min-h-0 overflow-y-auto overflow-x-hidden">
+					<div
+						className={`${enjoyMode ? "w-full" : "w-1/2"} relative flex flex-col bg-card min-h-0 overflow-y-auto overflow-x-hidden`}
+					>
 						<Preview
 							fileName={`${activeFile.name} ${t("common:preview")}`}
 							content={activeFile.content}
 							onApiChange={setPreviewApi}
+							onEnjoyToggle={() =>
+								setWorkspaceMode(workspaceMode === "enjoy" ? "editor" : "enjoy")
+							}
+							isEnjoyMode={enjoyMode}
 						/>
+						{enjoyMode && (
+							<TracksPanel
+								api={previewApi}
+								isOpen={isTracksPanelOpen && previewApi !== null}
+								onClose={() => setTracksPanelOpen(false)}
+								side="left"
+							/>
+						)}
 					</div>
 				</div>
 			) : (

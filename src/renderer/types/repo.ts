@@ -20,6 +20,8 @@ export interface RepoPreferences {
 	playbackBpmMode?: boolean;
 	metronomeVolume?: number;
 	countInEnabled?: boolean;
+	enablePlaybackProgressBar?: boolean;
+	enablePlaybackProgressSeek?: boolean;
 	enableSyncScroll?: boolean;
 	enableCursorBroadcast?: boolean;
 	customPlayerConfig?: {
@@ -29,6 +31,7 @@ export interface RepoPreferences {
 				| "tracksControls"
 				| "zoomControls"
 				| "playbackSpeedControls"
+				| "playbackProgress"
 				| "playbackTransport";
 			enabled: boolean;
 			label: string;

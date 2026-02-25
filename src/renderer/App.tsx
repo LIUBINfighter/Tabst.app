@@ -25,9 +25,11 @@ function App() {
 	const [globalPaletteOpen, setGlobalPaletteOpen] = useState(false);
 	const workspaceMode = useAppStore((s) => s.workspaceMode);
 	const setWorkspaceMode = useAppStore((s) => s.setWorkspaceMode);
-	const prevWorkspaceModeRef = useRef<"editor" | "tutorial" | "settings">(
-		"editor",
-	);
+	const editorRefreshVersion = useAppStore((s) => s.editorRefreshVersion);
+	const bottomBarRefreshVersion = useAppStore((s) => s.bottomBarRefreshVersion);
+	const prevWorkspaceModeRef = useRef<
+		"editor" | "enjoy" | "tutorial" | "settings"
+	>("editor");
 
 	// 初始化 store：从主进程恢复上次打开的文件和选中项
 	const initialize = useAppStore((s) => s.initialize);
@@ -277,8 +279,10 @@ function App() {
 
 			{/* 编辑器主体 + 全局底部栏（将底部栏放在主内容流中，避免遮挡滚动内容） */}
 			<div className="flex-1 flex flex-col min-h-0">
-				{workspaceMode === "editor" && (
+				{(workspaceMode === "editor" || workspaceMode === "enjoy") && (
 					<Editor
+						key={`editor-${editorRefreshVersion}`}
+						enjoyMode={workspaceMode === "enjoy"}
 						showExpandSidebar={sidebarCollapsed}
 						onExpandSidebar={() => setSidebarCollapsed(false)}
 					/>
@@ -299,7 +303,7 @@ function App() {
 				)}
 
 				{/* 全局底部栏（放在主内容流中，保持与 Editor 排列，不再遮挡内容） */}
-				<GlobalBottomBar />
+				<GlobalBottomBar key={`bottom-bar-${bottomBarRefreshVersion}`} />
 			</div>
 
 			<UpdateToast />

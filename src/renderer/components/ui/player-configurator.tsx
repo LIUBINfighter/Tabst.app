@@ -104,6 +104,12 @@ export function PlayerConfigurator({ className }: PlayerConfiguratorProps) {
 					description: t("playerConfigurator.playbackSpeedControlsDesc"),
 				},
 				{
+					type: "playbackProgress",
+					enabled: true,
+					label: t("playerConfigurator.playbackProgress"),
+					description: t("playerConfigurator.playbackProgressDesc"),
+				},
+				{
 					type: "playbackTransport",
 					enabled: true,
 					label: t("playerConfigurator.playbackTransport"),

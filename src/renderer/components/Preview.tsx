@@ -44,6 +44,8 @@ export interface PreviewProps {
 	content?: string;
 	className?: string;
 	onApiChange?: (api: alphaTab.AlphaTabApi | null) => void;
+	onEnjoyToggle?: () => void;
+	isEnjoyMode?: boolean;
 }
 
 export default function Preview({
@@ -51,6 +53,8 @@ export default function Preview({
 	content,
 	className,
 	onApiChange,
+	onEnjoyToggle,
+	isEnjoyMode = false,
 }: PreviewProps) {
 	const { t } = useTranslation(["common", "errors", "print", "toolbar"]);
 	const containerRef = useRef<HTMLDivElement | null>(null);
@@ -109,6 +113,12 @@ export default function Preview({
 	const _scoreVersion = useAppStore((s) => s.scoreVersion);
 	const bumpApiInstanceId = useAppStore((s) => s.bumpApiInstanceId);
 	const bumpScoreVersion = useAppStore((s) => s.bumpScoreVersion);
+	const bumpEditorRefreshVersion = useAppStore(
+		(s) => s.bumpEditorRefreshVersion,
+	);
+	const bumpBottomBarRefreshVersion = useAppStore(
+		(s) => s.bumpBottomBarRefreshVersion,
+	);
 	const playbackSpeedRef = useRef(playbackSpeed);
 	const metronomeVolumeRef = useRef(metronomeVolume);
 	const countInEnabledRef = useRef(countInEnabled);
@@ -520,6 +530,13 @@ export default function Preview({
 				// if (cursor) cursor.classList.add("hidden");
 				// 渲染完成时回到无高亮状态（避免保留旧的黄色小节高亮导致滚动锁定）
 				useAppStore.getState().clearPlaybackHighlights();
+				useAppStore.getState().setPlaybackProgress({
+					positionTick: 0,
+					endTick:
+						typeof api.endTick === "number" ? Math.max(0, api.endTick) : 0,
+					positionMs: 0,
+					endMs: typeof api.endTime === "number" ? Math.max(0, api.endTime) : 0,
+				});
 
 				// 🆕 尝试提取乐谱的初始 BPM（以便 BPM 模式使用）
 				try {
@@ -554,6 +571,14 @@ export default function Preview({
 					// 播放停止/结束时回到无高亮状态（同时清除黄色小节高亮的来源）
 					useAppStore.getState().clearPlaybackHighlights();
 					useAppStore.getState().setPlayerIsPlaying(false);
+					useAppStore.getState().setPlaybackProgress({
+						positionTick: 0,
+						endTick:
+							typeof api.endTick === "number" ? Math.max(0, api.endTick) : 0,
+						positionMs: 0,
+						endMs:
+							typeof api.endTime === "number" ? Math.max(0, api.endTime) : 0,
+					});
 					return;
 				}
 				const barIndex = beat.voice?.bar?.index ?? 0;
@@ -580,6 +605,47 @@ export default function Preview({
 				*/
 			});
 
+			api.playerPositionChanged?.on(
+				(args: {
+					currentTick?: number;
+					endTick?: number;
+					currentTime?: number;
+					endTime?: number;
+				}) => {
+					const positionTick =
+						typeof args?.currentTick === "number"
+							? args.currentTick
+							: typeof api.tickPosition === "number"
+								? api.tickPosition
+								: 0;
+					const endTick =
+						typeof args?.endTick === "number"
+							? args.endTick
+							: typeof api.endTick === "number"
+								? api.endTick
+								: 0;
+					const positionMs =
+						typeof args?.currentTime === "number"
+							? args.currentTime
+							: typeof api.timePosition === "number"
+								? api.timePosition
+								: 0;
+					const endMs =
+						typeof args?.endTime === "number"
+							? args.endTime
+							: typeof api.endTime === "number"
+								? api.endTime
+								: 0;
+
+					useAppStore.getState().setPlaybackProgress({
+						positionTick: Math.max(0, positionTick),
+						endTick: Math.max(0, endTick),
+						positionMs: Math.max(0, positionMs),
+						endMs: Math.max(0, endMs),
+					});
+				},
+			);
+
 			// 4. 播放器完成/状态变化事件：确保 UI 与播放器同步
 			api.playerFinished?.on(() => {
 				console.info("[Preview] alphaTab player finished");
@@ -587,6 +653,12 @@ export default function Preview({
 				// 这里强制回到无高亮状态，避免编辑器高亮/滚动锁死在末尾
 				useAppStore.getState().clearPlaybackHighlights();
 				useAppStore.getState().setPlayerIsPlaying(false);
+				useAppStore.getState().setPlaybackProgress({
+					positionTick: 0,
+					endTick: typeof api.endTick === "number" ? api.endTick : 0,
+					positionMs: 0,
+					endMs: typeof api.endTime === "number" ? api.endTime : 0,
+				});
 			});
 
 			api.playerStateChanged?.on((e: { state: number; stopped?: boolean }) => {
@@ -595,6 +667,12 @@ export default function Preview({
 					// stopped 明确表示停止（而不是暂停），停止时清除播放相关高亮
 					useAppStore.getState().clearPlaybackHighlights();
 					useAppStore.getState().setPlayerIsPlaying(false);
+					useAppStore.getState().setPlaybackProgress({
+						positionTick: 0,
+						endTick: typeof api.endTick === "number" ? api.endTick : 0,
+						positionMs: 0,
+						endMs: typeof api.endTime === "number" ? api.endTime : 0,
+					});
 				} else if (e?.state === 1 /* Playing */) {
 					useAppStore.getState().setPlayerIsPlaying(true);
 				} else {
@@ -763,11 +841,19 @@ export default function Preview({
 						}
 					},
 					refresh: () => {
+						bumpEditorRefreshVersion();
+						bumpBottomBarRefreshVersion();
 						// 1. 先停止播放并清除所有状态
 						api.stop?.();
 						useAppStore.getState().clearScoreSelection();
 						useAppStore.getState().clearPlaybackHighlights();
 						useAppStore.getState().setPlayerIsPlaying(false);
+						useAppStore.getState().setPlaybackProgress({
+							positionTick: 0,
+							endTick: typeof api.endTick === "number" ? api.endTick : 0,
+							positionMs: 0,
+							endMs: typeof api.endTime === "number" ? api.endTime : 0,
+						});
 
 						// 2. 清除编辑器光标相关的 refs
 						isHighlightFromEditorCursorRef.current = false;
@@ -823,6 +909,35 @@ export default function Preview({
 							api.countInVolume = enabled ? 1 : 0;
 						} catch (err) {
 							console.error("Failed to set count-in:", err);
+						}
+					},
+					seekPlaybackPosition: (tick: number) => {
+						if (!Number.isFinite(tick)) return;
+						const maxTick =
+							typeof api.endTick === "number" && api.endTick > 0
+								? api.endTick
+								: tick;
+						const targetTick = Math.max(0, Math.min(maxTick, tick));
+						try {
+							api.tickPosition = targetTick;
+							const endTick =
+								typeof api.endTick === "number" ? Math.max(0, api.endTick) : 0;
+							const endMs =
+								typeof api.endTime === "number" ? Math.max(0, api.endTime) : 0;
+							const ratio = endTick > 0 ? targetTick / endTick : 0;
+							const fallbackPositionMs = endMs > 0 ? ratio * endMs : 0;
+							const positionMs =
+								typeof api.timePosition === "number"
+									? Math.max(0, api.timePosition)
+									: fallbackPositionMs;
+							useAppStore.getState().setPlaybackProgress({
+								positionTick: targetTick,
+								endTick,
+								positionMs,
+								endMs,
+							});
+						} catch (err) {
+							console.error("Failed to seek playback position:", err);
 						}
 					},
 					applyZoom: (pct: number) => applyZoom(pct),
@@ -1241,6 +1356,8 @@ export default function Preview({
 		applyEditorBarNumberColor,
 		bumpScoreVersion,
 		bumpApiInstanceId,
+		bumpEditorRefreshVersion,
+		bumpBottomBarRefreshVersion,
 		emitApiChange,
 		sanitizeAllBarStyles,
 		applyThemeColorsToPreviousBars,
@@ -1371,6 +1488,8 @@ export default function Preview({
 									fileName={fileName}
 									content={content}
 									onPrintClick={() => setShowPrintPreview(true)}
+									onEnjoyToggle={onEnjoyToggle}
+									isEnjoyMode={isEnjoyMode}
 									t={t}
 								/>
 							}

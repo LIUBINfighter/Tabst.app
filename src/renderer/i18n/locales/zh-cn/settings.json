@@ -43,6 +43,10 @@
 	},
 	"playbackPlaceholder": "自定义播放器正在开发中",
 	"playbackSection": {
+		"enablePlaybackProgressBar": "启用底部播放进度条",
+		"playbackProgressBarHint": "在底部工具栏显示播放时间轴与当前进度",
+		"enablePlaybackProgressSeek": "启用拖动定位",
+		"playbackProgressSeekHint": "允许拖动进度条快速跳转到指定播放位置",
 		"enableSyncScroll": "启用编辑器同步滚动",
 		"syncScrollHint": "播放时自动滚动编辑器跟随当前音符位置",
 		"enableCursorBroadcast": "启用光标广播到Preview",
@@ -65,6 +69,8 @@
 		"zoomControlsDesc": "缩放和百分比输入",
 		"playbackSpeedControls": "播放速度",
 		"playbackSpeedControlsDesc": "速度选择器和节拍器切换",
+		"playbackProgress": "播放进度条",
+		"playbackProgressDesc": "显示当前进度并支持拖动定位",
 		"playbackTransport": "播放控制",
 		"playbackTransportDesc": "播放、暂停、停止和刷新按钮"
 	},

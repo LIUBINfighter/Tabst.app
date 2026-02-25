@@ -1,6 +1,13 @@
 import type { AlphaTabApi } from "@coderline/alphatab";
 import type { TFunction } from "i18next";
-import { FileDown, FileMusic, Music, Printer } from "lucide-react";
+import {
+	FileDown,
+	FileMusic,
+	Maximize2,
+	Minimize2,
+	Music,
+	Printer,
+} from "lucide-react";
 import {
 	exportToGp7,
 	exportToMidi,
@@ -15,6 +22,8 @@ export interface PreviewToolbarProps {
 	fileName?: string;
 	content?: string;
 	onPrintClick: () => void;
+	onEnjoyToggle?: () => void;
+	isEnjoyMode?: boolean;
 	t: TFunction;
 }
 
@@ -23,10 +32,32 @@ export default function PreviewToolbar({
 	fileName,
 	content,
 	onPrintClick,
+	onEnjoyToggle,
+	isEnjoyMode = false,
 	t,
 }: PreviewToolbarProps) {
 	return (
 		<div className="ml-2 flex items-center gap-1">
+			{onEnjoyToggle && (
+				<Tooltip>
+					<TooltipTrigger asChild>
+						<IconButton onClick={onEnjoyToggle}>
+							{isEnjoyMode ? (
+								<Minimize2 className="h-4 w-4" />
+							) : (
+								<Maximize2 className="h-4 w-4" />
+							)}
+						</IconButton>
+					</TooltipTrigger>
+					<TooltipContent side="bottom">
+						<p>
+							{isEnjoyMode
+								? t("toolbar:preview.exitEnjoy")
+								: t("toolbar:preview.enterEnjoy")}
+						</p>
+					</TooltipContent>
+				</Tooltip>
+			)}
 			<Tooltip>
 				<TooltipTrigger asChild>
 					<IconButton
