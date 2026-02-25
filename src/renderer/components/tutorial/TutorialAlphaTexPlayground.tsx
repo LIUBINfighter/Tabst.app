@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef } from "react";
-import { type FileItem, useAppStore } from "../../store/appStore";
+import { useEffect, useMemo, useState } from "react";
+import type { FileItem } from "../../store/appStore";
 import Editor from "../Editor";
 import Preview from "../Preview";
 
@@ -12,58 +12,22 @@ export function TutorialAlphaTexPlayground({
 	initialContent,
 	fileName = "tutorial.atex",
 }: TutorialAlphaTexPlaygroundProps) {
-	const tempFileIdRef = useRef(
-		`tutorial-playground-${Math.random().toString(36).slice(2)}`,
-	);
-	const tempFileId = tempFileIdRef.current;
-
-	const tempFile = useMemo<FileItem>(
-		() => ({
-			id: tempFileId,
-			name: fileName,
-			path: `/tutorials/${fileName}`,
-			content: initialContent,
-			contentLoaded: true,
-		}),
-		[fileName, initialContent, tempFileId],
-	);
-
-	const prevStateRef = useRef<{
-		files: FileItem[];
-		activeFileId: string | null;
-	} | null>(null);
+	const [content, setContent] = useState(initialContent);
 
 	useEffect(() => {
-		const current = useAppStore.getState();
-		if (!prevStateRef.current) {
-			prevStateRef.current = {
-				files: current.files,
-				activeFileId: current.activeFileId,
-			};
-		}
+		setContent(initialContent);
+	}, [initialContent]);
 
-		useAppStore.setState((state) => {
-			const exists = state.files.some((f) => f.id === tempFileId);
-			const files = exists
-				? state.files.map((f) => (f.id === tempFileId ? tempFile : f))
-				: [...state.files, tempFile];
-
-			return {
-				files,
-				activeFileId: tempFileId,
-			};
-		});
-
-		return () => {
-			const prev = prevStateRef.current;
-			if (!prev) return;
-			useAppStore.setState({
-				files: prev.files,
-				activeFileId: prev.activeFileId,
-			});
-			prevStateRef.current = null;
-		};
-	}, [tempFile, tempFileId]);
+	const sandboxFile = useMemo<FileItem>(
+		() => ({
+			id: `tutorial-playground-${fileName}`,
+			name: fileName,
+			path: `/tutorials/${fileName}`,
+			content,
+			contentLoaded: true,
+		}),
+		[fileName, content],
+	);
 
 	return (
 		<div className="not-prose my-4 rounded-lg border border-border overflow-hidden bg-card h-[620px]">
@@ -72,14 +36,15 @@ export function TutorialAlphaTexPlayground({
 			</div>
 			<div className="grid grid-cols-2 h-[580px]">
 				<div className="border-r border-border overflow-hidden">
-					<Editor hidePreview sandboxMode />
+					<Editor
+						hidePreview
+						sandboxMode
+						sandboxFile={sandboxFile}
+						onSandboxContentChange={setContent}
+					/>
 				</div>
 				<div className="overflow-hidden">
-					<Preview
-						fileName={fileName}
-						content={initialContent}
-						className="h-full"
-					/>
+					<Preview fileName={fileName} content={content} className="h-full" />
 				</div>
 			</div>
 		</div>

@@ -16,7 +16,7 @@ import { useEditorTheme } from "../hooks/useEditorTheme";
 import { updateEditorPlaybackHighlight } from "../lib/alphatex-playback-sync";
 import { updateEditorSelectionHighlight } from "../lib/alphatex-selection-sync";
 import { whitespaceDecoration } from "../lib/whitespace-decoration";
-import { useAppStore } from "../store/appStore";
+import { type FileItem, useAppStore } from "../store/appStore";
 import Preview from "./Preview";
 import QuoteCard from "./QuoteCard";
 import TopBar from "./TopBar";
@@ -35,6 +35,8 @@ interface EditorProps {
 	onExpandSidebar?: () => void;
 	hidePreview?: boolean;
 	sandboxMode?: boolean;
+	sandboxFile?: FileItem | null;
+	onSandboxContentChange?: (content: string) => void;
 }
 
 export function Editor({
@@ -42,6 +44,8 @@ export function Editor({
 	onExpandSidebar,
 	hidePreview = false,
 	sandboxMode = false,
+	sandboxFile = null,
+	onSandboxContentChange,
 }: EditorProps) {
 	const { t } = useTranslation(["sidebar", "common"]);
 	const editorRef = useRef<HTMLDivElement | null>(null);
@@ -57,9 +61,10 @@ export function Editor({
 	// Track if we're currently updating to prevent recursive updates
 	const isUpdatingRef = useRef(false);
 
-	const activeFile = useAppStore((s) =>
+	const activeFileFromStore = useAppStore((s) =>
 		s.files.find((f) => f.id === s.activeFileId),
 	);
+	const activeFile = sandboxFile ?? activeFileFromStore;
 	const setWorkspaceMode = useAppStore((s) => s.setWorkspaceMode);
 	const isTracksPanelOpen = useAppStore((s) => s.isTracksPanelOpen);
 	const setTracksPanelOpen = useAppStore((s) => s.setTracksPanelOpen);
@@ -83,9 +88,12 @@ export function Editor({
 			if (update.docChanged && !isUpdatingRef.current) {
 				const newContent = update.state.doc.toString();
 				lastContentRef.current = newContent;
-				const currentActiveId = useAppStore.getState().activeFileId;
+				const currentActiveId =
+					sandboxFile?.id ?? useAppStore.getState().activeFileId;
 
-				if (currentActiveId) {
+				if (sandboxFile) {
+					onSandboxContentChange?.(newContent);
+				} else if (currentActiveId) {
 					useAppStore.getState().updateFileContent(currentActiveId, newContent);
 				}
 
@@ -94,7 +102,7 @@ export function Editor({
 				}
 
 				saveTimerRef.current = window.setTimeout(async () => {
-					if (!sandboxMode) {
+					if (!sandboxMode && !sandboxFile) {
 						const state = useAppStore.getState();
 						const file = state.files.find((f) => f.id === state.activeFileId);
 						if (file) {
@@ -109,7 +117,7 @@ export function Editor({
 				}, 800);
 			}
 		});
-	}, [sandboxMode]);
+	}, [onSandboxContentChange, sandboxFile, sandboxMode]);
 
 	// Main effect: Create editor or update it when file changes
 	useEffect(() => {
