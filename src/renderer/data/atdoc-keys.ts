@@ -1,6 +1,7 @@
 export type AtDocValueType =
 	| "number"
 	| "boolean"
+	| "string"
 	| "color"
 	| "enum:layoutMode"
 	| "enum:scrollMode";
@@ -13,6 +14,18 @@ export interface AtDocKeyDefinition {
 }
 
 export const ATDOC_KEY_DEFINITIONS: AtDocKeyDefinition[] = [
+	{
+		key: "at.meta.class",
+		valueType: "string",
+		description: "Document class labels (comma-separated supported)",
+		example: 'at.meta.class="lesson, fingerstyle"',
+	},
+	{
+		key: "at.meta.tag",
+		valueType: "string",
+		description: "Document tags (comma-separated supported)",
+		example: 'at.meta.tag="warmup, caged"',
+	},
 	{
 		key: "at.display.scale",
 		valueType: "number",

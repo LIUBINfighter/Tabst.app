@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useFileOperations } from "../hooks/useFileOperations";
+import { extractAtDocFileMeta } from "../lib/atdoc";
 import { useTheme } from "../lib/theme-system/use-theme";
 import { useAppStore } from "../store/appStore";
 import type { DeleteBehavior, FileNode } from "../types/repo";
@@ -16,6 +17,24 @@ export interface SidebarProps {
 	onCollapse?: () => void;
 }
 
+function normalizePath(p: string): string {
+	return p.replace(/\\/g, "/");
+}
+
+function flattenNodes(nodes: FileNode[]): FileNode[] {
+	const out: FileNode[] = [];
+	for (const node of nodes) {
+		if (node.type === "file") {
+			out.push(node);
+			continue;
+		}
+		if (node.children?.length) {
+			out.push(...flattenNodes(node.children));
+		}
+	}
+	return out;
+}
+
 export function Sidebar({ onCollapse }: SidebarProps) {
 	const { t } = useTranslation("sidebar");
 	const fileTree = useAppStore((s) => s.fileTree);
@@ -26,7 +45,9 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 	const expandFolder = useAppStore((s) => s.expandFolder);
 	const collapseFolder = useAppStore((s) => s.collapseFolder);
 	const refreshFileTree = useAppStore((s) => s.refreshFileTree);
+	const files = useAppStore((s) => s.files);
 	const addFile = useAppStore((s) => s.addFile);
+	const setFileMetaByPath = useAppStore((s) => s.setFileMetaByPath);
 	const renameFile = useAppStore((s) => s.renameFile);
 	const removeFile = useAppStore((s) => s.removeFile);
 	const deleteBehavior = useAppStore((s) => s.deleteBehavior);
@@ -46,6 +67,7 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 	const [pendingRenamePath, setPendingRenamePath] = useState<string | null>(
 		null,
 	);
+	const [selectedTagFilters, setSelectedTagFilters] = useState<string[]>([]);
 	const toastTimerRef = useRef<number | null>(null);
 	const backgroundRefreshTimerRef = useRef<number | null>(null);
 
@@ -122,8 +144,9 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 
 	const sortTreeNodes = (nodes: FileNode[]) => {
 		nodes.sort((a, b) => {
-			if (a.type === "folder" && b.type !== "folder") return -1;
-			if (a.type !== "folder" && b.type === "folder") return 1;
+			const timeA = a.mtimeMs ?? 0;
+			const timeB = b.mtimeMs ?? 0;
+			if (timeA !== timeB) return timeB - timeA;
 			return a.name.localeCompare(b.name);
 		});
 	};
@@ -230,7 +253,102 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 		}, 180);
 	};
 
-	const normalizePath = (p: string) => p.replace(/\\/g, "/");
+	const tagsByPath = useMemo(() => {
+		const map = new Map<string, string[]>();
+		for (const file of files) {
+			map.set(normalizePath(file.path), file.metaTags ?? []);
+		}
+		return map;
+	}, [files]);
+
+	const availableTags = useMemo(() => {
+		const set = new Set<string>();
+		for (const file of files) {
+			for (const tag of file.metaTags ?? []) {
+				const cleaned = tag.trim();
+				if (cleaned) set.add(cleaned);
+			}
+		}
+		return Array.from(set).sort((a, b) => a.localeCompare(b));
+	}, [files]);
+
+	const toggleTagFilter = (tag: string) => {
+		const lower = tag.toLowerCase();
+		setSelectedTagFilters((current) => {
+			const exists = current.some((item) => item.toLowerCase() === lower);
+			if (exists) {
+				return current.filter((item) => item.toLowerCase() !== lower);
+			}
+			return [...current, tag];
+		});
+	};
+
+	const filteredFileTree = useMemo(() => {
+		if (selectedTagFilters.length === 0) return fileTree;
+
+		const required = selectedTagFilters.map((tag) => tag.toLowerCase());
+
+		const filterNodes = (nodes: FileNode[]): FileNode[] => {
+			const out: FileNode[] = [];
+			for (const node of nodes) {
+				if (node.type === "file") {
+					const tags =
+						tagsByPath
+							.get(normalizePath(node.path))
+							?.map((tag) => tag.toLowerCase()) ?? [];
+					if (required.every((tag) => tags.includes(tag))) {
+						out.push(node);
+					}
+					continue;
+				}
+
+				const children = node.children ? filterNodes(node.children) : [];
+				if (children.length > 0) {
+					out.push({ ...node, children, isExpanded: true });
+				}
+			}
+			return out;
+		};
+
+		return filterNodes(fileTree);
+	}, [fileTree, selectedTagFilters, tagsByPath]);
+
+	useEffect(() => {
+		if (workspaceMode !== "editor" || !activeRepoId) return;
+
+		const openedByPath = new Map(
+			files.map((file) => [normalizePath(file.path), file]),
+		);
+		const atexNodes = flattenNodes(fileTree).filter((node) =>
+			node.name.toLowerCase().endsWith(".atex"),
+		);
+		const pendingPaths = atexNodes
+			.map((node) => normalizePath(node.path))
+			.filter((path) => {
+				const file = openedByPath.get(path);
+				return !file || (!file.metaClass && !file.metaTags);
+			});
+
+		if (pendingPaths.length === 0) return;
+
+		let cancelled = false;
+		void (async () => {
+			for (const path of pendingPaths) {
+				if (cancelled) return;
+				try {
+					const readResult = await window.electronAPI.readFile(path);
+					if (readResult.error) continue;
+					const parsedMeta = extractAtDocFileMeta(readResult.content);
+					setFileMetaByPath(path, parsedMeta.metaClass, parsedMeta.metaTags);
+				} catch {}
+			}
+		})();
+
+		return () => {
+			cancelled = true;
+		};
+	}, [activeRepoId, fileTree, files, setFileMetaByPath, workspaceMode]);
+
 	const getParentDirectory = (p: string): string | undefined => {
 		const normalized = normalizePath(p);
 		const idx = normalized.lastIndexOf("/");
@@ -483,59 +601,135 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 			);
 		}
 
+		if (selectedTagFilters.length > 0 && filteredFileTree.length === 0) {
+			return (
+				<div className="px-2 py-2 space-y-2">
+					<div className="flex flex-wrap items-center gap-1">
+						{selectedTagFilters.map((tag) => (
+							<button
+								type="button"
+								key={`selected-${tag}`}
+								onClick={() => toggleTagFilter(tag)}
+								className="inline-flex items-center rounded border border-primary/40 bg-primary/10 px-1.5 py-0.5 text-[10px] text-primary"
+							>
+								#{tag}
+							</button>
+						))}
+						<button
+							type="button"
+							onClick={() => setSelectedTagFilters([])}
+							className="text-[10px] text-muted-foreground underline underline-offset-2"
+						>
+							Clear
+						</button>
+					</div>
+					<div className="p-3 text-xs text-muted-foreground text-center">
+						No files matched selected tags.
+					</div>
+				</div>
+			);
+		}
+
 		return (
-			<FileTree
-				nodes={fileTree}
-				pendingRenamePath={pendingRenamePath}
-				onPendingRenameConsumed={() => setPendingRenamePath(null)}
-				onFileSelect={handleFileSelect}
-				onFolderToggle={handleFolderToggle}
-				onRename={handleRename}
-				onMove={handleMove}
-				onReveal={handleReveal}
-				onCopyPath={handleCopyPath}
-				onDelete={handleDelete}
-				onCreateFileInFolder={(folder, ext) => {
-					setCreateTargetDir(folder.path);
-					void (async () => {
-						const createdPath = await handleNewFile(ext ?? ".md", folder.path);
-						if (!createdPath) return;
-						const name = createdPath.split(/[\\/]/).pop() ?? createdPath;
-						const newNode: FileNode = {
-							id: createdPath,
-							name,
-							path: createdPath,
-							type: "file",
-						};
-						useAppStore.setState((state) => ({
-							fileTree: addNodeToTree(state.fileTree, folder.path, newNode),
-						}));
-						setPendingRenamePath(createdPath);
-						scheduleBackgroundRefresh();
-					})();
-				}}
-				onCreateFolderInFolder={(folder) => {
-					setCreateTargetDir(folder.path);
-					void (async () => {
-						const createdPath = await handleNewFolder(folder.path);
-						if (!createdPath) return;
-						const name = createdPath.split(/[\\/]/).pop() ?? createdPath;
-						const newNode: FileNode = {
-							id: createdPath,
-							name,
-							path: createdPath,
-							type: "folder",
-							children: [],
-							isExpanded: true,
-						};
-						useAppStore.setState((state) => ({
-							fileTree: addNodeToTree(state.fileTree, folder.path, newNode),
-						}));
-						setPendingRenamePath(createdPath);
-						scheduleBackgroundRefresh();
-					})();
-				}}
-			/>
+			<div className="w-full">
+				{availableTags.length > 0 ? (
+					<div className="px-2 pt-2 pb-1 border-b border-border/60">
+						<div className="mb-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+							Tags
+						</div>
+						<div className="flex flex-wrap items-center gap-1">
+							{availableTags.map((tag) => {
+								const active = selectedTagFilters.some(
+									(item) => item.toLowerCase() === tag.toLowerCase(),
+								);
+								return (
+									<button
+										type="button"
+										key={`tag-filter-${tag}`}
+										onClick={() => toggleTagFilter(tag)}
+										className={`inline-flex items-center rounded border px-1.5 py-0.5 text-[10px] transition-colors ${
+											active
+												? "border-primary/50 bg-primary/10 text-primary"
+												: "border-border bg-muted/70 text-muted-foreground hover:bg-muted"
+										}`}
+									>
+										#{tag}
+									</button>
+								);
+							})}
+							{selectedTagFilters.length > 0 ? (
+								<button
+									type="button"
+									onClick={() => setSelectedTagFilters([])}
+									className="text-[10px] text-muted-foreground underline underline-offset-2"
+								>
+									Clear
+								</button>
+							) : null}
+						</div>
+					</div>
+				) : null}
+
+				<FileTree
+					nodes={filteredFileTree}
+					pendingRenamePath={pendingRenamePath}
+					onPendingRenameConsumed={() => setPendingRenamePath(null)}
+					onFileSelect={handleFileSelect}
+					onFolderToggle={handleFolderToggle}
+					onRename={handleRename}
+					onMove={handleMove}
+					onReveal={handleReveal}
+					onCopyPath={handleCopyPath}
+					onDelete={handleDelete}
+					onTagClick={toggleTagFilter}
+					activeTagFilters={selectedTagFilters}
+					onCreateFileInFolder={(folder, ext) => {
+						setCreateTargetDir(folder.path);
+						void (async () => {
+							const createdPath = await handleNewFile(
+								ext ?? ".md",
+								folder.path,
+							);
+							if (!createdPath) return;
+							const name = createdPath.split(/[\\/]/).pop() ?? createdPath;
+							const newNode: FileNode = {
+								id: createdPath,
+								name,
+								path: createdPath,
+								type: "file",
+								mtimeMs: Date.now(),
+							};
+							useAppStore.setState((state) => ({
+								fileTree: addNodeToTree(state.fileTree, folder.path, newNode),
+							}));
+							setPendingRenamePath(createdPath);
+							scheduleBackgroundRefresh();
+						})();
+					}}
+					onCreateFolderInFolder={(folder) => {
+						setCreateTargetDir(folder.path);
+						void (async () => {
+							const createdPath = await handleNewFolder(folder.path);
+							if (!createdPath) return;
+							const name = createdPath.split(/[\\/]/).pop() ?? createdPath;
+							const newNode: FileNode = {
+								id: createdPath,
+								name,
+								path: createdPath,
+								type: "folder",
+								mtimeMs: Date.now(),
+								children: [],
+								isExpanded: true,
+							};
+							useAppStore.setState((state) => ({
+								fileTree: addNodeToTree(state.fileTree, folder.path, newNode),
+							}));
+							setPendingRenamePath(createdPath);
+							scheduleBackgroundRefresh();
+						})();
+					}}
+				/>
+			</div>
 		);
 	};
 
@@ -566,6 +760,7 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 								name,
 								path: createdPath,
 								type: "file",
+								mtimeMs: Date.now(),
 							};
 							useAppStore.setState((storeState) => ({
 								fileTree: addNodeToTree(
@@ -597,6 +792,7 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 								name,
 								path: createdPath,
 								type: "folder",
+								mtimeMs: Date.now(),
 								children: [],
 								isExpanded: true,
 							};

@@ -307,6 +307,10 @@ const scanDirectoryRecursive = (
 
 			const fullPath = path.join(dirPath, entry.name);
 			const id = fullPath;
+			let mtimeMs: number | undefined;
+			try {
+				mtimeMs = fs.statSync(fullPath).mtimeMs;
+			} catch {}
 
 			if (entry.isDirectory()) {
 				const children = yield* scanDirectoryRecursive(
@@ -319,6 +323,7 @@ const scanDirectoryRecursive = (
 						name: entry.name,
 						path: fullPath,
 						type: "folder",
+						mtimeMs,
 						children,
 						isExpanded: false,
 					});
@@ -329,13 +334,15 @@ const scanDirectoryRecursive = (
 					name: entry.name,
 					path: fullPath,
 					type: "file",
+					mtimeMs,
 				});
 			}
 		}
 
 		nodes.sort((a, b) => {
-			if (a.type === "folder" && b.type !== "folder") return -1;
-			if (a.type !== "folder" && b.type === "folder") return 1;
+			const timeA = a.mtimeMs ?? 0;
+			const timeB = b.mtimeMs ?? 0;
+			if (timeA !== timeB) return timeB - timeA;
 			return a.name.localeCompare(b.name);
 		});
 

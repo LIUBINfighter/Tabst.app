@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Editor } from "./components/Editor";
 import GlobalBottomBar from "./components/GlobalBottomBar";
+import QuickFileSwitcher from "./components/QuickFileSwitcher";
 import SettingsView from "./components/SettingsView";
 import { Sidebar } from "./components/Sidebar";
 import TutorialView from "./components/TutorialView";
@@ -12,6 +13,7 @@ import { useAppStore } from "./store/appStore";
 
 function App() {
 	const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+	const [quickSwitcherOpen, setQuickSwitcherOpen] = useState(false);
 	const workspaceMode = useAppStore((s) => s.workspaceMode);
 	const prevWorkspaceModeRef = useRef<"editor" | "tutorial" | "settings">(
 		"editor",
@@ -33,6 +35,20 @@ function App() {
 	useEffect(() => {
 		initialize();
 	}, [initialize]);
+
+	useEffect(() => {
+		const handleQuickSwitcherShortcut = (event: KeyboardEvent) => {
+			if (event.key.toLowerCase() !== "o") return;
+			if (!(event.metaKey || event.ctrlKey)) return;
+			if (event.shiftKey || event.altKey) return;
+			event.preventDefault();
+			setQuickSwitcherOpen(true);
+		};
+
+		window.addEventListener("keydown", handleQuickSwitcherShortcut);
+		return () =>
+			window.removeEventListener("keydown", handleQuickSwitcherShortcut);
+	}, []);
 
 	useEffect(() => {
 		const preventWindowDropDefault = (event: DragEvent) => {
@@ -239,6 +255,10 @@ function App() {
 			</div>
 
 			<UpdateToast />
+			<QuickFileSwitcher
+				open={quickSwitcherOpen}
+				onOpenChange={setQuickSwitcherOpen}
+			/>
 		</div>
 	);
 }

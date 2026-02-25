@@ -55,6 +55,7 @@ export interface FileNode {
 	name: string;
 	path: string;
 	type: FileNodeType;
+	mtimeMs?: number;
 	content?: string;
 	children?: FileNode[];
 	isExpanded?: boolean;

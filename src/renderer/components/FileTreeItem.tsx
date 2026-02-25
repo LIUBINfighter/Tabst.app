@@ -8,12 +8,44 @@ import {
 	Folder,
 	FolderOpen,
 	FolderPlus,
+	Hash,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAppStore } from "../store/appStore";
 import type { FileNode } from "../types/repo";
 import { FileContextMenu } from "./FileContextMenu";
+
+const EMPTY_TAGS: string[] = [];
+
+function normalizePath(path: string): string {
+	return path.replace(/\\/g, "/");
+}
+
+function getRepoRelativeDir(filePath: string, repoPath: string | null): string {
+	if (!repoPath) return "";
+	const normalizedFile = normalizePath(filePath);
+	const normalizedRepo = normalizePath(repoPath).replace(/\/+$/, "");
+	if (!normalizedFile.startsWith(normalizedRepo)) return "";
+	const relative = normalizedFile
+		.slice(normalizedRepo.length)
+		.replace(/^\/+/, "");
+	if (!relative) return "";
+	const segments = relative.split("/");
+	segments.pop();
+	return segments.join("/");
+}
+
+function formatRelativeTime(timestampMs: number | undefined): string {
+	if (!timestampMs || Number.isNaN(timestampMs)) return "";
+	const diff = Date.now() - timestampMs;
+	if (diff < 60_000) return "just now";
+	if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`;
+	if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h ago`;
+	if (diff < 2_592_000_000) return `${Math.floor(diff / 86_400_000)}d ago`;
+	const date = new Date(timestampMs);
+	return date.toLocaleDateString();
+}
 
 export interface FileTreeItemProps {
 	node: FileNode;
@@ -29,6 +61,8 @@ export interface FileTreeItemProps {
 	onDelete?: (node: FileNode) => void;
 	onCreateFileInFolder?: (node: FileNode, ext: ".md" | ".atex") => void;
 	onCreateFolderInFolder?: (node: FileNode) => void;
+	onTagClick?: (tag: string) => void;
+	activeTagFilters?: string[];
 }
 
 export function FileTreeItem({
@@ -45,6 +79,8 @@ export function FileTreeItem({
 	onDelete,
 	onCreateFileInFolder,
 	onCreateFolderInFolder,
+	onTagClick,
+	activeTagFilters,
 }: FileTreeItemProps) {
 	const { t } = useTranslation("sidebar");
 	const activeFileId = useAppStore((s) => s.activeFileId);
@@ -73,6 +109,33 @@ export function FileTreeItem({
 	const isActive = activeFileId === node.id;
 	const isFolder = node.type === "folder";
 	const isExpanded = node.isExpanded ?? false;
+	const fileMetaTags = useAppStore(
+		useCallback(
+			(s) => {
+				if (isFolder) return EMPTY_TAGS;
+				const current = s.files.find(
+					(f) => f.id === node.id || f.path === node.path,
+				);
+				return current?.metaTags ?? EMPTY_TAGS;
+			},
+			[isFolder, node.id, node.path],
+		),
+	);
+	const shownTags: string[] = fileMetaTags.slice(0, 3);
+	const hiddenTagsCount = Math.max(fileMetaTags.length - shownTags.length, 0);
+	const activeRepoPath = useAppStore((s) => {
+		const repo = s.repos.find((r) => r.id === s.activeRepoId);
+		return repo?.path ?? null;
+	});
+	const relativeDir = isFolder
+		? ""
+		: getRepoRelativeDir(node.path, activeRepoPath) || "/";
+	const relativeEditTime = isFolder ? "" : formatRelativeTime(node.mtimeMs);
+
+	const isTagActive = (tag: string) =>
+		(activeTagFilters ?? []).some(
+			(value) => value.toLowerCase() === tag.toLowerCase(),
+		);
 
 	const moveFocusToSibling = useCallback((dir: "next" | "prev") => {
 		const allItems = Array.from(
@@ -285,8 +348,8 @@ export function FileTreeItem({
 				}
 			}}
 			className={`
-				w-full max-w-full group flex items-center gap-2 px-3 py-1.5 cursor-pointer overflow-hidden
-				text-xs text-muted-foreground transition-colors text-left
+				w-full max-w-full group flex items-start gap-2 px-3 py-2 cursor-pointer overflow-hidden
+				text-xs text-muted-foreground transition-colors text-left min-h-[56px]
 				${isDragging ? "opacity-50" : ""}
 				${isDragOver ? "ring-1 ring-primary/60 bg-primary/10" : ""}
 				${isActive ? "bg-[var(--highlight-bg)] text-[var(--highlight-text)]" : "hover:bg-[var(--hover-bg)] hover:text-[var(--hover-text)]"}
@@ -317,7 +380,7 @@ export function FileTreeItem({
 				<FileText className={iconClass} />
 			)}
 
-			<span className="flex-1 min-w-0 truncate h-6 leading-6">
+			<div className="flex-1 min-w-0">
 				{isEditing ? (
 					<input
 						ref={inputRef}
@@ -342,9 +405,57 @@ export function FileTreeItem({
 						onClick={(e) => e.stopPropagation()}
 					/>
 				) : (
-					baseName
+					<div className="min-w-0">
+						<div className="truncate h-6 leading-6 font-medium">{baseName}</div>
+						{!isFolder ? (
+							<div className="flex items-center gap-1 text-[10px] text-muted-foreground min-w-0">
+								<span className="truncate">{relativeDir}</span>
+								{relativeEditTime ? (
+									<span className="shrink-0">· {relativeEditTime}</span>
+								) : null}
+							</div>
+						) : null}
+						{!isFolder && shownTags.length > 0 ? (
+							<div className="mt-0.5 flex flex-wrap items-center gap-1">
+								{shownTags.map((tag) => (
+									<button
+										type="button"
+										key={`${node.id}-${tag}`}
+										onClick={(event) => {
+											event.stopPropagation();
+											onTagClick?.(tag);
+										}}
+										onKeyDown={(event) => {
+											event.stopPropagation();
+										}}
+										className={`inline-flex items-center gap-0.5 rounded border px-1.5 py-0.5 text-[10px] leading-none transition-colors ${
+											isTagActive(tag)
+												? "border-primary/50 bg-primary/15 text-primary"
+												: isActive
+													? "border-[var(--highlight-text)]/30 bg-[var(--highlight-text)]/12 text-[var(--highlight-text)]"
+													: "border-border bg-muted/70 text-muted-foreground"
+										}`}
+									>
+										<Hash className="h-2.5 w-2.5" />
+										{tag}
+									</button>
+								))}
+								{hiddenTagsCount > 0 ? (
+									<span
+										className={`inline-flex items-center rounded border px-1.5 py-0.5 text-[10px] leading-none ${
+											isActive
+												? "border-[var(--highlight-text)]/30 bg-[var(--highlight-text)]/12 text-[var(--highlight-text)]"
+												: "border-border bg-muted/70 text-muted-foreground"
+										}`}
+									>
+										+{hiddenTagsCount}
+									</span>
+								) : null}
+							</div>
+						) : null}
+					</div>
 				)}
-			</span>
+			</div>
 
 			{isFolder && (
 				<div className="shrink-0 hidden group-hover:flex items-center gap-0.5">
@@ -430,6 +541,8 @@ export function FileTreeItem({
 							onDelete={onDelete}
 							onCreateFileInFolder={onCreateFileInFolder}
 							onCreateFolderInFolder={onCreateFolderInFolder}
+							onTagClick={onTagClick}
+							activeTagFilters={activeTagFilters}
 						/>
 					))}
 				</div>

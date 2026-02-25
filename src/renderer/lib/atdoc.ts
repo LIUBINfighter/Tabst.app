@@ -12,6 +12,10 @@ export interface AtDocWarning {
 }
 
 export interface AtDocConfig {
+	meta?: {
+		class?: string[];
+		tag?: string[];
+	};
 	display?: {
 		scale?: number;
 		layoutMode?: alphaTab.LayoutMode;
@@ -56,6 +60,11 @@ export interface AtDocCompletionItem {
 	insertText: string;
 }
 
+export interface AtDocFileMeta {
+	metaClass: string[];
+	metaTags: string[];
+}
+
 const ATDOC_KEY_DEFINITION_MAP = new Map(
 	ATDOC_KEY_DEFINITIONS.map((def) => [def.key.toLowerCase(), def]),
 );
@@ -94,6 +103,21 @@ function unquote(value: string): string {
 	return v;
 }
 
+function parseStringList(value: string): string[] {
+	return value
+		.split(",")
+		.map((item) => unquote(item).trim())
+		.filter((item) => item.length > 0);
+}
+
+function mergeUnique(base: string[] | undefined, incoming: string[]): string[] {
+	const out = [...(base ?? [])];
+	for (const item of incoming) {
+		if (!out.includes(item)) out.push(item);
+	}
+	return out;
+}
+
 function parseLayoutMode(value: string): alphaTab.LayoutMode | null {
 	const v = value.trim().toLowerCase();
 	if (v === "page") return alphaTab.LayoutMode.Page;
@@ -121,6 +145,25 @@ function applyDirective(
 	const value = unquote(rawValue);
 
 	switch (key) {
+		case "at.meta.class":
+		case "at.meta.tag": {
+			const values = parseStringList(value);
+			if (values.length === 0) {
+				warnings.push({
+					line,
+					message: `${key} must be a non-empty string or comma-separated string list`,
+				});
+				return;
+			}
+			const meta = { ...(config.meta ?? {}) };
+			if (key === "at.meta.class") {
+				meta.class = mergeUnique(meta.class, values);
+			} else {
+				meta.tag = mergeUnique(meta.tag, values);
+			}
+			config.meta = meta;
+			return;
+		}
 		case "at.display.scale": {
 			const n = toNumber(value);
 			if (n === null || n <= 0) {
@@ -362,6 +405,7 @@ export function parseAtDoc(content: string | undefined): AtDocParseResult {
 
 export function buildAtDocCompletionItems(): AtDocCompletionItem[] {
 	const snippetBoolean = "$" + "{1:true}";
+	const snippetString = "$" + '{1:"value"}';
 	const snippetLayoutMode = "$" + "{1:Page}";
 	const snippetScrollMode = "$" + "{1:OffScreen}";
 	const snippetColor = "$" + "{1:#22c55e}";
@@ -374,13 +418,15 @@ export function buildAtDocCompletionItems(): AtDocCompletionItem[] {
 		insertText: `${def.key}=${
 			def.valueType === "boolean"
 				? snippetBoolean
-				: def.valueType === "enum:layoutMode"
-					? snippetLayoutMode
-					: def.valueType === "enum:scrollMode"
-						? snippetScrollMode
-						: def.valueType === "color"
-							? snippetColor
-							: snippetNumber
+				: def.valueType === "string"
+					? snippetString
+					: def.valueType === "enum:layoutMode"
+						? snippetLayoutMode
+						: def.valueType === "enum:scrollMode"
+							? snippetScrollMode
+							: def.valueType === "color"
+								? snippetColor
+								: snippetNumber
 		}`,
 	}));
 }
@@ -420,4 +466,14 @@ export function normalizeAtDocValueForDisplay(
 		return normalizeEnumName(value);
 	}
 	return value;
+}
+
+export function extractAtDocFileMeta(
+	content: string | undefined,
+): AtDocFileMeta {
+	const parsed = parseAtDoc(content);
+	return {
+		metaClass: [...(parsed.config.meta?.class ?? [])],
+		metaTags: [...(parsed.config.meta?.tag ?? [])],
+	};
 }

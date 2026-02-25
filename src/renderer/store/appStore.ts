@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import i18n, { type Locale } from "../i18n";
+import { extractAtDocFileMeta } from "../lib/atdoc";
 import { loadGlobalSettings, saveGlobalSettings } from "../lib/global-settings";
 import type { StaffDisplayOptions } from "../lib/staff-config";
 import type { TutorialAudience } from "../lib/tutorial-loader";
@@ -23,6 +24,16 @@ function getInitialLocale(): Locale {
 	return "zh-cn";
 }
 
+function isSameStringList(a: string[] | undefined, b: string[] | undefined) {
+	if (!a && !b) return true;
+	if (!a || !b) return false;
+	if (a.length !== b.length) return false;
+	for (let i = 0; i < a.length; i += 1) {
+		if (a[i] !== b[i]) return false;
+	}
+	return true;
+}
+
 /**
  * @deprecated 使用 FileNode 替代
  */
@@ -31,6 +42,8 @@ export interface FileItem {
 	name: string;
 	path: string;
 	content: string;
+	metaClass?: string[];
+	metaTags?: string[];
 	/** Whether `content` is hydrated from disk/user input (vs empty placeholder from file tree scan). */
 	contentLoaded?: boolean;
 }
@@ -235,6 +248,12 @@ interface AppState {
 	renameFile: (id: string, newName: string) => Promise<boolean>;
 	setActiveFile: (id: string | null) => void;
 	updateFileContent: (id: string, content: string) => void;
+	setFileMeta: (id: string, metaClass: string[], metaTags: string[]) => void;
+	setFileMetaByPath: (
+		path: string,
+		metaClass: string[],
+		metaTags: string[],
+	) => void;
 	getActiveFile: () => FileItem | undefined;
 
 	// 🆕 选区操作
@@ -810,6 +829,13 @@ export const useAppStore = create<AppState>((set, get) => ({
 
 	addFile: (file) => {
 		set((state) => {
+			const parsedMeta = extractAtDocFileMeta(file.content ?? "");
+			const incomingMetaClass =
+				file.metaClass ??
+				(parsedMeta.metaClass.length > 0 ? parsedMeta.metaClass : undefined);
+			const incomingMetaTags =
+				file.metaTags ??
+				(parsedMeta.metaTags.length > 0 ? parsedMeta.metaTags : undefined);
 			const existing = state.files.find((f) => f.path === file.path);
 			if (existing) {
 				const merged = {
@@ -817,6 +843,8 @@ export const useAppStore = create<AppState>((set, get) => ({
 					// Prefer latest metadata/content when provided
 					name: file.name || existing.name,
 					content: file.content ?? existing.content,
+					metaClass: incomingMetaClass ?? existing.metaClass,
+					metaTags: incomingMetaTags ?? existing.metaTags,
 					contentLoaded: file.contentLoaded ?? true,
 				};
 				return {
@@ -829,7 +857,12 @@ export const useAppStore = create<AppState>((set, get) => ({
 				...state,
 				files: [
 					...state.files,
-					{ ...file, contentLoaded: file.contentLoaded ?? true },
+					{
+						...file,
+						metaClass: incomingMetaClass,
+						metaTags: incomingMetaTags,
+						contentLoaded: file.contentLoaded ?? true,
+					},
 				],
 				activeFileId: file.id,
 			};
@@ -922,11 +955,76 @@ export const useAppStore = create<AppState>((set, get) => ({
 	},
 
 	updateFileContent: (id, content) => {
+		const parsedMeta = extractAtDocFileMeta(content);
 		set((state) => ({
 			files: state.files.map((f) =>
-				f.id === id ? { ...f, content, contentLoaded: true } : f,
+				f.id === id
+					? {
+							...f,
+							content,
+							metaClass:
+								parsedMeta.metaClass.length > 0
+									? parsedMeta.metaClass
+									: undefined,
+							metaTags:
+								parsedMeta.metaTags.length > 0
+									? parsedMeta.metaTags
+									: undefined,
+							contentLoaded: true,
+						}
+					: f,
 			),
 		}));
+	},
+
+	setFileMeta: (id, metaClass, metaTags) => {
+		set((state) => {
+			let changed = false;
+			const nextFiles = state.files.map((f) => {
+				if (f.id !== id) return f;
+				const nextClass = metaClass.length > 0 ? [...metaClass] : undefined;
+				const nextTags = metaTags.length > 0 ? [...metaTags] : undefined;
+				if (
+					isSameStringList(f.metaClass, nextClass) &&
+					isSameStringList(f.metaTags, nextTags)
+				) {
+					return f;
+				}
+				changed = true;
+				return {
+					...f,
+					metaClass: nextClass,
+					metaTags: nextTags,
+				};
+			});
+			if (!changed) return state;
+			return { ...state, files: nextFiles };
+		});
+	},
+
+	setFileMetaByPath: (path, metaClass, metaTags) => {
+		set((state) => {
+			let changed = false;
+			const nextFiles = state.files.map((f) => {
+				if (f.path !== path) return f;
+				const nextClass = metaClass.length > 0 ? [...metaClass] : undefined;
+				const nextTags = metaTags.length > 0 ? [...metaTags] : undefined;
+				if (
+					isSameStringList(f.metaClass, nextClass) &&
+					isSameStringList(f.metaTags, nextTags)
+				) {
+					return f;
+				}
+				changed = true;
+				return {
+					...f,
+					metaClass: nextClass,
+					metaTags: nextTags,
+				};
+			});
+			if (!changed) return state;
+			return { ...state, files: nextFiles };
+		});
 	},
 
 	getActiveFile: () => {
@@ -1123,6 +1221,8 @@ function reconcileFilesWithTree(
 			...next,
 			id: existing.id ?? next.id,
 			content: existing.content ?? next.content,
+			metaClass: existing.metaClass,
+			metaTags: existing.metaTags,
 			contentLoaded: existing.contentLoaded ?? next.contentLoaded,
 		};
 	});

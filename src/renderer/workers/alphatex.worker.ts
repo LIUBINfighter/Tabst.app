@@ -360,6 +360,7 @@ function _getWordAtPosition(
 }
 
 const atDocSnippetBoolean = "$" + "{1:true}";
+const atDocSnippetString = "$" + '{1:"value"}';
 const atDocSnippetLayout = "$" + "{1:Page}";
 const atDocSnippetScroll = "$" + "{1:OffScreen}";
 const atDocSnippetColor = "$" + "{1:#22c55e}";
@@ -372,13 +373,15 @@ const atDocCompletions = ATDOC_KEY_DEFINITIONS.map((def) => ({
 	insertText: `${def.key}=${
 		def.valueType === "boolean"
 			? atDocSnippetBoolean
-			: def.valueType === "enum:layoutMode"
-				? atDocSnippetLayout
-				: def.valueType === "enum:scrollMode"
-					? atDocSnippetScroll
-					: def.valueType === "color"
-						? atDocSnippetColor
-						: atDocSnippetNumber
+			: def.valueType === "string"
+				? atDocSnippetString
+				: def.valueType === "enum:layoutMode"
+					? atDocSnippetLayout
+					: def.valueType === "enum:scrollMode"
+						? atDocSnippetScroll
+						: def.valueType === "color"
+							? atDocSnippetColor
+							: atDocSnippetNumber
 	}`,
 }));
 

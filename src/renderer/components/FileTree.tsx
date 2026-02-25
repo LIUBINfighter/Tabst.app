@@ -16,6 +16,8 @@ export interface FileTreeProps {
 	onDelete: (node: FileNode) => void;
 	onCreateFileInFolder?: (folder: FileNode, ext: ".md" | ".atex") => void;
 	onCreateFolderInFolder?: (folder: FileNode) => void;
+	onTagClick?: (tag: string) => void;
+	activeTagFilters?: string[];
 }
 
 export function FileTree({
@@ -32,6 +34,8 @@ export function FileTree({
 	onDelete,
 	onCreateFileInFolder,
 	onCreateFolderInFolder,
+	onTagClick,
+	activeTagFilters,
 }: FileTreeProps) {
 	const { t } = useTranslation("sidebar");
 
@@ -61,6 +65,8 @@ export function FileTree({
 					onDelete={onDelete}
 					onCreateFileInFolder={onCreateFileInFolder}
 					onCreateFolderInFolder={onCreateFolderInFolder}
+					onTagClick={onTagClick}
+					activeTagFilters={activeTagFilters}
 				/>
 			))}
 		</div>
