@@ -14,7 +14,6 @@ import {
 	snippet,
 	startCompletion,
 } from "@codemirror/autocomplete";
-import { syntaxTree } from "@codemirror/language";
 import type { Extension } from "@codemirror/state";
 import { Prec } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
@@ -46,20 +45,20 @@ interface LayeredContext {
 	key?: string;
 }
 
+const ATDOC_DOMAIN_FALLBACKS = [
+	"meta",
+	"display",
+	"player",
+	"coloring",
+	"staff",
+	"print",
+];
+
 function getAtDocLayeredContext(
 	context: CompletionContext,
 ): LayeredContext | null {
 	const line = context.state.doc.lineAt(context.pos);
 	const before = line.text.slice(0, context.pos - line.from);
-	const node = syntaxTree(context.state).resolveInner(context.pos, -1);
-	const inSyntaxComment = node.name.toLowerCase().includes("comment");
-	const trimmed = before.trimStart();
-	const inCommentLikeLine =
-		trimmed.startsWith("*") ||
-		trimmed.startsWith("/**") ||
-		trimmed.startsWith("/*") ||
-		trimmed.startsWith("//");
-	if (!inCommentLikeLine && !inSyntaxComment) return null;
 
 	const atIndex = Math.max(before.lastIndexOf("at."), before.lastIndexOf("at"));
 	if (atIndex < 0) return null;
@@ -69,6 +68,17 @@ function getAtDocLayeredContext(
 	const replaceTo = context.pos;
 
 	if (fragment === "at") {
+		return {
+			kind: "domain",
+			domainPrefix: "",
+			keyPrefix: "",
+			valuePrefix: "",
+			replaceFrom,
+			replaceTo,
+		};
+	}
+
+	if (fragment === "at.") {
 		return {
 			kind: "domain",
 			domainPrefix: "",
@@ -107,8 +117,28 @@ function getAtDocLayeredContext(
 		}
 	}
 
+	if (fragment.startsWith("at.") && /=\s*$/.test(fragment)) {
+		const left = fragment.replace(/=\s*$/, "");
+		const leftParts = left.slice(3).split(".");
+		if (leftParts.length >= 2) {
+			const domain = leftParts[0] ?? "";
+			const key = leftParts.slice(1).join(".");
+			return {
+				kind: "value",
+				domainPrefix: domain,
+				keyPrefix: key,
+				valuePrefix: "",
+				replaceFrom,
+				replaceTo,
+				domain,
+				key,
+			};
+		}
+	}
+
 	if (fragment.startsWith("at.") && fragment.includes("=")) {
-		const [left, valuePrefixRaw = ""] = fragment.split("=");
+		const [leftRaw, valuePrefixRaw = ""] = fragment.split("=");
+		const left = leftRaw.trimEnd();
 		const leftParts = left.slice(3).split(".");
 		if (leftParts.length >= 2) {
 			const domain = leftParts[0] ?? "";
@@ -130,7 +160,7 @@ function getAtDocLayeredContext(
 }
 
 function buildLayeredCompletions(context: LayeredContext): CompletionResult {
-	const domainSet = new Set<string>();
+	const domainSet = new Set<string>(ATDOC_DOMAIN_FALLBACKS);
 	for (const def of ATDOC_KEY_DEFINITIONS) {
 		const [, domain] = def.key.split(".");
 		if (domain) domainSet.add(domain);
@@ -144,6 +174,7 @@ function buildLayeredCompletions(context: LayeredContext): CompletionResult {
 		return {
 			from: context.replaceFrom,
 			to: context.replaceTo,
+			filter: false,
 			options: filteredDomains.map((domain) => ({
 				label: domain,
 				detail: "ATDOC domain",
@@ -170,6 +201,7 @@ function buildLayeredCompletions(context: LayeredContext): CompletionResult {
 		return {
 			from: context.replaceFrom,
 			to: context.replaceTo,
+			filter: false,
 			options: keys.map((item) => ({
 				label: item.name,
 				detail: item.detail,
@@ -206,6 +238,7 @@ function buildLayeredCompletions(context: LayeredContext): CompletionResult {
 	return {
 		from: context.replaceFrom,
 		to: context.replaceTo,
+		filter: false,
 		options: filtered.map((value) => ({
 			label: value,
 			detail: `value for ${fullKey}`,
@@ -348,17 +381,9 @@ export function createAlphaTexAutocomplete(
 		const pos = update.state.selection.main.head;
 		const line = update.state.doc.lineAt(pos);
 		const before = line.text.slice(0, pos - line.from);
-		const node = syntaxTree(update.state).resolveInner(pos, -1);
-		const inSyntaxComment = node.name.toLowerCase().includes("comment");
 		const trimmed = before.trimStart();
-		const inCommentLikeLine =
-			trimmed.startsWith("*") ||
-			trimmed.startsWith("/**") ||
-			trimmed.startsWith("/*") ||
-			trimmed.startsWith("//");
-		if (!inCommentLikeLine && !inSyntaxComment) return;
 
-		const shouldTrigger = /\bat(?:\.[\w.]*)?(?:=[^\s]*)?$/.test(trimmed);
+		const shouldTrigger = /\bat(?:\.[\w.]*)?(?:\s*=\s*[^\s]*)?$/.test(trimmed);
 		if (!shouldTrigger) return;
 
 		if (completionStatus(update.state) !== "active") {
