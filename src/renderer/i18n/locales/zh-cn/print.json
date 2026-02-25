@@ -24,6 +24,8 @@
 	"firstOnly": "仅第一个",
 	"noTracks": "暂无音轨",
 	"selectedCount": "已选择 {{n}} / {{total}} 音轨",
+	"trackVolume": "音轨音量：{{track}}",
+	"trackVolumeValue": "{{value}}%",
 	"done": "完成",
 	"staffLabel": "谱表 {{n}}",
 	"staff": {

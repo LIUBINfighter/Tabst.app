@@ -24,6 +24,8 @@
 	"firstOnly": "First only",
 	"noTracks": "No tracks",
 	"selectedCount": "{{n}} / {{total}} selected",
+	"trackVolume": "Track volume: {{track}}",
+	"trackVolumeValue": "{{value}}%",
 	"done": "Done",
 	"staffLabel": "Staff {{n}}",
 	"staff": {
