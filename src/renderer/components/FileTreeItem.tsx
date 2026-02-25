@@ -274,7 +274,7 @@ export function FileTreeItem({
 			: "text-muted-foreground group-hover:text-[var(--hover-text)]"
 	}`;
 
-	const indentStyle = { paddingLeft: `${8 + level * 14}px` };
+	const indentStyle = { paddingLeft: `${4 + level * 14}px` };
 
 	const content = (
 		<div
@@ -381,7 +381,7 @@ export function FileTreeItem({
 				}
 			}}
 			className={`
-				w-full max-w-full group flex items-start gap-2 px-2 py-2 cursor-pointer overflow-hidden
+				w-full max-w-full group flex items-start gap-2 px-0.5 py-2 cursor-pointer overflow-hidden
 				text-xs text-muted-foreground transition-colors text-left min-h-[56px]
 				${isDragging ? "opacity-50" : ""}
 				${isDragOver ? "ring-1 ring-primary/60 bg-primary/10" : ""}
@@ -396,7 +396,7 @@ export function FileTreeItem({
 					<ChevronRight className="shrink-0 h-3 w-3 text-muted-foreground" />
 				)
 			) : (
-				<div className="w-3 shrink-0" />
+				<div className="w-1 shrink-0" />
 			)}
 
 			{isFolder ? (
