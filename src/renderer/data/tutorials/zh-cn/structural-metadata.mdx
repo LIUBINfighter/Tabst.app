@@ -1,23 +1,23 @@
-# Structural Metadata
+# 结构元数据
 
-For some songs you might want to define that the song has multiple tracks, staves or voices.
+对于某些歌曲，你可能需要定义歌曲具有多个音轨、谱表或声部。
 
-* Multiple tracks are used when multiple instruments are playing together in one song.
-* Multiple staves are typically used to write grand staff piano notation (left hand/right hand) or
-  splitup voices for readability.
-* Multiple voices are typically used to write notation where multiple independent timings and pitches are played.
-  This can be if multiple vocals are singing together (hence the name voices), or special playing techniques (playing a base rhythm and melody on the same instrument).
+* 多音轨用于一首歌曲中多个乐器一起演奏时。
+* 多谱表通常用于编写大谱表钢琴记谱（左手/右手）或
+  为可读性拆分声部。
+* 多声部通常用于编写多个独立节拍和音高同时演奏的记谱。
+  这可以是多个声乐一起演唱（因此称为声部），或特殊的演奏技巧（在同一乐器上演奏基础节奏和旋律）。
 
-In AlphaTex new tracks, staves and voices are started with their respective metadata tags specified at the start of a bar:
+在 AlphaTex 中，新的音轨、谱表和声部通过其各自的元数据标签在小节开头指定：
 
-* `\\track`
-* `\\staff`
-* `\\voice`
+* `\track`
+* `\staff`
+* `\voice`
 
-alphaTab refers to these kind of metadata tags as "structural" tags as they define the general structure of the song.
+alphaTab 将这类元数据标签称为"结构"标签，因为它们定义了歌曲的一般结构。
 
-The initial track, staff or voice is implicitly started. Only on the "second" item you need to specify the tags. For clarity
-it is encouraged to also specify the initial item if there are multiple tracks, staves or voices.
+初始的音轨、谱表或声部是隐式启动的。只有在"第二个"项目上你才需要指定标签。为了清晰起见，
+建议如果有多个音轨、谱表或声部，也指定初始项目。
 
 ## `\\track`
 
@@ -25,16 +25,16 @@ it is encouraged to also specify the initial item if there are multiple tracks, 
 \track (name shortName)
 ```
 
-**Description:** Start a new track
+**描述：** 开始一个新音轨
 
-**Parameters:**
+**参数：**
 
-| Name | Description | Type | Required |
+| 名称 | 描述 | 类型 | 必需 |
 |------|-------------|------|----------|
-|  `name` | The full name of the track | `String` | no  |
-|  `shortName` | The short name of the track | `String` | no `/*computed from name*/` |
+|  `name` | 音轨的全名 | `String` | 否  |
+|  `shortName` | 音轨的短名 | `String` | 否 `/*从 name 计算得出*/` |
 
-**Example:**
+**示例：**
 
 ```alphatex
 \track "First Track" "frst"
@@ -43,7 +43,7 @@ it is encouraged to also specify the initial item if there are multiple tracks, 
     C5 D5 E5 F5
 ```
 
-**Properties:**
+**属性：**
 
 ### `color`
 
@@ -51,15 +51,15 @@ it is encouraged to also specify the initial item if there are multiple tracks, 
 color colorCode
 ```
 
-**Description:** The data model holds information about the color of the track which might be used by user interfaces to visually differenciate them. This data mainly originates from the Guitar Pro file format where colors are used to differenciate the tracks in the track picker and some other visualizations. It does not have an impact on the color of the music notation but can be used in a custom UI.
+**描述：** 数据模型保存有关音轨颜色的信息，用户界面可能使用这些信息来视觉上区分它们。这些数据主要源自 Guitar Pro 文件格式，其中颜色用于在音轨选择器和一些其他可视化中区分音轨。它不会影响乐谱的颜色，但可以在自定义 UI 中使用。
 
-**Parameters:**
+**参数：**
 
-| Name | Description | Type | Required |
+| 名称 | 描述 | 类型 | 必需 |
 |------|-------------|------|----------|
-|  `colorCode` | The colorCode in any supported color format | `String` | yes  |
+|  `colorCode` | 任何支持的颜色格式的颜色代码 | `String` | 是  |
 
-**Example:**
+**示例：**
 
 ```alphatex
 \track { color "#FF0000" }
@@ -72,17 +72,17 @@ color colorCode
 systemsLayout (numberOfBars)
 ```
 
-**Description:** Defines the number of bars to display per system.
+**描述：** 定义每行显示的小节数。
 
-The `systemsLayout` and `defaultSystemsLayout` allow configuring the system layout. The system layout defines how many bars should be displayed per system (line) if enabled via the `systemsLayoutMode` setting.
+`systemsLayout` 和 `defaultSystemsLayout` 允许配置系统布局。系统布局定义了如果通过 `systemsLayoutMode` 设置启用，每行（行）应显示多少小节。
 
-**Parameters:**
+**参数：**
 
-| Name | Description | Type | Required |
+| 名称 | 描述 | 类型 | 必需 |
 |------|-------------|------|----------|
-|  `numberOfBars` | Defines for every system (line) the number of bars it should contain | `Number[]` | no  |
+|  `numberOfBars` | 为每行（行）定义它应包含的小节数 | `Number[]` | 否  |
 
-**Example:**
+**示例：**
 
 ```alphatex
 \title "Single Track"
@@ -90,4 +90,115 @@ The `systemsLayout` and `defaultSystemsLayout` allow configuring the system layo
 :1 c4 | c4 | c4 | c4 | c4 | c4 | c4
 ```
 
-...
+### `defaultSystemsLayout`
+
+```markdown
+defaultSystemsLayout numberOfBars
+```
+
+**描述：** 定义每行显示的默认小节数。
+
+**参数：**
+
+| 名称 | 描述 | 类型 | 必需 |
+|------|-------------|------|----------|
+|  `numberOfBars` | 为每行（行）定义它应包含的小节数 | `Number` | 是  |
+
+**示例：**
+
+```alphatex
+\title "Single Track"
+\track { defaultSystemsLayout 2 }
+    :1 c4 | c4 | c4 | c4 | c4 | c4 | c4
+```
+
+### `solo`
+
+```markdown
+solo ()
+```
+
+**描述：** 将音轨设置为独奏播放。
+
+**示例：**
+
+```alphatex
+\track { solo }
+1.1 2.1 3.1 4.1
+\track 
+10.1 11.1 12.1 13.1
+```
+
+### `mute`
+
+```markdown
+mute ()
+```
+
+**描述：** 将音轨设置为静音。
+
+**示例：**
+
+```alphatex
+\track 
+1.1 2.1 3.1 4.1
+\track { mute }
+10.1 11.1 12.1 13.1
+```
+
+### `volume`
+
+```markdown
+volume value
+```
+
+**描述：** 设置音轨音量。
+
+**参数：**
+
+| 名称 | 描述 | 类型 | 必需 |
+|------|-------------|------|----------|
+|  `value` | 要设置的音量（0-16） | `Number` | 是  |
+
+**示例：**
+
+```alphatex
+\track { volume 0 }
+1.1 2.1 3.1 4.1
+\track { volume 16 }
+10.1 11.1 12.1 13.1
+```
+
+### `balance`
+
+```markdown
+balance value
+```
+
+**描述：** 设置音轨平衡。
+
+**参数：**
+
+| 名称 | 描述 | 类型 | 必需 |
+|------|-------------|------|----------|
+|  `value` | 要设置的平衡（0-16；8 为居中） | `Number` | 是  |
+
+**示例：**
+
+```alphatex
+\track { volume 0 }
+1.1 2.1 3.1 4.1
+\track { volume 16 }
+10.1 11.1 12.1 13.1
+```
+
+### `instrument`
+
+```markdown
+// [1]: 将 MIDI 乐器设置为 MIDI 程序编号
+instrument program
+// [2]: 将 MIDI 乐器设置为 MIDI 程序名称
+instrument programName
+// [3]: 将乐器设置为打击乐
+instrument percussion
+```

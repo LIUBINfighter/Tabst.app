@@ -1,8 +1,8 @@
-# Score Metadata
+# 乐谱元数据
 
-This page lists all metadata tags which affect the overall song.
+本页列出了所有影响整体歌曲的元数据标签。
 
-It is recommended that these tags are specified at the very beginning of the file.
+建议在文件最开始指定这些标签。
 
 ## `\\title`
 
@@ -10,27 +10,173 @@ It is recommended that these tags are specified at the very beginning of the fil
 \title (value template textAlign)
 ```
 
-**Description:** Set the title of the song.
+**描述：** 设置歌曲标题。
 
-**Parameters:**
+**参数：**
 
-| Name | Description | Type | Required |
+| 名称 | 描述 | 类型 | 必需 |
 |------|-------------|------|----------|
-|  `value` | The value to set | `String` | yes  |
-|  `template` | The template used to render the text | `String` | no  |
-|  `textAlign` | The alignment of the text on the music sheet | `left\|center\|right` | no  |
+|  `value` | 要设置的值 | `String` | 是  |
+|  `template` | 用于渲染文本的模板 | `String` | 否  |
+|  `textAlign` | 乐谱上文本的对齐方式 | `left\|center\|right` | 否  |
 
-**Parameter Values:**
+**参数值：**
 
-| Name | Values |
+| 名称 | 值 |
 |------|--------|
-| `textAlign` | left — Left-align the text; center — Center-align the text; right — Right-align the text |
+| `textAlign` | left — 左对齐文本；center — 居中对齐文本；right — 右对齐文本 |
 
-**Example:**
+**示例：**
 
 ```alphatex
 \title ("Song Title" "Title: %TITLE%" left)
 C4
 ```
 
-...
+## `\\subtitle`
+
+```markdown
+\subtitle (value template textAlign)
+```
+
+**描述：** 设置歌曲副标题。
+
+**参数：**
+
+| 名称 | 描述 | 类型 | 必需 |
+|------|-------------|------|----------|
+|  `value` | 要设置的值 | `String` | 是  |
+|  `template` | 用于渲染文本的模板 | `String` | 否  |
+|  `textAlign` | 乐谱上文本的对齐方式 | `left\|center\|right` | 否  |
+
+**参数值：**
+
+| 名称 | 值 |
+|------|--------|
+| `textAlign` | left — 左对齐文本；center — 居中对齐文本；right — 右对齐文本 |
+
+**示例：**
+
+```alphatex
+\title ("Song Title" "Title: %TITLE%" left)
+\subtitle ("Subtitle" "[%SUBTITLE%]" left)
+C4
+```
+
+## `\\artist`
+
+```markdown
+\artist (value template textAlign)
+```
+
+**描述：** 设置歌曲艺术家。
+
+**参数：**
+
+| 名称 | 描述 | 类型 | 必需 |
+|------|-------------|------|----------|
+|  `value` | 要设置的值 | `String` | 是  |
+|  `template` | 用于渲染文本的模板 | `String` | 否  |
+|  `textAlign` | 乐谱上文本的对齐方式 | `left\|center\|right` | 否  |
+
+**参数值：**
+
+| 名称 | 值 |
+|------|--------|
+| `textAlign` | left — 左对齐文本；center — 居中对齐文本；right — 右对齐文本 |
+
+**示例：**
+
+```alphatex
+\title ("Song Title" "Title: %TITLE%" left)
+\artist "alphaTab"
+C4
+```
+
+## `\\album`
+
+```markdown
+\album (value template textAlign)
+```
+
+**描述：** 设置歌曲专辑。
+
+**参数：**
+
+| 名称 | 描述 | 类型 | 必需 |
+|------|-------------|------|----------|
+|  `value` | 要设置的值 | `String` | 是  |
+|  `template` | 用于渲染文本的模板 | `String` | 否  |
+|  `textAlign` | 乐谱上文本的对齐方式 | `left\|center\|right` | 否  |
+
+**参数值：**
+
+| 名称 | 值 |
+|------|--------|
+| `textAlign` | left — 左对齐文本；center — 居中对齐文本；right — 右对齐文本 |
+
+**示例：**
+
+```alphatex
+\title ("Song Title" "Title: %TITLE%" left)
+\album "alphaTab vol.1"
+C4
+```
+
+## `\\words`
+
+```markdown
+\words (value template textAlign)
+```
+
+**描述：** 设置歌曲歌词作者。
+
+**参数：**
+
+| 名称 | 描述 | 类型 | 必需 |
+|------|-------------|------|----------|
+|  `value` | 要设置的值 | `String` | 是  |
+|  `template` | 用于渲染文本的模板 | `String` | 否  |
+|  `textAlign` | 乐谱上文本的对齐方式 | `left\|center\|right` | 否  |
+
+**参数值：**
+
+| 名称 | 值 |
+|------|--------|
+| `textAlign` | left — 左对齐文本；center — 居中对齐文本；right — 右对齐文本 |
+
+**示例：**
+
+```alphatex
+\words "CoderLine"
+C4
+```
+
+## `\\music`
+
+```markdown
+\music (value template textAlign)
+```
+
+**描述：** 设置歌曲音乐作者。
+
+**参数：**
+
+| 名称 | 描述 | 类型 | 必需 |
+|------|-------------|------|----------|
+|  `value` | 要设置的值 | `String` | 是  |
+|  `template` | 用于渲染文本的模板 | `String` | 否  |
+|  `textAlign` | 乐谱上文本的对齐方式 | `left\|center\|right` | 否  |
+
+**参数值：**
+
+| 名称 | 值 |
+|------|--------|
+| `textAlign` | left — 左对齐文本；center — 居中对齐文本；right — 右对齐文本 |
+
+**示例：**
+
+```alphatex
+\music "CoderLine and Contributors"
+C4
+```

@@ -1,8 +1,146 @@
-# TextMate grammar
+# TextMate 语法
 
-[Monaco](https://microsoft.github.io/monaco-editor/) is the code editor that powers Visual Studio Code providing advanced coding capabilities. 
-Unfortunately Monaco has no built-in support for language servers but ships its own APIs. 
+[Monaco](https://microsoft.github.io/monaco-editor/) 是为 Visual Studio Code 提供高级编码功能的代码编辑器。
+不幸的是，Monaco 没有内置的语言服务器支持，但提供了自己的 API。
 
-You can opt for advanced integrations like https://github.com/TypeFox/monaco-languageclient or rely on this more lightweight integration we ship in [`@coderline/alphatab-monaco`](https://www.npmjs.com/package/@coderline/alphatab-monaco)
+你可以选择高级集成，如 https://github.com/TypeFox/monaco-languageclient，或者依赖我们在 [`@coderline/alphatab-monaco`](https://www.npmjs.com/package/@coderline/alphatab-monaco) 中提供的更轻量级集成
 
-...
+该包允许将 Monaco 与在 Web Worker 中运行的 alphaTab 语言服务器集成，提供所有功能。
+
+本指南侧重于浏览器环境中与 Monaco 的集成。我们还假设导入的依赖项可以通过打包工具等机制使用。
+
+> [!WARNING]
+> 此集成仍处于实验阶段。它在页面上只有一个编辑器时工作正常，但
+> 尚未很好地集成到具有多个编辑器的更复杂环境中。
+
+我们还在开发游乐场中使用此模块。你可以通过克隆 alphaTab 并在 VS Code 中打开它来查看和测试（它将编译并启动游乐场）。
+然后在菜单中打开 `alphaTex 编辑器`。
+
+
+
+
+## TextMate 语法
+
+alphaTab 提供了一个 TextMate 语法，但 Monaco 默认不支持 TextMate 语法。
+我们使用 Microsoft 的两个包来弥补这一差距：
+
+* `vscode-textmate` 管理 TextMate 语法的加载
+* `vscode-oniguruma` 是用于 TextMate 语法中 Oniguruma 正则表达式的引擎（通过 WebAssembly）。
+
+```ts
+//
+// Monaco 编辑器 worker（参见 Monaco 文档）
+
+// @ts-expect-error
+
+self.MonacoEnvironment = {
+    getWorker: () => {
+        return new editorWorker();
+    }
+};
+
+// 
+// alphaTex 语法支持
+
+// 加载 WebAssembly 文件（例如通过 ajax 或其他机制）
+// 它与 vscode-oniguruma NPM 包一起提供
+const onigurumaWasm:ArrayBuffer = await load(new URL('vscode-oniguruma/release/onig.wasm', import.meta.url));
+
+
+
+// 设置通用 textmate 语法支持（也可以使用 alphaTex 以外的其他语法）
+const textMateSupport = addTextMateGrammarSupport(onigurumaWasm);
+
+// 注册 alphaTex 语法
+await registerAlphaTexGrammar(textMateSupport);
+
+//
+// 设置编辑器
+
+const element = document.querySelector<HTMLElement>('#editor');
+const editor = monaco.editor.create(element!, {
+    value: '\\title "Hello World"',
+    language: 'alphatex',
+    automaticLayout: true
+});
+```
+
+此时，你应该会获得一个带有语法高亮的编辑器。
+
+## 启动语言服务器
+
+为了将剩余功能引入 Monaco，我们首先必须在 web worker 中启动 alphaTex 语言服务器。
+
+NPM 包提供了一个可以作为 web worker 生成的模块：
+
+```ts
+const lspWorker = new Worker(new URL('@coderline/alphatab-monaco/worker', import.meta.url));
+```
+
+或者，你也可以在项目中创建自己的 worker 文件并启动语言服务器：
+
+```ts title="lsp.worker.ts"
+// 变体 1
+
+// 变体 2：
+
+
+const workerGlobalThis = globalThis as unknown as DedicatedWorkerGlobalScope;
+startWebWorkerLanguageServer(workerGlobalThis, workerGlobalThis);
+```
+
+```ts title="monaco.ts"
+const lspWorker = new Worker(new URL('./lsp.worker.ts', import.meta.url));
+```
+
+## 设置 Monaco LSP 集成
+
+与此 LSP worker 的集成非常简单。只需调用 `setupLspAlphaTexLanguageSupport`。
+
+```ts
+//
+// Monaco 编辑器 worker（参见 Monaco 文档）
+
+// @ts-expect-error
+
+self.MonacoEnvironment = {
+    getWorker: () => {
+        return new editorWorker();
+    }
+};
+
+// 
+// alphaTex 语法支持
+
+// 加载 WebAssembly 文件（例如通过 ajax 或其他机制）
+// 它与 vscode-oniguruma NPM 包一起提供
+const onigurumaWasm:ArrayBuffer = await load(new URL('vscode-oniguruma/release/onig.wasm', import.meta.url));
+
+
+
+// 设置通用 textmate 语法支持（也可以使用 alphaTex 以外的其他语法）
+const textMateSupport = addTextMateGrammarSupport(onigurumaWasm);
+
+// 注册 alphaTex 语法
+await registerAlphaTexGrammar(textMateSupport);
+
+//
+// 设置编辑器
+
+const element = document.querySelector<HTMLElement>('#editor');
+const editor = monaco.editor.create(element!, {
+    value: '\\title "Hello World"',
+    language: 'alphatex',
+    automaticLayout: true
+});
+
+//
+// 设置 LSP 支持
+
+await setupLspAlphaTexLanguageSupport(editor);
+```
+
+> [!WARNING]
+> 我们在 [开发游乐场](https://github.com/CoderLine/alphaTab/blob/develop/packages/playground/alphatex-editor.ts) 中生成 worker 时注意到一些奇怪的 Vite 行为。
+> 奇怪的是，Vite 实际上并没有打包 worker 中包含的依赖项，导致语言服务器无法启动的问题。
+> 我们不得不创建一个额外的 [包装脚本](https://github.com/CoderLine/alphaTab/blob/develop/packages/playground/alphatexLanguageServerWrap.ts)，然后它再导入 [worker](https://github.com/CoderLine/alphaTab/blob/develop/packages/playground/alphatexLanguageServer.ts)。

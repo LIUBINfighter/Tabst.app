@@ -1,55 +1,54 @@
-# Bars
+# 小节
 
-# Document Structure
+# 文档结构
 
 
 
-An alphaTex file is simply a list of bars and every bar has metadata and contents. For organizational reasons we commend
-that metadata tags describing the general song information are added to the start of the file, and external media synchronization points are 
-added on the end of the file: 
+alphaTex 文件简单来说就是一个小节列表，每个小节都有元数据和内容。出于组织原因，我们建议
+将描述一般歌曲信息的元数据标签添加到文件开头，并将外部媒体同步点
+添加到文件末尾：
 
-```title=General File Structure
-/* Song Metadata */
-/* Song Contents */
-/* Sync Points */
+```title=一般文件结构
+/* 歌曲元数据 */
+/* 歌曲内容 */
+/* 同步点 */
 ```
 
 :::note
-Before alphaTex 1.7 the 3 sections needed to be separated by a `.` This was improved in 1.7 and the separation dots should now be omitted.
+在 alphaTex 1.7 之前，这 3 个部分需要用 `.` 分隔。这在 1.7 中得到了改进，现在应该省略分隔点。
 
-```title=Pre 1.7 General File Structure
-/* Song Metadata */
+```title=1.7 之前的一般文件结构
+/* 歌曲元数据 */
 .
-/* Song Contents */
+/* 歌曲内容 */
 .
-/* Sync Points */
+/* 同步点 */
 ```
 :::
 
-# Bars
+# 小节
 
-Bars (aka. measures) are starting with an optional list of metadata tags followed by the beats contained
-in the bar. See [Bar Metadata](https://alphatab.net/docs/alphatex/bar-metadata) for details on the tags which can be applied here.
+小节（又称拍子）以可选的元数据标签列表开头，后跟小节中包含的节拍。有关此处可应用的标签的详细信息，请参阅 [小节元数据](https://alphatab.net/docs/alphatex/bar-metadata)。
 
-A bar is completed by a pipe `|` symbol
+小节以管道符 `|` 完成
 
 
 ```alphatex
-// bar 1 metadata tags
+// 小节 1 元数据标签
 \\clef G2 \\ks 
-    // bar 1 contents
+    // 小节 1 内容
     Cb C4 
 |  
-// bar 2 metadata tags
+// 小节 2 元数据标签
 \\ks A
-    // bar 2 contents
+    // 小节 2 内容
     C4
 ```
 
 
-## Beats
+## 节拍
 
-Beats group a number of notes played at the same time. The general parts of a beat are 
+节拍将同时演奏的多个音符分组。节拍的一般部分是
 
 * `duration-change content duration effects multiplier`
 
@@ -65,37 +64,37 @@ Beats group a number of notes played at the same time. The general parts of a be
 ```
 
 
-### Duration change (optional)
+### 时长变化（可选）
 
-A duration change allows easy changing of the duration for all following beats. The syntax is:
+时长变化允许轻松更改所有后续节拍的时长。语法为：
 
-`:Duration` where `Duration` is a number describing the new duration:
-* `:-4` a Quadruple Whole Note
-* `:-2` a Double Note 
-* `:1` a Whole Note
-* `:2` a Half Note
-* `:4` a Quarter Note 
-* `:8` a 8th Note 
-* `:16` a 16th Note
-* `:32` a 32th Note
-* `:64` a 64th Note
-* `:128` a 128th Note 
-* `:256` a 256th Note 
+`:Duration`，其中 `Duration` 是描述新时长的数字：
+* `:-4` 四倍全音符
+* `:-2` 二倍音符 
+* `:1` 全音符
+* `:2` 二分音符
+* `:4` 四分音符 
+* `:8` 八分音符 
+* `:16` 十六分音符
+* `:32` 三十二分音符
+* `:64` 六十四分音符 
+* `:128` 一百二十八分音符 
+* `:256` 二百五十六分音符 
 
-Optionally you can specify some properties afterwards the duration to specify tuplets.  
+你也可以在时长之后指定一些属性来指定连音。  
 
 `:4 {tu 3 2}`
 
-See [Tuplet Effect](https://alphatab.net/docs/alphatex/beat-properties#tu) for more details.
+有关更多详细信息，请参阅 [连音效果](https://alphatab.net/docs/alphatex/beat-properties#tu)。
 
 
 ```alphatex
-:16 // 16th notes from here
+:16 // 从这里开始是 16 分音符
     3.3
     4.3 
     5.3
     6.3
-:4 { tu 3 } // quarter notes triplets
+:4 { tu 3 } // 四分音符三连音
     3.3
     4.3
     5.3
@@ -103,4 +102,212 @@ See [Tuplet Effect](https://alphatab.net/docs/alphatex/beat-properties#tu) for m
     3.3 * 3
 ```
 
-...
+
+
+### 节拍内容（必需）
+
+最关键的部分是描述节拍的内容，可以是以下选项之一：
+
+* 休止符
+* 多个同时演奏的音符（用括号分组）
+* 单个演奏的音符
+
+休止符只需指定一个 `r` 即可表示： 
+
+
+```alphatex
+:4 r r r r
+```
+
+
+多个 [音符](#notes) 可以用括号 `()` 分组。类似于值列表，你也可以只指定
+一个音符并省略括号。 
+
+
+```alphatex
+:4 
+    C4 // 节拍上的单个音符
+    (C4 E4) // 用括号的多个音符
+```
+
+
+
+### 节拍时长（可选）
+
+另一种指定节拍时长的方式是在节拍内容后附加 `. duration`。
+历史上，新的时长也会被下一个节拍记住。作为节拍效果指定的连音不会被记住。
+
+```alphatex
+C4 .4
+C4 .8
+C4 // .8 被记住
+C4 .2
+```
+
+
+
+### 节拍效果（可选）
+
+节拍效果可以作为属性应用在节拍之后。请参阅 [节拍属性](https://alphatab.net/docs/alphatex/beat-properties) 以了解所有可用的效果。
+
+
+```alphatex
+:4
+    (C4 D4) { tp 8 } 
+    C4 { f }
+    r.2 {txt "在此处停顿"}
+```
+
+
+
+### 节拍乘数（可选）
+
+此功能允许通过"相乘"将同一节拍重复多次。
+只需在节拍后指定 `* times`，其中 `times` 是你想要的副本数。
+
+
+```alphatex
+:4
+    // 4 次相同的 A 和弦 
+    (0.1 2.2 2.3 2.4 0.5) * 4
+```
+
+
+## 音符
+
+根据演奏的乐器，你的小节中可以有 3 种音符之一。
+混合是不可能的，因此请确保所有音符都一致指定：
+
+* 吉他等品弦乐器使用 `fret.string` 表示音符
+* 打击乐/鼓使用发音名称表示音符。 
+* 其他有音高乐器使用音符名称表示音符。
+
+在每个音符之后，可以可选地将音符效果指定为属性：`note-value {note-properties}`。
+
+:::info
+AlphaTab 尝试根据第一个音符检测你正在编写哪种谱表。
+:::
+
+### 品弦音符
+
+如果当前谱表是弦乐器（相应地指定了 `\tuning` 或 `\instrument`），
+音符表示为演奏音符的品和弦。最终音符高度会被计算。 
+
+
+```alphatex
+:1
+    (12.1 {sib} 14.2 {sib b (0 4)})
+    12.1 { v }
+```
+
+
+
+### 打击乐/鼓音符
+
+在打击乐器上，你将发音指定为要演奏的音符。
+打击乐可以是带引号的字符串或标识符（不带引号的名称）。
+
+更多详细信息在 [`\\articulation`](https://alphatab.net/docs/alphatex/staff-metadata#articulation) 元数据文档中描述。
+
+
+```alphatex
+\\instrument percussion
+\\articulation defaults
+:4
+    (KickHit RideBell) 
+    r 
+    KickHit 
+    KickHit
+```
+
+
+
+### 有音高音符
+
+有音高音符以组合名称表示，包含：
+
+* 音名（`C`,`D`,`E`,`F`,`G`,`A`,`B`,`C`）
+* 变音记号（`#`, `b`, `bb`, `x`, `##`,..；有关变音记号处理的详细信息，请参阅 [变音记号](https://alphatab.net/docs/alphatex/note-properties#acc)）
+* 八度（一个数字）
+
+
+```alphatex
+C4
+C#4
+Ebb4
+Dx5
+```
+
+
+
+### 音符效果
+
+请参阅 [音符属性](https://alphatab.net/docs/alphatex/note-properties) 以了解所有支持的音符效果列表。 
+
+
+
+```alphatex
+:2
+    3.3 { b (0 4) } // 音符推弦
+    (
+        3.3 { v } // 颤音
+        3.2 { sib } // 从下方滑入
+    )
+```
+
+
+
+如果你在一拍中只有一个音符，你可以在同一个属性列表中指定音符效果和节拍效果。
+
+
+```alphatex
+:2
+    // 组合效果
+    3.3 {
+        b (0 4)     // 音符效果
+        txt "推弦"  // 节拍效果
+    }
+    // 分开的效果 
+    3.3 
+        { b (0 4) }     // 音符效果
+        { txt "推弦" }  // 节拍效果
+```
+
+
+
+## 音轨、谱表和声部
+
+一首歌曲可能由多个音轨和谱表组成，保存歌曲数据。有特殊的元数据标签标记
+此类新结构的开始。有关更多详细信息，请参阅 [结构元数据](https://alphatab.net/docs/alphatex/structural-metadata)。
+
+
+```alphatex
+\\track "Track 1"
+    \\staff {score} // 第一谱表
+        \\voice // 第一声部 
+            C4 D4 E4 F4 | C4 D4 E4 F4
+        \\voice // 第二声部
+            C5 D5 E5 F5 | C5 D5 E5 F5
+    \\staff {tabs} // 第二谱表
+        3.5 5.5 7.5 8.5 | 3.5 5.5 7.5 8.5
+\\track "Track 2"
+     1.2 3.2 5.2 6.2
+```
+
+
+
+你只需要指定这些结构标签来启动新元素。第一个初始元素是隐式启动的。
+
+
+```alphatex
+// 第一音轨
+    // 第一谱表
+        // 第一声部 
+            C4 D4 E4 F4 | C4 D4 E4 F4
+        \\voice // 第二声部
+            C5 D5 E5 F5 | C5 D5 E5 F5
+    \\staff {tabs} // 第二谱表
+        3.5 5.5 7.5 8.5 | 3.5 5.5 7.5 8.5
+\\track "Track 2"
+     1.2 3.2 5.2 6.2
+```

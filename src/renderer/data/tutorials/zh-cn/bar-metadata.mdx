@@ -1,39 +1,353 @@
-# Bar Metadata
+# 小节元数据
 
-The following metadata tags are affecting things on bar (and masterbar) level.
-Time signatures, clefs, repeats, such kind of things.
+以下元数据标签影响小节（和主小节）级别的事物。
+拍号、谱号、反复等这类内容。
 
-## `\\ts`
+## `\ts`
 
 ```markdown
-// [1]: Specifies a common (4/4) time signature using the special C symbol
+// [1]: 使用特殊的 C 符号指定普通（4/4）拍号
 \ts common
 // [2]:
 \ts (numerator denominator)
 ```
 
-**Description:** Defines the time signature for this and subsequent bars.
+**描述：** 定义此小节及后续小节的拍号。
 
-AlphaTab does not yet support polytempo notation where instruments might use different time signatures. Therefore be sure to only specify the timesignatures once as part of the first track/staff or ensure they are consistent across the whole document.
+AlphaTab 尚不支持多 tempo 记谱，即不同乐器可能使用不同拍号。因此，请确保只在第一个音轨/谱表部分指定一次拍号，或确保它们在整个文档中保持一致。
 
-**Parameters:**
+**参数：**
 
-| Overload | Name | Description | Type | Required |
+| 重载 | 名称 | 描述 | 类型 | 必需 |
 |----------|------|-------------|------|----------|
-| `[1]` |  `common` | Specifies a common (4/4) time signature using the special C symbol | `common` | yes  |
-| `[2]` |  `numerator` | The time signature numerator | `Number` | yes  |
-| `[2]` |  `denominator` | The time signature denominator | `Number` | yes  |
+| `[1]` |  `common` | 使用特殊的 C 符号指定普通（4/4）拍号 | `common` | 是  |
+| `[2]` |  `numerator` | 拍号分子 | `Number` | 是  |
+| `[2]` |  `denominator` | 拍号分母 | `Number` | 是  |
 
-**Parameter Values:**
+**参数值：**
 
-| Overload | Name | Values |
+| 重载 | 名称 | 值 |
 |----------|------|--------|
-| `[1]` | `common` | `common` - Specifies a common (4/4) time signature using the special C symbol |
+| `[1]` | `common` | `common` - 使用特殊的 C 符号指定普通（4/4）拍号 |
 
-**Example:**
+**示例：**
 
 ```alphatex
 \ts 3 4 | \ts 4 4 | \ts 6 8 | \ts common
 ```
 
-...
+## `\ro`
+
+```markdown
+\ro ()
+```
+
+**描述：** 开始反复
+
+**示例：**
+
+```alphatex
+\ro 1.3 2.3 3.3 4.3 | 5.3 6.3 7.3 8.3 | \rc 2 1.3 2.3 3.3 4.3 |
+\ro \rc 3 1.3 2.3 3.3 4.3
+```
+
+## `\rc`
+
+```markdown
+\rc repeats
+```
+
+**描述：** 标记反复的结束。
+
+**参数：**
+
+| 名称 | 描述 | 类型 | 必需 |
+|------|-------------|------|----------|
+|  `repeats` | 应该演奏的反复次数 | `Number` | 是  |
+
+**示例：**
+
+```alphatex
+\ro 1.3 2.3 3.3 4.3 | 5.3 6.3 7.3 8.3 | \rc 2 1.3 2.3 3.3 4.3 |
+\ro \rc 3 1.3 2.3 3.3 4.3
+```
+
+## `\ae`
+
+```markdown
+\ae (ending)
+```
+
+**描述：** 指定小节应该在哪些反复上演奏（用于构建替代结尾）。
+
+**参数：**
+
+| 名称 | 描述 | 类型 | 必需 |
+|------|-------------|------|----------|
+|  `ending` | 小节应该演奏的反复 | `Number[]` | 是  |
+
+**示例：**
+
+```alphatex
+\ro 1.3 2.3 3.3 4.3 | \ae (1 2 3) 5.3 6.3 7.3 8.3 | \ae 4 
+c 4 5.3 8.3 7.3 6.3
+```
+
+## `\ks`
+
+```markdown
+\ks key
+```
+
+**描述：** 指定此小节及后续小节的调号。
+
+**参数：**
+
+| 名称 | 描述 | 类型 | 必需 |
+|------|-------------|------|----------|
+|  `key` | 调号 | `Ident` | 是  |
+
+**参数值：**
+
+- cb, gb, db, ab, eb, bb, f, c, g, d, a, e, b, f#, c#, cbmajor, abminor, gbmajor, ebminor, dbmajor, bbminor, abmajor, fminor, ebmajor, cminor, bbmajor, gminor, fmajor, dminor, cmajor, aminor, gmajor, eminor, dmajor, bminor, amajor, f#minor, emajor, c#minor, bmajor, g#minor, f#major, d#minor, f#, c#major, a#minor, c#
+
+**示例：**
+
+```alphatex
+\ks Cb | \ks C | \ks C# |
+\ks Aminor | \ks Dmajor | \ks Bminor
+```
+
+## `\clef`
+
+```markdown
+\clef clef
+```
+
+**描述：** 更改此小节及后续小节的谱号。
+
+**参数：**
+
+| 名称 | 描述 | 类型 | 必需 |
+|------|-------------|------|----------|
+|  `clef` | 谱号 | `Ident\|Number` | 是  |
+
+**参数值：**
+
+- neutral, c3, c4, f4, g2, n, alto, tenor, bass, treble
+
+**示例：**
+
+```alphatex
+\clef G2 | \clef F4 | \clef C3 | \clef C4 | \clef N |
+\clef Treble | \clef Bass | \clef Tenor | \clef Alto | \clef Neutral |
+```
+
+## `\ottava`
+
+```markdown
+\ottava ottava
+```
+
+**描述：** 更改此小节及后续小节的谱号八度。
+
+**参数：**
+
+| 名称 | 描述 | 类型 | 必需 |
+|------|-------------|------|----------|
+|  `ottava` | 谱号八度 | `Ident` | 是  |
+
+**参数值：**
+
+- 15ma（十五度 +2 八度），8va（八度 +1 八度），regular（常规），8vb（低八度 -1 八度），15mb（低十五度 -2 八度）
+
+**示例：**
+
+```alphatex
+\clef F4 \ottava 15ma | | \ottava regular | | \clef C3 \ottava 8vb | |
+```
+
+## `\tempo`
+
+```markdown
+// [1]: 
+\tempo (tempo label)
+// [2]: 
+\tempo (tempo label position hide)
+```
+
+**描述：** 向小节添加速度变化。
+
+一个小节可以有多个速度变化。它们可以使用此元数据标签相对定位，或通过 `tempo` 属性作为节拍效果应用。
+
+速度变化影响整首歌曲，而不仅仅是单个音轨。为避免意外的副作用，我们建议只在第一个音轨/谱表上指定速度变化。
+
+**参数：**
+
+| 重载 | 名称 | 描述 | 类型 | 必需 |
+|----------|------|-------------|------|----------|
+| `[1]` |  `tempo` | 新的 BPM 速度 | `Number` | 是  |
+| `[1]` |  `label` | 速度的文本标签 | `String` | 否 `""` |
+| `[2]` |  `tempo` | 新的 BPM 速度 | `Number` | 是  |
+| `[2]` |  `label` | 速度的文本标签 | `String` | 是 `""` |
+| `[2]` |  `position` | 相对（比率）位置，表示速度变化应在小节内的何处发生 | `Number` | 否 `0` |
+| `[2]` |  `hide` | 如果指定，则不直观显示速度变化 | `hide` | 否  |
+
+**参数值：**
+
+| 重载 | 名称 | 值 |
+|----------|------|--------|
+| `[2]` | `hide` | hide - 如果指定，则不直观显示速度变化 |
+
+**示例：**
+
+```alphatex
+\tempo 30
+C4 D4 E4 F4 |
+\tempo (120 "Moderate")
+\tempo (60 "" 0.5 hide)
+C4 D4 E4 F4 |
+```
+
+## `\tf`
+
+```markdown
+\tf tripletFeel
+```
+
+**描述：** 更改三连音感觉（又称摇摆）演奏风格。
+
+**参数：**
+
+| 名称 | 描述 | 类型 | 必需 |
+|------|-------------|------|----------|
+|  `tripletFeel` | 三连音感觉风格 | `Ident\|Number` | 是  |
+
+**参数值：**
+
+- none（无三连音感觉），triplet16th（三连音 16 分音符），triplet8th（三连音 8 分音符），dotted16th（附点 16 分音符），dotted8th（附点 8 分音符），scottish16th（苏格兰 16 分音符），scottish8th（苏格兰 8 分音符）
+
+**示例：**
+
+```alphatex
+\tf none 3.3*4 |
+\tf triplet16th 3.3*4 | \tf triplet8th 3.3*4 |
+\tf dotted16th 3.3*4 | \tf dotted8th 3.3*4 |
+\tf scottish16th 3.3*4 | \tf scottish8th 3.3*4
+```
+
+## `\ac`
+
+```markdown
+\ac ()
+```
+
+**描述：** 将小节标记为弱起（起拍）小节。
+
+默认情况下，小节遵循拍号和速度定义的严格节拍。弱起（又称起拍小节）不遵循此规则。这些小节的长度由小节中的实际节拍/音符定义。
+
+**示例：**
+
+```alphatex
+\ks D \ts 24 16 \ac r.16 6.3 7.3 9.3 7.3 6.3 | r.16 5.4 7.4 9.4 7.4 5.4 6.3.4{d} 9.6.16 10.6 12.6 10.6 9.6 14.6.4{d} r.16
+```
+
+## `\section`
+
+```markdown
+// [1]: 
+\section text
+// [2]: 
+\section (marker text)
+```
+
+**描述：** 开始一个新段落
+
+**参数：**
+
+| 重载 | 名称 | 描述 | 类型 | 必需 |
+|----------|------|-------------|------|----------|
+| `[1]` |  `text` | 新段落的文本/描述 | `String` | 是  |
+| `[2]` |  `marker` | 段落的标记，通常是单个字母 | `String` | 是  |
+| `[2]` |  `text` | 新段落的文本/描述 | `String` | 是  |
+
+**示例：**
+
+```alphatex
+\section "Intro" // 简单段落
+1.1 1.1 1.1 1.1 | 1.1 1.1 1.1 1.1 |
+\section "S" "Solo" // 标记和段落名称不同
+1.1 1.1 1.1 1.1
+```
+
+## `\jump`
+
+```markdown
+\jump direction
+```
+
+**描述：** 向小节添加方向/跳转指令。
+
+**参数：**
+
+| 名称 | 描述 | 类型 | 必需 |
+|------|-------------|------|----------|
+|  `direction` | 要添加的方向 | `Ident` | 是  |
+
+**参数值：**
+
+- fine（终止（目标）），segno（反复记号（目标）），segnoSegno（双反复记号（目标）），coda（尾声（目标）），doubleCoda（双尾声（目标）），daCapo（从头反复（跳转）），daCapoAlCoda（从头反复至尾声（跳转）），daCapoAlDoubleCoda（从头反复至双尾声（跳转）），daCapoAlFine（从头反复至终止（跳转）），dalSegno（从记号反复（跳转）），dalSegnoAlCoda（从记号反复至尾声（跳转）），dalSegnoAlDoubleCoda（从记号反复至双尾声（跳转）），dalSegnoAlFine（从记号反复至终止（跳转）），dalSegnoSegno（从双记号反复（跳转）），dalSegnoSegnoAlCoda（从双记号反复至尾声（跳转）），dalSegnoSegnoAlDoubleCoda（从双记号反复至双尾声（跳转）），dalSegnoSegnoAlFine（从双记号反复至终止（跳转）），daCoda（至尾声（跳转）），daDoubleCoda（至双尾声（跳转））
+
+**示例：**
+
+```alphatex
+\ro \rc 2 3.3*4 | 
+    3.3*4 | 
+    \jump Segno 3.3*4 |
+    \ro 
+c 2 3.3*4 | 
+    \jump DaCoda 3.3*4 |
+    3.3*4 | 3.3*4
+    \jump DalSegnoAlCoda 3.3*4 |
+    3.3*4 |
+    \jump Coda 3.3*4 |
+    3.3*4 |
+    3.3*4
+    
+```
+
+## `\ft`
+
+```markdown
+\ft ()
+```
+
+**描述：** 将小节标记为自由拍小节，演奏者可以自由变化节拍。
+
+**示例：**
+
+```alphatex
+:2 
+C4*2 |
+\ft C4*2 |
+\ft C4*2 |
+C4*2 |
+```
+
+## `\simile`
+
+```markdown
+\simile mark
+```
+
+**描述：** 向小节添加 simile 标记，表示应该重复上一个小节或前两个小节的的内容。
+
+**参数：**
+
+| 名称 | 描述 | 类型 | 必需 |
+|------|-------------|------|----------|
+|  `mark` | 要添加的标记 | `none\|simple\|firstOfDouble\|secondOfDouble` | 是  |
+
+**参数值：**
+
+- none（不应用 simile 标记），simple（简单 simile 标记。重复前一个小节。），firstOfDouble（双 simile 标记。此值分配给 2 个重复小节的第一个小节。），secondOfDouble（双 simile 标记。此值分配给 2 个重复小节的第二个小节。）

@@ -1,10 +1,10 @@
-# Staff Metadata
+# 谱表元数据
 
-This page describes all the metadata tags which affect the "staff" level of the data model.
+本页描述所有影响数据模型"谱表"级别的元数据标签。
 
-To avoid any unexpected side-effects, these values should be specified on the first bar.
+为避免任何意外的副作用，这些值应在第一小节指定。
 
-Some of these tags are simply historically metadata tags. They might become staff properties in future.
+其中一些标签只是历史上的元数据标签。它们将来可能成为谱表属性。
 
 ## `\\tuning`
 
@@ -15,22 +15,22 @@ Some of these tags are simply historically metadata tags. They might become staf
 \tuning (strings)
 ```
 
-**Description:** Defines the number of strings and their tuning for stringed (and fretted) instruments.
+**描述：** 为弦乐器（和品乐器）定义弦数及其调音。
 
-**Parameters:**
+**参数：**
 
-| Overload | Name | Description | Type | Required |
+| 重载 | 名称 | 描述 | 类型 | 必需 |
 |----------|------|-------------|------|----------|
-| `[1]` |  `mode` | A built-in standard mode for tunings | `piano\|none\|voice` | yes  |
-| `[2]` |  `strings` | The tuning values as pitched notes | `Ident[]` | no  |
+| `[1]` |  `mode` | 内置的标准调音模式 | `piano\|none\|voice` | 是  |
+| `[2]` |  `strings` | 作为音高音符的调音值 | `Ident[]` | 否  |
 
-**Parameter Values:**
+**参数值：**
 
-| Overload | Name | Values |
+| 重载 | 名称 | 值 |
 |----------|------|--------|
-| `[1]` | `mode` | piano — Indicates piano (not stringed); none — not stringed; voice — vocal voice |
+| `[1]` | `mode` | piano — 表示钢琴（不是弦乐器）；none — 不是弦乐器；voice — 人声 |
 
-**Example:**
+**示例：**
 
 ```alphatex
 \track "Track 1"
@@ -42,4 +42,146 @@ Some of these tags are simply historically metadata tags. They might become staf
   C4 D4 E4 F4
 ```
 
-...
+## `hide`
+
+```markdown
+hide ()
+```
+
+**描述：** 隐藏调音，使其不显示在第一个谱表上方。
+
+**示例：**
+
+```alphatex
+\track
+  \staff {tabs}
+  \tuning (E4 B3 G3 D3 A2 D2)
+  4.1 3.1 2.1 1.1   
+\track
+  \staff {tabs}
+  \tuning (F2 C2 G1 D1) { hide}
+  4.1 3.1 2.1 1.1
+```
+
+## `label`
+
+```markdown
+label text
+```
+
+**描述：** 定义调音的文本标签。
+
+**参数：**
+
+| 名称 | 描述 | 类型 | 必需 |
+|------|-------------|------|----------|
+|  `text` | 要设置的标签。 | `String` | 是  |
+
+**示例：**
+
+```alphatex
+\track
+  \staff {tabs}
+  \tuning (E4 B3 G3 D3 A2 D2) { label "Dropped D Tuning" }
+  4.1 3.1 2.1 1.1
+```
+
+## `\\chord`
+
+```markdown
+\chord (name strings)
+```
+
+**描述：** 定义一个新的和弦用于和弦图表显示，定义如何演奏它。
+
+**参数：**
+
+| 名称 | 描述 | 类型 | 必需 |
+|------|-------------|------|----------|
+|  `name` | 和弦的名称 | `String` | 是  |
+|  `strings` | 对于谱表调音的每根弦，要演奏的品或 `x` 表示不演奏的弦。 | `Ident\|String\|Number[]` | 否  |
+
+**示例：**
+
+```alphatex
+\chord ("C" 0 1 0 2 3 x)
+\ts 2 4
+(0.1 1.2 0.3 2.4 3.5){ch "C"}
+```
+
+### `firstFret`
+
+```markdown
+firstFret fret
+```
+
+**描述：** 将图表中显示的第一品向上移动。
+
+**参数：**
+
+| 名称 | 描述 | 类型 | 必需 |
+|------|-------------|------|----------|
+|  `fret` | 第一品的索引 | `Number` | 是  |
+
+**示例：**
+
+```alphatex
+\chord ("D#" 6 8 8 8 6 x) {firstfret 6}
+(6.1 8.2 8.3 8.4 6.5){ch "D#"}
+```
+
+### `barre`
+
+```markdown
+barre (fret)
+```
+
+**描述：** 定义应该在哪些品上演奏横按（视觉上将点连接成横线）。
+
+**参数：**
+
+| 名称 | 描述 | 类型 | 必需 |
+|------|-------------|------|----------|
+|  `fret` | 应该演奏横按的品 | `Number[]` | 否  |
+
+**示例：**
+
+```alphatex
+\chord ("D#" 6 8 8 8 6 x) {firstfret 6 barre 6}
+\chord ("Special" 3 3 3 1 1 1) {showname false barre (1 3)}
+(6.1 8.2 8.3 8.4 6.5){ch "D#"} 
+(3.1 3.2 3.3 1.4 1.5 1.6){ch "Special"}
+```
+
+### `showDiagram`
+
+```markdown
+// [1]: 
+showDiagram ()
+// [2]: 
+showDiagram visibility
+// [3]: 
+showDiagram visibility
+// [4]: 
+showDiagram visibility
+```
+
+**描述：** 设置和弦图表的可见性。
+
+**参数：**
+
+| 重载 | 名称 | 描述 | 类型 | 必需 |
+|----------|------|-------------|------|----------|
+| `[2]` |  `visibility` | 图表的可见性 | `"true"\|"false"` | 是  |
+| `[3]` |  `visibility` | 图表的可见性 | `true\|false` | 是  |
+| `[4]` |  `visibility` | 图表的可见性 | `1\|0` | 是  |
+
+**参数值：**
+
+| 重载 | 名称 | 值 |
+|----------|------|--------|
+| `[2]` | `visibility` | true/false — 显示/隐藏图表 |
+| `[3]` | `visibility` | true/false — 显示/隐藏图表 |
+| `[4]` | `visibility` | 1/0 — 显示/隐藏图表 |
+
+**示例：**

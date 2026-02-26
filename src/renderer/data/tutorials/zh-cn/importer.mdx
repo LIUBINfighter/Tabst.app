@@ -1,29 +1,304 @@
-# Importer
+# 导入器
 
-When importing alphaTex into alphaTab it directly loads the provided code and, if successful, provides the loaded [data model](https://alphatab.net/docs/reference/score).
-Using the alphatex importer and parser more directly, allows access to more detailed information like the abstract syntax tree. 
+将 alphaTex 导入 alphaTab 时，系统会直接加载提供的代码，如果成功，则会提供加载的 [数据模型](https://alphatab.net/docs/reference/score)。
+更直接地使用 alphaTex 导入器和解析器，可以访问更详细的信息，比如抽象语法树。
 
-This information can be very useful when building certain tooling and integrations. The [alphaTab language server](https://alphatab.net/docs/alphatex/lsp) itself also uses these components.
+这些信息在构建某些工具和集成时非常有用。[alphaTab 语言服务器](https://alphatab.net/docs/alphatex/lsp) 本身也使用这些组件。
 
 > [!NOTE]
-> The code samples here are written in TypeScript but the APIs are similar on C# and Kotlin and can easily be mapped by adjusting the naming conventions. 
+> 这里的代码示例是用 TypeScript 编写的，但 API 在 C# 和 Kotlin 上类似，可以通过调整命名约定轻松映射。
 
-## Importer
+## 导入器
 
-The importer is the main component for loading alphaTex into a full [data model](https://alphatab.net/docs/reference/score). It is available via `alphaTab.importers.AlphaTexImporter`. 
-The most basic usage of it is:
+导入器是将 alphaTex 加载到完整 [数据模型](https://alphatab.net/docs/reference/score) 的主要组件。它可以通过 `alphaTab.importers.AlphaTexImporter` 访问。
+最基本的用法是：
 
 ```js
-// create importer
-const importer = new alphaTab.importer.AlphaTabImporter();
+// 创建导入器
+const importer = new alphaTab.importer.AlphaTexImporter();
 importer.initFromString(`
 \\title "Hello World"
 C4 * 4
 `, new alphaTab.Settings());
-// load score
+// 加载乐谱
 const score = importer.readScore();
 
-console.log(score.title); // will print "Hello World"
+console.log(score.title); // 将输出 "Hello World"
 ```
 
-...
+### 诊断
+
+导入器经历两个阶段：
+
+1. 使用 `alphaTab.importer.alphaTex.AlphaTexImporter` 解析 AST
+2. 将 AST 映射到数据模型。
+
+如果一切顺利，将提供乐谱，并且导入器上会有额外的非错误诊断信息可用。
+如果在解析或映射过程中出现问题，则不会提供乐谱，并会抛出异常。
+
+主要的错误/异常将始终是 `alphaTab.importer.UnsupportedFormatError`，并带有描述出错原因的基本文本说明。
+如果异常是由错误诊断（例如解析错误）引起的，则内部异常 (`cause`) 是 `alphaTab.importer.AlphaTexErrorWithDiagnostics`，
+提供对所有诊断的访问。
+
+这些异常主要存在于导入器或解析器未直接使用的情况下。诊断信息也可直接在导入器上获取。
+
+```js
+function printDiagnostic(a:alphaTab.importer.alphaTex.AlphaTexDiagnostic) {
+    const severityText = alphaTab.importer.alphaTex.AlphaTexDiagnosticsSeverity[a.severity];
+
+    const startText = a.start ? `Ln ${a.start.Line}, Col ${a.start.col}`: '';
+    const endText = a.end ? `Ln ${a.end.Line}, Col ${a.end.col}`: '';
+    const fullMessage = `[${severityText}] [AT${a.code}] ${a.message} (${startText} -> ${endText})`;
+    
+    switch(a.severity) {
+        case alphaTab.importer.alphaTex.AlphaTexDiagnosticsSeverity.Hint:
+        console.info(fullMessage)
+        break;
+        case alphaTab.importer.alphaTex.AlphaTexDiagnosticsSeverity.Warning:
+        console.warn(fullMessage)
+        break;
+        case alphaTab.importer.alphaTex.AlphaTexDiagnosticsSeverity.Error:
+        console.error(fullMessage)
+        break;
+    }
+}
+
+// 创建导入器
+const importer = new alphaTab.importer.AlphaTexImporter();
+importer.initFromString(`
+\\invalid alphatex
+`, new alphaTab.Settings());
+try {
+    // 加载乐谱
+    const score = importer.readScore();
+} catch(e) {
+    console.error('解析 alphaTex 时出错: ', (e as Error).message);
+
+    console.error('词法分析器诊断: ');
+    for(const d of importer.lexerDiagnostics) {
+        printDiagnostic(d);
+    }
+
+    console.error('解析器诊断: ');
+    for(const d of importer.parserDiagnostics) {
+        printDiagnostic(d);
+    }
+
+    console.error('语义诊断: ');
+    for(const d of importer.semanticDiagnostics) {
+        printDiagnostic(d);
+    }
+}
+```
+
+诊断提供了一系列信息，如代码中的映射位置、严重程度、标识错误的技术代码以及文本错误消息。
+
+### AST
+
+导入器还允许访问已解析代码的抽象语法树。即使对于部分解析的代码，AST 也可能可用。
+
+以下代码通过将整个节点层次结构打印到控制台，展示了如何访问 AST：
+
+```js
+const importer = new alphaTab.importer.AlphaTexImporter();
+importer.initFromString(`
+\\title "Hello World"
+C4 * 4
+`, new alphaTab.Settings());
+const score = importer.readScore();
+const astNode = importer.scoreNode;
+
+// 一个基本的递归节点访问器，用于打印节点
+function visitNode(name:string, node:alphaTab.importer.alphaTex.IAlphaTexAstNode | undefined, indent:number) {
+    const indentText = '  '.repeat(indent);
+    const prefix = name ? `${indentText} ${name}:` : indentText;
+    if(!node) {
+        console.log(`${prefix} undefined`);
+        return;
+    }
+
+    const startText = a.start ? `Ln ${a.start.Line}, Col ${a.start.col}`: '';
+    const endText = a.end ? `Ln ${a.end.Line}, Col ${a.end.col}`: '';
+    const baseMessage = `${prefix} ${alphaTab.importer.alphaTex.AlphaTexNodeType[node.type]} (${startText} -> ${endText})`;
+
+    switch(node.nodeType) {
+        // 标记
+        case alphaTab.importer.alphaTex.AlphaTexNodeType.Dot:
+        case alphaTab.importer.alphaTex.AlphaTexNodeType.Backslash:
+        case alphaTab.importer.alphaTex.AlphaTexNodeType.DoubleBackslash:
+        case alphaTab.importer.alphaTex.AlphaTexNodeType.Pipe:
+        case alphaTab.importer.alphaTex.AlphaTexNodeType.LBrace:
+        case alphaTab.importer.alphaTex.AlphaTexNodeType.RBrace:
+        case alphaTab.importer.alphaTex.AlphaTexNodeType.LParen:
+        case alphaTab.importer.alphaTex.AlphaTexNodeType.RParen:
+        case alphaTab.importer.alphaTex.AlphaTexNodeType.Colon:
+        case alphaTab.importer.alphaTex.AlphaTexNodeType.Asterisk:
+            console.log(baseMessage);
+            break;
+
+        // 常规节点
+        case alphaTab.importer.alphaTex.AlphaTexNodeType.Ident:
+            console.log(`${baseMessage} ${(node as alphaTab.importer.alphaTex.AlphaTexIdentifier).text}`);
+            break;
+        case alphaTab.importer.alphaTex.AlphaTexNodeType.Tag:
+            console.log(`${baseMessage}`);
+            const identifier = (node as alphaTab.importer.alphaTex.AlphaTexIdentifier):
+            visitNode('prefix' identifier.prefix, ident + 1);
+            visitNode('tag', identifier.tag, ident + 1);
+            break;
+        case alphaTab.importer.alphaTex.AlphaTexNodeType.Meta :
+            console.log(`${baseMessage}`);
+            const meta = (node as alphaTab.importer.alphaTex.AlphaTexMetaDataNode);
+            visitNode('tag', meta.tag, indent + 1);
+            visitNode('arguments', meta.arguments, indent + 1);
+            visitNode('properties', meta.properties, indent + 1);
+            break;
+        case alphaTab.importer.alphaTex.AlphaTexNodeType.Arguments:
+            console.log(`${baseMessage}`);
+            const args = (node as alphaTab.importer.alphaTex.AlphaTexArgumentList);
+
+            visitNode('openParenthesis', args.openParenthesis, indent + 1);
+            for(const [i,a] of args.arguments.entries()) {
+                visitNode(`arguments[${i}]`, a, indent + 1);
+            }
+            visitNode('closeParenthesis', args.closeParenthesis, indent + 1);
+            break;
+        case alphaTab.importer.alphaTex.AlphaTexNodeType.Props:
+            console.log(`${baseMessage}`);
+            const props = (node as alphaTab.importer.alphaTex.AlphaTexPropertiesNode);
+
+            visitNode('openBrace', props.openBrace, indent + 1);
+            for(const [i,p] of props.properties.entries()) {
+                visitNode(`properties[${i}]`, p, indent + 1);
+            }
+            visitNode('closeBrace', args.closeBrace, indent + 1);
+            break;
+        case alphaTab.importer.alphaTex.AlphaTexNodeType.Prop:
+            console.log(`${baseMessage}`);
+            const props = (node as alphaTab.importer.alphaTex.AlphaTexPropertyNode);
+
+            visitNode('property', props.property, indent + 1);
+            visitNode('arguments', props.arguments, indent + 1);
+            break;
+        case alphaTab.importer.alphaTex.AlphaTexNodeType.Number:
+            console.log(`${baseMessage} ${(node as alphaTab.importer.alphaTex.AlphaTexNumberLiteral).value}`);
+            break;
+        case alphaTab.importer.alphaTex.AlphaTexNodeType.String:
+            console.log(`${baseMessage} ${(node as alphaTab.importer.alphaTex.AlphaTexStringLiteral).text}`);
+            break;
+
+        // 语义节点
+        case alphaTab.importer.alphaTex.AlphaTexNodeType.Score:
+            console.log(`${baseMessage}`);
+            const score = (node as alphaTab.importer.alphaTex.AlphaTexScoreNode);
+            for(const [i,b] of score.bars.entries()) {
+                visitNode(`bars[${i}]`, b, indent + 1);
+            }
+            break;
+        case alphaTab.importer.alphaTex.AlphaTexNodeType.Bar:
+            console.log(`${baseMessage}`);
+            const bar = (node as alphaTab.importer.alphaTex.AlphaTexBarNode);
+            for(const [i,m] of bar.metaData.entries()) {
+                visitNode(`metaData[${i}]`, m, indent + 1);
+            }
+            for(const [i,b] of bar.beats.entries()) {
+                visitNode(`beats[${i}]`, b, indent + 1);
+            }
+            visitNode(bar.pipe, indent + 1);
+            break;
+        case alphaTab.importer.alphaTex.AlphaTexNodeType.Beat:
+            console.log(`${baseMessage}`);
+            const beat = (node as alphaTab.importer.alphaTex.AlphaTexBeatNode);
+            visitNode('durationChange', beat.durationChange, indent + 1);
+            for(const [i,n] of beat.notes.entries()) {
+                visitNode(`notes[${i}]`, n, indent + 1);
+            }
+            visitNode('rest', beat.rest, indent + 1);
+            visitNode('durationDot', beat.durationDot, indent + 1);
+            visitNode('durationValue', beat.durationValue, indent + 1);
+            visitNode('beatMultiplier', beat.beatMultiplier, indent + 1);
+            visitNode('beatMultiplierValue', beat.beatMultiplierValue, indent + 1);
+            visitNode('beatEffects', beat.beatEffects, indent + 1);
+            break;
+
+        case alphaTab.importer.alphaTex.AlphaTexNodeType.Duration:
+            console.log(`${baseMessage}`);
+            const duration = (node as alphaTab.importer.alphaTex.AlphaTexBeatDurationChangeNode);
+            visitNode('colon', duration.colon, indent + 1);
+            visitNode('value', duration.value, indent + 1);
+            visitNode('properties', duration.properties, indent + 1);
+            break;
+        case alphaTab.importer.alphaTex.AlphaTexNodeType.NoteList:
+            console.log(`${baseMessage}`);
+            const noteList = (node as alphaTab.importer.alphaTex.AlphaTexNoteListNode);
+            visitNode('openParenthesis', noteList.openParenthesis, indent + 1);
+            for(const [i,n] of noteList.notes.entries()) {
+                visitNode(`notes[${i}]`, n, indent + 1);
+            }
+            visitNode('closeParenthesis', noteList.openParenthesis, indent + 1);
+            break;
+        case alphaTab.importer.alphaTex.AlphaTexNodeType.Note:
+            console.log(`${baseMessage}`);
+            const note = (node as alphaTab.importer.alphaTex.AlphaTexNoteNode);
+            visitNode('noteValue', noteList.noteValue, indent + 1);
+            visitNode('noteStringDot', noteList.noteStringDot, indent + 1);
+            visitNode('noteString', noteList.noteString, indent + 1);
+            visitNode('noteEffects', noteList.noteEffects, indent + 1);
+            break;
+    }
+}
+
+visitNode('', astNode, 0);
+```
+
+上述代码的输出为：
+
+```markdown
+ Score (Ln 1, Col 1 -> Ln 3, Col 11)
+   bars[0]: Bar (Ln 2, Col 5 -> Ln 3, Col 11)
+     metaData[0]: Meta (Ln 2, Col 5 -> Ln 2, Col 24)
+       tag: Tag (Ln 2, Col 5 -> Ln 2, Col 11)
+         prefix: Backslash (Ln 2, Col 5 -> Ln 2, Col 6)
+         tag: Ident (Ln 2, Col 6 -> Ln 2, Col 11) title
+       arguments: Arguments (Ln 2, Col 12 -> Ln 2, Col 24)
+         openParenthesis: undefined
+         arguments[0]: String (Ln 2, Col 12 -> Ln 2, Col 24) Hello World
+         closeParenthesis: undefined
+       properties: undefined
+     beats[0]: Beat (Ln 3, Col 5 -> Ln 3, Col 11)
+       durationChange: undefined
+       notes: NoteList (Ln 3, Col 5 -> Ln 3, Col 7)
+         openParenthesis: undefined
+         notes[0]: Note (Ln 3, Col 5 -> Ln 3, Col 7)
+           noteValue: Ident (Ln 3, Col 5 -> Ln 3, Col 7) C4
+           noteStringDot: undefined
+           noteString: undefined
+           noteEffects: undefined
+         closeParenthesis: undefined
+       rest: undefined
+       durationDot: undefined
+       durationValue: undefined
+       beatMultiplier: Asterisk (Ln 3, Col 8 -> Ln 3, Col 9)
+       beatMultiplierValue: Number (Ln 3, Col 10 -> Ln 3, Col 11) 4
+       beatEffects: undefined
+     pipe: undefined
+```
+
+从这里开始，由你决定如何处理这些信息。
+
+## 解析器
+
+导入器之下的下一层是解析器，可通过 `alphaTab.importer.alphaTex.AlphaTexParser` 访问。
+
+用法非常简单，输出将再次让你访问 AST：
+
+```ts
+const parser = alphaTab.importer.alphaTex.AlphaTexParser(`
+\\title "Hello World"
+C4 * 4
+`);
+
+const ast = parser.read();
+const lexerDiagnostics = parser.lexerDiagnostics;
+const parserDiagnostics = parser.parserDiagnostics;
+```
