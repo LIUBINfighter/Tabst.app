@@ -660,11 +660,23 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 
 	const renderContent = () => {
 		if (workspaceMode === "tutorial") {
-			return <TutorialsSidebar />;
+			return (
+				<ScrollArea className="flex-1 w-full overflow-hidden min-h-0">
+					<div className="py-1 w-full overflow-hidden">
+						<TutorialsSidebar />
+					</div>
+				</ScrollArea>
+			);
 		}
 
 		if (workspaceMode === "settings") {
-			return <SettingsSidebar />;
+			return (
+				<ScrollArea className="flex-1 w-full overflow-hidden min-h-0">
+					<div className="py-1 w-full overflow-hidden">
+						<SettingsSidebar />
+					</div>
+				</ScrollArea>
+			);
 		}
 
 		if (!activeRepoId) {
@@ -684,9 +696,9 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 		}
 
 		return (
-			<div className="w-full">
+			<div className="flex h-full min-h-0 w-full flex-col">
 				{availableStatuses.length > 0 || availableTags.length > 0 ? (
-					<div className="px-2 pt-2 pb-1 border-b border-border/60">
+					<div className="px-2 pt-2 pb-1 border-b border-border/60 shrink-0">
 						{availableStatuses.length > 0 ? (
 							<>
 								<div className="mb-1 flex items-center justify-between gap-2 text-[10px] uppercase tracking-wide text-muted-foreground">
@@ -772,71 +784,84 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 					</div>
 				) : null}
 
-				<FileTree
-					nodes={filteredFileTree}
-					pendingRenamePath={pendingRenamePath}
-					onPendingRenameConsumed={() => setPendingRenamePath(null)}
-					onFileSelect={handleFileSelect}
-					onFolderToggle={handleFolderToggle}
-					onRename={handleRename}
-					onMove={handleMove}
-					onReveal={handleReveal}
-					onCopyPath={handleCopyPath}
-					onDelete={handleDelete}
-					onTagClick={toggleTagFilter}
-					activeTagFilters={selectedTagFilters}
-					onCreateFileInFolder={(folder, ext) => {
-						setCreateTargetDir(folder.path);
-						void (async () => {
-							const createdPath = await handleNewFile(
-								ext ?? ".md",
-								folder.path,
-							);
-							if (!createdPath) return;
-							const name = createdPath.split(/[\\/]/).pop() ?? createdPath;
-							const newNode: FileNode = {
-								id: createdPath,
-								name,
-								path: createdPath,
-								type: "file",
-								mtimeMs: Date.now(),
-							};
-							useAppStore.setState((state) => ({
-								fileTree: addNodeToTree(state.fileTree, folder.path, newNode),
-							}));
-							setPendingRenamePath(createdPath);
-							scheduleBackgroundRefresh();
-						})();
-					}}
-					onCreateFolderInFolder={(folder) => {
-						setCreateTargetDir(folder.path);
-						void (async () => {
-							const createdPath = await handleNewFolder(folder.path);
-							if (!createdPath) return;
-							const name = createdPath.split(/[\\/]/).pop() ?? createdPath;
-							const newNode: FileNode = {
-								id: createdPath,
-								name,
-								path: createdPath,
-								type: "folder",
-								mtimeMs: Date.now(),
-								children: [],
-								isExpanded: true,
-							};
-							useAppStore.setState((state) => ({
-								fileTree: addNodeToTree(state.fileTree, folder.path, newNode),
-							}));
-							setPendingRenamePath(createdPath);
-							scheduleBackgroundRefresh();
-						})();
-					}}
-				/>
-				{(selectedTagFilters.length > 0 || selectedStatusFilters.length > 0) &&
-				filteredFileTree.length === 0 ? (
-					<div className="p-3 text-xs text-muted-foreground text-center">
-						No files matched selected filters.
+				<ScrollArea className="flex-1 w-full overflow-hidden min-h-0">
+					<div className="py-1 w-full overflow-hidden">
+						<FileTree
+							nodes={filteredFileTree}
+							pendingRenamePath={pendingRenamePath}
+							onPendingRenameConsumed={() => setPendingRenamePath(null)}
+							onFileSelect={handleFileSelect}
+							onFolderToggle={handleFolderToggle}
+							onRename={handleRename}
+							onMove={handleMove}
+							onReveal={handleReveal}
+							onCopyPath={handleCopyPath}
+							onDelete={handleDelete}
+							onTagClick={toggleTagFilter}
+							activeTagFilters={selectedTagFilters}
+							onCreateFileInFolder={(folder, ext) => {
+								setCreateTargetDir(folder.path);
+								void (async () => {
+									const createdPath = await handleNewFile(
+										ext ?? ".md",
+										folder.path,
+									);
+									if (!createdPath) return;
+									const name = createdPath.split(/[\\/]/).pop() ?? createdPath;
+									const newNode: FileNode = {
+										id: createdPath,
+										name,
+										path: createdPath,
+										type: "file",
+										mtimeMs: Date.now(),
+									};
+									useAppStore.setState((state) => ({
+										fileTree: addNodeToTree(
+											state.fileTree,
+											folder.path,
+											newNode,
+										),
+									}));
+									setPendingRenamePath(createdPath);
+									scheduleBackgroundRefresh();
+								})();
+							}}
+							onCreateFolderInFolder={(folder) => {
+								setCreateTargetDir(folder.path);
+								void (async () => {
+									const createdPath = await handleNewFolder(folder.path);
+									if (!createdPath) return;
+									const name = createdPath.split(/[\\/]/).pop() ?? createdPath;
+									const newNode: FileNode = {
+										id: createdPath,
+										name,
+										path: createdPath,
+										type: "folder",
+										mtimeMs: Date.now(),
+										children: [],
+										isExpanded: true,
+									};
+									useAppStore.setState((state) => ({
+										fileTree: addNodeToTree(
+											state.fileTree,
+											folder.path,
+											newNode,
+										),
+									}));
+									setPendingRenamePath(createdPath);
+									scheduleBackgroundRefresh();
+								})();
+							}}
+						/>
+						{(selectedTagFilters.length > 0 ||
+							selectedStatusFilters.length > 0) &&
+						filteredFileTree.length === 0 ? (
+							<div className="p-3 text-xs text-muted-foreground text-center">
+								No files matched selected filters.
+							</div>
+						) : null}
 					</div>
-				) : null}
+				</ScrollArea>
 			</div>
 		);
 	};
@@ -919,9 +944,9 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 					themeMode={themeMode}
 				/>
 
-				<ScrollArea className="flex-1 w-full overflow-hidden min-h-0">
-					<div className="py-1 w-full overflow-hidden">{renderContent()}</div>
-				</ScrollArea>
+				<div className="flex-1 w-full overflow-hidden min-h-0">
+					{renderContent()}
+				</div>
 
 				<SidebarBottomBar />
 			</div>
