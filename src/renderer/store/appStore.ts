@@ -914,9 +914,9 @@ export const useAppStore = create<AppState>((set, get) => ({
 		set({ workspaceMode: mode }),
 	firstStaffOptions: null,
 	pendingStaffToggle: null,
-	activeTutorialId: null,
+	activeTutorialId: "user-readme",
 	setActiveTutorialId: (id) => set({ activeTutorialId: id }),
-	tutorialAudience: "power-user",
+	tutorialAudience: "user",
 	setTutorialAudience: (audience) => set({ tutorialAudience: audience }),
 
 	activeSettingsPageId: null,
