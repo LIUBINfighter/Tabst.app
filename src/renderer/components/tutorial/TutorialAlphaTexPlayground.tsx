@@ -81,7 +81,7 @@ export function TutorialAlphaTexPlayground({
 	}, [metronomeVolume]);
 
 	return (
-		<div className="not-prose my-4 rounded-lg border border-border overflow-hidden bg-card">
+		<div className="not-prose my-4 mx-auto w-full max-w-[820px] rounded-lg border border-border overflow-hidden bg-card">
 			<div className="flex items-center justify-between px-3 py-2 border-b border-border text-xs text-muted-foreground">
 				<span>Interactive AlphaTex Playground</span>
 				<div className="flex items-center gap-2">
@@ -133,7 +133,10 @@ export function TutorialAlphaTexPlayground({
 				</div>
 			</div>
 			<div className="grid grid-cols-2 min-h-[420px] max-h-[70vh]">
-				<div className="border-r border-border overflow-hidden">
+				<div
+					className="border-r border-border overflow-hidden"
+					data-tutorial-playground-editor="true"
+				>
 					<TutorialPlaygroundEditor
 						initialContent={content}
 						onChange={setContent}

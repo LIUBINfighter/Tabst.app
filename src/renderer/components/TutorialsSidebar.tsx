@@ -17,6 +17,8 @@ import {
 
 export function TutorialsSidebar() {
 	const { t } = useTranslation(["common"]);
+	const locale = useAppStore((s) => s.locale);
+	const setLocale = useAppStore((s) => s.setLocale);
 	const tutorialAudience = useAppStore((s) => s.tutorialAudience);
 	const setTutorialAudience = useAppStore((s) => s.setTutorialAudience);
 	const tutorials = getReleasedTutorialsByAudience(tutorialAudience);
@@ -44,24 +46,45 @@ export function TutorialsSidebar() {
 
 	return (
 		<div>
-			<div className="px-3 pb-2">
-				<Select
-					value={tutorialAudience}
-					onValueChange={(v) => setTutorialAudience(v as TutorialAudience)}
-				>
-					<SelectTrigger className="h-7 text-xs">
-						<SelectValue />
-					</SelectTrigger>
-					<SelectContent side="bottom" align="start">
-						{(["user", "power-user", "developer"] as TutorialAudience[]).map(
-							(level) => (
-								<SelectItem key={level} value={level} className="text-xs">
-									{audienceLabels[level]}
-								</SelectItem>
-							),
-						)}
-					</SelectContent>
-				</Select>
+			<div className="px-3 pb-2 flex items-center gap-2">
+				<div className="flex-1 min-w-0">
+					<Select
+						value={tutorialAudience}
+						onValueChange={(v) => setTutorialAudience(v as TutorialAudience)}
+					>
+						<SelectTrigger className="h-7 text-xs">
+							<SelectValue />
+						</SelectTrigger>
+						<SelectContent side="bottom" align="start">
+							{(["user", "power-user", "developer"] as TutorialAudience[]).map(
+								(level) => (
+									<SelectItem key={level} value={level} className="text-xs">
+										{audienceLabels[level]}
+									</SelectItem>
+								),
+							)}
+						</SelectContent>
+					</Select>
+				</div>
+
+				<div className="w-[92px] shrink-0">
+					<Select
+						value={locale}
+						onValueChange={(v) => setLocale(v as "en" | "zh-cn")}
+					>
+						<SelectTrigger className="h-7 text-xs">
+							<SelectValue />
+						</SelectTrigger>
+						<SelectContent side="bottom" align="start">
+							<SelectItem value="en" className="text-xs">
+								en
+							</SelectItem>
+							<SelectItem value="zh-cn" className="text-xs">
+								zh-cn
+							</SelectItem>
+						</SelectContent>
+					</Select>
+				</div>
 			</div>
 			{tutorials.map((t) => (
 				<button

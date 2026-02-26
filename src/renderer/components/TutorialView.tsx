@@ -33,11 +33,12 @@ export default function TutorialView({
 	onExpandSidebar,
 	onCollapseSidebar,
 }: TutorialViewProps) {
-	const { t } = useTranslation(["sidebar", "common"]);
+	const { t, i18n } = useTranslation(["sidebar", "common"]);
 	const setWorkspaceMode = useAppStore((s) => s.setWorkspaceMode);
 	const activeTutorialId = useAppStore((s) => s.activeTutorialId);
 	const setActiveTutorialId = useAppStore((s) => s.setActiveTutorialId);
 	const tutorialAudience = useAppStore((s) => s.tutorialAudience);
+	const tutorialLanguage = i18n.resolvedLanguage ?? i18n.language;
 
 	const [mdxModule, setMdxModule] = useState<MDXModule | null>(null);
 	const [content, setContent] = useState<string>("");
@@ -58,6 +59,8 @@ export default function TutorialView({
 	// 加载教程内容（优先尝试 MDX，如果不存在则回退到 Markdown）
 	useEffect(() => {
 		if (!activeTutorialId) return;
+		let cancelled = false;
+		const languageAtLoad = tutorialLanguage;
 
 		setLoading(true);
 		setError(null);
@@ -67,32 +70,62 @@ export default function TutorialView({
 		// 首先尝试加载 MDX
 		loadTutorialComponent(activeTutorialId)
 			.then((module) => {
+				if (cancelled) return null;
+				if ((i18n.resolvedLanguage ?? i18n.language) !== languageAtLoad) {
+					return null;
+				}
 				if (module) {
 					setMdxModule(module);
 					setLoading(false);
+					return null;
 				} else {
 					// MDX 不存在，回退到 Markdown
 					return loadTutorial(activeTutorialId);
 				}
 			})
 			.then((loadedContent) => {
+				if (cancelled) return;
+				if ((i18n.resolvedLanguage ?? i18n.language) !== languageAtLoad) {
+					return;
+				}
 				if (typeof loadedContent === "string") {
 					setContent(loadedContent);
 					setLoading(false);
 				}
 			})
 			.catch((err) => {
+				if (cancelled) return;
+				if ((i18n.resolvedLanguage ?? i18n.language) !== languageAtLoad) {
+					return;
+				}
 				console.error("Failed to load tutorial:", err);
 				setError(
 					err instanceof Error ? err.message : t("common:loadTutorialFailed"),
 				);
 				setLoading(false);
 			});
-	}, [activeTutorialId, t]);
+
+		return () => {
+			cancelled = true;
+		};
+	}, [activeTutorialId, tutorialLanguage, i18n, t]);
 
 	// 键盘快捷键：ESC 返回编辑器，左右箭头键翻页
 	useEffect(() => {
 		const handleKeyDown = (e: KeyboardEvent) => {
+			const target = e.target;
+			if (target instanceof HTMLElement) {
+				const inPlaygroundEditor = target.closest(
+					"[data-tutorial-playground-editor='true']",
+				);
+				if (
+					inPlaygroundEditor &&
+					(e.key === "ArrowLeft" || e.key === "ArrowRight")
+				) {
+					return;
+				}
+			}
+
 			if (e.key === "Escape") {
 				setWorkspaceMode("editor");
 			} else if (e.key === "ArrowLeft" && prevTutorial) {
