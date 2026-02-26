@@ -1,20 +1,84 @@
-# Diagnostics
+# 诊断
 
-alphaTab provides an alphaTex language server via the NPM package [`@coderline/alphatab-language-server`](https://www.npmjs.com/package/@coderline/alphatab-language-server).
-The language server is written in TypeScript and made available as JavaScript executable. 
+alphaTab 通过 NPM 包 [`@coderline/alphatab-language-server`](https://www.npmjs.com/package/@coderline/alphatab-language-server) 提供了一个 alphaTex 语言服务器。
+该语言服务器使用 TypeScript 编写，并作为 JavaScript 可执行文件提供。
 
 > [!INFO]
-> To learn more about Language Servers and the Language Server Protocol head over to the website of Microsoft: 
+> 要了解更多关于语言服务器和语言服务器协议的信息，请访问 Microsoft 的网站：
 > https://microsoft.github.io/language-server-protocol/
 
-The language server is implemented using [`vscode-languageserver-node`](https://github.com/microsoft/vscode-languageserver-node) providing a base framework for creating language servers running in Node.js and in Browsers.
+该语言服务器使用 [`vscode-languageserver-node`](https://github.com/microsoft/vscode-languageserver-node) 实现，为在 Node.js 和浏览器中运行的语言服务器提供基础框架。
 
-Below you can find a description of the individual features provided by the language server and package. 
+你可以在下面找到语言服务器和包提供的各个功能的描述。
 
-## Diagnostics
+## 诊断
 
-The core feature of the language server is to listen for [document changes](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_synchronization) and parse the code of the documents. 
+语言服务器的核心功能是监听 [文档更改](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_synchronization) 并解析文档的代码。
 
-The language server provides [Pull Diagnostics](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_pullDiagnostics) but will not [Publish Diagnostics](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_publishDiagnostics).
+语言服务器提供 [拉取诊断](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_pullDiagnostics)，但不会 [发布诊断](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_publishDiagnostics)。
 
-...
+
+
+## 代码补全
+
+语言服务器将提供上下文相关的 [代码补全](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_completion)。
+这包括但不限于：
+
+* 可用的元数据标签
+* 可用的属性
+* 可用的值（例如枚举）
+
+
+
+
+## 文档悬停提示
+
+对于每个有文档记录的元素，语言服务器还将提供文档悬停提示。类似于在编程语言中编写文档注释时，
+编辑器会在悬停在元素上时显示描述。无需退出编辑器即可查找 alphaTex 的帮助，它就在你需要的地方。
+
+
+
+
+## 签名帮助
+
+在向元数据标签和属性传递参数时，语言服务器将提供签名帮助，以提供关于存在哪些参数和值的额外指导：
+
+
+
+
+## alphaTex 语言定义
+
+### TextMate 语法
+
+为了支持 VS Code 和 Monaco（以及其他兼容编辑器）中的语法高亮，该包还为 alphaTex 语法提供了基本的 TextMate 语法。
+该语法作为 JavaScript 对象提供，可以转储到 JSON 中或直接传递给兼容的组件。
+
+```ts
+
+
+
+await fs.promises.writeFile('alphatex.tmLanguage.json', JSON.stringify(textMateGrammar, null, 2));
+```
+
+### 语言配置
+
+与 TextMate 语法类似，该包还提供了 [语言配置](https://code.visualstudio.com/api/language-extensions/language-configuration-guide)，提供有关注释、括号等的详细信息。
+
+```ts
+
+
+
+await fs.promises.writeFile('language-configuration.json', JSON.stringify(languageConfiguration, null, 2));
+```
+
+### 文档
+
+该包还提供对所有 alphaTex 语言元素的原始访问。这些定义在内部用于提供文档悬停提示，但我们也使用
+它们来生成你可以在侧边菜单中找到的语言参考页面。
+
+
+```ts
+
+
+const tupletProperty = documentation.beatProperties.get('tu');
+```

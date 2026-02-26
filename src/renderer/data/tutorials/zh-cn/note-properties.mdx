@@ -1,10 +1,8 @@
-# Note Properties
+# 音符属性
 
-The properties defined on note level result in a variety of effects and annotations
-shown in the music sheet. Historically these properties are heavily abbreviated to
-reduce the text that needs to be written to apply them.
+在音符级别定义的属性会在乐谱中显示各种效果和注释。历史上，这些属性被大量缩写以减少应用它们时需要编写的文本。
 
-In future alphaTab will likely change to a more verbose, but clearer alternative.
+将来，alphaTab 可能会改为更详细但更清晰的替代方案。
 
 ## `nh`
 
@@ -12,12 +10,200 @@ In future alphaTab will likely change to a more verbose, but clearer alternative
 nh ()
 ```
 
-**Description:** Applies a natural harmonic effect to the note (for fretted instruments).
+**描述：** 对音符应用自然泛音效果（用于品乐器）。
 
-**Example:**
+**示例：**
 
 ```alphatex
 :8 3.3{nh} 3.3{ah} 3.3{ph} 3.3{th} 3.3{sh}
 ```
 
-...
+## `ah`
+
+```markdown
+ah value
+```
+
+**描述：** 对音符应用人工泛音效果（用于品乐器）。
+
+**参数：**
+
+| 名称 | 描述 | 类型 | 必需 |
+|------|-------------|------|----------|
+|  `value` | 泛音值决定了演奏时改变音符音高的相对品偏移。有关详细映射，请参阅上游文档。 | `Number` | 否  |
+
+**示例：**
+
+```alphatex
+C4 {volume 8} D4 E4 {tempo 16} F4
+```
+
+## `th`
+
+```markdown
+th value
+```
+
+**描述：** 对音符应用点弦泛音效果（用于品乐器）。
+
+**示例：**
+
+```alphatex
+:8 3.3{nh} 3.3{ah} 3.3{ph} 3.3{th} 3.3{sh}
+```
+
+## `ph`
+
+```markdown
+ph value
+```
+
+**描述：** 对音符应用捏泛音效果（用于品乐器）。
+
+**示例：**
+
+```alphatex
+:8 3.3{nh} 3.3{ah} 3.3{ph} 3.3{th} 3.3{sh}
+```
+
+## `sh`
+
+```markdown
+sh value
+```
+
+**描述：** 对音符应用半泛音效果（用于品乐器）。
+
+**示例：**
+
+```alphatex
+:8 3.3{nh} 3.3{ah} 3.3{ph} 3.3{th} 3.3{sh}
+```
+
+## `fh`
+
+```markdown
+fh value
+```
+
+**描述：** 对音符应用反馈泛音效果（用于品乐器）。
+
+**示例：**
+
+```alphatex
+:8 3.3{fh} 3.3{ah} 3.3{ph} 3.3{th} 3.3{sh}
+```
+
+## `v`
+
+```markdown
+v ()
+```
+
+**描述：** 为音符添加轻微颤音效果。
+
+**示例：**
+
+```alphatex
+3.3{v}
+```
+
+## `vw`
+
+```markdown
+vw ()
+```
+
+**描述：** 为音符添加宽颤音效果。
+
+**示例：**
+
+```alphatex
+3.3{vw}
+```
+
+## `sl`
+
+```markdown
+sl ()
+```
+
+**描述：** 为音符添加连音滑弦效果。
+
+**示例：**
+
+```alphatex
+3.3{sl} 4.3 3.3{ss} 4.3 |
+3.3{sib} 3.3{sia} 3.3{sou} 3.3{sod} |
+3.3{sib sou} 3.3{sib sod} 3.3{sia sod} 3.3{sia sou} |
+x.3{psd} 3.3 |
+x.3{psu} 3.3 |
+```
+
+## `ss`
+
+```markdown
+ss ()
+```
+
+**描述：** 为音符添加移位滑弦效果。
+
+**示例：**
+
+```alphatex
+3.3{sl} 4.3 3.3{ss} 4.3 |
+3.3{sib} 3.3{sia} 3.3{sou} 3.3{sod} |
+3.3{sib sou} 3.3{sib sod} 3.3{sia sod} 3.3{sia sou} |
+x.3{psd} 3.3 |
+x.3{psu} 3.3 |
+```
+
+## `sib`
+
+```markdown
+sib ()
+```
+
+**描述：** 添加从下方滑入音符的滑弦效果。
+
+**示例：**
+
+```alphatex
+3.3{sl} 4.3 3.3{ss} 4.3 |
+3.3{sib} 3.3{sia} 3.3{sou} 3.3{sod} |
+3.3{sib sou} 3.3{sib sod} 3.3{sia sod} 3.3{sia sou} |
+x.3{psd} 3.3 |
+x.3{psu} 3.3 |
+```
+
+## `sia`
+
+```markdown
+sia ()
+```
+
+**描述：** 添加从上方滑入音符的滑弦效果。
+
+**示例：**
+
+```alphatex
+3.3{sl} 4.3 3.3{ss} 4.3 |
+3.3{sib} 3.3{sia} 3.3{sou} 3.3{sod} |
+3.3{sib sou} 3.3{sib sod} 3.3{sia sod} 3.3{sia sou} |
+x.3{psd} 3.3 |
+x.3{psu} 3.3 |
+```
+
+## `sou`
+
+```markdown
+sou ()
+```
+
+**描述：** 添加从音符向上滑出的滑弦效果。
+
+**示例：**
+
+```alphatex
+3.3{sou} 4.3 3.3{ss} 4.3 |
+```

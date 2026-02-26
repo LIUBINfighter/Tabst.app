@@ -1,10 +1,8 @@
-# Beat Properties
+# 节拍属性
 
-The properties defined on beat level result in a variety of effects and annotations
-shown in the music sheet. Historically these properties are heavily abbreviated to
-reduce the text that needs to be written to apply them.
+在节拍级别定义的属性会在乐谱中显示各种效果和注释。历史上，这些属性被大量缩写以减少应用它们时需要编写的文本。
 
-In future alphaTab will likely change to a more verbose, but clearer alternative.
+将来，alphaTab 可能会改为更详细但更清晰的替代方案。
 
 ## `f`
 
@@ -12,12 +10,483 @@ In future alphaTab will likely change to a more verbose, but clearer alternative
 f ()
 ```
 
-**Description:** Adds a fade-in effect to the beat. Applies to all notes.
+**描述：** 为节拍添加淡入效果。适用于所有音符。
 
-**Example:**
+**示例：**
 
 ```alphatex
 (0.1 2.2 2.3 2.4 0.5).2 { f }
 ```
 
-...
+## `fo`
+
+```markdown
+fo ()
+```
+
+**描述：** 为节拍添加淡出效果。适用于所有音符。
+
+**示例：**
+
+```alphatex
+(0.1 2.2 2.3 2.4 0.5).1 { fo }
+```
+
+## `vs`
+
+```markdown
+vs ()
+```
+
+**描述：** 为节拍添加音量渐强效果。适用于所有音符。
+
+**示例：**
+
+```alphatex
+(0.1 2.2 2.3 2.4 0.5).1 { vs }
+```
+
+## `v`
+
+```markdown
+v ()
+```
+
+**描述：** 为节拍添加轻微颤音效果。适用于所有音符。
+
+**示例：**
+
+```alphatex
+(0.1 2.2 2.3 2.4 0.5).1 { v }
+```
+
+## `vw`
+
+```markdown
+vw ()
+```
+
+**描述：** 为节拍添加宽颤音效果。适用于所有音符。
+
+**示例：**
+
+```alphatex
+(0.1 2.2 2.3 2.4 0.5).1 { vw }
+```
+
+## `s`
+
+```markdown
+s ()
+```
+
+**描述：** 为节拍添加贝斯拍击标记。
+
+**示例：**
+
+```alphatex
+\track {instrument "Electric Bass Finger"}
+(3 4) 3.4.8 {s} (5.1 5.2).4 {p}  3.4.8 {s} (5.1 5.2).4 {p}
+```
+
+## `p`
+
+```markdown
+p ()
+```
+
+**描述：** 为节拍添加贝斯勾弦标记。
+
+**示例：**
+
+```alphatex
+\track {instrument "Electric Bass Finger"}
+(3 4) 3.4.8 {s} (5.1 5.2).4 {p}  3.4.8 {s} (5.1 5.2).4 {p}
+```
+
+## `tt`
+
+```markdown
+tt ()
+```
+
+**描述：** 为节拍添加吉他或贝斯点弦标记。
+
+**示例：**
+
+```alphatex
+\track {instrument "Electric Bass Finger"}
+:8 {tu 3}
+18.1 {tt h} 10.1 {h} 14.1
+18.1 {tt h} 10.1 {h} 14.1
+18.1 {tt h} 10.1 {h} 14.1
+18.1 {tt h} 10.1 {h} 14.1
+```
+
+## `d`
+
+```markdown
+d ()
+```
+
+**描述：** 用单附点标记节拍。
+
+**示例：**
+
+```alphatex
+(0.1 2.2 2.3 2.4 0.5).1 { d }
+```
+
+## `dd`
+
+```markdown
+dd ()
+```
+
+**描述：** 用双附点标记节拍。
+
+**示例：**
+
+```alphatex
+(0.1 2.2 2.3 2.4 0.5).1 { dd }
+```
+
+## `su`
+
+```markdown
+su ()
+```
+
+**描述：** 为节拍添加上拨标记。
+
+**示例：**
+
+```alphatex
+0.1 { su }
+```
+
+## `sd`
+
+```markdown
+sd ()
+```
+
+**描述：** 为节拍添加下拨标记。
+
+**示例：**
+
+```alphatex
+0.1 { sd }
+```
+
+## `cre`
+
+```markdown
+cre ()
+```
+
+**描述：** 为节拍添加渐强效果。
+
+**示例：**
+
+```alphatex
+3.3 { cre } -.3 { cre }
+```
+
+## `dec`
+
+```markdown
+dec ()
+```
+
+**描述：** 为节拍添加渐弱（diminuendo）效果。
+
+**示例：**
+
+```alphatex
+3.3 { dec } -.3 { dec }
+```
+
+## `spd`
+
+```markdown
+spd ()
+```
+
+**描述：** 为节拍添加延音踏板踩下。
+
+**示例：**
+
+```alphatex
+C4 {spd} C4 {sph} C4 {sph} C4 {spu} |
+C4 {spd} C4 {sph} C4 {sph} C4 {spe}
+```
+
+## `sph`
+
+```markdown
+sph ()
+```
+
+**描述：** 为节拍添加延音踏板保持。
+
+**示例：**
+
+```alphatex
+C4 {spd} C4 {sph} C4 {sph} C4 {spu} |
+C4 {spd} C4 {sph} C4 {sph} C4 {spe}
+```
+
+## `spu`
+
+```markdown
+spu ()
+```
+
+**描述：** 为节拍添加延音踏板抬起（释放）。
+
+**示例：**
+
+```alphatex
+C4 {spd} C4 {sph} C4 {sph} C4 {spu} |
+C4 {spd} C4 {sph} C4 {sph} C4 {spe}
+```
+
+## `spe`
+
+```markdown
+spe ()
+```
+
+**描述：** 在节拍结束时添加延音踏板抬起（释放）。
+
+**示例：**
+
+```alphatex
+C4 {spd} C4 {sph} C4 {sph} C4 {spu} |
+C4 {spd} C4 {sph} C4 {sph} C4 {spe}
+```
+
+## `slashed`
+
+```markdown
+slashed ()
+```
+
+**描述：** 将节拍标记为用斜杠记谱法显示。
+
+**示例：**
+
+```alphatex
+(0.1 2.2 2.3 2.4 0.5).2  (0.1 2.2 2.3 2.4 0.5).2 { slashed }
+```
+
+## `ds`
+
+```markdown
+ds ()
+```
+
+**描述：** 将节拍标记为死击节拍。
+
+由于此类节拍上不应该有音符，只需使用 () 表示空节拍，它不是休止符。
+
+
+**示例：**
+
+```alphatex
+().4 {ds} ().4 {ds}
+```
+
+## `glpf`
+
+```markdown
+glpf ()
+```
+
+**描述：** 为节拍添加 golpe 指敲效果。
+
+**示例：**
+
+```alphatex
+3.3{glpf} 3.3{glpt}
+```
+
+## `glpt`
+
+```markdown
+glpt ()
+```
+
+**描述：** 为节拍添加 golpe 指敲效果。
+
+**示例：**
+
+```alphatex
+3.3{glpf} 3.3{glpt}
+```
+
+## `waho`
+
+```markdown
+waho ()
+```
+
+**描述：** 为节拍添加哇音踏板打开效果。
+
+**示例：**
+
+```alphatex
+3.3 3.3{waho} 3.3 3.3 {wahc}
+```
+
+## `wahc`
+
+```markdown
+wahc ()
+```
+
+**描述：** 为节拍添加哇音踏板关闭效果。
+
+**示例：**
+
+```alphatex
+3.3 3.3{waho} 3.3 3.3 {wahc}
+```
+
+## `legatoOrigin`
+
+```markdown
+legatoOrigin ()
+```
+
+**描述：** 从此节拍向下一个节拍添加连音。
+
+**示例：**
+
+```alphatex
+3.3.4{ legatoOrigin } 10.3.4
+```
+
+## `tu`
+
+```markdown
+// [1]: 
+tu simple
+// [2]: 
+tu (numerator denominator)
+```
+
+**描述：** 为节拍时长添加连音。
+
+有一些内置的简单连音变体，或者你可以指定精确的划分。
+
+**参数：**
+
+| 重载 | 名称 | 描述 | 类型 | 必需 |
+|----------|------|-------------|------|----------|
+| `[1]` |  `simple` | 简单连音 | `Number` | 是  |
+| `[2]` |  `numerator` | 连音分子 | `Number` | 是  |
+| `[2]` |  `denominator` | 连音分母 | `Number` | 是  |
+
+**参数值：**
+
+| 重载 | 名称 | 值 |
+|----------|------|--------|
+| `[1]` | `simple` | 3 — 3:2 连音；5 — 5:4 连音；6 — 6:4 连音；7 — 7:4 连音；9 — 9:8 连音；10 — 10:8 连音；12 — 12:8 连音 |
+
+**示例：**
+
+```alphatex
+C4 {tu 3} * 3 |
+C4 {tu 5} * 5 |
+C4 {tu 5 2} * 5
+```
+
+## `txt`
+
+```markdown
+txt text
+```
+
+**描述：** 为节拍添加文本注释。
+
+**参数：**
+
+| 名称 | 描述 | 类型 | 必需 |
+|------|-------------|------|----------|
+|  `text` | 显示在节拍上方的文本 | `String` | 是  |
+
+**示例：**
+
+```alphatex
+C4 {txt "This is a C4 Note"}
+```
+
+## `lyrics`
+
+```markdown
+// [1]: 
+lyrics text
+// [2]: 
+lyrics (line text)
+```
+
+**描述：** 为节拍添加歌词文本。
+
+这是将确切歌词应用到节拍的替代方式，而不是使用 `\lyrics` 元数据，后者使用特殊语法将文本分布到节拍上。
+
+**参数：**
+
+| 重载 | 名称 | 描述 | 类型 | 必需 |
+|----------|------|-------------|------|----------|
+| `[1]` |  `text` | 要显示的歌词 | `String` | 是  |
+| `[2]` |  `line` | 行号（例如用于多段歌词） | `Number` | 是  |
+| `[2]` |  `text` | 要显示的歌词 | `String` | 是  |
+
+**示例：**
+
+```alphatex
+C4 {txt "This is a C4 Note"}
+```
+
+## `timer`
+
+```markdown
+timer ()
+```
+
+**描述：** 为节拍添加时间戳标记。
+
+计时器显示第一次演奏节拍时的确切时间戳（考虑反复等方面）。
+
+
+**示例：**
+
+```alphatex
+\tempo 120
+3.3.4 { timer } 3.3.4*3 |
+\ro 3.3.4 { timer } 3.3.4*3 |
+3.3.4 { timer } 3.3.4*3 |
+\jump fine 3.3.4 { timer } 3.3.4*3 |
+\ae (1) 3.3.4 { timer } 3.3.4*3 |
+\ae (2 3) \rc 3 3.3.4 { timer } 3.3.4*3 |
+3.3.4 { timer } 3.3.4*3 |
+\jump DaCapoAlFine 3.3.4 { timer } 3.3.4*3 |
+3.3.4 { timer } 3.3.4*3
+```
+
+## `tu`
+
+```markdown
+// [1]: 
+tu simple
+// [2]: 
+tu (numerator denominator)
+```
+
+**描述：** 为节拍时长添加连音。
+
+**示例：**
+
+文件已成功更新。

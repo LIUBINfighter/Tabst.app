@@ -1,0 +1,32 @@
+# AlphaTex Guide
+
+AlphaTex is a text-based notation language for writing playable scores.
+
+## Basic Syntax
+
+AlphaTex combines directives (metadata, track setup, rendering behavior) with note expressions.
+
+```alphatex
+\title "Example"
+\tempo 96
+.
+:4 0.3 2.3 3.3 5.3 |
+```
+
+## Core Building Blocks
+
+- Score metadata: title, subtitle, tempo, key, time signatures
+- Structural commands: bars, repeats, sections
+- Notes and durations: frets/strings, chords, rhythmic units
+- Effects and articulations: bends, slides, accents, dynamics
+
+## Authoring Strategy
+
+1. Start with metadata and meter.
+2. Enter one phrase first.
+3. Validate playback and readability.
+4. Expand with effects and annotations.
+
+## When to Use ATDOC
+
+Use ATDOC comments for document-level defaults (display/player/print/meta), then fine-tune in UI when needed.
