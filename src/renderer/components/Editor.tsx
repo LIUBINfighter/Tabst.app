@@ -16,6 +16,7 @@ import { useEditorLSP } from "../hooks/useEditorLSP";
 import { useEditorTheme } from "../hooks/useEditorTheme";
 import { updateEditorPlaybackHighlight } from "../lib/alphatex-playback-sync";
 import { updateEditorSelectionHighlight } from "../lib/alphatex-selection-sync";
+import { atDocColorSwatch } from "../lib/atdoc-color-swatch";
 import {
 	ATDOC_INLINE_KEY_COMMAND_PREFIX,
 	EDITOR_COMMAND_EVENT,
@@ -199,6 +200,7 @@ export function Editor({
 					const extensions: Extension[] = [
 						basicSetup,
 						updateListener,
+						atDocColorSwatch(),
 						whitespaceDecoration(),
 						themeCompartment.of(themeExtension),
 						languageCompartment.of(languageExtensions),
