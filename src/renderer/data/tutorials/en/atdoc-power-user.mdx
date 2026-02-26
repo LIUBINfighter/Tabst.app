@@ -1,0 +1,120 @@
+# ATDOC Hands-on (Power User)
+
+ATDOC lets you place comment-style directives inside AlphaTex files to control preview, player, and print behaviors directly from source.
+
+## Complete ATDOC Header (full)
+
+```alphatex
+/**
+ * at.meta.title="CAGED Warmup 01"
+ * at.meta.class="lesson, warmup"
+ * at.meta.tag="caged, pentatonic"
+ * at.meta.status=released
+ * at.meta.tabist="JayBridge"
+ * at.meta.app="tabst.app"
+ * at.meta.github="https://github.com/LIUBINfighter/Tabst.app"
+ * at.meta.license=CC-BY-4.0
+ * at.meta.source="https://example.com/original-tab"
+ * at.meta.release="https://example.com/release-note"
+ * at.meta.alias="cw1, caged-a"
+ *
+ * at.display.scale=0.78
+ * at.display.layoutMode=Page
+ *
+ * at.player.scrollMode=OffScreen
+ * at.player.scrollSpeed=300
+ * at.player.playbackSpeed=0.92
+ * at.player.metronomeVolume=0.35
+ * at.player.countInEnabled=true
+ * at.player.enableCursor=true
+ * at.player.enableElementHighlighting=true
+ * at.player.enableUserInteraction=true
+ *
+ * at.coloring.enabled=true
+ * at.coloring.barNumberColor=#ef4444
+ * at.coloring.staffLineColor=#334155
+ * at.coloring.barSeparatorColor=#64748b
+ * at.coloring.noteHeadColor=#22c55e
+ * at.coloring.fretNumberColor=#38bdf8
+ * at.coloring.colorizeByFret=true
+ *
+ * at.staff.showTablature=true
+ * at.staff.showStandardNotation=false
+ * at.staff.showSlash=false
+ * at.staff.showNumbered=false
+ *
+ * at.print.zoom=1.05
+ * at.print.barsPerRow=4
+ * at.print.stretchForce=1.0
+ */
+```
+
+## 1) Basic Pattern
+
+```alphatex
+/**
+ * at.display.scale=0.8
+ * at.player.playbackSpeed=0.9
+ * at.player.metronomeVolume=0.35
+ * at.player.countInEnabled=true
+ */
+```
+
+Rules:
+
+- One `at.xxx=...` per line
+- Last duplicated key wins
+- Invalid values emit warnings but do not block render
+
+## 2) Player Synchronization
+
+ATDOC syncs key player settings to the bottom bar (zoom/speed/metronome/count-in), so users can continue tuning in UI.
+
+## 3) File Metadata (`meta`)
+
+```alphatex
+/**
+ * at.meta.title="CAGED Warmup 01"
+ * at.meta.class="lesson, warmup"
+ * at.meta.tag="caged, pentatonic"
+ * at.meta.status=released
+ * at.meta.tabist="JayBridge"
+ * at.meta.app="tabst.app"
+ * at.meta.github="https://github.com/LIUBINfighter/Tabst.app"
+ * at.meta.license=CC-BY-4.0
+ * at.meta.source="https://example.com/original-tab"
+ * at.meta.release="https://example.com/release-note"
+ * at.meta.alias="cw1, caged-a"
+ */
+```
+
+Notes:
+
+- `at.meta.title`: display title for navigation/search (does not rename file)
+- `at.meta.class` / `at.meta.tag`: support comma-separated values
+- `at.meta.status`: supports `draft | active | done | released`
+- `at.meta.alias`: aliases participate in quick switch search
+
+## 4) Coloring (v0.2 Draft)
+
+```alphatex
+/**
+ * at.coloring.enabled=true
+ * at.coloring.barNumberColor=#ef4444
+ * at.coloring.noteHeadColor=#22c55e
+ * at.coloring.fretNumberColor=#38bdf8
+ * at.coloring.colorizeByFret=true
+ */
+```
+
+Notes:
+
+- With `colorizeByFret=true`, notes are colorized by fret ranges
+- Unset keys do not override existing theme values
+- Invalid colors produce warnings only
+
+## 5) Recommended Practice
+
+1. Use ATDOC for document defaults.
+2. Use the bottom bar for in-session fine-tuning.
+3. Keep metadata consistent for discoverability.
