@@ -18,11 +18,16 @@ import { updateEditorPlaybackHighlight } from "../lib/alphatex-playback-sync";
 import { updateEditorSelectionHighlight } from "../lib/alphatex-selection-sync";
 import { atDocColorSwatch } from "../lib/atdoc-color-swatch";
 import {
-	ATDOC_INLINE_KEY_COMMAND_PREFIX,
 	EDITOR_COMMAND_EVENT,
 	EDITOR_OPEN_INLINE_COMMAND_EVENT,
-	type EditorCommandId,
 } from "../lib/command-palette";
+import {
+	ATDOC_INLINE_KEY_COMMAND_PREFIX,
+	type EditorCommandId,
+	type GlobalCommandId,
+	type InlineCommandId,
+} from "../lib/command-registry";
+import { runUiCommand } from "../lib/ui-command-registry";
 import { whitespaceDecoration } from "../lib/whitespace-decoration";
 import { type FileItem, useAppStore } from "../store/appStore";
 import InlineEditorCommandBar from "./InlineEditorCommandBar";
@@ -325,8 +330,38 @@ export function Editor({
 		});
 	}, [themeExtension, themeCompartment]);
 
-	const runEditorCommand = useCallback((commandId: EditorCommandId) => {
+	const runEditorCommand = useCallback((commandId: InlineCommandId) => {
 		const view = viewRef.current;
+
+		const runGlobalFromInline = (globalCommandId: GlobalCommandId) => {
+			switch (globalCommandId) {
+				case "open-quick-file":
+					return runUiCommand("workspace.quick-switcher.open");
+				case "open-editor-command-palette":
+					return runUiCommand("workspace.editor-inline-command.open");
+				case "insert-atdoc-block":
+					return runUiCommand("editor.insert-atdoc-block");
+				case "insert-atdoc-directive":
+					return runUiCommand("editor.insert-atdoc-directive");
+				case "insert-atdoc-meta-preset":
+					return runUiCommand("editor.insert-atdoc-meta-preset");
+				default:
+					return runUiCommand(globalCommandId);
+			}
+		};
+
+		const isEditorSpecificCommand =
+			commandId.startsWith(ATDOC_INLINE_KEY_COMMAND_PREFIX) ||
+			commandId === "insert-atdoc-block" ||
+			commandId === "insert-atdoc-directive" ||
+			commandId === "insert-atdoc-meta-preset";
+
+		if (!isEditorSpecificCommand) {
+			runGlobalFromInline(commandId as GlobalCommandId);
+			setInlineCommandOpen(false);
+			return;
+		}
+
 		if (!view) return;
 
 		const insertTextAtSelection = (insertText: string) => {

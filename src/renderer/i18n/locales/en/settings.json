@@ -43,6 +43,7 @@
 	},
 	"playbackPlaceholder": "Custom player coming soon",
 	"playbackSection": {
+		"experimental": "Experimental",
 		"enablePlaybackProgressBar": "Enable bottom playback progress bar",
 		"playbackProgressBarHint": "Show playback timeline and current progress in the bottom toolbar",
 		"enablePlaybackProgressSeek": "Enable draggable seek",

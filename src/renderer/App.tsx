@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Editor } from "./components/Editor";
 import GlobalBottomBar from "./components/GlobalBottomBar";
-import type { GlobalCommandId } from "./components/GlobalCommandPalette";
+import type { GlobalCommandId } from "./lib/command-registry";
 
 const SettingsView = lazy(() => import("./components/SettingsView"));
 
@@ -13,11 +13,11 @@ import UpdateToast from "./components/UpdateToast";
 import { useFileOperations } from "./hooks/useFileOperations";
 import { getAlphaTexHighlight } from "./lib/alphatex-highlight";
 import { createAlphaTexLSPClient } from "./lib/alphatex-lsp";
+import { runUiCommand } from "./lib/ui-command-registry";
 import {
-	dispatchEditorCommand,
-	dispatchOpenInlineEditorCommand,
-	type EditorCommandId,
-} from "./lib/command-palette";
+	UI_SHELL_COMMAND_EVENT,
+	type UiShellCommandId,
+} from "./lib/ui-shell-events";
 import { useAppStore } from "./store/appStore";
 
 const QuickFileSwitcher = lazy(() => import("./components/QuickFileSwitcher"));
@@ -30,7 +30,6 @@ function App() {
 	const [quickSwitcherOpen, setQuickSwitcherOpen] = useState(false);
 	const [globalPaletteOpen, setGlobalPaletteOpen] = useState(false);
 	const workspaceMode = useAppStore((s) => s.workspaceMode);
-	const setWorkspaceMode = useAppStore((s) => s.setWorkspaceMode);
 	const editorRefreshVersion = useAppStore((s) => s.editorRefreshVersion);
 	const bottomBarRefreshVersion = useAppStore((s) => s.bottomBarRefreshVersion);
 	const prevWorkspaceModeRef = useRef<
@@ -55,12 +54,43 @@ function App() {
 	}, [initialize]);
 
 	useEffect(() => {
+		const handler = (event: Event) => {
+			const custom = event as CustomEvent<UiShellCommandId>;
+			const commandId = custom.detail;
+			if (!commandId) return;
+
+			if (commandId === "layout.sidebar.open") {
+				setSidebarCollapsed(false);
+				return;
+			}
+			if (commandId === "layout.sidebar.close") {
+				setSidebarCollapsed(true);
+				return;
+			}
+			if (commandId === "layout.sidebar.toggle") {
+				setSidebarCollapsed((prev) => !prev);
+				return;
+			}
+			if (commandId === "workspace.quick-switcher.open") {
+				setQuickSwitcherOpen(true);
+				return;
+			}
+			if (commandId === "workspace.global-command-palette.open") {
+				setGlobalPaletteOpen(true);
+			}
+		};
+
+		window.addEventListener(UI_SHELL_COMMAND_EVENT, handler);
+		return () => window.removeEventListener(UI_SHELL_COMMAND_EVENT, handler);
+	}, []);
+
+	useEffect(() => {
 		const handleQuickSwitcherShortcut = (event: KeyboardEvent) => {
 			if (event.key.toLowerCase() === "o") {
 				if (!(event.metaKey || event.ctrlKey)) return;
 				if (event.shiftKey || event.altKey) return;
 				event.preventDefault();
-				setQuickSwitcherOpen(true);
+				runUiCommand("workspace.quick-switcher.open");
 				return;
 			}
 
@@ -68,13 +98,12 @@ function App() {
 				if (!(event.metaKey || event.ctrlKey)) return;
 				if (event.shiftKey) {
 					event.preventDefault();
-					setGlobalPaletteOpen(true);
+					runUiCommand("workspace.global-command-palette.open");
 					return;
 				}
 				if (!event.altKey) {
 					event.preventDefault();
-					dispatchOpenInlineEditorCommand();
-					setWorkspaceMode("editor");
+					runUiCommand("workspace.editor-inline-command.open");
 				}
 			}
 		};
@@ -82,26 +111,56 @@ function App() {
 		window.addEventListener("keydown", handleQuickSwitcherShortcut);
 		return () =>
 			window.removeEventListener("keydown", handleQuickSwitcherShortcut);
-	}, [setWorkspaceMode]);
-
-	const runEditorCommand = (commandId: EditorCommandId) => {
-		dispatchEditorCommand(commandId);
-		setWorkspaceMode("editor");
-	};
+	}, []);
 
 	const runGlobalCommand = (commandId: GlobalCommandId) => {
 		switch (commandId) {
 			case "open-quick-file":
-				setQuickSwitcherOpen(true);
+				runUiCommand("workspace.quick-switcher.open");
 				return;
 			case "open-editor-command-palette":
-				dispatchOpenInlineEditorCommand();
-				setWorkspaceMode("editor");
+				runUiCommand("workspace.editor-inline-command.open");
+				return;
+			case "layout.sidebar.open":
+			case "layout.sidebar.close":
+			case "layout.sidebar.toggle":
+			case "workspace.quick-switcher.open":
+			case "workspace.global-command-palette.open":
+			case "workspace.mode.editor":
+			case "workspace.mode.enjoy.toggle":
+			case "workspace.mode.tutorial":
+			case "workspace.mode.settings":
+			case "workspace.editor-inline-command.open":
+			case "settings.playback.progress-bar.toggle":
+			case "settings.playback.progress-seek.toggle":
+			case "settings.playback.sync-scroll.toggle":
+			case "settings.playback.cursor-broadcast.toggle":
+			case "settings.playback.component.staff-controls.toggle":
+			case "settings.playback.component.tracks-controls.toggle":
+			case "settings.playback.component.zoom-controls.toggle":
+			case "settings.playback.component.speed-controls.toggle":
+			case "settings.playback.component.progress-controls.toggle":
+			case "settings.playback.component.transport-controls.toggle":
+			case "preview.export.midi":
+			case "preview.export.wav":
+			case "preview.export.gp7":
+			case "preview.print-preview.open":
+			case "playback.play":
+			case "playback.pause":
+			case "playback.stop":
+			case "playback.refresh":
+			case "playback.play-pause":
+			case "playback.tracks-panel.toggle":
+				runUiCommand(commandId);
 				return;
 			case "insert-atdoc-block":
+				runUiCommand("editor.insert-atdoc-block");
+				return;
 			case "insert-atdoc-directive":
+				runUiCommand("editor.insert-atdoc-directive");
+				return;
 			case "insert-atdoc-meta-preset":
-				runEditorCommand(commandId);
+				runUiCommand("editor.insert-atdoc-meta-preset");
 				return;
 		}
 	};

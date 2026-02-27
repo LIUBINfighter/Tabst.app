@@ -31,9 +31,19 @@ import {
 } from "../lib/alphatab-bar-highlight";
 import { createPreviewSettings } from "../lib/alphatab-config";
 import { formatFullError } from "../lib/alphatab-error";
+import {
+	exportToGp7,
+	exportToMidi,
+	exportToWav,
+	getDefaultExportFilename,
+} from "../lib/alphatab-export";
 import { loadBravuraFont, loadSoundFontFromUrl } from "../lib/assets";
 import { type AtDocConfig, parseAtDoc } from "../lib/atdoc";
 import { applyAtDocColoring } from "../lib/atdoc-coloring";
+import {
+	PREVIEW_COMMAND_EVENT,
+	type PreviewCommandId,
+} from "../lib/preview-command-events";
 import type { ResourceUrls } from "../lib/resourceLoaderService";
 import { getResourceUrls } from "../lib/resourceLoaderService";
 import {
@@ -270,6 +280,41 @@ export default function Preview({
 	} | null>(null);
 
 	// Editor and player cursors can now work simultaneously and sync
+	useEffect(() => {
+		const handler = (event: Event) => {
+			const customEvent = event as CustomEvent<PreviewCommandId>;
+			const commandId = customEvent.detail;
+			if (!commandId) return;
+
+			if (commandId === "preview.print-preview.open") {
+				setShowPrintPreview(true);
+				return;
+			}
+
+			const api = apiRef.current;
+			if (!api?.score) return;
+
+			if (commandId === "preview.export.midi") {
+				exportToMidi(api);
+				return;
+			}
+
+			if (commandId === "preview.export.wav") {
+				const filename = getDefaultExportFilename(fileName, "wav");
+				void exportToWav(api, filename);
+				return;
+			}
+
+			if (commandId === "preview.export.gp7") {
+				const filename = getDefaultExportFilename(fileName, "gp");
+				exportToGp7(api, filename);
+			}
+		};
+
+		window.addEventListener(PREVIEW_COMMAND_EVENT, handler);
+		return () => window.removeEventListener(PREVIEW_COMMAND_EVENT, handler);
+	}, [fileName]);
+
 	useEffect(() => {
 		editorHasFocusRef.current = editorHasFocus;
 	}, [editorHasFocus]);

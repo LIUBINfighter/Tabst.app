@@ -43,6 +43,7 @@
 	},
 	"playbackPlaceholder": "自定义播放器正在开发中",
 	"playbackSection": {
+		"experimental": "试验性",
 		"enablePlaybackProgressBar": "启用底部播放进度条",
 		"playbackProgressBarHint": "在底部工具栏显示播放时间轴与当前进度",
 		"enablePlaybackProgressSeek": "启用拖动定位",

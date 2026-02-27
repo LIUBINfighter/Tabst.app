@@ -1,10 +1,21 @@
-import { Braces, ListPlus, WrapText } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { ATDOC_KEY_DEFINITIONS } from "../data/atdoc-keys";
 import {
-	ATDOC_INLINE_KEY_COMMAND_PREFIX,
-	type EditorCommandId,
-} from "../lib/command-palette";
+	Braces,
+	Command,
+	FileSearch,
+	Layout,
+	ListPlus,
+	Music,
+	Play,
+	Printer,
+	Sparkles,
+	WrapText,
+} from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+	type CommandIcon,
+	getInlineCommands,
+	type InlineCommandId,
+} from "../lib/command-registry";
 import { Input } from "./ui/input";
 
 interface InlineEditorCommandBarProps {
@@ -12,48 +23,28 @@ interface InlineEditorCommandBarProps {
 	top: number;
 	left: number;
 	onClose: () => void;
-	onRunCommand: (id: EditorCommandId) => void;
+	onRunCommand: (id: InlineCommandId) => void;
 }
 
-interface EditorCommand {
-	id: EditorCommandId;
-	label: string;
-	description: string;
-	keywords: string[];
-	icon: "wrap" | "line" | "preset" | "key";
-}
-
-const BASE_COMMANDS: EditorCommand[] = [
-	{
-		id: "insert-atdoc-block",
-		label: "Insert ATDOC Block",
-		description: "Insert /** */ wrapper",
-		keywords: ["atdoc", "block", "wrapper"],
-		icon: "wrap",
-	},
-	{
-		id: "insert-atdoc-directive",
-		label: "Insert ATDOC Directive",
-		description: "Insert * at.meta.status=released",
-		keywords: ["atdoc", "line", "directive", "meta"],
-		icon: "line",
-	},
-	{
-		id: "insert-atdoc-meta-preset",
-		label: "Insert ATDOC Meta Preset",
-		description: "Insert title/tag/status(done)/alias preset",
-		keywords: ["atdoc", "preset", "meta", "title", "alias"],
-		icon: "preset",
-	},
-];
-
-function Icon({ type }: { type: EditorCommand["icon"] }) {
-	if (type === "wrap")
+function Icon({ type }: { type: CommandIcon }) {
+	if (type === "tree")
 		return <WrapText className="h-4 w-4 text-muted-foreground" />;
-	if (type === "line")
-		return <ListPlus className="h-4 w-4 text-muted-foreground" />;
+	if (type === "sparkles")
+		return <Sparkles className="h-4 w-4 text-muted-foreground" />;
 	if (type === "key")
 		return <ListPlus className="h-4 w-4 text-muted-foreground" />;
+	if (type === "file")
+		return <FileSearch className="h-4 w-4 text-muted-foreground" />;
+	if (type === "layout")
+		return <Layout className="h-4 w-4 text-muted-foreground" />;
+	if (type === "playback")
+		return <Play className="h-4 w-4 text-muted-foreground" />;
+	if (type === "printer")
+		return <Printer className="h-4 w-4 text-muted-foreground" />;
+	if (type === "music")
+		return <Music className="h-4 w-4 text-muted-foreground" />;
+	if (type === "command")
+		return <Command className="h-4 w-4 text-muted-foreground" />;
 	return <Braces className="h-4 w-4 text-muted-foreground" />;
 }
 
@@ -69,24 +60,7 @@ export default function InlineEditorCommandBar({
 	const [query, setQuery] = useState("");
 	const [selectedIndex, setSelectedIndex] = useState(0);
 
-	const allCommands = useMemo<EditorCommand[]>(() => {
-		const atdocKeyCommands: EditorCommand[] = ATDOC_KEY_DEFINITIONS.map(
-			(def) => ({
-				id: `${ATDOC_INLINE_KEY_COMMAND_PREFIX}${def.key}` as EditorCommandId,
-				label: `Insert ${def.key}`,
-				description: `${def.description} · Example: ${def.example}`,
-				keywords: [
-					"atdoc",
-					"key",
-					def.key,
-					...def.key.split("."),
-					def.valueType,
-				],
-				icon: "key",
-			}),
-		);
-		return [...BASE_COMMANDS, ...atdocKeyCommands];
-	}, []);
+	const allCommands = useMemo(() => getInlineCommands(), []);
 
 	const filtered = useMemo(() => {
 		const q = query.trim().toLowerCase();
@@ -145,7 +119,7 @@ export default function InlineEditorCommandBar({
 			<div className="border-b border-border p-2">
 				<Input
 					autoFocus
-					placeholder="Type editor command..."
+					placeholder="Type command..."
 					value={query}
 					onChange={(event) => {
 						setQuery(event.target.value);
