@@ -72,6 +72,29 @@ export function SidebarCommands({
 				</Tooltip>
 			)}
 
+			<Tooltip>
+				<TooltipTrigger asChild>
+					<Button
+						variant="ghost"
+						size="icon"
+						className={`h-8 w-8 hover:bg-[var(--hover-bg)] hover:text-[var(--hover-text)] ${
+							workspaceMode === "git"
+								? "bg-[var(--highlight-bg)] text-[var(--highlight-text)]"
+								: ""
+						}`}
+						onClick={() =>
+							setWorkspaceMode(workspaceMode === "git" ? "editor" : "git")
+						}
+					>
+						<span className="sr-only">{t("gitView")}</span>
+						<GitBranch className="h-4 w-4" />
+					</Button>
+				</TooltipTrigger>
+				<TooltipContent side="bottom">
+					<p>{workspaceMode === "git" ? t("exitGitView") : t("openGitView")}</p>
+				</TooltipContent>
+			</Tooltip>
+
 			{workspaceMode === "editor" && (
 				<>
 					<Tooltip>
@@ -109,29 +132,6 @@ export function SidebarCommands({
 					</Tooltip>
 				</>
 			)}
-
-			<Tooltip>
-				<TooltipTrigger asChild>
-					<Button
-						variant="ghost"
-						size="icon"
-						className={`h-8 w-8 hover:bg-[var(--hover-bg)] hover:text-[var(--hover-text)] ${
-							workspaceMode === "git"
-								? "bg-[var(--highlight-bg)] text-[var(--highlight-text)]"
-								: ""
-						}`}
-						onClick={() =>
-							setWorkspaceMode(workspaceMode === "git" ? "editor" : "git")
-						}
-					>
-						<span className="sr-only">{t("gitView")}</span>
-						<GitBranch className="h-4 w-4" />
-					</Button>
-				</TooltipTrigger>
-				<TooltipContent side="bottom">
-					<p>{workspaceMode === "git" ? t("exitGitView") : t("openGitView")}</p>
-				</TooltipContent>
-			</Tooltip>
 
 			<Tooltip>
 				<TooltipTrigger asChild>
