@@ -9,6 +9,158 @@
 	"themeMode": "主题模式",
 	"playback": "播放",
 	"playbackDesc": "播放速度与模式相关设置",
+	"commands": "命令",
+	"commandsDesc": "启用或禁用已注册命令",
+	"commandsEnable": "启用",
+	"commandsPinTop": "置顶",
+	"commandsPinned": "置顶",
+	"commandsPinnedNone": "暂无置顶命令",
+	"commandsPinnedHint": "置顶命令在命令面板中优先于最近使用（MRU）排序",
+	"commandsRecentRank": "最近使用排名：#{{rank}}",
+	"commandRegistry": {
+		"insert_atdoc_block": {
+			"label": "插入 ATDOC 块",
+			"description": "插入 /** */ 包裹模板"
+		},
+		"insert_atdoc_directive": {
+			"label": "插入 ATDOC 指令",
+			"description": "插入 * at.meta.status=released"
+		},
+		"insert_atdoc_meta_preset": {
+			"label": "插入 ATDOC 元数据预设",
+			"description": "插入 title/tag/status 等预设行"
+		},
+		"open_quick_file": {
+			"label": "快速打开文件",
+			"description": "按名称或标签打开 .atex 文件"
+		},
+		"open_editor_command_palette": {
+			"label": "编辑器命令面板",
+			"description": "打开行间命令面板"
+		},
+		"layout_sidebar_open": {
+			"label": "打开侧边栏",
+			"description": "展开左侧边栏"
+		},
+		"layout_sidebar_close": {
+			"label": "关闭侧边栏",
+			"description": "收起左侧边栏"
+		},
+		"layout_sidebar_toggle": {
+			"label": "切换侧边栏",
+			"description": "切换左侧边栏显示状态"
+		},
+		"workspace_quick_switcher_open": {
+			"label": "打开快速切换器",
+			"description": "打开文件快速切换器"
+		},
+		"workspace_global_command_palette_open": {
+			"label": "打开全局命令面板",
+			"description": "打开全局命令面板"
+		},
+		"workspace_mode_editor": {
+			"label": "切换到编辑器",
+			"description": "将工作区切换为编辑器模式"
+		},
+		"workspace_mode_enjoy_toggle": {
+			"label": "切换 Enjoy 模式",
+			"description": "在 editor 与 enjoy 模式间切换"
+		},
+		"workspace_mode_tutorial": {
+			"label": "切换到教程",
+			"description": "将工作区切换为教程模式"
+		},
+		"workspace_mode_settings": {
+			"label": "切换到设置",
+			"description": "将工作区切换为设置模式"
+		},
+		"workspace_editor_inline_command_open": {
+			"label": "打开行间编辑器命令",
+			"description": "打开编辑器行间命令栏"
+		},
+		"preview_export_midi": {
+			"label": "导出 MIDI",
+			"description": "将当前乐谱导出为 MIDI"
+		},
+		"preview_export_wav": {
+			"label": "导出 WAV",
+			"description": "将当前乐谱导出为 WAV"
+		},
+		"preview_export_gp7": {
+			"label": "导出 GP7",
+			"description": "将当前乐谱导出为 GP7"
+		},
+		"preview_print_preview_open": {
+			"label": "打开打印预览",
+			"description": "打开当前乐谱的打印预览弹窗"
+		},
+		"settings_playback_progress_bar_toggle": {
+			"label": "切换播放进度条",
+			"description": "显示或隐藏播放进度条"
+		},
+		"settings_playback_progress_seek_toggle": {
+			"label": "切换拖动定位",
+			"description": "启用或禁用播放拖动定位"
+		},
+		"settings_playback_sync_scroll_toggle": {
+			"label": "切换同步滚动",
+			"description": "启用或禁用编辑器同步滚动"
+		},
+		"settings_playback_cursor_broadcast_toggle": {
+			"label": "切换光标广播",
+			"description": "启用或禁用编辑器光标广播"
+		},
+		"settings_playback_component_staff_controls_toggle": {
+			"label": "切换谱表控件",
+			"description": "显示或隐藏谱表控件组件"
+		},
+		"settings_playback_component_tracks_controls_toggle": {
+			"label": "切换轨道控件",
+			"description": "显示或隐藏轨道控件组件"
+		},
+		"settings_playback_component_zoom_controls_toggle": {
+			"label": "切换缩放控件",
+			"description": "显示或隐藏缩放控件组件"
+		},
+		"settings_playback_component_speed_controls_toggle": {
+			"label": "切换速度控件",
+			"description": "显示或隐藏播放速度控件组件"
+		},
+		"settings_playback_component_progress_controls_toggle": {
+			"label": "切换进度控件",
+			"description": "显示或隐藏播放进度控件组件"
+		},
+		"settings_playback_component_transport_controls_toggle": {
+			"label": "切换传输控件",
+			"description": "显示或隐藏播放传输控件组件"
+		},
+		"playback_play": {
+			"label": "播放",
+			"description": "开始播放当前乐谱"
+		},
+		"playback_pause": {
+			"label": "暂停",
+			"description": "暂停当前播放"
+		},
+		"playback_stop": {
+			"label": "停止",
+			"description": "停止当前播放"
+		},
+		"playback_refresh": {
+			"label": "刷新播放",
+			"description": "刷新当前乐谱播放"
+		},
+		"playback_play_pause": {
+			"label": "播放/暂停",
+			"description": "切换播放与暂停"
+		},
+		"playback_tracks_panel_toggle": {
+			"label": "切换轨道面板",
+			"description": "切换轨道面板显示状态"
+		},
+		"dynamicAtdocLabel": "插入 {{key}}",
+		"dynamicAtdocDescription": "{{description}} · 示例：{{example}}"
+	},
 	"updates": "更新",
 	"updatesDesc": "版本检查与更新相关功能",
 	"roadmap": "路线图",

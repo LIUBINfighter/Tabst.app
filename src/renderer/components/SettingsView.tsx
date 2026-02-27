@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { useAppStore } from "../store/appStore";
 import { AboutPage } from "./settings/AboutPage";
 import { AppearancePage } from "./settings/AppearancePage";
+import { CommandsPage } from "./settings/CommandsPage";
 import { PlaybackPage } from "./settings/PlaybackPage";
 import { RoadmapPage } from "./settings/RoadmapPage";
 import { UpdatesPage } from "./settings/UpdatesPage";
@@ -54,6 +55,8 @@ export default function SettingsView({
 				return <AppearancePage />;
 			case "playback":
 				return <PlaybackPage />;
+			case "commands":
+				return <CommandsPage />;
 			case "updates":
 				return <UpdatesPage />;
 			case "roadmap":

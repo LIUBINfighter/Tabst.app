@@ -1,5 +1,6 @@
 import {
 	Info,
+	Keyboard,
 	Map as MapIcon,
 	Palette,
 	Play,
@@ -85,6 +86,16 @@ export function SettingsSidebar() {
 							case "about":
 								return (
 									<Info
+										className={`flex-none h-3.5 w-3.5 ${
+											activeSettingsPageId === p.id
+												? "text-[var(--highlight-text)]"
+												: "text-muted-foreground hover:text-[var(--hover-text)]"
+										}`}
+									/>
+								);
+							case "commands":
+								return (
+									<Keyboard
 										className={`flex-none h-3.5 w-3.5 ${
 											activeSettingsPageId === p.id
 												? "text-[var(--highlight-text)]"

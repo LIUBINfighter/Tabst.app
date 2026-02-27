@@ -53,6 +53,26 @@ export interface InlineCommandWithAvailability {
 	availability: UiCommandAvailability;
 }
 
+function sortByPinnedAndMru<T extends { id: string }>(commands: T[]): T[] {
+	const state = useAppStore.getState();
+	const pinnedSet = new Set(state.pinnedCommandIds);
+	const mruIndex = new Map(state.commandMruIds.map((id, index) => [id, index]));
+
+	return [...commands].sort((left, right) => {
+		const leftPinned = pinnedSet.has(left.id);
+		const rightPinned = pinnedSet.has(right.id);
+		if (leftPinned !== rightPinned) return leftPinned ? -1 : 1;
+
+		const leftMru = mruIndex.get(left.id);
+		const rightMru = mruIndex.get(right.id);
+		const leftRank = leftMru ?? Number.MAX_SAFE_INTEGER;
+		const rightRank = rightMru ?? Number.MAX_SAFE_INTEGER;
+		if (leftRank !== rightRank) return leftRank - rightRank;
+
+		return left.id.localeCompare(right.id);
+	});
+}
+
 function isUiCommandId(commandId: InlineCommandId): commandId is UiCommandId {
 	return getGlobalCommands().some((command) => command.id === commandId);
 }
@@ -70,6 +90,14 @@ function hasPlayerControls() {
 export function getCommandAvailability(
 	commandId: UiCommandId,
 ): UiCommandAvailability {
+	const disabledCommandIds = useAppStore.getState().disabledCommandIds;
+	if (disabledCommandIds.includes(commandId)) {
+		return {
+			enabled: false,
+			reason: "Disabled in Settings > Commands.",
+		};
+	}
+
 	if (
 		commandId === "preview.export.midi" ||
 		commandId === "preview.export.wav" ||
@@ -103,19 +131,23 @@ export function getCommandAvailability(
 }
 
 export function getCommandsWithAvailability(): CommandWithAvailability[] {
-	return getGlobalCommands().map((command) => ({
-		...command,
-		availability: getCommandAvailability(command.id),
-	}));
+	return sortByPinnedAndMru(
+		getGlobalCommands().map((command) => ({
+			...command,
+			availability: getCommandAvailability(command.id),
+		})),
+	);
 }
 
 export function getInlineCommandsWithAvailability(): InlineCommandWithAvailability[] {
-	return getInlineCommands().map((command) => ({
-		...command,
-		availability: isUiCommandId(command.id)
-			? getCommandAvailability(command.id)
-			: { enabled: true },
-	}));
+	return sortByPinnedAndMru(
+		getInlineCommands().map((command) => ({
+			...command,
+			availability: isUiCommandId(command.id)
+				? getCommandAvailability(command.id)
+				: { enabled: true },
+		})),
+	);
 }
 
 function runPlaybackCommand(commandId: UiCommandId): string {
@@ -212,6 +244,11 @@ export function getUiCommands() {
 export function runUiCommand(commandId: UiCommandId): UiCommandRunResult {
 	const warnings: string[] = [];
 	const availability = getCommandAvailability(commandId);
+	const success = (action: string): UiCommandRunResult => {
+		useAppStore.getState().recordCommandUsage(commandId);
+		return { ok: true, commandId, action, warnings };
+	};
+
 	if (!availability.enabled) {
 		return {
 			ok: false,
@@ -233,12 +270,18 @@ export function runUiCommand(commandId: UiCommandId): UiCommandRunResult {
 		).includes(commandId as UiShellCommandId)
 	) {
 		dispatchUiShellCommand(commandId as UiShellCommandId);
-		return {
-			ok: true,
-			commandId,
-			action: `Dispatch shell event: ${commandId}`,
-			warnings,
-		};
+		return success(`Dispatch shell event: ${commandId}`);
+	}
+
+	if (commandId === "open-quick-file") {
+		dispatchUiShellCommand("workspace.quick-switcher.open");
+		return success("Dispatch shell event: workspace.quick-switcher.open");
+	}
+
+	if (commandId === "open-editor-command-palette") {
+		dispatchOpenInlineEditorCommand();
+		useAppStore.getState().setWorkspaceMode("editor");
+		return success("Open inline editor command bar and switch to editor mode");
 	}
 
 	const workspaceModes: Record<string, WorkspaceMode> = {
@@ -249,50 +292,30 @@ export function runUiCommand(commandId: UiCommandId): UiCommandRunResult {
 	if (workspaceModes[commandId]) {
 		const mode = workspaceModes[commandId];
 		useAppStore.getState().setWorkspaceMode(mode);
-		return {
-			ok: true,
-			commandId,
-			action: `Set workspace mode: ${mode}`,
-			warnings,
-		};
+		return success(`Set workspace mode: ${mode}`);
 	}
 
 	if (commandId === "workspace.mode.enjoy.toggle") {
 		const state = useAppStore.getState();
 		const nextMode = state.workspaceMode === "enjoy" ? "editor" : "enjoy";
 		state.setWorkspaceMode(nextMode);
-		return {
-			ok: true,
-			commandId,
-			action: `Toggle enjoy mode to: ${nextMode}`,
-			warnings,
-		};
+		return success(`Toggle enjoy mode to: ${nextMode}`);
 	}
 
 	if (commandId === "workspace.editor-inline-command.open") {
 		dispatchOpenInlineEditorCommand();
 		useAppStore.getState().setWorkspaceMode("editor");
-		return {
-			ok: true,
-			commandId,
-			action: "Open inline editor command bar and switch to editor mode",
-			warnings,
-		};
+		return success("Open inline editor command bar and switch to editor mode");
 	}
 
 	if (commandId.startsWith("settings.playback.")) {
 		const action = runPlaybackSettingsToggleCommand(commandId);
-		return { ok: true, commandId, action, warnings };
+		return success(action);
 	}
 
 	if (commandId.startsWith("preview.")) {
 		dispatchPreviewCommand(commandId as PreviewCommandId);
-		return {
-			ok: true,
-			commandId,
-			action: `Dispatch preview command: ${commandId}`,
-			warnings,
-		};
+		return success(`Dispatch preview command: ${commandId}`);
 	}
 
 	if (
@@ -306,12 +329,7 @@ export function runUiCommand(commandId: UiCommandId): UiCommandRunResult {
 	) {
 		dispatchEditorCommand(commandId as StaticEditorCommandId);
 		useAppStore.getState().setWorkspaceMode("editor");
-		return {
-			ok: true,
-			commandId,
-			action: `Dispatch editor command: ${commandId}`,
-			warnings,
-		};
+		return success(`Dispatch editor command: ${commandId}`);
 	}
 
 	if (commandId.startsWith("playback.")) {
@@ -320,7 +338,7 @@ export function runUiCommand(commandId: UiCommandId): UiCommandRunResult {
 			warnings.push("No active player controls; command may be no-op now.");
 		}
 		const action = runPlaybackCommand(commandId);
-		return { ok: true, commandId, action, warnings };
+		return success(action);
 	}
 
 	return { ok: false, commandId, action: "Unknown command", warnings };

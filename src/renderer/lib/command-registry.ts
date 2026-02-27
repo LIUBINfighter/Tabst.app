@@ -1,4 +1,5 @@
 import { ATDOC_KEY_DEFINITIONS } from "../data/atdoc-keys";
+import i18n from "../i18n";
 
 export const ATDOC_INLINE_KEY_COMMAND_PREFIX = "insert-atdoc-key:";
 
@@ -71,22 +72,28 @@ export interface RegisteredCommand<TId extends string> {
 const STATIC_EDITOR_COMMANDS: RegisteredCommand<StaticEditorCommandId>[] = [
 	{
 		id: "insert-atdoc-block",
-		label: "Insert ATDOC Block",
-		description: "Insert /** */ wrapper template",
+		label: i18n.t("settings:commandRegistry.insert_atdoc_block.label"),
+		description: i18n.t(
+			"settings:commandRegistry.insert_atdoc_block.description",
+		),
 		keywords: ["atdoc", "comment", "block", "wrapper"],
 		icon: "tree",
 	},
 	{
 		id: "insert-atdoc-directive",
-		label: "Insert ATDOC Directive",
-		description: "Insert * at.meta.status=released",
+		label: i18n.t("settings:commandRegistry.insert_atdoc_directive.label"),
+		description: i18n.t(
+			"settings:commandRegistry.insert_atdoc_directive.description",
+		),
 		keywords: ["atdoc", "directive", "meta", "status"],
 		icon: "sparkles",
 	},
 	{
 		id: "insert-atdoc-meta-preset",
-		label: "Insert ATDOC Meta Preset",
-		description: "Insert title/tag/status preset lines",
+		label: i18n.t("settings:commandRegistry.insert_atdoc_meta_preset.label"),
+		description: i18n.t(
+			"settings:commandRegistry.insert_atdoc_meta_preset.description",
+		),
 		keywords: ["atdoc", "meta", "preset", "alias", "title"],
 		icon: "sparkles",
 	},
@@ -95,225 +102,309 @@ const STATIC_EDITOR_COMMANDS: RegisteredCommand<StaticEditorCommandId>[] = [
 const GLOBAL_ONLY_COMMANDS: RegisteredCommand<GlobalOnlyCommandId>[] = [
 	{
 		id: "open-quick-file",
-		label: "Quick Open Files",
-		description: "Open .atex files by name/tag",
+		label: i18n.t("settings:commandRegistry.open_quick_file.label"),
+		description: i18n.t("settings:commandRegistry.open_quick_file.description"),
 		keywords: ["file", "open", "quick", "search", "tag"],
 		icon: "file",
 	},
 	{
 		id: "open-editor-command-palette",
-		label: "Editor Command Palette",
-		description: "Open line-level command palette",
+		label: i18n.t("settings:commandRegistry.open_editor_command_palette.label"),
+		description: i18n.t(
+			"settings:commandRegistry.open_editor_command_palette.description",
+		),
 		keywords: ["editor", "inline", "line", "command"],
 		icon: "command",
 	},
 	{
 		id: "layout.sidebar.open",
-		label: "Open Sidebar",
-		description: "Expand left sidebar",
+		label: i18n.t("settings:commandRegistry.layout_sidebar_open.label"),
+		description: i18n.t(
+			"settings:commandRegistry.layout_sidebar_open.description",
+		),
 		keywords: ["layout", "sidebar", "open", "expand"],
 		icon: "layout",
 	},
 	{
 		id: "layout.sidebar.close",
-		label: "Close Sidebar",
-		description: "Collapse left sidebar",
+		label: i18n.t("settings:commandRegistry.layout_sidebar_close.label"),
+		description: i18n.t(
+			"settings:commandRegistry.layout_sidebar_close.description",
+		),
 		keywords: ["layout", "sidebar", "close", "collapse"],
 		icon: "layout",
 	},
 	{
 		id: "layout.sidebar.toggle",
-		label: "Toggle Sidebar",
-		description: "Toggle left sidebar visibility",
+		label: i18n.t("settings:commandRegistry.layout_sidebar_toggle.label"),
+		description: i18n.t(
+			"settings:commandRegistry.layout_sidebar_toggle.description",
+		),
 		keywords: ["layout", "sidebar", "toggle"],
 		icon: "layout",
 	},
 	{
 		id: "workspace.quick-switcher.open",
-		label: "Open Quick Switcher",
-		description: "Open quick file switcher",
+		label: i18n.t(
+			"settings:commandRegistry.workspace_quick_switcher_open.label",
+		),
+		description: i18n.t(
+			"settings:commandRegistry.workspace_quick_switcher_open.description",
+		),
 		keywords: ["workspace", "quick", "switcher", "file"],
 		icon: "file",
 	},
 	{
 		id: "workspace.global-command-palette.open",
-		label: "Open Global Command Palette",
-		description: "Open global command palette",
+		label: i18n.t(
+			"settings:commandRegistry.workspace_global_command_palette_open.label",
+		),
+		description: i18n.t(
+			"settings:commandRegistry.workspace_global_command_palette_open.description",
+		),
 		keywords: ["workspace", "global", "palette", "command"],
 		icon: "command",
 	},
 	{
 		id: "workspace.mode.editor",
-		label: "Switch To Editor",
-		description: "Switch workspace mode to editor",
+		label: i18n.t("settings:commandRegistry.workspace_mode_editor.label"),
+		description: i18n.t(
+			"settings:commandRegistry.workspace_mode_editor.description",
+		),
 		keywords: ["workspace", "mode", "editor"],
 		icon: "command",
 	},
 	{
 		id: "workspace.mode.enjoy.toggle",
-		label: "Toggle Enjoy Mode",
-		description: "Toggle workspace between editor and enjoy",
+		label: i18n.t("settings:commandRegistry.workspace_mode_enjoy_toggle.label"),
+		description: i18n.t(
+			"settings:commandRegistry.workspace_mode_enjoy_toggle.description",
+		),
 		keywords: ["workspace", "mode", "enjoy", "toggle"],
 		icon: "layout",
 	},
 	{
 		id: "preview.export.midi",
-		label: "Export MIDI",
-		description: "Export current score as MIDI",
+		label: i18n.t("settings:commandRegistry.preview_export_midi.label"),
+		description: i18n.t(
+			"settings:commandRegistry.preview_export_midi.description",
+		),
 		keywords: ["preview", "export", "midi"],
 		icon: "music",
 	},
 	{
 		id: "preview.export.wav",
-		label: "Export WAV",
-		description: "Export current score as WAV",
+		label: i18n.t("settings:commandRegistry.preview_export_wav.label"),
+		description: i18n.t(
+			"settings:commandRegistry.preview_export_wav.description",
+		),
 		keywords: ["preview", "export", "wav", "audio"],
 		icon: "music",
 	},
 	{
 		id: "preview.export.gp7",
-		label: "Export GP7",
-		description: "Export current score as GP7",
+		label: i18n.t("settings:commandRegistry.preview_export_gp7.label"),
+		description: i18n.t(
+			"settings:commandRegistry.preview_export_gp7.description",
+		),
 		keywords: ["preview", "export", "gp7", "guitar pro"],
 		icon: "music",
 	},
 	{
 		id: "preview.print-preview.open",
-		label: "Open Print Preview",
-		description: "Open print preview modal",
+		label: i18n.t("settings:commandRegistry.preview_print_preview_open.label"),
+		description: i18n.t(
+			"settings:commandRegistry.preview_print_preview_open.description",
+		),
 		keywords: ["preview", "print", "export", "pdf"],
 		icon: "printer",
 	},
 	{
 		id: "workspace.mode.tutorial",
-		label: "Switch To Tutorial",
-		description: "Switch workspace mode to tutorial",
+		label: i18n.t("settings:commandRegistry.workspace_mode_tutorial.label"),
+		description: i18n.t(
+			"settings:commandRegistry.workspace_mode_tutorial.description",
+		),
 		keywords: ["workspace", "mode", "tutorial"],
 		icon: "command",
 	},
 	{
 		id: "workspace.mode.settings",
-		label: "Switch To Settings",
-		description: "Switch workspace mode to settings",
+		label: i18n.t("settings:commandRegistry.workspace_mode_settings.label"),
+		description: i18n.t(
+			"settings:commandRegistry.workspace_mode_settings.description",
+		),
 		keywords: ["workspace", "mode", "settings"],
 		icon: "command",
 	},
 	{
 		id: "workspace.editor-inline-command.open",
-		label: "Open Inline Editor Commands",
-		description: "Open editor inline command bar",
+		label: i18n.t(
+			"settings:commandRegistry.workspace_editor_inline_command_open.label",
+		),
+		description: i18n.t(
+			"settings:commandRegistry.workspace_editor_inline_command_open.description",
+		),
 		keywords: ["workspace", "editor", "inline", "command"],
 		icon: "command",
 	},
 	{
 		id: "settings.playback.progress-bar.toggle",
-		label: "Toggle Playback Progress Bar",
-		description: "Show or hide playback progress bar",
+		label: i18n.t(
+			"settings:commandRegistry.settings_playback_progress_bar_toggle.label",
+		),
+		description: i18n.t(
+			"settings:commandRegistry.settings_playback_progress_bar_toggle.description",
+		),
 		keywords: ["settings", "playback", "progress", "bar", "toggle"],
 		icon: "playback",
 	},
 	{
 		id: "settings.playback.progress-seek.toggle",
-		label: "Toggle Playback Seek",
-		description: "Enable or disable playback seek",
+		label: i18n.t(
+			"settings:commandRegistry.settings_playback_progress_seek_toggle.label",
+		),
+		description: i18n.t(
+			"settings:commandRegistry.settings_playback_progress_seek_toggle.description",
+		),
 		keywords: ["settings", "playback", "seek", "toggle"],
 		icon: "playback",
 	},
 	{
 		id: "settings.playback.sync-scroll.toggle",
-		label: "Toggle Sync Scroll",
-		description: "Enable or disable editor sync scroll",
+		label: i18n.t(
+			"settings:commandRegistry.settings_playback_sync_scroll_toggle.label",
+		),
+		description: i18n.t(
+			"settings:commandRegistry.settings_playback_sync_scroll_toggle.description",
+		),
 		keywords: ["settings", "playback", "sync", "scroll", "toggle"],
 		icon: "playback",
 	},
 	{
 		id: "settings.playback.cursor-broadcast.toggle",
-		label: "Toggle Cursor Broadcast",
-		description: "Enable or disable editor cursor broadcast",
+		label: i18n.t(
+			"settings:commandRegistry.settings_playback_cursor_broadcast_toggle.label",
+		),
+		description: i18n.t(
+			"settings:commandRegistry.settings_playback_cursor_broadcast_toggle.description",
+		),
 		keywords: ["settings", "playback", "cursor", "broadcast", "toggle"],
 		icon: "playback",
 	},
 	{
 		id: "settings.playback.component.staff-controls.toggle",
-		label: "Toggle Staff Controls",
-		description: "Show or hide staff controls component",
+		label: i18n.t(
+			"settings:commandRegistry.settings_playback_component_staff_controls_toggle.label",
+		),
+		description: i18n.t(
+			"settings:commandRegistry.settings_playback_component_staff_controls_toggle.description",
+		),
 		keywords: ["settings", "playback", "staff", "component", "toggle"],
 		icon: "playback",
 	},
 	{
 		id: "settings.playback.component.tracks-controls.toggle",
-		label: "Toggle Tracks Controls",
-		description: "Show or hide tracks controls component",
+		label: i18n.t(
+			"settings:commandRegistry.settings_playback_component_tracks_controls_toggle.label",
+		),
+		description: i18n.t(
+			"settings:commandRegistry.settings_playback_component_tracks_controls_toggle.description",
+		),
 		keywords: ["settings", "playback", "tracks", "component", "toggle"],
 		icon: "playback",
 	},
 	{
 		id: "settings.playback.component.zoom-controls.toggle",
-		label: "Toggle Zoom Controls",
-		description: "Show or hide zoom controls component",
+		label: i18n.t(
+			"settings:commandRegistry.settings_playback_component_zoom_controls_toggle.label",
+		),
+		description: i18n.t(
+			"settings:commandRegistry.settings_playback_component_zoom_controls_toggle.description",
+		),
 		keywords: ["settings", "playback", "zoom", "component", "toggle"],
 		icon: "playback",
 	},
 	{
 		id: "settings.playback.component.speed-controls.toggle",
-		label: "Toggle Speed Controls",
-		description: "Show or hide playback speed controls component",
+		label: i18n.t(
+			"settings:commandRegistry.settings_playback_component_speed_controls_toggle.label",
+		),
+		description: i18n.t(
+			"settings:commandRegistry.settings_playback_component_speed_controls_toggle.description",
+		),
 		keywords: ["settings", "playback", "speed", "component", "toggle"],
 		icon: "playback",
 	},
 	{
 		id: "settings.playback.component.progress-controls.toggle",
-		label: "Toggle Progress Controls",
-		description: "Show or hide playback progress controls component",
+		label: i18n.t(
+			"settings:commandRegistry.settings_playback_component_progress_controls_toggle.label",
+		),
+		description: i18n.t(
+			"settings:commandRegistry.settings_playback_component_progress_controls_toggle.description",
+		),
 		keywords: ["settings", "playback", "progress", "component", "toggle"],
 		icon: "playback",
 	},
 	{
 		id: "settings.playback.component.transport-controls.toggle",
-		label: "Toggle Transport Controls",
-		description: "Show or hide playback transport controls component",
+		label: i18n.t(
+			"settings:commandRegistry.settings_playback_component_transport_controls_toggle.label",
+		),
+		description: i18n.t(
+			"settings:commandRegistry.settings_playback_component_transport_controls_toggle.description",
+		),
 		keywords: ["settings", "playback", "transport", "component", "toggle"],
 		icon: "playback",
 	},
 	{
 		id: "playback.play",
-		label: "Playback Play",
-		description: "Start playing current score",
+		label: i18n.t("settings:commandRegistry.playback_play.label"),
+		description: i18n.t("settings:commandRegistry.playback_play.description"),
 		keywords: ["playback", "play", "transport"],
 		icon: "playback",
 	},
 	{
 		id: "playback.pause",
-		label: "Playback Pause",
-		description: "Pause current playback",
+		label: i18n.t("settings:commandRegistry.playback_pause.label"),
+		description: i18n.t("settings:commandRegistry.playback_pause.description"),
 		keywords: ["playback", "pause", "transport"],
 		icon: "playback",
 	},
 	{
 		id: "playback.stop",
-		label: "Playback Stop",
-		description: "Stop current playback",
+		label: i18n.t("settings:commandRegistry.playback_stop.label"),
+		description: i18n.t("settings:commandRegistry.playback_stop.description"),
 		keywords: ["playback", "stop", "transport"],
 		icon: "playback",
 	},
 	{
 		id: "playback.refresh",
-		label: "Playback Refresh",
-		description: "Refresh current score playback",
+		label: i18n.t("settings:commandRegistry.playback_refresh.label"),
+		description: i18n.t(
+			"settings:commandRegistry.playback_refresh.description",
+		),
 		keywords: ["playback", "refresh", "transport"],
 		icon: "playback",
 	},
 	{
 		id: "playback.play-pause",
-		label: "Playback Play/Pause",
-		description: "Toggle playback play/pause",
+		label: i18n.t("settings:commandRegistry.playback_play_pause.label"),
+		description: i18n.t(
+			"settings:commandRegistry.playback_play_pause.description",
+		),
 		keywords: ["playback", "play", "pause", "toggle"],
 		icon: "playback",
 	},
 	{
 		id: "playback.tracks-panel.toggle",
-		label: "Toggle Tracks Panel",
-		description: "Toggle tracks panel visibility",
+		label: i18n.t(
+			"settings:commandRegistry.playback_tracks_panel_toggle.label",
+		),
+		description: i18n.t(
+			"settings:commandRegistry.playback_tracks_panel_toggle.description",
+		),
 		keywords: ["playback", "tracks", "panel", "toggle"],
 		icon: "playback",
 	},
@@ -340,8 +431,13 @@ export function getInlineEditorCommands(): RegisteredCommand<EditorCommandId>[] 
 	const dynamicAtdocCommands: RegisteredCommand<DynamicEditorCommandId>[] =
 		ATDOC_KEY_DEFINITIONS.map((definition) => ({
 			id: `${ATDOC_INLINE_KEY_COMMAND_PREFIX}${definition.key}`,
-			label: `Insert ${definition.key}`,
-			description: `${definition.description} · Example: ${definition.example}`,
+			label: i18n.t("settings:commandRegistry.dynamicAtdocLabel", {
+				key: definition.key,
+			}),
+			description: i18n.t("settings:commandRegistry.dynamicAtdocDescription", {
+				description: definition.description,
+				example: definition.example,
+			}),
 			keywords: [
 				"atdoc",
 				"key",
