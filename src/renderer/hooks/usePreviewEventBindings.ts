@@ -4,7 +4,7 @@ import type { PreviewLifecycleReason } from "./usePreviewLifecycleTelemetry";
 
 interface BindPreviewEventsParams {
 	api: alphaTab.AlphaTabApi;
-	attachApiListeners: (api: alphaTab.AlphaTabApi) => void;
+	attachApiListeners: (api: alphaTab.AlphaTabApi) => (() => void) | undefined;
 	incrementCounter: (
 		key:
 			| "listenerBound"
@@ -23,6 +23,7 @@ interface BindPreviewEventsParams {
 interface BoundToken {
 	api: alphaTab.AlphaTabApi;
 	token: number;
+	teardown?: () => void;
 }
 
 export function usePreviewEventBindings() {
@@ -40,10 +41,19 @@ export function usePreviewEventBindings() {
 				return () => {};
 			}
 
+			if (boundRef.current) {
+				try {
+					boundRef.current.teardown?.();
+				} catch {}
+				boundRef.current = null;
+				incrementCounter("listenerUnbound");
+				dumpCounters("listener-unbound-force");
+			}
+
 			seqRef.current += 1;
 			const token = seqRef.current;
-			attachApiListeners(api);
-			boundRef.current = { api, token };
+			const teardown = attachApiListeners(api);
+			boundRef.current = { api, token, teardown };
 			incrementCounter("listenerBound");
 			dumpCounters("listener-bound");
 
@@ -53,6 +63,9 @@ export function usePreviewEventBindings() {
 					boundRef.current.api === api &&
 					boundRef.current.token === token
 				) {
+					try {
+						boundRef.current.teardown?.();
+					} catch {}
 					boundRef.current = null;
 					incrementCounter("listenerUnbound");
 					dumpCounters("listener-unbound");
@@ -68,6 +81,9 @@ export function usePreviewEventBindings() {
 			dumpCounters: BindPreviewEventsParams["dumpCounters"],
 		) => {
 			if (!boundRef.current) return;
+			try {
+				boundRef.current.teardown?.();
+			} catch {}
 			boundRef.current = null;
 			incrementCounter("listenerUnbound");
 			dumpCounters("listener-unbound-force");

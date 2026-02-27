@@ -13,6 +13,12 @@ interface SyntaxRuntime {
 	oneLight: SyntaxTheme;
 }
 
+type PrismLightModule = {
+	default: SyntaxHighlighterComponent & {
+		registerLanguage: (name: string, syntax: unknown) => void;
+	};
+};
+
 // 移除主题中所有背景色的辅助函数
 const removeBackgroundFromTheme = (theme: SyntaxTheme): SyntaxTheme => {
 	const cleanedTheme = { ...theme };
@@ -58,16 +64,36 @@ export function CodeBlock({ language, children, className }: CodeBlockProps) {
 	useEffect(() => {
 		let cancelled = false;
 		const loadSyntax = async () => {
-			const [highlighterMod, styleMod] = await Promise.all([
-				import("react-syntax-highlighter"),
+			const [
+				highlighterMod,
+				styleMod,
+				tsSyntax,
+				jsSyntax,
+				jsonSyntax,
+				mdSyntax,
+			] = await Promise.all([
+				import("react-syntax-highlighter/dist/esm/prism-light"),
 				import("react-syntax-highlighter/dist/esm/styles/prism"),
+				import("react-syntax-highlighter/dist/esm/languages/prism/typescript"),
+				import("react-syntax-highlighter/dist/esm/languages/prism/javascript"),
+				import("react-syntax-highlighter/dist/esm/languages/prism/json"),
+				import("react-syntax-highlighter/dist/esm/languages/prism/markdown"),
 			]);
 
 			if (cancelled) return;
 
+			const prismLight = (highlighterMod as unknown as PrismLightModule)
+				.default;
+			prismLight.registerLanguage("typescript", tsSyntax.default);
+			prismLight.registerLanguage("ts", tsSyntax.default);
+			prismLight.registerLanguage("javascript", jsSyntax.default);
+			prismLight.registerLanguage("js", jsSyntax.default);
+			prismLight.registerLanguage("json", jsonSyntax.default);
+			prismLight.registerLanguage("markdown", mdSyntax.default);
+			prismLight.registerLanguage("md", mdSyntax.default);
+
 			setRuntime({
-				SyntaxHighlighter:
-					highlighterMod.Prism as unknown as SyntaxHighlighterComponent,
+				SyntaxHighlighter: prismLight,
 				oneDark: styleMod.oneDark as SyntaxTheme,
 				oneLight: styleMod.oneLight as SyntaxTheme,
 			});

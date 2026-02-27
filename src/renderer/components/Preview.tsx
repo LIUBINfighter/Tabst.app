@@ -648,9 +648,26 @@ export default function Preview({
 		 * 确保在初始化和主题重建时都能正确绑定所有功能
 		 */
 		const attachApiListeners = (api: alphaTab.AlphaTabApi) => {
+			const eventTeardowns: Array<() => void> = [];
+			const subscribe = <TArgs extends unknown[]>(
+				emitter:
+					| {
+							on: (...args: TArgs) => unknown;
+					  }
+					| undefined,
+				...args: TArgs
+			) => {
+				if (!emitter) return;
+				try {
+					const off = emitter.on(...args);
+					if (typeof off === "function") {
+						eventTeardowns.push(off);
+					}
+				} catch {}
+			};
 			// 1. 音频加载
 			try {
-				api.soundFontLoaded?.on(() => {
+				subscribe(api.soundFontLoaded, () => {
 					console.info("[Preview] alphaTab soundfont loaded");
 					try {
 						if (api) api.masterVolume = 1.0;
@@ -663,7 +680,7 @@ export default function Preview({
 			}
 
 			// 2. 渲染完成（处理光标，注意：不要修改播放状态）
-			api.renderFinished.on((r) => {
+			subscribe(api.renderFinished, (r) => {
 				console.info("[Preview] alphaTab render complete:", r);
 				// If we are probing TAB on first load, wait a short grace period before finalizing.
 				// Some worker errors can arrive slightly after renderFinished.
@@ -723,7 +740,7 @@ export default function Preview({
 			});
 
 			// 3. 播放进度（更新光标位置）
-			api.playedBeatChanged?.on((beat: alphaTab.model.Beat | null) => {
+			subscribe(api.playedBeatChanged, (beat: alphaTab.model.Beat | null) => {
 				if (!beat) {
 					// 播放停止/结束时回到无高亮状态（同时清除黄色小节高亮的来源）
 					useAppStore.getState().clearPlaybackHighlights();
@@ -762,7 +779,8 @@ export default function Preview({
 				*/
 			});
 
-			api.playerPositionChanged?.on(
+			subscribe(
+				api.playerPositionChanged,
 				(args: {
 					currentTick?: number;
 					endTick?: number;
@@ -804,7 +822,7 @@ export default function Preview({
 			);
 
 			// 4. 播放器完成/状态变化事件：确保 UI 与播放器同步
-			api.playerFinished?.on(() => {
+			subscribe(api.playerFinished, () => {
 				console.info("[Preview] alphaTab player finished");
 				// 播放结束后播放器光标可能回到默认位置，但 store 仍可能停留在末尾
 				// 这里强制回到无高亮状态，避免编辑器高亮/滚动锁死在末尾
@@ -818,24 +836,27 @@ export default function Preview({
 				});
 			});
 
-			api.playerStateChanged?.on((e: { state: number; stopped?: boolean }) => {
-				console.info("[Preview] alphaTab player state changed:", e);
-				if (e?.stopped) {
-					// stopped 明确表示停止（而不是暂停），停止时清除播放相关高亮
-					useAppStore.getState().clearPlaybackHighlights();
-					setPlayerIsPlayingIfChanged(false);
-					setPlaybackProgressIfChanged({
-						positionTick: 0,
-						endTick: typeof api.endTick === "number" ? api.endTick : 0,
-						positionMs: 0,
-						endMs: typeof api.endTime === "number" ? api.endTime : 0,
-					});
-				} else if (e?.state === 1 /* Playing */) {
-					setPlayerIsPlayingIfChanged(true);
-				} else {
-					setPlayerIsPlayingIfChanged(false);
-				}
-			});
+			subscribe(
+				api.playerStateChanged,
+				(e: { state: number; stopped?: boolean }) => {
+					console.info("[Preview] alphaTab player state changed:", e);
+					if (e?.stopped) {
+						// stopped 明确表示停止（而不是暂停），停止时清除播放相关高亮
+						useAppStore.getState().clearPlaybackHighlights();
+						setPlayerIsPlayingIfChanged(false);
+						setPlaybackProgressIfChanged({
+							positionTick: 0,
+							endTick: typeof api.endTick === "number" ? api.endTick : 0,
+							positionMs: 0,
+							endMs: typeof api.endTime === "number" ? api.endTime : 0,
+						});
+					} else if (e?.state === 1 /* Playing */) {
+						setPlayerIsPlayingIfChanged(true);
+					} else {
+						setPlayerIsPlayingIfChanged(false);
+					}
+				},
+			);
 
 			// 🆕 Register playback controls to store so controls can live outside of Preview
 			try {
@@ -1049,7 +1070,7 @@ export default function Preview({
 			}
 
 			// 3.6. 点击曲谱时更新播放器光标位置（不播放也能设置）
-			api.beatMouseDown?.on((beat: alphaTab.model.Beat) => {
+			subscribe(api.beatMouseDown, (beat: alphaTab.model.Beat) => {
 				if (!beat) return;
 				const barIndex = beat.voice?.bar?.index ?? 0;
 				const beatIndex = beat.index ?? 0;
@@ -1064,7 +1085,7 @@ export default function Preview({
 
 			// 🆕 3.5. Selection API (alphaTab 1.8.0+): 监听选区变化，同步到编辑器
 			try {
-				api.playbackRangeHighlightChanged?.on((e) => {
+				subscribe(api.playbackRangeHighlightChanged, (e) => {
 					const { setScoreSelection, clearScoreSelection } =
 						useAppStore.getState();
 
@@ -1137,7 +1158,7 @@ export default function Preview({
 			}
 
 			// 4. 改进的错误处理：保留上一次成功的渲染
-			api.error.on((err: unknown) => {
+			subscribe(api.error, (err: unknown) => {
 				const fullError = formatFullError(err);
 				const now = Date.now();
 				const recentlyProbed =
@@ -1182,7 +1203,7 @@ export default function Preview({
 			});
 
 			// 5. 处理 scoreLoaded 事件：保存成功的乐谱并清除错误
-			api.scoreLoaded.on((score) => {
+			subscribe(api.scoreLoaded, (score) => {
 				try {
 					if (score?.tracks && score.tracks.length > 0) {
 						bumpScoreVersion();
@@ -1229,6 +1250,13 @@ export default function Preview({
 					console.error("[Preview] Failed to apply tracks config", e);
 				}
 			});
+			return () => {
+				for (let i = eventTeardowns.length - 1; i >= 0; i -= 1) {
+					try {
+						eventTeardowns[i]?.();
+					} catch {}
+				}
+			};
 		};
 
 		const bindListenersForApi = (api: alphaTab.AlphaTabApi) => {
@@ -1238,7 +1266,9 @@ export default function Preview({
 				incrementCounter: increment,
 				dumpCounters,
 			});
-			listenerTeardownsRef.current.push(teardown);
+			if (typeof teardown === "function") {
+				listenerTeardownsRef.current.push(teardown);
+			}
 		};
 
 		const initAlphaTab = async () => {
