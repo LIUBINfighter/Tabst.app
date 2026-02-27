@@ -14,7 +14,12 @@ function getThemeUnsubscribe(api: alphaTab.AlphaTabApi): (() => void) | null {
 export function destroyPreviewApi(
 	apiRef: MutableRefObject<alphaTab.AlphaTabApi | null>,
 	emitApiChange: (api: alphaTab.AlphaTabApi | null) => void,
+	onBeforeDestroy?: () => void,
 ) {
+	try {
+		onBeforeDestroy?.();
+	} catch {}
+
 	const api = apiRef.current;
 	if (!api) return;
 
@@ -37,6 +42,7 @@ interface UsePrintPreviewApiLifecycleParams {
 	apiRef: MutableRefObject<alphaTab.AlphaTabApi | null>;
 	emitApiChange: (api: alphaTab.AlphaTabApi | null) => void;
 	setReinitTrigger: React.Dispatch<React.SetStateAction<number>>;
+	onBeforeDestroy?: () => void;
 }
 
 export function usePrintPreviewApiLifecycle({
@@ -44,10 +50,11 @@ export function usePrintPreviewApiLifecycle({
 	apiRef,
 	emitApiChange,
 	setReinitTrigger,
+	onBeforeDestroy,
 }: UsePrintPreviewApiLifecycleParams) {
 	useEffect(() => {
 		if (showPrintPreview) {
-			destroyPreviewApi(apiRef, emitApiChange);
+			destroyPreviewApi(apiRef, emitApiChange, onBeforeDestroy);
 			return;
 		}
 
@@ -57,5 +64,11 @@ export function usePrintPreviewApiLifecycle({
 			}, 150);
 			return () => clearTimeout(timer);
 		}
-	}, [showPrintPreview, apiRef, emitApiChange, setReinitTrigger]);
+	}, [
+		showPrintPreview,
+		apiRef,
+		emitApiChange,
+		setReinitTrigger,
+		onBeforeDestroy,
+	]);
 }

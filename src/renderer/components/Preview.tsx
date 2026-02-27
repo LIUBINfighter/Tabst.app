@@ -16,6 +16,11 @@ import {
 } from "../hooks/usePreviewApiLifecycle";
 import { usePreviewBarHighlight } from "../hooks/usePreviewBarHighlight";
 import { usePreviewErrorRecovery } from "../hooks/usePreviewErrorRecovery";
+import { usePreviewEventBindings } from "../hooks/usePreviewEventBindings";
+import {
+	type PreviewLifecycleState,
+	usePreviewLifecycleTelemetry,
+} from "../hooks/usePreviewLifecycleTelemetry";
 import { usePreviewSelectionSync } from "../hooks/usePreviewSelectionSync";
 import {
 	applyEditorBarNumberColor as applyEditorBarNumberColorLib,
@@ -91,7 +96,10 @@ export default function Preview({
 		lastProbeAt: number;
 	}>({ active: false, prev: null, timeoutId: null });
 	// Error recovery: parse timeout + last valid score restore
-	const errorRecovery = usePreviewErrorRecovery();
+	const errorRecovery = usePreviewErrorRecovery({
+		onTimeoutTriggered: () => increment("timeoutTriggered"),
+		onRecoveryTriggered: () => increment("recoveryTriggered"),
+	});
 	const {
 		parseError,
 		setParseError,
@@ -146,6 +154,13 @@ export default function Preview({
 		score: alphaTab.model.Score | null;
 	} | null>(null);
 	const pendingBarColorRef = useRef<number | null>(null);
+	const lifecycleStateRef = useRef<PreviewLifecycleState>("idle");
+	const listenerTeardownsRef = useRef<Array<() => void>>([]);
+	const lastRebuildAtRef = useRef(0);
+	const lastAppliedPlaybackSpeedRef = useRef<number | null>(null);
+	const lastAppliedMetronomeVolumeRef = useRef<number | null>(null);
+	const lastAppliedCountInRef = useRef<number | null>(null);
+	const lastAppliedTexContentRef = useRef<string | null>(null);
 
 	const emitApiChange = useCallback(
 		(api: alphaTab.AlphaTabApi | null) => {
@@ -153,6 +168,37 @@ export default function Preview({
 		},
 		[onApiChange],
 	);
+
+	const { transition, increment, dumpCounters } =
+		usePreviewLifecycleTelemetry();
+	const { bind: bindPreviewEvents, unbindCurrent: unbindPreviewEvents } =
+		usePreviewEventBindings();
+
+	const transitionLifecycle = useCallback(
+		(next: PreviewLifecycleState, reason: string) => {
+			lifecycleStateRef.current = next;
+			transition(next, reason);
+		},
+		[transition],
+	);
+
+	const runListenerTeardowns = useCallback(() => {
+		while (listenerTeardownsRef.current.length > 0) {
+			const teardown = listenerTeardownsRef.current.pop();
+			teardown?.();
+		}
+		unbindPreviewEvents(increment, dumpCounters);
+	}, [unbindPreviewEvents, increment, dumpCounters]);
+
+	const destroyCurrentApi = useCallback(() => {
+		runListenerTeardowns();
+		increment("apiDestroyed");
+		destroyPreviewApi(apiRef, emitApiChange);
+		lastAppliedPlaybackSpeedRef.current = null;
+		lastAppliedMetronomeVolumeRef.current = null;
+		lastAppliedCountInRef.current = null;
+		lastAppliedTexContentRef.current = null;
+	}, [runListenerTeardowns, increment, emitApiChange]);
 	// Prevent loop from cursor updates triggered by score selection
 	const isEditorCursorFromScoreRef = useRef(false);
 	// Track whether current highlight is triggered by editor cursor (to distinguish from manual selection)
@@ -177,8 +223,10 @@ export default function Preview({
 		playbackSpeedRef.current = playbackSpeed;
 		const api = apiRef.current;
 		if (!api) return;
+		if (lastAppliedPlaybackSpeedRef.current === playbackSpeed) return;
 		try {
 			api.playbackSpeed = playbackSpeed;
+			lastAppliedPlaybackSpeedRef.current = playbackSpeed;
 		} catch {
 			// Failed to apply playback speed
 		}
@@ -188,8 +236,10 @@ export default function Preview({
 		metronomeVolumeRef.current = metronomeVolume;
 		const api = apiRef.current;
 		if (!api) return;
+		if (lastAppliedMetronomeVolumeRef.current === metronomeVolume) return;
 		try {
 			api.metronomeVolume = metronomeVolume;
+			lastAppliedMetronomeVolumeRef.current = metronomeVolume;
 		} catch {
 			// Failed to apply metronome volume
 		}
@@ -199,8 +249,11 @@ export default function Preview({
 		countInEnabledRef.current = countInEnabled;
 		const api = apiRef.current;
 		if (!api) return;
+		const next = countInEnabled ? 1 : 0;
+		if (lastAppliedCountInRef.current === next) return;
 		try {
-			api.countInVolume = countInEnabled ? 1 : 0;
+			api.countInVolume = next;
+			lastAppliedCountInRef.current = next;
 		} catch {}
 	}, [countInEnabled]);
 
@@ -1118,8 +1171,20 @@ export default function Preview({
 			});
 		};
 
+		const bindListenersForApi = (api: alphaTab.AlphaTabApi) => {
+			const teardown = bindPreviewEvents({
+				api,
+				attachApiListeners,
+				incrementCounter: increment,
+				dumpCounters,
+			});
+			listenerTeardownsRef.current.push(teardown);
+		};
+
 		const initAlphaTab = async () => {
 			try {
+				transitionLifecycle("initializing", "initAlphaTab-start");
+				dumpCounters("init-start");
 				const parsedAtDoc = parseAtDoc(latestContentRef.current ?? "");
 				atDocConfigRef.current = parsedAtDoc.config;
 				syncStoreFromAtDoc(parsedAtDoc.config);
@@ -1157,6 +1222,7 @@ export default function Preview({
 					});
 
 					apiRef.current = new alphaTab.AlphaTabApi(el, settings);
+					increment("apiCreated");
 					emitApiChange(apiRef.current);
 					bumpApiInstanceId();
 
@@ -1173,13 +1239,18 @@ export default function Preview({
 					}
 
 					// 4. 附加监听器
-					attachApiListeners(apiRef.current);
+					bindListenersForApi(apiRef.current);
 
 					// 5. 设置主题监听器（监听暗色模式变化）
 					const unsubscribeTheme = setupThemeObserver(() => {
 						// 当主题变化时，重建 API 以应用新的颜色配置
 
 						if (apiRef.current && latestContentRef.current) {
+							const now = Date.now();
+							if (now - lastRebuildAtRef.current < 250) return;
+							lastRebuildAtRef.current = now;
+							increment("rebuildRequested");
+							transitionLifecycle("rebuilding", "theme-observer");
 							// 使用 void 操作符确保异步操作在后台执行（不阻塞回调）
 							void (async () => {
 								try {
@@ -1202,7 +1273,7 @@ export default function Preview({
 										latestContentRef.current,
 									).cleanContent;
 
-									destroyPreviewApi(apiRef, emitApiChange);
+									destroyCurrentApi();
 
 									// 获取新的颜色配置
 									const newColors = getAlphaTabColorsForTheme();
@@ -1222,6 +1293,7 @@ export default function Preview({
 
 									// 创建新的 API
 									apiRef.current = new alphaTab.AlphaTabApi(el, newSettings);
+									increment("apiCreated");
 									emitApiChange(apiRef.current);
 									bumpApiInstanceId();
 
@@ -1240,7 +1312,7 @@ export default function Preview({
 									}
 
 									// 🆕 附加所有监听器（包括 scoreLoaded, error, playback 等）
-									attachApiListeners(apiRef.current);
+									bindListenersForApi(apiRef.current);
 
 									// 重新加载音频
 									await loadSoundFontFromUrl(apiRef.current, urls.soundFontUrl);
@@ -1252,6 +1324,9 @@ export default function Preview({
 										});
 										markLoadAsUserContent(true);
 										apiRef.current.tex(currentContent);
+										increment("rebuildCompleted");
+										transitionLifecycle("ready", "theme-rebuild-complete");
+										dumpCounters("theme-rebuild-complete");
 									} catch (syncError) {
 										console.error(
 											"[Preview] Synchronous error in theme rebuild tex():",
@@ -1286,10 +1361,16 @@ export default function Preview({
 				pendingContentRef.current = null;
 
 				if (apiRef.current && initialContent) {
+					if (lastAppliedTexContentRef.current === initialContent) {
+						transitionLifecycle("ready", "initAlphaTab-done-noop");
+						dumpCounters("init-done-noop-tex");
+						return;
+					}
 					try {
 						scheduleTexTimeout(initialContent);
 						markLoadAsUserContent(true);
 						apiRef.current.tex(initialContent);
+						lastAppliedTexContentRef.current = initialContent;
 					} catch (syncError) {
 						console.error("[Preview] Synchronous error in tex():", syncError);
 						const errorMsg =
@@ -1302,12 +1383,21 @@ export default function Preview({
 						);
 					}
 				} else if (apiRef.current && !initialContent) {
+					if (lastAppliedTexContentRef.current === "") {
+						transitionLifecycle("ready", "initAlphaTab-done-empty-noop");
+						dumpCounters("init-done-empty-noop");
+						return;
+					}
 					clearTexTimeout();
 					setParseError(null);
 					markLoadAsUserContent(true);
 					apiRef.current.tex("");
+					lastAppliedTexContentRef.current = "";
 				}
+				transitionLifecycle("ready", "initAlphaTab-done");
+				dumpCounters("init-done");
 			} catch (err) {
+				transitionLifecycle("error", "initAlphaTab-error");
 				console.error("[Preview] Failed to initialize alphaTab:", err);
 			}
 		};
@@ -1316,10 +1406,14 @@ export default function Preview({
 
 		// Cleanup on unmount
 		return () => {
-			destroyPreviewApi(apiRef, emitApiChange);
+			destroyCurrentApi();
+			transitionLifecycle("destroyed", "preview-unmount");
+			dumpCounters("preview-unmount");
 			clearTexTimeout();
 		};
 	}, [
+		destroyCurrentApi,
+		bindPreviewEvents,
 		applyTracksConfig,
 		reinitTrigger,
 		applyZoom,
@@ -1342,6 +1436,9 @@ export default function Preview({
 		setParseError,
 		setFirstStaffOptions,
 		getBeatStartTick,
+		increment,
+		dumpCounters,
+		transitionLifecycle,
 	]);
 
 	// 内容更新：仅调用 tex，不销毁 API，避免闪烁
@@ -1368,10 +1465,14 @@ export default function Preview({
 		useAppStore.getState().clearScoreSelection();
 
 		if (contentToApply) {
+			if (lastAppliedTexContentRef.current === contentToApply) {
+				return;
+			}
 			try {
 				scheduleTexTimeout(contentToApply);
 				markLoadAsUserContent(true);
 				api.tex(contentToApply);
+				lastAppliedTexContentRef.current = contentToApply;
 			} catch (syncError) {
 				console.error("[Preview] Synchronous error in tex():", syncError);
 				const errorMsg =
@@ -1382,11 +1483,15 @@ export default function Preview({
 				);
 			}
 		} else {
+			if (lastAppliedTexContentRef.current === "") {
+				return;
+			}
 			clearTexTimeout();
 			setParseError(null);
 			markLoadAsUserContent(true);
 			try {
 				api.tex("");
+				lastAppliedTexContentRef.current = "";
 			} catch (emptyErr) {
 				console.error("[Preview] Failed to clear score:", emptyErr);
 			}
@@ -1405,6 +1510,7 @@ export default function Preview({
 		apiRef,
 		emitApiChange,
 		setReinitTrigger,
+		onBeforeDestroy: destroyCurrentApi,
 	});
 
 	return (
