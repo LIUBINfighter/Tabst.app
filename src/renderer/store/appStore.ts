@@ -273,6 +273,12 @@ interface AppState {
 	// i18n 语言
 	locale: "en" | "zh-cn";
 	setLocale: (locale: "en" | "zh-cn") => void;
+	disabledCommandIds: string[];
+	setCommandEnabled: (commandId: string, enabled: boolean) => void;
+	pinnedCommandIds: string[];
+	setCommandPinned: (commandId: string, pinned: boolean) => void;
+	commandMruIds: string[];
+	recordCommandUsage: (commandId: string) => void;
 	// Actions
 	addFile: (file: FileItem) => void;
 	removeFile: (id: string) => void;
@@ -650,6 +656,27 @@ export const useAppStore = create<AppState>((set, get) => ({
 						if (typeof prefs.enableCursorBroadcast === "boolean") {
 							set({ enableCursorBroadcast: prefs.enableCursorBroadcast });
 						}
+						if (Array.isArray(prefs.disabledCommandIds)) {
+							set({
+								disabledCommandIds: prefs.disabledCommandIds.filter(
+									(id): id is string => typeof id === "string",
+								),
+							});
+						}
+						if (Array.isArray(prefs.pinnedCommandIds)) {
+							set({
+								pinnedCommandIds: prefs.pinnedCommandIds.filter(
+									(id): id is string => typeof id === "string",
+								),
+							});
+						}
+						if (Array.isArray(prefs.commandMruIds)) {
+							set({
+								commandMruIds: prefs.commandMruIds
+									.filter((id): id is string => typeof id === "string")
+									.slice(0, 30),
+							});
+						}
 						if (
 							prefs.customPlayerConfig?.components &&
 							Array.isArray(prefs.customPlayerConfig.components)
@@ -937,6 +964,54 @@ export const useAppStore = create<AppState>((set, get) => ({
 		});
 		// Persist to ~/.tabst/settings.json
 		void saveGlobalSettings({ locale });
+	},
+
+	disabledCommandIds: [],
+	setCommandEnabled: (commandId, enabled) => {
+		set((state) => {
+			const hasCommand = state.disabledCommandIds.includes(commandId);
+			if (enabled) {
+				if (!hasCommand) return {};
+				const next = state.disabledCommandIds.filter((id) => id !== commandId);
+				void mergeAndSaveWorkspacePreferences({ disabledCommandIds: next });
+				return { disabledCommandIds: next };
+			}
+
+			if (hasCommand) return {};
+			const next = [...state.disabledCommandIds, commandId];
+			void mergeAndSaveWorkspacePreferences({ disabledCommandIds: next });
+			return { disabledCommandIds: next };
+		});
+	},
+
+	pinnedCommandIds: [],
+	setCommandPinned: (commandId, pinned) => {
+		set((state) => {
+			const exists = state.pinnedCommandIds.includes(commandId);
+			if (pinned) {
+				if (exists) return {};
+				const next = [...state.pinnedCommandIds, commandId];
+				void mergeAndSaveWorkspacePreferences({ pinnedCommandIds: next });
+				return { pinnedCommandIds: next };
+			}
+
+			if (!exists) return {};
+			const next = state.pinnedCommandIds.filter((id) => id !== commandId);
+			void mergeAndSaveWorkspacePreferences({ pinnedCommandIds: next });
+			return { pinnedCommandIds: next };
+		});
+	},
+
+	commandMruIds: [],
+	recordCommandUsage: (commandId) => {
+		set((state) => {
+			const next = [
+				commandId,
+				...state.commandMruIds.filter((id) => id !== commandId),
+			].slice(0, 30);
+			void mergeAndSaveWorkspacePreferences({ commandMruIds: next });
+			return { commandMruIds: next };
+		});
 	},
 
 	addFile: (file) => {

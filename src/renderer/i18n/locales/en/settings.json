@@ -9,6 +9,158 @@
 	"themeMode": "Theme Mode",
 	"playback": "Playback",
 	"playbackDesc": "Speed and mode",
+	"commands": "Commands",
+	"commandsDesc": "Enable or disable registered commands",
+	"commandsEnable": "Enable",
+	"commandsPinTop": "Pin to top",
+	"commandsPinned": "Pinned",
+	"commandsPinnedNone": "No pinned commands",
+	"commandsPinnedHint": "Pinned commands are prioritized before MRU in command palettes",
+	"commandsRecentRank": "Recent usage rank: #{{rank}}",
+	"commandRegistry": {
+		"insert_atdoc_block": {
+			"label": "Insert ATDOC Block",
+			"description": "Insert /** */ wrapper template"
+		},
+		"insert_atdoc_directive": {
+			"label": "Insert ATDOC Directive",
+			"description": "Insert * at.meta.status=released"
+		},
+		"insert_atdoc_meta_preset": {
+			"label": "Insert ATDOC Meta Preset",
+			"description": "Insert title/tag/status preset lines"
+		},
+		"open_quick_file": {
+			"label": "Quick Open Files",
+			"description": "Open .atex files by name/tag"
+		},
+		"open_editor_command_palette": {
+			"label": "Editor Command Palette",
+			"description": "Open line-level command palette"
+		},
+		"layout_sidebar_open": {
+			"label": "Open Sidebar",
+			"description": "Expand left sidebar"
+		},
+		"layout_sidebar_close": {
+			"label": "Close Sidebar",
+			"description": "Collapse left sidebar"
+		},
+		"layout_sidebar_toggle": {
+			"label": "Toggle Sidebar",
+			"description": "Toggle left sidebar visibility"
+		},
+		"workspace_quick_switcher_open": {
+			"label": "Open Quick Switcher",
+			"description": "Open quick file switcher"
+		},
+		"workspace_global_command_palette_open": {
+			"label": "Open Global Command Palette",
+			"description": "Open global command palette"
+		},
+		"workspace_mode_editor": {
+			"label": "Switch To Editor",
+			"description": "Switch workspace mode to editor"
+		},
+		"workspace_mode_enjoy_toggle": {
+			"label": "Toggle Enjoy Mode",
+			"description": "Toggle workspace between editor and enjoy"
+		},
+		"workspace_mode_tutorial": {
+			"label": "Switch To Tutorial",
+			"description": "Switch workspace mode to tutorial"
+		},
+		"workspace_mode_settings": {
+			"label": "Switch To Settings",
+			"description": "Switch workspace mode to settings"
+		},
+		"workspace_editor_inline_command_open": {
+			"label": "Open Inline Editor Commands",
+			"description": "Open editor inline command bar"
+		},
+		"preview_export_midi": {
+			"label": "Export MIDI",
+			"description": "Export current score as MIDI"
+		},
+		"preview_export_wav": {
+			"label": "Export WAV",
+			"description": "Export current score as WAV"
+		},
+		"preview_export_gp7": {
+			"label": "Export GP7",
+			"description": "Export current score as GP7"
+		},
+		"preview_print_preview_open": {
+			"label": "Open Print Preview",
+			"description": "Open print preview modal"
+		},
+		"settings_playback_progress_bar_toggle": {
+			"label": "Toggle Playback Progress Bar",
+			"description": "Show or hide playback progress bar"
+		},
+		"settings_playback_progress_seek_toggle": {
+			"label": "Toggle Playback Seek",
+			"description": "Enable or disable playback seek"
+		},
+		"settings_playback_sync_scroll_toggle": {
+			"label": "Toggle Sync Scroll",
+			"description": "Enable or disable editor sync scroll"
+		},
+		"settings_playback_cursor_broadcast_toggle": {
+			"label": "Toggle Cursor Broadcast",
+			"description": "Enable or disable editor cursor broadcast"
+		},
+		"settings_playback_component_staff_controls_toggle": {
+			"label": "Toggle Staff Controls",
+			"description": "Show or hide staff controls component"
+		},
+		"settings_playback_component_tracks_controls_toggle": {
+			"label": "Toggle Tracks Controls",
+			"description": "Show or hide tracks controls component"
+		},
+		"settings_playback_component_zoom_controls_toggle": {
+			"label": "Toggle Zoom Controls",
+			"description": "Show or hide zoom controls component"
+		},
+		"settings_playback_component_speed_controls_toggle": {
+			"label": "Toggle Speed Controls",
+			"description": "Show or hide playback speed controls component"
+		},
+		"settings_playback_component_progress_controls_toggle": {
+			"label": "Toggle Progress Controls",
+			"description": "Show or hide playback progress controls component"
+		},
+		"settings_playback_component_transport_controls_toggle": {
+			"label": "Toggle Transport Controls",
+			"description": "Show or hide playback transport controls component"
+		},
+		"playback_play": {
+			"label": "Playback Play",
+			"description": "Start playing current score"
+		},
+		"playback_pause": {
+			"label": "Playback Pause",
+			"description": "Pause current playback"
+		},
+		"playback_stop": {
+			"label": "Playback Stop",
+			"description": "Stop current playback"
+		},
+		"playback_refresh": {
+			"label": "Playback Refresh",
+			"description": "Refresh current score playback"
+		},
+		"playback_play_pause": {
+			"label": "Playback Play/Pause",
+			"description": "Toggle playback play/pause"
+		},
+		"playback_tracks_panel_toggle": {
+			"label": "Toggle Tracks Panel",
+			"description": "Toggle tracks panel visibility"
+		},
+		"dynamicAtdocLabel": "Insert {{key}}",
+		"dynamicAtdocDescription": "{{description}} · Example: {{example}}"
+	},
 	"updates": "Updates",
 	"updatesDesc": "Version check and updates",
 	"roadmap": "Roadmap",
@@ -43,6 +195,7 @@
 	},
 	"playbackPlaceholder": "Custom player coming soon",
 	"playbackSection": {
+		"experimental": "Experimental",
 		"enablePlaybackProgressBar": "Enable bottom playback progress bar",
 		"playbackProgressBarHint": "Show playback timeline and current progress in the bottom toolbar",
 		"enablePlaybackProgressSeek": "Enable draggable seek",

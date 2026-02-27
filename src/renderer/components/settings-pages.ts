@@ -21,6 +21,11 @@ export const defaultSettingsPages: SettingsPage[] = [
 		description: "播放速度与模式相关设置",
 	},
 	{
+		id: "commands",
+		title: "命令",
+		description: "命令开关与可用性配置",
+	},
+	{
 		id: "updates",
 		title: "更新", // 后备值，实际使用 t("settings:updates")
 		description: "版本检查与更新相关功能",

@@ -54,8 +54,11 @@ export function PlaybackPage() {
 						aria-label={t("playbackSection.enablePlaybackProgressBar")}
 					/>
 					<div className="flex-1 min-w-0">
-						<h4 className="text-sm font-medium">
-							{t("playbackSection.enablePlaybackProgressBar")}
+						<h4 className="text-sm font-medium flex items-center gap-2">
+							<span>{t("playbackSection.enablePlaybackProgressBar")}</span>
+							<span className="text-[10px] uppercase tracking-wide rounded border border-amber-500/40 text-amber-600 px-1.5 py-0.5">
+								{t("playbackSection.experimental")}
+							</span>
 						</h4>
 						<p className="text-xs text-muted-foreground mt-1">
 							{t("playbackSection.playbackProgressBarHint")}
@@ -85,8 +88,11 @@ export function PlaybackPage() {
 						aria-label={t("playbackSection.enablePlaybackProgressSeek")}
 					/>
 					<div className="flex-1 min-w-0">
-						<h4 className="text-sm font-medium">
-							{t("playbackSection.enablePlaybackProgressSeek")}
+						<h4 className="text-sm font-medium flex items-center gap-2">
+							<span>{t("playbackSection.enablePlaybackProgressSeek")}</span>
+							<span className="text-[10px] uppercase tracking-wide rounded border border-amber-500/40 text-amber-600 px-1.5 py-0.5">
+								{t("playbackSection.experimental")}
+							</span>
 						</h4>
 						<p className="text-xs text-muted-foreground mt-1">
 							{t("playbackSection.playbackProgressSeekHint")}
@@ -114,8 +120,11 @@ export function PlaybackPage() {
 						aria-label={t("playbackSection.enableSyncScroll")}
 					/>
 					<div className="flex-1 min-w-0">
-						<h4 className="text-sm font-medium">
-							{t("playbackSection.enableSyncScroll")}
+						<h4 className="text-sm font-medium flex items-center gap-2">
+							<span>{t("playbackSection.enableSyncScroll")}</span>
+							<span className="text-[10px] uppercase tracking-wide rounded border border-amber-500/40 text-amber-600 px-1.5 py-0.5">
+								{t("playbackSection.experimental")}
+							</span>
 						</h4>
 						<p className="text-xs text-muted-foreground mt-1">
 							{t("playbackSection.syncScrollHint")}
@@ -143,8 +152,11 @@ export function PlaybackPage() {
 						aria-label={t("playbackSection.enableCursorBroadcast")}
 					/>
 					<div className="flex-1 min-w-0">
-						<h4 className="text-sm font-medium">
-							{t("playbackSection.enableCursorBroadcast")}
+						<h4 className="text-sm font-medium flex items-center gap-2">
+							<span>{t("playbackSection.enableCursorBroadcast")}</span>
+							<span className="text-[10px] uppercase tracking-wide rounded border border-amber-500/40 text-amber-600 px-1.5 py-0.5">
+								{t("playbackSection.experimental")}
+							</span>
 						</h4>
 						<p className="text-xs text-muted-foreground mt-1">
 							{t("playbackSection.cursorBroadcastHint")}

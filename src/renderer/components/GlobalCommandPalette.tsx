@@ -1,14 +1,18 @@
-import { Command, FileSearch, ListTree, Sparkles } from "lucide-react";
+import {
+	Command,
+	FileSearch,
+	Layout,
+	ListTree,
+	Music,
+	Play,
+	Printer,
+	Sparkles,
+} from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { CommandIcon, GlobalCommandId } from "../lib/command-registry";
+import { getCommandsWithAvailability } from "../lib/ui-command-registry";
 import { Dialog, DialogContent, DialogTitle } from "./ui/dialog";
 import { Input } from "./ui/input";
-
-export type GlobalCommandId =
-	| "open-quick-file"
-	| "open-editor-command-palette"
-	| "insert-atdoc-block"
-	| "insert-atdoc-directive"
-	| "insert-atdoc-meta-preset";
 
 interface GlobalCommandPaletteProps {
 	open: boolean;
@@ -16,59 +20,21 @@ interface GlobalCommandPaletteProps {
 	onRunCommand: (id: GlobalCommandId) => void;
 }
 
-interface PaletteCommand {
-	id: GlobalCommandId;
-	label: string;
-	description: string;
-	keywords: string[];
-	icon: "command" | "file" | "tree" | "sparkles";
-}
-
-const COMMANDS: PaletteCommand[] = [
-	{
-		id: "open-quick-file",
-		label: "Quick Open Files",
-		description: "Open .atex files by name/tag",
-		keywords: ["file", "open", "quick", "search", "tag"],
-		icon: "file",
-	},
-	{
-		id: "open-editor-command-palette",
-		label: "Editor Command Palette",
-		description: "Open line-level command palette",
-		keywords: ["editor", "inline", "line", "command"],
-		icon: "command",
-	},
-	{
-		id: "insert-atdoc-block",
-		label: "Insert ATDOC Block",
-		description: "Insert /** */ wrapper template",
-		keywords: ["atdoc", "comment", "block", "wrapper"],
-		icon: "tree",
-	},
-	{
-		id: "insert-atdoc-directive",
-		label: "Insert ATDOC Directive",
-		description: "Insert * at.meta.status=active",
-		keywords: ["atdoc", "directive", "meta", "status"],
-		icon: "sparkles",
-	},
-	{
-		id: "insert-atdoc-meta-preset",
-		label: "Insert ATDOC Meta Preset",
-		description: "Insert title/tag/status preset lines",
-		keywords: ["atdoc", "meta", "preset", "alias", "title"],
-		icon: "sparkles",
-	},
-];
-
-function Icon({ type }: { type: PaletteCommand["icon"] }) {
+function Icon({ type }: { type: CommandIcon }) {
 	if (type === "file")
 		return <FileSearch className="h-4 w-4 text-muted-foreground" />;
 	if (type === "tree")
 		return <ListTree className="h-4 w-4 text-muted-foreground" />;
 	if (type === "sparkles")
 		return <Sparkles className="h-4 w-4 text-muted-foreground" />;
+	if (type === "layout")
+		return <Layout className="h-4 w-4 text-muted-foreground" />;
+	if (type === "playback")
+		return <Play className="h-4 w-4 text-muted-foreground" />;
+	if (type === "printer")
+		return <Printer className="h-4 w-4 text-muted-foreground" />;
+	if (type === "music")
+		return <Music className="h-4 w-4 text-muted-foreground" />;
 	return <Command className="h-4 w-4 text-muted-foreground" />;
 }
 
@@ -77,21 +43,22 @@ export default function GlobalCommandPalette({
 	onOpenChange,
 	onRunCommand,
 }: GlobalCommandPaletteProps) {
+	const commands = getCommandsWithAvailability();
 	const [query, setQuery] = useState("");
 	const [selectedIndex, setSelectedIndex] = useState(0);
 	const optionRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
 	const filtered = useMemo(() => {
 		const q = query.trim().toLowerCase();
-		if (!q) return COMMANDS;
-		return COMMANDS.filter((command) => {
+		if (!q) return commands;
+		return commands.filter((command) => {
 			return (
 				command.label.toLowerCase().includes(q) ||
 				command.description.toLowerCase().includes(q) ||
 				command.keywords.some((keyword) => keyword.includes(q))
 			);
 		});
-	}, [query]);
+	}, [commands, query]);
 
 	useEffect(() => {
 		setSelectedIndex((prev) =>
@@ -145,6 +112,7 @@ export default function GlobalCommandPalette({
 								event.preventDefault();
 								const picked = filtered[selectedIndex];
 								if (!picked) return;
+								if (!picked.availability.enabled) return;
 								onRunCommand(picked.id);
 								onOpenChange(false);
 							}
@@ -167,9 +135,11 @@ export default function GlobalCommandPalette({
 									}}
 									onMouseEnter={() => setSelectedIndex(index)}
 									onClick={() => {
+										if (!command.availability.enabled) return;
 										onRunCommand(command.id);
 										onOpenChange(false);
 									}}
+									disabled={!command.availability.enabled}
 									className={`w-full rounded-md px-3 py-2 text-left transition-colors ${
 										selectedIndex === index
 											? "bg-accent text-accent-foreground"
@@ -182,6 +152,10 @@ export default function GlobalCommandPalette({
 									</div>
 									<div className="mt-1 text-xs text-muted-foreground">
 										{command.description}
+										{!command.availability.enabled &&
+										command.availability.reason
+											? ` · ${command.availability.reason}`
+											: ""}
 									</div>
 								</button>
 							))}

@@ -14,6 +14,9 @@ export interface Repo {
 }
 
 export interface RepoPreferences {
+	disabledCommandIds?: string[];
+	pinnedCommandIds?: string[];
+	commandMruIds?: string[];
 	staffOptions?: StaffDisplayOptions;
 	zoomPercent?: number;
 	playbackSpeed?: number;
