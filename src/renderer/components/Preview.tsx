@@ -1,8 +1,19 @@
 // @ts-nocheck
 import * as alphaTab from "@coderline/alphatab";
 import { FileText } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+	lazy,
+	Suspense,
+	useCallback,
+	useEffect,
+	useRef,
+	useState,
+} from "react";
 import { useTranslation } from "react-i18next";
+import {
+	destroyPreviewApi,
+	usePrintPreviewApiLifecycle,
+} from "../hooks/usePreviewApiLifecycle";
 import { usePreviewBarHighlight } from "../hooks/usePreviewBarHighlight";
 import { usePreviewErrorRecovery } from "../hooks/usePreviewErrorRecovery";
 import { usePreviewSelectionSync } from "../hooks/usePreviewSelectionSync";
@@ -30,7 +41,6 @@ import {
 } from "../lib/themeManager";
 import { useAppStore } from "../store/appStore";
 import PreviewToolbar from "./PreviewToolbar";
-import PrintPreview from "./PrintPreview";
 import TopBar from "./TopBar";
 import {
 	Tooltip,
@@ -47,6 +57,8 @@ export interface PreviewProps {
 	onEnjoyToggle?: () => void;
 	isEnjoyMode?: boolean;
 }
+
+const PrintPreview = lazy(() => import("./PrintPreview"));
 
 export default function Preview({
 	fileName,
@@ -461,6 +473,38 @@ export default function Preview({
 		[setFirstStaffOptions],
 	);
 
+	const getBeatStartTick = useCallback(
+		(beat: alphaTab.model.Beat): number | null => {
+			const api = apiRef.current;
+			if (api?.tickCache && typeof api.tickCache.getBeatStart === "function") {
+				const startTick = api.tickCache.getBeatStart(beat);
+				if (typeof startTick === "number" && startTick >= 0) return startTick;
+			}
+
+			const beatCandidate = beat as unknown as {
+				playbackStart?: unknown;
+				displayStart?: unknown;
+			};
+
+			if (
+				typeof beatCandidate.playbackStart === "number" &&
+				beatCandidate.playbackStart >= 0
+			) {
+				return beatCandidate.playbackStart;
+			}
+
+			if (
+				typeof beatCandidate.displayStart === "number" &&
+				beatCandidate.displayStart >= 0
+			) {
+				return beatCandidate.displayStart;
+			}
+
+			return null;
+		},
+		[],
+	);
+
 	// Handle staff toggle requests from GlobalBottomBar
 	useEffect(() => {
 		if (pendingStaffToggle) {
@@ -721,43 +765,10 @@ export default function Preview({
 								// 尝试设置播放位置
 								let positionSet = false;
 								try {
-									// 方法 1: 使用 tickCache.getBeatStart() 获取 beat 的开始 tick 位置
-									// 这是 alphaTab 官方推荐的方法
-									if (
-										api.tickCache &&
-										typeof api.tickCache.getBeatStart === "function"
-									) {
-										const startTick = api.tickCache.getBeatStart(firstBeat);
-										if (
-											startTick !== undefined &&
-											startTick !== null &&
-											startTick >= 0
-										) {
-											api.tickPosition = startTick;
-											positionSet = true;
-										}
-									}
-
-									// 方法 2: 如果 tickCache 不可用，尝试使用 beat 的属性
-									if (!positionSet) {
-										// @ts-expect-error - beat 可能有 playbackStart 属性
-										if (
-											firstBeat.playbackStart !== undefined &&
-											firstBeat.playbackStart !== null
-										) {
-											// @ts-expect-error
-											api.tickPosition = firstBeat.playbackStart;
-											positionSet = true;
-										}
-										// @ts-expect-error
-										else if (
-											firstBeat.displayStart !== undefined &&
-											firstBeat.displayStart !== null
-										) {
-											// @ts-expect-error
-											api.tickPosition = firstBeat.displayStart;
-											positionSet = true;
-										}
+									const startTick = getBeatStartTick(firstBeat);
+									if (typeof startTick === "number") {
+										api.tickPosition = startTick;
+										positionSet = true;
 									}
 								} catch (err) {
 									console.warn(
@@ -860,29 +871,7 @@ export default function Preview({
 						lastEditorCursorSelectionRef.current = null;
 
 						// 3. 销毁当前 API
-						if (apiRef.current) {
-							// 清理主题观察者
-							const unsubscribeTheme = (
-								apiRef.current as unknown as Record<string, unknown>
-							).__unsubscribeTheme;
-							if (typeof unsubscribeTheme === "function") {
-								unsubscribeTheme();
-							}
-
-							// 取消注册播放器控制
-							try {
-								useAppStore.getState().unregisterPlayerControls();
-							} catch {
-								// Failed to unregister player controls
-							}
-
-							// 销毁 API
-							apiRef.current.destroy();
-							apiRef.current = null;
-
-							// 清除选区高亮
-							useAppStore.getState().clearScoreSelection();
-						}
+						destroyPreviewApi(apiRef, emitApiChange);
 
 						// 4. 清除 pending tex 相关计时器
 						clearTexTimeout();
@@ -1213,12 +1202,7 @@ export default function Preview({
 										latestContentRef.current,
 									).cleanContent;
 
-									// 销毁旧的 API
-									apiRef.current?.destroy();
-									emitApiChange(null);
-
-									// 🆕 销毁旧 API 时清除选区高亮（避免旧 API 的选区残留）
-									useAppStore.getState().clearScoreSelection();
+									destroyPreviewApi(apiRef, emitApiChange);
 
 									// 获取新的颜色配置
 									const newColors = getAlphaTabColorsForTheme();
@@ -1332,21 +1316,7 @@ export default function Preview({
 
 		// Cleanup on unmount
 		return () => {
-			if (apiRef.current) {
-				// 清理主题观察者
-				const unsubscribeTheme = (
-					apiRef.current as unknown as Record<string, unknown>
-				).__unsubscribeTheme;
-				if (typeof unsubscribeTheme === "function") {
-					unsubscribeTheme();
-				}
-				apiRef.current.destroy();
-				apiRef.current = null;
-				emitApiChange(null);
-
-				// 🆕 销毁 API 时清除选区高亮（避免旧 API 的选区残留）
-				useAppStore.getState().clearScoreSelection();
-			}
+			destroyPreviewApi(apiRef, emitApiChange);
 			clearTexTimeout();
 		};
 	}, [
@@ -1371,6 +1341,7 @@ export default function Preview({
 		onScoreLoadedMatch,
 		setParseError,
 		setFirstStaffOptions,
+		getBeatStartTick,
 	]);
 
 	// 内容更新：仅调用 tex，不销毁 API，避免闪烁
@@ -1429,40 +1400,12 @@ export default function Preview({
 		setParseError,
 	]);
 
-	// 管理打印预览的生命周期：销毁和重建 alphaTab API 以避免设置污染
-	useEffect(() => {
-		if (showPrintPreview) {
-			// 打开打印预览：销毁当前 API 释放资源（特别是字体缓存）
-			// Destroying API for print preview
-			if (apiRef.current) {
-				// 清理主题观察者
-				const unsubscribeTheme = (
-					apiRef.current as unknown as Record<string, unknown>
-				).__unsubscribeTheme;
-				if (typeof unsubscribeTheme === "function") {
-					unsubscribeTheme();
-				}
-				// Unregister controls from store so bottom bar won't call destroyed API
-				try {
-					useAppStore.getState().unregisterPlayerControls();
-				} catch {
-					// Failed to unregister player controls
-				}
-				apiRef.current.destroy();
-				apiRef.current = null;
-				emitApiChange(null);
-
-				// 🆕 销毁 API 时清除选区高亮（避免旧 API 的选区残留）
-				useAppStore.getState().clearScoreSelection();
-			}
-		} else if (!showPrintPreview && !apiRef.current) {
-			// 关闭打印预览：延迟重新初始化 API，确保 PrintPreview 完全卸载
-			const timer = setTimeout(() => {
-				setReinitTrigger((prev) => prev + 1);
-			}, 150);
-			return () => clearTimeout(timer);
-		}
-	}, [showPrintPreview, emitApiChange]);
+	usePrintPreviewApiLifecycle({
+		showPrintPreview,
+		apiRef,
+		emitApiChange,
+		setReinitTrigger,
+	});
 
 	return (
 		<TooltipProvider delayDuration={200}>
@@ -1549,11 +1492,15 @@ export default function Preview({
 
 				{/* 打印预览模态窗口 */}
 				{showPrintPreview && content && (
-					<PrintPreview
-						content={content}
-						fileName={fileName}
-						onClose={() => setShowPrintPreview(false)}
-					/>
+					<Suspense
+						fallback={<div className="flex-1 bg-background" aria-busy="true" />}
+					>
+						<PrintPreview
+							content={content}
+							fileName={fileName}
+							onClose={() => setShowPrintPreview(false)}
+						/>
+					</Suspense>
 				)}
 			</div>
 		</TooltipProvider>

@@ -1,12 +1,20 @@
+import type { ComponentType, ReactNode } from "react";
 import { useEffect, useState } from "react";
-import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import {
-	oneDark,
-	oneLight,
-} from "react-syntax-highlighter/dist/esm/styles/prism";
+
+type SyntaxTheme = Record<string, { [k: string]: unknown } | undefined>;
+
+type SyntaxHighlighterComponent = ComponentType<
+	Record<string, unknown> & { children?: ReactNode }
+>;
+
+interface SyntaxRuntime {
+	SyntaxHighlighter: SyntaxHighlighterComponent;
+	oneDark: SyntaxTheme;
+	oneLight: SyntaxTheme;
+}
 
 // 移除主题中所有背景色的辅助函数
-const removeBackgroundFromTheme = (theme: typeof oneDark) => {
+const removeBackgroundFromTheme = (theme: SyntaxTheme): SyntaxTheme => {
 	const cleanedTheme = { ...theme };
 	Object.keys(cleanedTheme).forEach((key) => {
 		const style = cleanedTheme[key as keyof typeof cleanedTheme];
@@ -45,6 +53,31 @@ export function CodeBlock({ language, children, className }: CodeBlockProps) {
 
 	// 检测当前主题
 	const [isDark, setIsDark] = useState(false);
+	const [runtime, setRuntime] = useState<SyntaxRuntime | null>(null);
+
+	useEffect(() => {
+		let cancelled = false;
+		const loadSyntax = async () => {
+			const [highlighterMod, styleMod] = await Promise.all([
+				import("react-syntax-highlighter"),
+				import("react-syntax-highlighter/dist/esm/styles/prism"),
+			]);
+
+			if (cancelled) return;
+
+			setRuntime({
+				SyntaxHighlighter:
+					highlighterMod.Prism as unknown as SyntaxHighlighterComponent,
+				oneDark: styleMod.oneDark as SyntaxTheme,
+				oneLight: styleMod.oneLight as SyntaxTheme,
+			});
+		};
+
+		void loadSyntax();
+		return () => {
+			cancelled = true;
+		};
+	}, []);
 
 	useEffect(() => {
 		const checkTheme = () => {
@@ -62,8 +95,20 @@ export function CodeBlock({ language, children, className }: CodeBlockProps) {
 	}, []);
 
 	// 创建移除背景色的自定义主题
-	const theme = isDark ? oneDark : oneLight;
+	const theme = isDark ? runtime?.oneDark : runtime?.oneLight;
+
+	if (!runtime || !theme) {
+		return (
+			<div className="not-prose my-4 overflow-x-auto rounded-md border border-border bg-muted/30 code-block-no-text-bg">
+				<pre className="m-0 px-3 py-2 text-xs leading-6 whitespace-pre-wrap break-words">
+					{code}
+				</pre>
+			</div>
+		);
+	}
+
 	const cleanedTheme = removeBackgroundFromTheme(theme);
+	const SyntaxHighlighter = runtime.SyntaxHighlighter;
 
 	return (
 		<div className="not-prose my-4 overflow-x-auto rounded-md border border-border bg-muted/30 code-block-no-text-bg">
