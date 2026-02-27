@@ -1,10 +1,27 @@
 // @ts-nocheck
 import * as alphaTab from "@coderline/alphatab";
 import { FileText } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+	lazy,
+	Suspense,
+	useCallback,
+	useEffect,
+	useRef,
+	useState,
+} from "react";
 import { useTranslation } from "react-i18next";
+import {
+	destroyPreviewApi,
+	usePrintPreviewApiLifecycle,
+} from "../hooks/usePreviewApiLifecycle";
 import { usePreviewBarHighlight } from "../hooks/usePreviewBarHighlight";
 import { usePreviewErrorRecovery } from "../hooks/usePreviewErrorRecovery";
+import { usePreviewEventBindings } from "../hooks/usePreviewEventBindings";
+import {
+	type PreviewLifecycleReason,
+	type PreviewLifecycleState,
+	usePreviewLifecycleTelemetry,
+} from "../hooks/usePreviewLifecycleTelemetry";
 import { usePreviewSelectionSync } from "../hooks/usePreviewSelectionSync";
 import {
 	applyEditorBarNumberColor as applyEditorBarNumberColorLib,
@@ -30,7 +47,6 @@ import {
 } from "../lib/themeManager";
 import { useAppStore } from "../store/appStore";
 import PreviewToolbar from "./PreviewToolbar";
-import PrintPreview from "./PrintPreview";
 import TopBar from "./TopBar";
 import {
 	Tooltip,
@@ -47,6 +63,8 @@ export interface PreviewProps {
 	onEnjoyToggle?: () => void;
 	isEnjoyMode?: boolean;
 }
+
+const PrintPreview = lazy(() => import("./PrintPreview"));
 
 export default function Preview({
 	fileName,
@@ -79,7 +97,10 @@ export default function Preview({
 		lastProbeAt: number;
 	}>({ active: false, prev: null, timeoutId: null });
 	// Error recovery: parse timeout + last valid score restore
-	const errorRecovery = usePreviewErrorRecovery();
+	const errorRecovery = usePreviewErrorRecovery({
+		onTimeoutTriggered: () => increment("timeoutTriggered"),
+		onRecoveryTriggered: () => increment("recoveryTriggered"),
+	});
 	const {
 		parseError,
 		setParseError,
@@ -134,12 +155,109 @@ export default function Preview({
 		score: alphaTab.model.Score | null;
 	} | null>(null);
 	const pendingBarColorRef = useRef<number | null>(null);
+	const lifecycleStateRef = useRef<PreviewLifecycleState>("idle");
+	const listenerTeardownsRef = useRef<Array<() => void>>([]);
+	const lastRebuildAtRef = useRef(0);
+	const lastAppliedPlaybackSpeedRef = useRef<number | null>(null);
+	const lastAppliedMetronomeVolumeRef = useRef<number | null>(null);
+	const lastAppliedCountInRef = useRef<number | null>(null);
+	const lastAppliedTexContentRef = useRef<string | null>(null);
+	const lastPlaybackProgressRef = useRef<{
+		positionTick: number;
+		endTick: number;
+		positionMs: number;
+		endMs: number;
+	} | null>(null);
+	const lastPlayerIsPlayingRef = useRef<boolean | null>(null);
+	const lastPlayerCursorRef = useRef<{
+		barIndex: number;
+		beatIndex: number;
+	} | null>(null);
 
 	const emitApiChange = useCallback(
 		(api: alphaTab.AlphaTabApi | null) => {
 			onApiChange?.(api);
 		},
 		[onApiChange],
+	);
+
+	const { transition, increment, dumpCounters } =
+		usePreviewLifecycleTelemetry();
+	const { bind: bindPreviewEvents, unbindCurrent: unbindPreviewEvents } =
+		usePreviewEventBindings();
+
+	const transitionLifecycle = useCallback(
+		(next: PreviewLifecycleState, reason: PreviewLifecycleReason) => {
+			lifecycleStateRef.current = next;
+			transition(next, reason);
+		},
+		[transition],
+	);
+
+	const runListenerTeardowns = useCallback(() => {
+		while (listenerTeardownsRef.current.length > 0) {
+			const teardown = listenerTeardownsRef.current.pop();
+			teardown?.();
+		}
+		unbindPreviewEvents(increment, dumpCounters);
+	}, [unbindPreviewEvents, increment, dumpCounters]);
+
+	const destroyCurrentApi = useCallback(() => {
+		runListenerTeardowns();
+		increment("apiDestroyed");
+		destroyPreviewApi(apiRef, emitApiChange);
+		lastAppliedPlaybackSpeedRef.current = null;
+		lastAppliedMetronomeVolumeRef.current = null;
+		lastAppliedCountInRef.current = null;
+		lastAppliedTexContentRef.current = null;
+		lastPlaybackProgressRef.current = null;
+		lastPlayerIsPlayingRef.current = null;
+		lastPlayerCursorRef.current = null;
+	}, [runListenerTeardowns, increment, emitApiChange]);
+
+	const setPlayerIsPlayingIfChanged = useCallback((next: boolean) => {
+		if (lastPlayerIsPlayingRef.current === next) return;
+		lastPlayerIsPlayingRef.current = next;
+		useAppStore.getState().setPlayerIsPlaying(next);
+	}, []);
+
+	const setPlayerCursorIfChanged = useCallback(
+		(next: { barIndex: number; beatIndex: number }) => {
+			const prev = lastPlayerCursorRef.current;
+			if (
+				prev &&
+				prev.barIndex === next.barIndex &&
+				prev.beatIndex === next.beatIndex
+			) {
+				return;
+			}
+			lastPlayerCursorRef.current = next;
+			useAppStore.getState().setPlayerCursorPosition(next);
+		},
+		[],
+	);
+
+	const setPlaybackProgressIfChanged = useCallback(
+		(next: {
+			positionTick: number;
+			endTick: number;
+			positionMs: number;
+			endMs: number;
+		}) => {
+			const prev = lastPlaybackProgressRef.current;
+			if (
+				prev &&
+				prev.positionTick === next.positionTick &&
+				prev.endTick === next.endTick &&
+				prev.positionMs === next.positionMs &&
+				prev.endMs === next.endMs
+			) {
+				return;
+			}
+			lastPlaybackProgressRef.current = next;
+			useAppStore.getState().setPlaybackProgress(next);
+		},
+		[],
 	);
 	// Prevent loop from cursor updates triggered by score selection
 	const isEditorCursorFromScoreRef = useRef(false);
@@ -165,8 +283,10 @@ export default function Preview({
 		playbackSpeedRef.current = playbackSpeed;
 		const api = apiRef.current;
 		if (!api) return;
+		if (lastAppliedPlaybackSpeedRef.current === playbackSpeed) return;
 		try {
 			api.playbackSpeed = playbackSpeed;
+			lastAppliedPlaybackSpeedRef.current = playbackSpeed;
 		} catch {
 			// Failed to apply playback speed
 		}
@@ -176,8 +296,10 @@ export default function Preview({
 		metronomeVolumeRef.current = metronomeVolume;
 		const api = apiRef.current;
 		if (!api) return;
+		if (lastAppliedMetronomeVolumeRef.current === metronomeVolume) return;
 		try {
 			api.metronomeVolume = metronomeVolume;
+			lastAppliedMetronomeVolumeRef.current = metronomeVolume;
 		} catch {
 			// Failed to apply metronome volume
 		}
@@ -187,8 +309,11 @@ export default function Preview({
 		countInEnabledRef.current = countInEnabled;
 		const api = apiRef.current;
 		if (!api) return;
+		const next = countInEnabled ? 1 : 0;
+		if (lastAppliedCountInRef.current === next) return;
 		try {
-			api.countInVolume = countInEnabled ? 1 : 0;
+			api.countInVolume = next;
+			lastAppliedCountInRef.current = next;
 		} catch {}
 	}, [countInEnabled]);
 
@@ -461,6 +586,38 @@ export default function Preview({
 		[setFirstStaffOptions],
 	);
 
+	const getBeatStartTick = useCallback(
+		(beat: alphaTab.model.Beat): number | null => {
+			const api = apiRef.current;
+			if (api?.tickCache && typeof api.tickCache.getBeatStart === "function") {
+				const startTick = api.tickCache.getBeatStart(beat);
+				if (typeof startTick === "number" && startTick >= 0) return startTick;
+			}
+
+			const beatCandidate = beat as unknown as {
+				playbackStart?: unknown;
+				displayStart?: unknown;
+			};
+
+			if (
+				typeof beatCandidate.playbackStart === "number" &&
+				beatCandidate.playbackStart >= 0
+			) {
+				return beatCandidate.playbackStart;
+			}
+
+			if (
+				typeof beatCandidate.displayStart === "number" &&
+				beatCandidate.displayStart >= 0
+			) {
+				return beatCandidate.displayStart;
+			}
+
+			return null;
+		},
+		[],
+	);
+
 	// Handle staff toggle requests from GlobalBottomBar
 	useEffect(() => {
 		if (pendingStaffToggle) {
@@ -491,9 +648,26 @@ export default function Preview({
 		 * 确保在初始化和主题重建时都能正确绑定所有功能
 		 */
 		const attachApiListeners = (api: alphaTab.AlphaTabApi) => {
+			const eventTeardowns: Array<() => void> = [];
+			const subscribe = <TArgs extends unknown[]>(
+				emitter:
+					| {
+							on: (...args: TArgs) => unknown;
+					  }
+					| undefined,
+				...args: TArgs
+			) => {
+				if (!emitter) return;
+				try {
+					const off = emitter.on(...args);
+					if (typeof off === "function") {
+						eventTeardowns.push(off);
+					}
+				} catch {}
+			};
 			// 1. 音频加载
 			try {
-				api.soundFontLoaded?.on(() => {
+				subscribe(api.soundFontLoaded, () => {
 					console.info("[Preview] alphaTab soundfont loaded");
 					try {
 						if (api) api.masterVolume = 1.0;
@@ -506,7 +680,7 @@ export default function Preview({
 			}
 
 			// 2. 渲染完成（处理光标，注意：不要修改播放状态）
-			api.renderFinished.on((r) => {
+			subscribe(api.renderFinished, (r) => {
 				console.info("[Preview] alphaTab render complete:", r);
 				// If we are probing TAB on first load, wait a short grace period before finalizing.
 				// Some worker errors can arrive slightly after renderFinished.
@@ -530,7 +704,7 @@ export default function Preview({
 				// if (cursor) cursor.classList.add("hidden");
 				// 渲染完成时回到无高亮状态（避免保留旧的黄色小节高亮导致滚动锁定）
 				useAppStore.getState().clearPlaybackHighlights();
-				useAppStore.getState().setPlaybackProgress({
+				setPlaybackProgressIfChanged({
 					positionTick: 0,
 					endTick:
 						typeof api.endTick === "number" ? Math.max(0, api.endTick) : 0,
@@ -566,12 +740,12 @@ export default function Preview({
 			});
 
 			// 3. 播放进度（更新光标位置）
-			api.playedBeatChanged?.on((beat: alphaTab.model.Beat | null) => {
+			subscribe(api.playedBeatChanged, (beat: alphaTab.model.Beat | null) => {
 				if (!beat) {
 					// 播放停止/结束时回到无高亮状态（同时清除黄色小节高亮的来源）
 					useAppStore.getState().clearPlaybackHighlights();
-					useAppStore.getState().setPlayerIsPlaying(false);
-					useAppStore.getState().setPlaybackProgress({
+					setPlayerIsPlayingIfChanged(false);
+					setPlaybackProgressIfChanged({
 						positionTick: 0,
 						endTick:
 							typeof api.endTick === "number" ? Math.max(0, api.endTick) : 0,
@@ -585,7 +759,7 @@ export default function Preview({
 				const beatIndex = beat.index ?? 0;
 				useAppStore.getState().setPlaybackBeat({ barIndex, beatIndex });
 				// 🆕 同时更新播放器光标位置（暂停后保留）
-				useAppStore.getState().setPlayerCursorPosition({ barIndex, beatIndex });
+				setPlayerCursorIfChanged({ barIndex, beatIndex });
 
 				// 暂时关闭自定义播放器光标更新
 				/*
@@ -605,7 +779,8 @@ export default function Preview({
 				*/
 			});
 
-			api.playerPositionChanged?.on(
+			subscribe(
+				api.playerPositionChanged,
 				(args: {
 					currentTick?: number;
 					endTick?: number;
@@ -637,7 +812,7 @@ export default function Preview({
 								? api.endTime
 								: 0;
 
-					useAppStore.getState().setPlaybackProgress({
+					setPlaybackProgressIfChanged({
 						positionTick: Math.max(0, positionTick),
 						endTick: Math.max(0, endTick),
 						positionMs: Math.max(0, positionMs),
@@ -647,13 +822,13 @@ export default function Preview({
 			);
 
 			// 4. 播放器完成/状态变化事件：确保 UI 与播放器同步
-			api.playerFinished?.on(() => {
+			subscribe(api.playerFinished, () => {
 				console.info("[Preview] alphaTab player finished");
 				// 播放结束后播放器光标可能回到默认位置，但 store 仍可能停留在末尾
 				// 这里强制回到无高亮状态，避免编辑器高亮/滚动锁死在末尾
 				useAppStore.getState().clearPlaybackHighlights();
-				useAppStore.getState().setPlayerIsPlaying(false);
-				useAppStore.getState().setPlaybackProgress({
+				setPlayerIsPlayingIfChanged(false);
+				setPlaybackProgressIfChanged({
 					positionTick: 0,
 					endTick: typeof api.endTick === "number" ? api.endTick : 0,
 					positionMs: 0,
@@ -661,24 +836,27 @@ export default function Preview({
 				});
 			});
 
-			api.playerStateChanged?.on((e: { state: number; stopped?: boolean }) => {
-				console.info("[Preview] alphaTab player state changed:", e);
-				if (e?.stopped) {
-					// stopped 明确表示停止（而不是暂停），停止时清除播放相关高亮
-					useAppStore.getState().clearPlaybackHighlights();
-					useAppStore.getState().setPlayerIsPlaying(false);
-					useAppStore.getState().setPlaybackProgress({
-						positionTick: 0,
-						endTick: typeof api.endTick === "number" ? api.endTick : 0,
-						positionMs: 0,
-						endMs: typeof api.endTime === "number" ? api.endTime : 0,
-					});
-				} else if (e?.state === 1 /* Playing */) {
-					useAppStore.getState().setPlayerIsPlaying(true);
-				} else {
-					useAppStore.getState().setPlayerIsPlaying(false);
-				}
-			});
+			subscribe(
+				api.playerStateChanged,
+				(e: { state: number; stopped?: boolean }) => {
+					console.info("[Preview] alphaTab player state changed:", e);
+					if (e?.stopped) {
+						// stopped 明确表示停止（而不是暂停），停止时清除播放相关高亮
+						useAppStore.getState().clearPlaybackHighlights();
+						setPlayerIsPlayingIfChanged(false);
+						setPlaybackProgressIfChanged({
+							positionTick: 0,
+							endTick: typeof api.endTick === "number" ? api.endTick : 0,
+							positionMs: 0,
+							endMs: typeof api.endTime === "number" ? api.endTime : 0,
+						});
+					} else if (e?.state === 1 /* Playing */) {
+						setPlayerIsPlayingIfChanged(true);
+					} else {
+						setPlayerIsPlayingIfChanged(false);
+					}
+				},
+			);
 
 			// 🆕 Register playback controls to store so controls can live outside of Preview
 			try {
@@ -713,7 +891,7 @@ export default function Preview({
 								api.stop?.();
 
 								// 先设置播放器光标位置
-								useAppStore.getState().setPlayerCursorPosition({
+								setPlayerCursorIfChanged({
 									barIndex,
 									beatIndex,
 								});
@@ -721,43 +899,10 @@ export default function Preview({
 								// 尝试设置播放位置
 								let positionSet = false;
 								try {
-									// 方法 1: 使用 tickCache.getBeatStart() 获取 beat 的开始 tick 位置
-									// 这是 alphaTab 官方推荐的方法
-									if (
-										api.tickCache &&
-										typeof api.tickCache.getBeatStart === "function"
-									) {
-										const startTick = api.tickCache.getBeatStart(firstBeat);
-										if (
-											startTick !== undefined &&
-											startTick !== null &&
-											startTick >= 0
-										) {
-											api.tickPosition = startTick;
-											positionSet = true;
-										}
-									}
-
-									// 方法 2: 如果 tickCache 不可用，尝试使用 beat 的属性
-									if (!positionSet) {
-										// @ts-expect-error - beat 可能有 playbackStart 属性
-										if (
-											firstBeat.playbackStart !== undefined &&
-											firstBeat.playbackStart !== null
-										) {
-											// @ts-expect-error
-											api.tickPosition = firstBeat.playbackStart;
-											positionSet = true;
-										}
-										// @ts-expect-error
-										else if (
-											firstBeat.displayStart !== undefined &&
-											firstBeat.displayStart !== null
-										) {
-											// @ts-expect-error
-											api.tickPosition = firstBeat.displayStart;
-											positionSet = true;
-										}
+									const startTick = getBeatStartTick(firstBeat);
+									if (typeof startTick === "number") {
+										api.tickPosition = startTick;
+										positionSet = true;
 									}
 								} catch (err) {
 									console.warn(
@@ -798,7 +943,7 @@ export default function Preview({
 						useAppStore.getState().clearPlaybackHighlights();
 
 						// 4. 重置播放器状态
-						useAppStore.getState().setPlayerIsPlaying(false);
+						setPlayerIsPlayingIfChanged(false);
 
 						// 5. 清除编辑器光标相关的 refs（避免残留状态）
 						isHighlightFromEditorCursorRef.current = false;
@@ -860,29 +1005,7 @@ export default function Preview({
 						lastEditorCursorSelectionRef.current = null;
 
 						// 3. 销毁当前 API
-						if (apiRef.current) {
-							// 清理主题观察者
-							const unsubscribeTheme = (
-								apiRef.current as unknown as Record<string, unknown>
-							).__unsubscribeTheme;
-							if (typeof unsubscribeTheme === "function") {
-								unsubscribeTheme();
-							}
-
-							// 取消注册播放器控制
-							try {
-								useAppStore.getState().unregisterPlayerControls();
-							} catch {
-								// Failed to unregister player controls
-							}
-
-							// 销毁 API
-							apiRef.current.destroy();
-							apiRef.current = null;
-
-							// 清除选区高亮
-							useAppStore.getState().clearScoreSelection();
-						}
+						destroyPreviewApi(apiRef, emitApiChange);
 
 						// 4. 清除 pending tex 相关计时器
 						clearTexTimeout();
@@ -930,7 +1053,7 @@ export default function Preview({
 								typeof api.timePosition === "number"
 									? Math.max(0, api.timePosition)
 									: fallbackPositionMs;
-							useAppStore.getState().setPlaybackProgress({
+							setPlaybackProgressIfChanged({
 								positionTick: targetTick,
 								endTick,
 								positionMs,
@@ -947,7 +1070,7 @@ export default function Preview({
 			}
 
 			// 3.6. 点击曲谱时更新播放器光标位置（不播放也能设置）
-			api.beatMouseDown?.on((beat: alphaTab.model.Beat) => {
+			subscribe(api.beatMouseDown, (beat: alphaTab.model.Beat) => {
 				if (!beat) return;
 				const barIndex = beat.voice?.bar?.index ?? 0;
 				const beatIndex = beat.index ?? 0;
@@ -957,12 +1080,12 @@ export default function Preview({
 				// 🆕 清除用户手动选择的选区高亮（点击乐谱时，应该清除之前的选区）
 				useAppStore.getState().clearScoreSelection();
 				// 更新播放器光标位置，触发编辑器黄色高亮
-				useAppStore.getState().setPlayerCursorPosition({ barIndex, beatIndex });
+				setPlayerCursorIfChanged({ barIndex, beatIndex });
 			});
 
 			// 🆕 3.5. Selection API (alphaTab 1.8.0+): 监听选区变化，同步到编辑器
 			try {
-				api.playbackRangeHighlightChanged?.on((e) => {
+				subscribe(api.playbackRangeHighlightChanged, (e) => {
 					const { setScoreSelection, clearScoreSelection } =
 						useAppStore.getState();
 
@@ -1035,7 +1158,7 @@ export default function Preview({
 			}
 
 			// 4. 改进的错误处理：保留上一次成功的渲染
-			api.error.on((err: unknown) => {
+			subscribe(api.error, (err: unknown) => {
 				const fullError = formatFullError(err);
 				const now = Date.now();
 				const recentlyProbed =
@@ -1080,7 +1203,7 @@ export default function Preview({
 			});
 
 			// 5. 处理 scoreLoaded 事件：保存成功的乐谱并清除错误
-			api.scoreLoaded.on((score) => {
+			subscribe(api.scoreLoaded, (score) => {
 				try {
 					if (score?.tracks && score.tracks.length > 0) {
 						bumpScoreVersion();
@@ -1127,10 +1250,31 @@ export default function Preview({
 					console.error("[Preview] Failed to apply tracks config", e);
 				}
 			});
+			return () => {
+				for (let i = eventTeardowns.length - 1; i >= 0; i -= 1) {
+					try {
+						eventTeardowns[i]?.();
+					} catch {}
+				}
+			};
+		};
+
+		const bindListenersForApi = (api: alphaTab.AlphaTabApi) => {
+			const teardown = bindPreviewEvents({
+				api,
+				attachApiListeners,
+				incrementCounter: increment,
+				dumpCounters,
+			});
+			if (typeof teardown === "function") {
+				listenerTeardownsRef.current.push(teardown);
+			}
 		};
 
 		const initAlphaTab = async () => {
 			try {
+				transitionLifecycle("initializing", "initAlphaTab-start");
+				dumpCounters("init-start");
 				const parsedAtDoc = parseAtDoc(latestContentRef.current ?? "");
 				atDocConfigRef.current = parsedAtDoc.config;
 				syncStoreFromAtDoc(parsedAtDoc.config);
@@ -1168,6 +1312,7 @@ export default function Preview({
 					});
 
 					apiRef.current = new alphaTab.AlphaTabApi(el, settings);
+					increment("apiCreated");
 					emitApiChange(apiRef.current);
 					bumpApiInstanceId();
 
@@ -1184,13 +1329,18 @@ export default function Preview({
 					}
 
 					// 4. 附加监听器
-					attachApiListeners(apiRef.current);
+					bindListenersForApi(apiRef.current);
 
 					// 5. 设置主题监听器（监听暗色模式变化）
 					const unsubscribeTheme = setupThemeObserver(() => {
 						// 当主题变化时，重建 API 以应用新的颜色配置
 
 						if (apiRef.current && latestContentRef.current) {
+							const now = Date.now();
+							if (now - lastRebuildAtRef.current < 250) return;
+							lastRebuildAtRef.current = now;
+							increment("rebuildRequested");
+							transitionLifecycle("rebuilding", "theme-observer");
 							// 使用 void 操作符确保异步操作在后台执行（不阻塞回调）
 							void (async () => {
 								try {
@@ -1213,12 +1363,7 @@ export default function Preview({
 										latestContentRef.current,
 									).cleanContent;
 
-									// 销毁旧的 API
-									apiRef.current?.destroy();
-									emitApiChange(null);
-
-									// 🆕 销毁旧 API 时清除选区高亮（避免旧 API 的选区残留）
-									useAppStore.getState().clearScoreSelection();
+									destroyCurrentApi();
 
 									// 获取新的颜色配置
 									const newColors = getAlphaTabColorsForTheme();
@@ -1238,6 +1383,7 @@ export default function Preview({
 
 									// 创建新的 API
 									apiRef.current = new alphaTab.AlphaTabApi(el, newSettings);
+									increment("apiCreated");
 									emitApiChange(apiRef.current);
 									bumpApiInstanceId();
 
@@ -1256,7 +1402,7 @@ export default function Preview({
 									}
 
 									// 🆕 附加所有监听器（包括 scoreLoaded, error, playback 等）
-									attachApiListeners(apiRef.current);
+									bindListenersForApi(apiRef.current);
 
 									// 重新加载音频
 									await loadSoundFontFromUrl(apiRef.current, urls.soundFontUrl);
@@ -1268,6 +1414,9 @@ export default function Preview({
 										});
 										markLoadAsUserContent(true);
 										apiRef.current.tex(currentContent);
+										increment("rebuildCompleted");
+										transitionLifecycle("ready", "theme-rebuild-complete");
+										dumpCounters("theme-rebuild-complete");
 									} catch (syncError) {
 										console.error(
 											"[Preview] Synchronous error in theme rebuild tex():",
@@ -1302,10 +1451,16 @@ export default function Preview({
 				pendingContentRef.current = null;
 
 				if (apiRef.current && initialContent) {
+					if (lastAppliedTexContentRef.current === initialContent) {
+						transitionLifecycle("ready", "initAlphaTab-done-noop");
+						dumpCounters("init-done-noop-tex");
+						return;
+					}
 					try {
 						scheduleTexTimeout(initialContent);
 						markLoadAsUserContent(true);
 						apiRef.current.tex(initialContent);
+						lastAppliedTexContentRef.current = initialContent;
 					} catch (syncError) {
 						console.error("[Preview] Synchronous error in tex():", syncError);
 						const errorMsg =
@@ -1318,12 +1473,21 @@ export default function Preview({
 						);
 					}
 				} else if (apiRef.current && !initialContent) {
+					if (lastAppliedTexContentRef.current === "") {
+						transitionLifecycle("ready", "initAlphaTab-done-empty-noop");
+						dumpCounters("init-done-empty-noop");
+						return;
+					}
 					clearTexTimeout();
 					setParseError(null);
 					markLoadAsUserContent(true);
 					apiRef.current.tex("");
+					lastAppliedTexContentRef.current = "";
 				}
+				transitionLifecycle("ready", "initAlphaTab-done");
+				dumpCounters("init-done");
 			} catch (err) {
+				transitionLifecycle("error", "initAlphaTab-error");
 				console.error("[Preview] Failed to initialize alphaTab:", err);
 			}
 		};
@@ -1332,24 +1496,14 @@ export default function Preview({
 
 		// Cleanup on unmount
 		return () => {
-			if (apiRef.current) {
-				// 清理主题观察者
-				const unsubscribeTheme = (
-					apiRef.current as unknown as Record<string, unknown>
-				).__unsubscribeTheme;
-				if (typeof unsubscribeTheme === "function") {
-					unsubscribeTheme();
-				}
-				apiRef.current.destroy();
-				apiRef.current = null;
-				emitApiChange(null);
-
-				// 🆕 销毁 API 时清除选区高亮（避免旧 API 的选区残留）
-				useAppStore.getState().clearScoreSelection();
-			}
+			destroyCurrentApi();
+			transitionLifecycle("destroyed", "preview-unmount");
+			dumpCounters("preview-unmount");
 			clearTexTimeout();
 		};
 	}, [
+		destroyCurrentApi,
+		bindPreviewEvents,
 		applyTracksConfig,
 		reinitTrigger,
 		applyZoom,
@@ -1371,6 +1525,13 @@ export default function Preview({
 		onScoreLoadedMatch,
 		setParseError,
 		setFirstStaffOptions,
+		getBeatStartTick,
+		increment,
+		dumpCounters,
+		transitionLifecycle,
+		setPlaybackProgressIfChanged,
+		setPlayerCursorIfChanged,
+		setPlayerIsPlayingIfChanged,
 	]);
 
 	// 内容更新：仅调用 tex，不销毁 API，避免闪烁
@@ -1397,10 +1558,14 @@ export default function Preview({
 		useAppStore.getState().clearScoreSelection();
 
 		if (contentToApply) {
+			if (lastAppliedTexContentRef.current === contentToApply) {
+				return;
+			}
 			try {
 				scheduleTexTimeout(contentToApply);
 				markLoadAsUserContent(true);
 				api.tex(contentToApply);
+				lastAppliedTexContentRef.current = contentToApply;
 			} catch (syncError) {
 				console.error("[Preview] Synchronous error in tex():", syncError);
 				const errorMsg =
@@ -1411,11 +1576,15 @@ export default function Preview({
 				);
 			}
 		} else {
+			if (lastAppliedTexContentRef.current === "") {
+				return;
+			}
 			clearTexTimeout();
 			setParseError(null);
 			markLoadAsUserContent(true);
 			try {
 				api.tex("");
+				lastAppliedTexContentRef.current = "";
 			} catch (emptyErr) {
 				console.error("[Preview] Failed to clear score:", emptyErr);
 			}
@@ -1429,40 +1598,13 @@ export default function Preview({
 		setParseError,
 	]);
 
-	// 管理打印预览的生命周期：销毁和重建 alphaTab API 以避免设置污染
-	useEffect(() => {
-		if (showPrintPreview) {
-			// 打开打印预览：销毁当前 API 释放资源（特别是字体缓存）
-			// Destroying API for print preview
-			if (apiRef.current) {
-				// 清理主题观察者
-				const unsubscribeTheme = (
-					apiRef.current as unknown as Record<string, unknown>
-				).__unsubscribeTheme;
-				if (typeof unsubscribeTheme === "function") {
-					unsubscribeTheme();
-				}
-				// Unregister controls from store so bottom bar won't call destroyed API
-				try {
-					useAppStore.getState().unregisterPlayerControls();
-				} catch {
-					// Failed to unregister player controls
-				}
-				apiRef.current.destroy();
-				apiRef.current = null;
-				emitApiChange(null);
-
-				// 🆕 销毁 API 时清除选区高亮（避免旧 API 的选区残留）
-				useAppStore.getState().clearScoreSelection();
-			}
-		} else if (!showPrintPreview && !apiRef.current) {
-			// 关闭打印预览：延迟重新初始化 API，确保 PrintPreview 完全卸载
-			const timer = setTimeout(() => {
-				setReinitTrigger((prev) => prev + 1);
-			}, 150);
-			return () => clearTimeout(timer);
-		}
-	}, [showPrintPreview, emitApiChange]);
+	usePrintPreviewApiLifecycle({
+		showPrintPreview,
+		apiRef,
+		emitApiChange,
+		setReinitTrigger,
+		onBeforeDestroy: destroyCurrentApi,
+	});
 
 	return (
 		<TooltipProvider delayDuration={200}>
@@ -1549,11 +1691,15 @@ export default function Preview({
 
 				{/* 打印预览模态窗口 */}
 				{showPrintPreview && content && (
-					<PrintPreview
-						content={content}
-						fileName={fileName}
-						onClose={() => setShowPrintPreview(false)}
-					/>
+					<Suspense
+						fallback={<div className="flex-1 bg-background" aria-busy="true" />}
+					>
+						<PrintPreview
+							content={content}
+							fileName={fileName}
+							onClose={() => setShowPrintPreview(false)}
+						/>
+					</Suspense>
 				)}
 			</div>
 		</TooltipProvider>

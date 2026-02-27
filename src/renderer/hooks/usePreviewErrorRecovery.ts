@@ -3,7 +3,7 @@
  */
 
 import type * as alphaTab from "@coderline/alphatab";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 export const TEX_TIMEOUT_MS = 3000;
 const DEFAULT_TIMEOUT_MESSAGE = "AlphaTex 解析超时（未加载新乐谱）";
@@ -39,7 +39,22 @@ export interface UsePreviewErrorRecoveryReturn {
 	markLoadAsUserContent: (value: boolean) => void;
 }
 
-export function usePreviewErrorRecovery(): UsePreviewErrorRecoveryReturn {
+interface UsePreviewErrorRecoveryOptions {
+	onTimeoutTriggered?: () => void;
+	onRecoveryTriggered?: () => void;
+}
+
+export function usePreviewErrorRecovery(
+	options?: UsePreviewErrorRecoveryOptions,
+): UsePreviewErrorRecoveryReturn {
+	const onTimeoutTriggeredRef = useRef(options?.onTimeoutTriggered);
+	const onRecoveryTriggeredRef = useRef(options?.onRecoveryTriggered);
+
+	useEffect(() => {
+		onTimeoutTriggeredRef.current = options?.onTimeoutTriggered;
+		onRecoveryTriggeredRef.current = options?.onRecoveryTriggered;
+	}, [options?.onTimeoutTriggered, options?.onRecoveryTriggered]);
+
 	const [parseError, setParseError] = useState<string | null>(null);
 	const [restorePerformed, setRestorePerformed] = useState(false);
 
@@ -55,18 +70,23 @@ export function usePreviewErrorRecovery(): UsePreviewErrorRecoveryReturn {
 	const scheduleTexTimeout = useCallback(
 		(
 			content: string,
-			options?: { timeoutMessage?: string; setErrorOnTimeout?: boolean },
+			timeoutOptions?: {
+				timeoutMessage?: string;
+				setErrorOnTimeout?: boolean;
+			},
 		) => {
 			texSeqRef.current += 1;
 			const seq = texSeqRef.current;
-			const setErrorOnTimeout = options?.setErrorOnTimeout !== false;
-			const timeoutMessage = options?.timeoutMessage ?? DEFAULT_TIMEOUT_MESSAGE;
+			const setErrorOnTimeout = timeoutOptions?.setErrorOnTimeout !== false;
+			const timeoutMessage =
+				timeoutOptions?.timeoutMessage ?? DEFAULT_TIMEOUT_MESSAGE;
 			pendingTexRef.current = { id: seq, content };
 			if (pendingTexTimerRef.current) {
 				clearTimeout(pendingTexTimerRef.current);
 			}
 			pendingTexTimerRef.current = window.setTimeout(() => {
 				if (pendingTexRef.current?.id === seq && setErrorOnTimeout) {
+					onTimeoutTriggeredRef.current?.();
 					setParseError(`${timeoutMessage}（等待解析结果或检查语法）`);
 				}
 			}, TEX_TIMEOUT_MS);
@@ -93,6 +113,7 @@ export function usePreviewErrorRecovery(): UsePreviewErrorRecoveryReturn {
 			pendingTexRef.current = null;
 			if (lastValidScoreRef.current?.score && api) {
 				try {
+					onRecoveryTriggeredRef.current?.();
 					lastLoadWasUserContentRef.current = false;
 					setRestorePerformed(true);
 					api.renderScore(lastValidScoreRef.current.score, [0]);

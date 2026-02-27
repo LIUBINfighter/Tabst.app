@@ -1,13 +1,14 @@
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Editor } from "./components/Editor";
 import GlobalBottomBar from "./components/GlobalBottomBar";
-import GlobalCommandPalette, {
-	type GlobalCommandId,
-} from "./components/GlobalCommandPalette";
-import QuickFileSwitcher from "./components/QuickFileSwitcher";
-import SettingsView from "./components/SettingsView";
+import type { GlobalCommandId } from "./components/GlobalCommandPalette";
+
+const SettingsView = lazy(() => import("./components/SettingsView"));
+
 import { Sidebar } from "./components/Sidebar";
-import TutorialView from "./components/TutorialView";
+
+const TutorialView = lazy(() => import("./components/TutorialView"));
+
 import UpdateToast from "./components/UpdateToast";
 import { useFileOperations } from "./hooks/useFileOperations";
 import { getAlphaTexHighlight } from "./lib/alphatex-highlight";
@@ -18,6 +19,11 @@ import {
 	type EditorCommandId,
 } from "./lib/command-palette";
 import { useAppStore } from "./store/appStore";
+
+const QuickFileSwitcher = lazy(() => import("./components/QuickFileSwitcher"));
+const GlobalCommandPalette = lazy(
+	() => import("./components/GlobalCommandPalette"),
+);
 
 function App() {
 	const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -191,10 +197,29 @@ function App() {
 			return SUPPORTED_EXTENSIONS.current.has(ext);
 		};
 
+		const pruneRecentFsEvents = (now: number) => {
+			for (const [k, ts] of fsRecentEventRef.current) {
+				if (now - ts > 2_000) {
+					fsRecentEventRef.current.delete(k);
+				}
+			}
+
+			if (fsRecentEventRef.current.size > 500) {
+				const extra = fsRecentEventRef.current.size - 500;
+				let removed = 0;
+				for (const k of fsRecentEventRef.current.keys()) {
+					fsRecentEventRef.current.delete(k);
+					removed += 1;
+					if (removed >= extra) break;
+				}
+			}
+		};
+
 		const scheduleRefresh = (eventType: string, changedPath?: string) => {
 			if (!shouldProcessChange(changedPath)) return;
 
 			const now = Date.now();
+			pruneRecentFsEvents(now);
 			const eventKey = `${eventType}:${changedPath ?? ""}`;
 			const lastTs = fsRecentEventRef.current.get(eventKey) ?? 0;
 			if (now - lastTs < 120) return;
@@ -288,18 +313,26 @@ function App() {
 					/>
 				)}
 				{workspaceMode === "tutorial" && (
-					<TutorialView
-						showExpandSidebar={sidebarCollapsed}
-						onExpandSidebar={() => setSidebarCollapsed(false)}
-						onCollapseSidebar={() => setSidebarCollapsed(true)}
-					/>
+					<Suspense
+						fallback={<div className="flex-1 bg-background" aria-busy="true" />}
+					>
+						<TutorialView
+							showExpandSidebar={sidebarCollapsed}
+							onExpandSidebar={() => setSidebarCollapsed(false)}
+							onCollapseSidebar={() => setSidebarCollapsed(true)}
+						/>
+					</Suspense>
 				)}
 				{workspaceMode === "settings" && (
-					<SettingsView
-						showExpandSidebar={sidebarCollapsed}
-						onExpandSidebar={() => setSidebarCollapsed(false)}
-						onCollapseSidebar={() => setSidebarCollapsed(true)}
-					/>
+					<Suspense
+						fallback={<div className="flex-1 bg-background" aria-busy="true" />}
+					>
+						<SettingsView
+							showExpandSidebar={sidebarCollapsed}
+							onExpandSidebar={() => setSidebarCollapsed(false)}
+							onCollapseSidebar={() => setSidebarCollapsed(true)}
+						/>
+					</Suspense>
 				)}
 
 				{/* 全局底部栏（放在主内容流中，保持与 Editor 排列，不再遮挡内容） */}
@@ -307,15 +340,23 @@ function App() {
 			</div>
 
 			<UpdateToast />
-			<QuickFileSwitcher
-				open={quickSwitcherOpen}
-				onOpenChange={setQuickSwitcherOpen}
-			/>
-			<GlobalCommandPalette
-				open={globalPaletteOpen}
-				onOpenChange={setGlobalPaletteOpen}
-				onRunCommand={runGlobalCommand}
-			/>
+			{quickSwitcherOpen && (
+				<Suspense fallback={null}>
+					<QuickFileSwitcher
+						open={quickSwitcherOpen}
+						onOpenChange={setQuickSwitcherOpen}
+					/>
+				</Suspense>
+			)}
+			{globalPaletteOpen && (
+				<Suspense fallback={null}>
+					<GlobalCommandPalette
+						open={globalPaletteOpen}
+						onOpenChange={setGlobalPaletteOpen}
+						onRunCommand={runGlobalCommand}
+					/>
+				</Suspense>
+			)}
 		</div>
 	);
 }
