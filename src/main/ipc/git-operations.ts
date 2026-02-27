@@ -423,6 +423,7 @@ async function runGit(
 			}
 			reject(new GitCommandError(`git ${args.join(" ")} failed`, result));
 		});
+		child.stdin.end();
 	});
 }
 
@@ -666,6 +667,7 @@ export async function handleStageAllGitChanges(
 export async function handleSyncGitPull(
 	_event: Electron.IpcMainInvokeEvent,
 	repoPath: string,
+	remoteName?: string,
 ): Promise<GitActionResponse> {
 	const normalizedRepoPath = normalizeRepoPath(repoPath);
 	if (!normalizedRepoPath) {
@@ -674,7 +676,11 @@ export async function handleSyncGitPull(
 
 	try {
 		await assertGitRepository(normalizedRepoPath);
-		await runGit(normalizedRepoPath, ["pull", "--ff-only"]);
+		const normalizedRemoteName = remoteName?.trim();
+		const pullArgs = normalizedRemoteName
+			? ["pull", "--ff-only", normalizedRemoteName]
+			: ["pull", "--ff-only"];
+		await runGit(normalizedRepoPath, pullArgs);
 		return { success: true };
 	} catch (error) {
 		return { success: false, error: formatGitError(error) };

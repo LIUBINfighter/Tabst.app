@@ -48,10 +48,23 @@ function fileLabel(entry: { path: string; fromPath?: string }): string {
 	return entry.path;
 }
 
+function formatRepoPathForTerminal(repoPath: string): string {
+	const macHomePrefix = /^\/Users\/[^/]+/;
+	const linuxHomePrefix = /^\/home\/[^/]+/;
+	if (macHomePrefix.test(repoPath)) {
+		return repoPath.replace(macHomePrefix, "~");
+	}
+	if (linuxHomePrefix.test(repoPath)) {
+		return repoPath.replace(linuxHomePrefix, "~");
+	}
+	return repoPath;
+}
+
 export function GitSidebar() {
 	const { t } = useTranslation("sidebar");
 	const workspaceMode = useAppStore((s) => s.workspaceMode);
 	const activeRepoId = useAppStore((s) => s.activeRepoId);
+	const repos = useAppStore((s) => s.repos);
 	const gitStatus = useAppStore((s) => s.gitStatus);
 	const gitStatusLoading = useAppStore((s) => s.gitStatusLoading);
 	const gitStatusError = useAppStore((s) => s.gitStatusError);
@@ -67,6 +80,11 @@ export function GitSidebar() {
 	const syncGitPull = useAppStore((s) => s.syncGitPull);
 	const commitGitChanges = useAppStore((s) => s.commitGitChanges);
 	const rowOrderRef = useRef<Map<string, number>>(new Map());
+
+	const activeRepoPath = useMemo(
+		() => repos.find((repo) => repo.id === activeRepoId)?.path ?? "",
+		[repos, activeRepoId],
+	);
 
 	useEffect(() => {
 		if (workspaceMode !== "git") return;
@@ -220,9 +238,24 @@ export function GitSidebar() {
 			) : null}
 
 			{gitActionError ? (
-				<div className="mx-2 mb-2 p-2 text-xs rounded border border-destructive/40 bg-destructive/10 text-destructive flex items-start gap-2">
-					<AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-					<span>{gitActionError}</span>
+				<div className="mx-2 mb-2 p-2 text-xs rounded border border-destructive/40 bg-destructive/10 text-destructive space-y-2">
+					<div className="flex items-start gap-2">
+						<AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+						<span>{gitActionError}</span>
+					</div>
+					{activeRepoPath ? (
+						<div className="space-y-1.5">
+							<div className="text-[11px] text-destructive/90">
+								{t("gitRepoPathLabel")}
+							</div>
+							<div className="rounded border border-destructive/20 bg-background/70 px-2 py-1 text-[11px] text-foreground font-mono select-all break-all">
+								{formatRepoPathForTerminal(activeRepoPath)}
+							</div>
+							<div className="text-[10px] text-destructive/80">
+								{t("gitRepoPathHelp")}
+							</div>
+						</div>
+					) : null}
 				</div>
 			) : null}
 

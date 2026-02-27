@@ -40,6 +40,8 @@
 	"gitCommitButton": "提交",
 	"gitCommitting": "提交中...",
 	"gitSyncButton": "同步",
+	"gitRepoPathLabel": "仓库路径",
+	"gitRepoPathHelp": "可复制此路径并在终端执行 git 命令。",
 	"gitAddAllButton": "全部暂存",
 	"gitPrimaryAdd": "添加",
 	"gitPrimaryAddKeys": "回车 / 空格",

@@ -463,7 +463,7 @@ export function createWebElectronAPI(): ElectronAPI {
 			error: "Unsupported in web runtime",
 		}),
 
-		syncGitPull: async () => ({
+		syncGitPull: async (_repoPath: string, _remoteName?: string) => ({
 			success: false,
 			error: "Unsupported in web runtime",
 		}),

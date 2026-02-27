@@ -2,10 +2,11 @@ import { EditorState, RangeSetBuilder } from "@codemirror/state";
 import {
 	Decoration,
 	EditorView,
+	GutterMarker,
+	gutter,
 	ViewPlugin,
 	type ViewUpdate,
 } from "@codemirror/view";
-import { basicSetup } from "codemirror";
 import {
 	AlertCircle,
 	ArrowLeft,
@@ -20,6 +21,10 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
+import {
+	type ParsedUnifiedDiff,
+	parseUnifiedDiff,
+} from "../lib/git-unified-diff";
 import { useAppStore } from "../store/appStore";
 import type { GitChangeEntry, GitChangeGroup } from "../types/git";
 import TopBar from "./TopBar";
@@ -34,6 +39,7 @@ import {
 
 interface ReadonlyDiffCodeProps {
 	content: string;
+	parsedDiff: ParsedUnifiedDiff | null;
 }
 
 const addedLineDecoration = Decoration.line({ class: "cm-gitdiff-add-line" });
@@ -97,9 +103,17 @@ const readonlyDiffTheme = EditorView.theme({
 		color: "hsl(var(--muted-foreground))",
 		borderRight: "1px solid hsl(var(--border))",
 	},
-	".cm-lineNumbers .cm-gutterElement": {
-		padding: "0 10px 0 8px",
-		opacity: "0.78",
+	".cm-realLineGutter": {
+		backgroundColor: "hsl(var(--card))",
+		borderRight: "1px solid hsl(var(--border))",
+	},
+	".cm-realLineGutter .cm-gutterElement": {
+		padding: "0 8px",
+		minWidth: "7.5ch",
+		textAlign: "right",
+		opacity: "0.82",
+		fontVariantNumeric: "tabular-nums",
+		whiteSpace: "pre",
 	},
 	".cm-activeLine, .cm-activeLineGutter": {
 		backgroundColor: "transparent",
@@ -114,9 +128,90 @@ const readonlyDiffTheme = EditorView.theme({
 	},
 });
 
-function ReadonlyDiffCode({ content }: ReadonlyDiffCodeProps) {
+class RealLineNumberMarker extends GutterMarker {
+	private label: string;
+
+	constructor(label: string) {
+		super();
+		this.label = label;
+	}
+
+	eq(other: RealLineNumberMarker) {
+		return this.label === other.label;
+	}
+
+	toDOM() {
+		const element = document.createElement("span");
+		element.textContent = this.label;
+		element.className = "cm-real-line-number";
+		return element;
+	}
+}
+
+function createRealLineNumberLabels(
+	parsedDiff: ParsedUnifiedDiff | null,
+): string[] {
+	if (!parsedDiff) return [];
+
+	const maxOld = parsedDiff.lines.reduce(
+		(max, line) =>
+			line.oldLine !== null && line.oldLine > max ? line.oldLine : max,
+		0,
+	);
+	const maxNew = parsedDiff.lines.reduce(
+		(max, line) =>
+			line.newLine !== null && line.newLine > max ? line.newLine : max,
+		0,
+	);
+
+	const oldWidth = Math.max(1, String(maxOld || 0).length);
+	const newWidth = Math.max(1, String(maxNew || 0).length);
+
+	return parsedDiff.lines.map((line) => {
+		if (line.oldLine === null && line.newLine === null) {
+			return "";
+		}
+
+		const oldLabel =
+			line.oldLine === null
+				? " ".repeat(oldWidth)
+				: String(line.oldLine).padStart(oldWidth, " ");
+		const newLabel =
+			line.newLine === null
+				? " ".repeat(newWidth)
+				: String(line.newLine).padStart(newWidth, " ");
+		return `${oldLabel}│${newLabel}`;
+	});
+}
+
+function createRealLineNumberGutter(parsedDiff: ParsedUnifiedDiff | null) {
+	const labels = createRealLineNumberLabels(parsedDiff);
+	const maxLabel = labels.reduce(
+		(max, label) => (label.length > max.length ? label : max),
+		"",
+	);
+
+	return gutter({
+		class: "cm-realLineGutter",
+		lineMarker(view, line) {
+			const lineNumber = view.state.doc.lineAt(line.from).number;
+			const label = labels[lineNumber - 1] ?? "";
+			return new RealLineNumberMarker(label);
+		},
+		initialSpacer() {
+			return new RealLineNumberMarker(maxLabel || "1│1");
+		},
+	});
+}
+
+function ReadonlyDiffCode({ content, parsedDiff }: ReadonlyDiffCodeProps) {
 	const containerRef = useRef<HTMLDivElement | null>(null);
 	const viewRef = useRef<EditorView | null>(null);
+
+	const realLineNumberGutter = useMemo(
+		() => createRealLineNumberGutter(parsedDiff),
+		[parsedDiff],
+	);
 
 	useEffect(() => {
 		if (!containerRef.current) return;
@@ -128,11 +223,11 @@ function ReadonlyDiffCode({ content }: ReadonlyDiffCodeProps) {
 		const state = EditorState.create({
 			doc: content,
 			extensions: [
-				basicSetup,
 				EditorState.readOnly.of(true),
 				EditorView.editable.of(false),
 				readonlyDiffTheme,
 				diffLineExtension,
+				realLineNumberGutter,
 			],
 		});
 
@@ -144,7 +239,7 @@ function ReadonlyDiffCode({ content }: ReadonlyDiffCodeProps) {
 				viewRef.current = null;
 			}
 		};
-	}, [content]);
+	}, [content, realLineNumberGutter]);
 
 	return <div ref={containerRef} className="h-full w-full overflow-hidden" />;
 }
@@ -280,6 +375,13 @@ export default function GitWorkspace({
 	const selectedRow = selectedIndex >= 0 ? rows[selectedIndex] : null;
 	const canAddCurrent =
 		!!selectedRow && (!selectedRow.staged || selectedRow.partiallyStaged);
+
+	const parsedDiff = useMemo(() => {
+		if (!gitDiff || gitDiff.binary || gitDiff.mode !== "patch") {
+			return null;
+		}
+		return parseUnifiedDiff(gitDiff.content);
+	}, [gitDiff]);
 
 	const selectRow = useCallback(
 		async (row: UnifiedRow | null) => {
@@ -471,6 +573,7 @@ export default function GitWorkspace({
 					) : (
 						<ReadonlyDiffCode
 							content={gitDiff?.content || t("sidebar:gitEmptyDiffFallback")}
+							parsedDiff={parsedDiff}
 						/>
 					)}
 

@@ -165,8 +165,9 @@ contextBridge.exposeInMainWorld("electronAPI", {
 		ipcRenderer.invoke("unstage-git-file", repoPath, filePath),
 	syncGitPull: (
 		repoPath: string,
+		remoteName?: string,
 	): Promise<{ success: boolean; error?: string }> =>
-		ipcRenderer.invoke("sync-git-pull", repoPath),
+		ipcRenderer.invoke("sync-git-pull", repoPath, remoteName),
 	commitGitChanges: (
 		repoPath: string,
 		message: string,

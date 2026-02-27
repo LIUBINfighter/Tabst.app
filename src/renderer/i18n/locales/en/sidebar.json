@@ -43,6 +43,8 @@
 	"gitCommitButton": "Commit",
 	"gitCommitting": "Committing...",
 	"gitSyncButton": "Sync",
+	"gitRepoPathLabel": "Repository path",
+	"gitRepoPathHelp": "Copy this path and run git commands in your terminal.",
 	"gitAddAllButton": "Add All",
 	"gitPrimaryAdd": "Add",
 	"gitPrimaryAddKeys": "Enter / Space",

@@ -116,6 +116,7 @@ export interface ElectronAPI {
 	) => Promise<{ success: boolean; error?: string }>;
 	syncGitPull: (
 		repoPath: string,
+		remoteName?: string,
 	) => Promise<{ success: boolean; error?: string }>;
 	commitGitChanges: (
 		repoPath: string,
