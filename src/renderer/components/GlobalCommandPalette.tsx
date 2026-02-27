@@ -9,11 +9,8 @@ import {
 	Sparkles,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import {
-	type CommandIcon,
-	type GlobalCommandId,
-	getGlobalCommands,
-} from "../lib/command-registry";
+import type { CommandIcon, GlobalCommandId } from "../lib/command-registry";
+import { getCommandsWithAvailability } from "../lib/ui-command-registry";
 import { Dialog, DialogContent, DialogTitle } from "./ui/dialog";
 import { Input } from "./ui/input";
 
@@ -46,7 +43,7 @@ export default function GlobalCommandPalette({
 	onOpenChange,
 	onRunCommand,
 }: GlobalCommandPaletteProps) {
-	const commands = useMemo(() => getGlobalCommands(), []);
+	const commands = getCommandsWithAvailability();
 	const [query, setQuery] = useState("");
 	const [selectedIndex, setSelectedIndex] = useState(0);
 	const optionRefs = useRef<Array<HTMLButtonElement | null>>([]);
@@ -115,6 +112,7 @@ export default function GlobalCommandPalette({
 								event.preventDefault();
 								const picked = filtered[selectedIndex];
 								if (!picked) return;
+								if (!picked.availability.enabled) return;
 								onRunCommand(picked.id);
 								onOpenChange(false);
 							}
@@ -137,9 +135,11 @@ export default function GlobalCommandPalette({
 									}}
 									onMouseEnter={() => setSelectedIndex(index)}
 									onClick={() => {
+										if (!command.availability.enabled) return;
 										onRunCommand(command.id);
 										onOpenChange(false);
 									}}
+									disabled={!command.availability.enabled}
 									className={`w-full rounded-md px-3 py-2 text-left transition-colors ${
 										selectedIndex === index
 											? "bg-accent text-accent-foreground"
@@ -152,6 +152,10 @@ export default function GlobalCommandPalette({
 									</div>
 									<div className="mt-1 text-xs text-muted-foreground">
 										{command.description}
+										{!command.availability.enabled &&
+										command.availability.reason
+											? ` · ${command.availability.reason}`
+											: ""}
 									</div>
 								</button>
 							))}

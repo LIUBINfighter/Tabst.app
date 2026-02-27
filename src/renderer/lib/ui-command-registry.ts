@@ -6,6 +6,8 @@ import {
 import {
 	type GlobalCommandId,
 	getGlobalCommands,
+	getInlineCommands,
+	type InlineCommandId,
 	type StaticEditorCommandId,
 } from "./command-registry";
 import {
@@ -26,6 +28,94 @@ export interface UiCommandRunResult {
 	commandId: UiCommandId;
 	action: string;
 	warnings: string[];
+}
+
+export interface UiCommandAvailability {
+	enabled: boolean;
+	reason?: string;
+}
+
+export interface CommandWithAvailability {
+	id: UiCommandId;
+	label: string;
+	description: string;
+	keywords: string[];
+	icon: import("./command-registry").CommandIcon;
+	availability: UiCommandAvailability;
+}
+
+export interface InlineCommandWithAvailability {
+	id: InlineCommandId;
+	label: string;
+	description: string;
+	keywords: string[];
+	icon: import("./command-registry").CommandIcon;
+	availability: UiCommandAvailability;
+}
+
+function isUiCommandId(commandId: InlineCommandId): commandId is UiCommandId {
+	return getGlobalCommands().some((command) => command.id === commandId);
+}
+
+function hasActiveFile() {
+	const state = useAppStore.getState();
+	if (!state.activeFileId) return false;
+	return state.files.some((file) => file.id === state.activeFileId);
+}
+
+function hasPlayerControls() {
+	return Boolean(useAppStore.getState().playerControls);
+}
+
+export function getCommandAvailability(
+	commandId: UiCommandId,
+): UiCommandAvailability {
+	if (
+		commandId === "preview.export.midi" ||
+		commandId === "preview.export.wav" ||
+		commandId === "preview.export.gp7" ||
+		commandId === "preview.print-preview.open"
+	) {
+		if (!hasActiveFile()) {
+			return {
+				enabled: false,
+				reason: "No active score file.",
+			};
+		}
+	}
+
+	if (
+		commandId === "playback.play" ||
+		commandId === "playback.pause" ||
+		commandId === "playback.stop" ||
+		commandId === "playback.refresh" ||
+		commandId === "playback.play-pause"
+	) {
+		if (!hasPlayerControls()) {
+			return {
+				enabled: false,
+				reason: "Playback not ready. Open a score preview first.",
+			};
+		}
+	}
+
+	return { enabled: true };
+}
+
+export function getCommandsWithAvailability(): CommandWithAvailability[] {
+	return getGlobalCommands().map((command) => ({
+		...command,
+		availability: getCommandAvailability(command.id),
+	}));
+}
+
+export function getInlineCommandsWithAvailability(): InlineCommandWithAvailability[] {
+	return getInlineCommands().map((command) => ({
+		...command,
+		availability: isUiCommandId(command.id)
+			? getCommandAvailability(command.id)
+			: { enabled: true },
+	}));
 }
 
 function runPlaybackCommand(commandId: UiCommandId): string {
@@ -121,6 +211,15 @@ export function getUiCommands() {
 
 export function runUiCommand(commandId: UiCommandId): UiCommandRunResult {
 	const warnings: string[] = [];
+	const availability = getCommandAvailability(commandId);
+	if (!availability.enabled) {
+		return {
+			ok: false,
+			commandId,
+			action: "Command is disabled",
+			warnings: availability.reason ? [availability.reason] : [],
+		};
+	}
 
 	if (
 		(

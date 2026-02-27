@@ -11,11 +11,8 @@ import {
 	WrapText,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import {
-	type CommandIcon,
-	getInlineCommands,
-	type InlineCommandId,
-} from "../lib/command-registry";
+import type { CommandIcon, InlineCommandId } from "../lib/command-registry";
+import { getInlineCommandsWithAvailability } from "../lib/ui-command-registry";
 import { Input } from "./ui/input";
 
 interface InlineEditorCommandBarProps {
@@ -60,7 +57,7 @@ export default function InlineEditorCommandBar({
 	const [query, setQuery] = useState("");
 	const [selectedIndex, setSelectedIndex] = useState(0);
 
-	const allCommands = useMemo(() => getInlineCommands(), []);
+	const allCommands = getInlineCommandsWithAvailability();
 
 	const filtered = useMemo(() => {
 		const q = query.trim().toLowerCase();
@@ -147,6 +144,7 @@ export default function InlineEditorCommandBar({
 							event.preventDefault();
 							const picked = filtered[selectedIndex];
 							if (!picked) return;
+							if (!picked.availability.enabled) return;
 							onRunCommand(picked.id);
 							onClose();
 						}
@@ -169,9 +167,11 @@ export default function InlineEditorCommandBar({
 								}}
 								onMouseEnter={() => setSelectedIndex(index)}
 								onClick={() => {
+									if (!command.availability.enabled) return;
 									onRunCommand(command.id);
 									onClose();
 								}}
+								disabled={!command.availability.enabled}
 								className={`w-full rounded px-2 py-1.5 text-left transition-colors ${
 									selectedIndex === index
 										? "bg-accent text-accent-foreground"
@@ -184,6 +184,9 @@ export default function InlineEditorCommandBar({
 								</div>
 								<div className="mt-0.5 text-[11px] text-muted-foreground">
 									{command.description}
+									{!command.availability.enabled && command.availability.reason
+										? ` · ${command.availability.reason}`
+										: ""}
 								</div>
 							</button>
 						))}
