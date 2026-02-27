@@ -1,4 +1,5 @@
 import { useEffect, useMemo } from "react";
+import { useAppStore } from "../../store/appStore";
 import { useThemeStore } from "../../store/themeStore";
 import { getEditorTheme, getUITheme } from "./theme-registry";
 import type { EditorTheme, ThemeMode, UITheme, UIThemeColors } from "./types";
@@ -132,6 +133,12 @@ export function useTheme(): UseThemeReturn {
 				"--player-cursor-highlight",
 				extended.playerCursor.barHighlight,
 			);
+		}
+
+		try {
+			useAppStore.getState().playerControls?.refresh?.();
+		} catch (err) {
+			console.error("Failed to refresh preview after theme change:", err);
 		}
 	}, [effectiveColors, isDark]);
 
