@@ -174,7 +174,9 @@ export const tutorialsRegistry: TutorialMetadata[] = [
 	// The loader prefers `en/` then `zh-cn/` and falls back to the root `tutorials/` folder for compatibility.
 	{
 		id: "atdoc-power-user",
-		title: "ATDOC 实战",
+		title: "ATDOC Power User",
+		titleEn: "ATDOC Power User",
+		titleZhCn: "ATDOC 实战",
 		description: "用 ATDOC 配置预览、播放器与着色",
 		order: 4,
 		audience: "power-user",
