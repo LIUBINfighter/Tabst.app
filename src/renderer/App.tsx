@@ -154,13 +154,13 @@ function App() {
 				runUiCommand(commandId);
 				return;
 			case "insert-atdoc-block":
-				runUiCommand("editor.insert-atdoc-block");
+				runUiCommand("insert-atdoc-block");
 				return;
 			case "insert-atdoc-directive":
-				runUiCommand("editor.insert-atdoc-directive");
+				runUiCommand("insert-atdoc-directive");
 				return;
 			case "insert-atdoc-meta-preset":
-				runUiCommand("editor.insert-atdoc-meta-preset");
+				runUiCommand("insert-atdoc-meta-preset");
 				return;
 		}
 	};

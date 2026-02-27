@@ -340,11 +340,11 @@ export function Editor({
 				case "open-editor-command-palette":
 					return runUiCommand("workspace.editor-inline-command.open");
 				case "insert-atdoc-block":
-					return runUiCommand("editor.insert-atdoc-block");
+					return runUiCommand("insert-atdoc-block");
 				case "insert-atdoc-directive":
-					return runUiCommand("editor.insert-atdoc-directive");
+					return runUiCommand("insert-atdoc-directive");
 				case "insert-atdoc-meta-preset":
-					return runUiCommand("editor.insert-atdoc-meta-preset");
+					return runUiCommand("insert-atdoc-meta-preset");
 				default:
 					return runUiCommand(globalCommandId);
 			}
