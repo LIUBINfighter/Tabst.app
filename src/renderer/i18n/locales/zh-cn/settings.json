@@ -74,6 +74,10 @@
 			"label": "切换到设置",
 			"description": "将工作区切换为设置模式"
 		},
+		"workspace_mode_git": {
+			"label": "切换到版本控制",
+			"description": "将工作区切换为 Git 版本控制视图"
+		},
 		"workspace_editor_inline_command_open": {
 			"label": "打开行间编辑器命令",
 			"description": "打开编辑器行间命令栏"

@@ -4,6 +4,7 @@ import type {
 	SaveResult,
 	ScanDirectoryResult,
 } from "../types/electron";
+import type { GitChangeGroup } from "../types/git";
 import type { FileNode, Repo, RepoMetadata } from "../types/repo";
 
 interface BrowserStoredFile {
@@ -432,6 +433,45 @@ export function createWebElectronAPI(): ElectronAPI {
 		stopRepoWatch: async () => ({ success: true }),
 
 		onRepoFsChanged: () => () => {},
+
+		getGitStatus: async () => ({
+			success: false,
+			error: "Unsupported in web runtime",
+		}),
+
+		getGitDiff: async (
+			_repoPath: string,
+			_filePath: string,
+			_group: GitChangeGroup,
+		) => ({
+			success: false,
+			error: "Unsupported in web runtime",
+		}),
+
+		stageGitFile: async () => ({
+			success: false,
+			error: "Unsupported in web runtime",
+		}),
+
+		stageAllGitChanges: async () => ({
+			success: false,
+			error: "Unsupported in web runtime",
+		}),
+
+		unstageGitFile: async () => ({
+			success: false,
+			error: "Unsupported in web runtime",
+		}),
+
+		syncGitPull: async () => ({
+			success: false,
+			error: "Unsupported in web runtime",
+		}),
+
+		commitGitChanges: async () => ({
+			success: false,
+			error: "Unsupported in web runtime",
+		}),
 
 		checkForUpdates: async () => ({
 			supported: false,

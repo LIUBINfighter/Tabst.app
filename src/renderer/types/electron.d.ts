@@ -1,3 +1,4 @@
+import type { GitChangeGroup, GitDiffResult, GitStatusSummary } from "./git";
 import type { FileNode, Repo, RepoMetadata } from "./repo";
 
 export interface FileResult {
@@ -94,6 +95,32 @@ export interface ElectronAPI {
 	onRepoFsChanged: (
 		callback: (event: RepoFsChangedEvent) => void,
 	) => () => void;
+	getGitStatus: (
+		repoPath: string,
+	) => Promise<{ success: boolean; data?: GitStatusSummary; error?: string }>;
+	getGitDiff: (
+		repoPath: string,
+		filePath: string,
+		group: GitChangeGroup,
+	) => Promise<{ success: boolean; data?: GitDiffResult; error?: string }>;
+	stageGitFile: (
+		repoPath: string,
+		filePath: string,
+	) => Promise<{ success: boolean; error?: string }>;
+	stageAllGitChanges: (
+		repoPath: string,
+	) => Promise<{ success: boolean; error?: string }>;
+	unstageGitFile: (
+		repoPath: string,
+		filePath: string,
+	) => Promise<{ success: boolean; error?: string }>;
+	syncGitPull: (
+		repoPath: string,
+	) => Promise<{ success: boolean; error?: string }>;
+	commitGitChanges: (
+		repoPath: string,
+		message: string,
+	) => Promise<{ success: boolean; error?: string }>;
 
 	// Auto-update
 	checkForUpdates: () => Promise<{ supported: boolean; message?: string }>;

@@ -20,6 +20,15 @@ import {
 	handleSaveFileEffect,
 } from "./ipc/file-operations-effect";
 import {
+	handleCommitGitChanges,
+	handleGetGitDiff,
+	handleGetGitStatus,
+	handleStageAllGitChanges,
+	handleStageGitFile,
+	handleSyncGitPull,
+	handleUnstageGitFile,
+} from "./ipc/git-operations";
+import {
 	handleFetchReleasesFeedEffect,
 	handleReadAssetEffect,
 	handleRevealInFolderEffect,
@@ -239,6 +248,13 @@ ipcMain.handle("delete-file", handleDeleteFileEffect);
 ipcMain.handle("select-folder", handleSelectFolderEffect);
 ipcMain.handle("load-global-settings", handleLoadGlobalSettingsEffect);
 ipcMain.handle("save-global-settings", handleSaveGlobalSettingsEffect);
+ipcMain.handle("get-git-status", handleGetGitStatus);
+ipcMain.handle("get-git-diff", handleGetGitDiff);
+ipcMain.handle("stage-git-file", handleStageGitFile);
+ipcMain.handle("unstage-git-file", handleUnstageGitFile);
+ipcMain.handle("stage-all-git-changes", handleStageAllGitChanges);
+ipcMain.handle("sync-git-pull", handleSyncGitPull);
+ipcMain.handle("commit-git-changes", handleCommitGitChanges);
 
 ipcMain.handle("start-repo-watch", handleStartRepoWatch);
 ipcMain.handle("stop-repo-watch", handleStopRepoWatch);

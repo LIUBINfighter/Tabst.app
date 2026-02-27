@@ -5,6 +5,11 @@ import { loadGlobalSettings, saveGlobalSettings } from "../lib/global-settings";
 import type { StaffDisplayOptions } from "../lib/staff-config";
 import type { TutorialAudience } from "../lib/tutorial-loader";
 import type {
+	GitDiffResult,
+	GitSelectedChange,
+	GitStatusSummary,
+} from "../types/git";
+import type {
 	DeleteBehavior,
 	FileNode,
 	Repo,
@@ -250,10 +255,31 @@ interface AppState {
 	bumpScoreVersion: () => void;
 	bumpEditorRefreshVersion: () => void;
 	bumpBottomBarRefreshVersion: () => void;
-	workspaceMode: "editor" | "enjoy" | "tutorial" | "settings";
+	workspaceMode: "editor" | "enjoy" | "tutorial" | "settings" | "git";
 	setWorkspaceMode: (
-		mode: "editor" | "enjoy" | "tutorial" | "settings",
+		mode: "editor" | "enjoy" | "tutorial" | "settings" | "git",
 	) => void;
+	gitStatus: GitStatusSummary | null;
+	gitStatusLoading: boolean;
+	gitStatusError: string | null;
+	gitSelectedChange: GitSelectedChange | null;
+	gitDiff: GitDiffResult | null;
+	gitDiffLoading: boolean;
+	gitDiffError: string | null;
+	gitCommitMessage: string;
+	gitActionLoading: boolean;
+	gitActionError: string | null;
+	setGitCommitMessage: (message: string) => void;
+	refreshGitStatus: () => Promise<void>;
+	selectGitChange: (change: GitSelectedChange | null) => Promise<void>;
+	toggleGitStage: (
+		change: GitSelectedChange,
+		nextStaged: boolean,
+	) => Promise<void>;
+	addAllGitChanges: () => Promise<boolean>;
+	syncGitPull: () => Promise<boolean>;
+	commitGitChanges: () => Promise<boolean>;
+	clearGitState: () => void;
 
 	// 🆕 第一个谱表显示选项
 	firstStaffOptions: StaffDisplayOptions | null;
@@ -572,6 +598,16 @@ export const useAppStore = create<AppState>((set, get) => ({
 				activeRepoId: newActiveId,
 				fileTree: newActiveId ? state.fileTree : [],
 				files: newActiveId ? state.files : [],
+				gitStatus: newActiveId ? state.gitStatus : null,
+				gitStatusError: newActiveId ? state.gitStatusError : null,
+				gitStatusLoading: false,
+				gitSelectedChange: newActiveId ? state.gitSelectedChange : null,
+				gitDiff: newActiveId ? state.gitDiff : null,
+				gitDiffLoading: false,
+				gitDiffError: newActiveId ? state.gitDiffError : null,
+				gitCommitMessage: newActiveId ? state.gitCommitMessage : "",
+				gitActionLoading: false,
+				gitActionError: newActiveId ? state.gitActionError : null,
 			};
 		});
 		scheduleSaveAppState();
@@ -600,6 +636,16 @@ export const useAppStore = create<AppState>((set, get) => ({
 						scoreSelection: null,
 						playbackBeat: null,
 						playerCursorPosition: null,
+						gitStatus: null,
+						gitStatusLoading: false,
+						gitStatusError: null,
+						gitSelectedChange: null,
+						gitDiff: null,
+						gitDiffLoading: false,
+						gitDiffError: null,
+						gitCommitMessage: "",
+						gitActionLoading: false,
+						gitActionError: null,
 					};
 					return baseState;
 				});
@@ -937,8 +983,342 @@ export const useAppStore = create<AppState>((set, get) => ({
 			bottomBarRefreshVersion: state.bottomBarRefreshVersion + 1,
 		})),
 	workspaceMode: "editor",
-	setWorkspaceMode: (mode: "editor" | "enjoy" | "tutorial" | "settings") =>
-		set({ workspaceMode: mode }),
+	setWorkspaceMode: (
+		mode: "editor" | "enjoy" | "tutorial" | "settings" | "git",
+	) => set({ workspaceMode: mode }),
+	gitStatus: null,
+	gitStatusLoading: false,
+	gitStatusError: null,
+	gitSelectedChange: null,
+	gitDiff: null,
+	gitDiffLoading: false,
+	gitDiffError: null,
+	gitCommitMessage: "",
+	gitActionLoading: false,
+	gitActionError: null,
+	setGitCommitMessage: (message) => set({ gitCommitMessage: message }),
+	refreshGitStatus: async () => {
+		const state = get();
+		const activeRepo = state.repos.find(
+			(repo) => repo.id === state.activeRepoId,
+		);
+		if (!activeRepo) {
+			set({
+				gitStatus: null,
+				gitStatusLoading: false,
+				gitStatusError: null,
+				gitSelectedChange: null,
+				gitDiff: null,
+				gitDiffLoading: false,
+				gitDiffError: null,
+				gitActionError: null,
+			});
+			return;
+		}
+
+		set({ gitStatusLoading: true, gitStatusError: null });
+		try {
+			const result = await window.electronAPI.getGitStatus(activeRepo.path);
+			if (!result.success || !result.data) {
+				set({
+					gitStatusLoading: false,
+					gitStatus: null,
+					gitStatusError: result.error ?? "Failed to load git status",
+					gitSelectedChange: null,
+					gitDiff: null,
+					gitDiffLoading: false,
+					gitDiffError: null,
+					gitActionError: null,
+				});
+				return;
+			}
+
+			const nextStatus = result.data;
+			const selected = get().gitSelectedChange;
+			let selectedStillExists = true;
+			if (selected) {
+				const list =
+					selected.group === "staged"
+						? nextStatus.staged
+						: selected.group === "unstaged"
+							? nextStatus.unstaged
+							: selected.group === "untracked"
+								? nextStatus.untracked
+								: nextStatus.conflicted;
+				selectedStillExists = list.some(
+					(item) =>
+						item.path === selected.path &&
+						(item.fromPath ?? "") === (selected.fromPath ?? ""),
+				);
+			}
+
+			set({
+				gitStatus: nextStatus,
+				gitStatusLoading: false,
+				gitStatusError: null,
+				gitSelectedChange: selectedStillExists ? selected : null,
+				gitDiff: selectedStillExists ? get().gitDiff : null,
+				gitDiffError: selectedStillExists ? get().gitDiffError : null,
+				gitDiffLoading: selectedStillExists ? get().gitDiffLoading : false,
+			});
+		} catch (error) {
+			set({
+				gitStatusLoading: false,
+				gitStatusError:
+					error instanceof Error ? error.message : "Failed to load git status",
+				gitStatus: null,
+				gitSelectedChange: null,
+				gitDiff: null,
+				gitDiffError: null,
+				gitDiffLoading: false,
+				gitActionError: null,
+			});
+		}
+	},
+	selectGitChange: async (change) => {
+		const state = get();
+		const activeRepo = state.repos.find(
+			(repo) => repo.id === state.activeRepoId,
+		);
+		if (!activeRepo) {
+			set({
+				gitSelectedChange: null,
+				gitDiff: null,
+				gitDiffError: null,
+				gitDiffLoading: false,
+				gitActionError: null,
+			});
+			return;
+		}
+
+		if (!change) {
+			set({
+				gitSelectedChange: null,
+				gitDiff: null,
+				gitDiffError: null,
+				gitDiffLoading: false,
+				gitActionError: null,
+			});
+			return;
+		}
+
+		set({
+			gitSelectedChange: change,
+			gitDiff: null,
+			gitDiffError: null,
+			gitDiffLoading: true,
+			gitActionError: null,
+		});
+
+		try {
+			const diffResult = await window.electronAPI.getGitDiff(
+				activeRepo.path,
+				change.path,
+				change.group,
+			);
+
+			if (!diffResult.success || !diffResult.data) {
+				set({
+					gitDiffLoading: false,
+					gitDiff: null,
+					gitDiffError: diffResult.error ?? "Failed to load diff",
+					gitActionError: null,
+				});
+				return;
+			}
+
+			set({
+				gitDiffLoading: false,
+				gitDiff: diffResult.data,
+				gitDiffError: null,
+			});
+		} catch (error) {
+			set({
+				gitDiffLoading: false,
+				gitDiff: null,
+				gitDiffError:
+					error instanceof Error ? error.message : "Failed to load diff",
+				gitActionError: null,
+			});
+		}
+	},
+	toggleGitStage: async (change, nextStaged) => {
+		const state = get();
+		const activeRepo = state.repos.find(
+			(repo) => repo.id === state.activeRepoId,
+		);
+		if (!activeRepo) {
+			set({ gitActionError: "No active repository", gitActionLoading: false });
+			return;
+		}
+
+		set({ gitActionLoading: true, gitActionError: null });
+		try {
+			const result = nextStaged
+				? await window.electronAPI.stageGitFile(activeRepo.path, change.path)
+				: await window.electronAPI.unstageGitFile(activeRepo.path, change.path);
+
+			if (!result.success) {
+				set({
+					gitActionLoading: false,
+					gitActionError: result.error ?? "Failed to update staged state",
+				});
+				return;
+			}
+
+			set({ gitActionLoading: false, gitActionError: null });
+			await get().refreshGitStatus();
+
+			const nextGroup = nextStaged ? "staged" : "unstaged";
+			await get().selectGitChange({
+				group: nextGroup,
+				path: change.path,
+				fromPath: change.fromPath,
+			});
+		} catch (error) {
+			set({
+				gitActionLoading: false,
+				gitActionError:
+					error instanceof Error
+						? error.message
+						: "Failed to update staged state",
+			});
+		}
+	},
+	addAllGitChanges: async () => {
+		const state = get();
+		const activeRepo = state.repos.find(
+			(repo) => repo.id === state.activeRepoId,
+		);
+		if (!activeRepo) {
+			set({ gitActionError: "No active repository", gitActionLoading: false });
+			return false;
+		}
+
+		set({ gitActionLoading: true, gitActionError: null });
+		try {
+			const result = await window.electronAPI.stageAllGitChanges(
+				activeRepo.path,
+			);
+			if (!result.success) {
+				set({
+					gitActionLoading: false,
+					gitActionError: result.error ?? "Failed to stage all changes",
+				});
+				return false;
+			}
+
+			set({ gitActionLoading: false, gitActionError: null });
+			await get().refreshGitStatus();
+			return true;
+		} catch (error) {
+			set({
+				gitActionLoading: false,
+				gitActionError:
+					error instanceof Error
+						? error.message
+						: "Failed to stage all changes",
+			});
+			return false;
+		}
+	},
+	syncGitPull: async () => {
+		const state = get();
+		const activeRepo = state.repos.find(
+			(repo) => repo.id === state.activeRepoId,
+		);
+		if (!activeRepo) {
+			set({ gitActionError: "No active repository", gitActionLoading: false });
+			return false;
+		}
+
+		set({ gitActionLoading: true, gitActionError: null });
+		try {
+			const result = await window.electronAPI.syncGitPull(activeRepo.path);
+			if (!result.success) {
+				set({
+					gitActionLoading: false,
+					gitActionError: result.error ?? "Failed to sync from remote",
+				});
+				return false;
+			}
+
+			set({ gitActionLoading: false, gitActionError: null });
+			await get().refreshGitStatus();
+			return true;
+		} catch (error) {
+			set({
+				gitActionLoading: false,
+				gitActionError:
+					error instanceof Error ? error.message : "Failed to sync from remote",
+			});
+			return false;
+		}
+	},
+	commitGitChanges: async () => {
+		const state = get();
+		const activeRepo = state.repos.find(
+			(repo) => repo.id === state.activeRepoId,
+		);
+		const message = state.gitCommitMessage.trim();
+
+		if (!activeRepo) {
+			set({ gitActionError: "No active repository" });
+			return false;
+		}
+
+		if (!message) {
+			set({ gitActionError: "Commit message is required" });
+			return false;
+		}
+
+		set({ gitActionLoading: true, gitActionError: null });
+		try {
+			const result = await window.electronAPI.commitGitChanges(
+				activeRepo.path,
+				message,
+			);
+			if (!result.success) {
+				set({
+					gitActionLoading: false,
+					gitActionError: result.error ?? "Failed to commit changes",
+				});
+				return false;
+			}
+
+			set({
+				gitActionLoading: false,
+				gitActionError: null,
+				gitCommitMessage: "",
+				gitSelectedChange: null,
+				gitDiff: null,
+				gitDiffError: null,
+				gitDiffLoading: false,
+			});
+			await get().refreshGitStatus();
+			return true;
+		} catch (error) {
+			set({
+				gitActionLoading: false,
+				gitActionError:
+					error instanceof Error ? error.message : "Failed to commit changes",
+			});
+			return false;
+		}
+	},
+	clearGitState: () =>
+		set({
+			gitStatus: null,
+			gitStatusLoading: false,
+			gitStatusError: null,
+			gitSelectedChange: null,
+			gitDiff: null,
+			gitDiffLoading: false,
+			gitDiffError: null,
+			gitCommitMessage: "",
+			gitActionLoading: false,
+			gitActionError: null,
+		}),
 	firstStaffOptions: null,
 	pendingStaffToggle: null,
 	activeTutorialId: "user-readme",

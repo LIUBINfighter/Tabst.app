@@ -74,6 +74,10 @@
 			"label": "Switch To Settings",
 			"description": "Switch workspace mode to settings"
 		},
+		"workspace_mode_git": {
+			"label": "Switch To Source Control",
+			"description": "Switch workspace mode to git source control"
+		},
 		"workspace_editor_inline_command_open": {
 			"label": "Open Inline Editor Commands",
 			"description": "Open editor inline command bar"

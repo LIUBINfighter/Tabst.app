@@ -4,6 +4,7 @@ import GlobalBottomBar from "./components/GlobalBottomBar";
 import type { GlobalCommandId } from "./lib/command-registry";
 
 const SettingsView = lazy(() => import("./components/SettingsView"));
+const GitWorkspace = lazy(() => import("./components/GitWorkspace"));
 
 import { Sidebar } from "./components/Sidebar";
 
@@ -33,7 +34,7 @@ function App() {
 	const editorRefreshVersion = useAppStore((s) => s.editorRefreshVersion);
 	const bottomBarRefreshVersion = useAppStore((s) => s.bottomBarRefreshVersion);
 	const prevWorkspaceModeRef = useRef<
-		"editor" | "enjoy" | "tutorial" | "settings"
+		"editor" | "enjoy" | "tutorial" | "settings" | "git"
 	>("editor");
 
 	// 初始化 store：从主进程恢复上次打开的文件和选中项
@@ -130,6 +131,7 @@ function App() {
 			case "workspace.mode.enjoy.toggle":
 			case "workspace.mode.tutorial":
 			case "workspace.mode.settings":
+			case "workspace.mode.git":
 			case "workspace.editor-inline-command.open":
 			case "settings.playback.progress-bar.toggle":
 			case "settings.playback.progress-seek.toggle":
@@ -387,6 +389,17 @@ function App() {
 						fallback={<div className="flex-1 bg-background" aria-busy="true" />}
 					>
 						<SettingsView
+							showExpandSidebar={sidebarCollapsed}
+							onExpandSidebar={() => setSidebarCollapsed(false)}
+							onCollapseSidebar={() => setSidebarCollapsed(true)}
+						/>
+					</Suspense>
+				)}
+				{workspaceMode === "git" && (
+					<Suspense
+						fallback={<div className="flex-1 bg-background" aria-busy="true" />}
+					>
+						<GitWorkspace
 							showExpandSidebar={sidebarCollapsed}
 							onExpandSidebar={() => setSidebarCollapsed(false)}
 							onCollapseSidebar={() => setSidebarCollapsed(true)}

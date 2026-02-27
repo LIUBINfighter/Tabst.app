@@ -204,10 +204,10 @@ function EditorBottomBar({
 	isTracksPanelOpen: boolean;
 	toggleTracksPanel: () => void;
 	setWorkspaceMode: (
-		mode: "editor" | "enjoy" | "tutorial" | "settings",
+		mode: "editor" | "enjoy" | "tutorial" | "settings" | "git",
 	) => void;
 	setActiveSettingsPageId: (id: string | null) => void;
-	workspaceMode: "editor" | "enjoy" | "tutorial" | "settings";
+	workspaceMode: "editor" | "enjoy" | "tutorial" | "settings" | "git";
 	activeSettingsPageId: string | null;
 	t: (key: string) => string;
 }) {
@@ -627,7 +627,8 @@ export default function GlobalBottomBar() {
 		: null;
 
 	const bottomBarContent =
-		isTutorialMode && (prevTutorial || nextTutorial) ? (
+		workspaceMode === "git" ? null : isTutorialMode &&
+			(prevTutorial || nextTutorial) ? (
 			<TutorialBottomBar
 				prevTutorial={prevTutorial}
 				nextTutorial={nextTutorial}

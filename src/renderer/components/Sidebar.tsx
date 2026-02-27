@@ -7,6 +7,7 @@ import { useAppStore } from "../store/appStore";
 import type { DeleteBehavior, FileNode } from "../types/repo";
 import { DeleteConfirmDialog } from "./DeleteConfirmDialog";
 import { FileTree } from "./FileTree";
+import { GitSidebar } from "./GitSidebar";
 import { SettingsSidebar } from "./SettingsSidebar";
 import { SidebarBottomBar, SidebarCommands } from "./SidebarCommands";
 import { TutorialsSidebar } from "./TutorialsSidebar";
@@ -659,6 +660,10 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 	};
 
 	const renderContent = () => {
+		if (workspaceMode === "git") {
+			return <GitSidebar />;
+		}
+
 		if (workspaceMode === "tutorial") {
 			return (
 				<ScrollArea className="flex-1 w-full overflow-hidden min-h-0">

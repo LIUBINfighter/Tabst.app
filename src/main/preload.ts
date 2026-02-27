@@ -1,4 +1,9 @@
 import { contextBridge, ipcRenderer } from "electron";
+import type {
+	GitChangeGroup,
+	GitDiffResult,
+	GitStatusSummary,
+} from "../renderer/types/git";
 import type { FileNode, Repo, RepoMetadata } from "../renderer/types/repo";
 
 export interface FileResult {
@@ -133,6 +138,40 @@ contextBridge.exposeInMainWorld("electronAPI", {
 		ipcRenderer.on("repo-fs-changed", listener);
 		return () => ipcRenderer.removeListener("repo-fs-changed", listener);
 	},
+
+	getGitStatus: (
+		repoPath: string,
+	): Promise<{ success: boolean; data?: GitStatusSummary; error?: string }> =>
+		ipcRenderer.invoke("get-git-status", repoPath),
+	getGitDiff: (
+		repoPath: string,
+		filePath: string,
+		group: GitChangeGroup,
+	): Promise<{ success: boolean; data?: GitDiffResult; error?: string }> =>
+		ipcRenderer.invoke("get-git-diff", repoPath, filePath, group),
+	stageGitFile: (
+		repoPath: string,
+		filePath: string,
+	): Promise<{ success: boolean; error?: string }> =>
+		ipcRenderer.invoke("stage-git-file", repoPath, filePath),
+	stageAllGitChanges: (
+		repoPath: string,
+	): Promise<{ success: boolean; error?: string }> =>
+		ipcRenderer.invoke("stage-all-git-changes", repoPath),
+	unstageGitFile: (
+		repoPath: string,
+		filePath: string,
+	): Promise<{ success: boolean; error?: string }> =>
+		ipcRenderer.invoke("unstage-git-file", repoPath, filePath),
+	syncGitPull: (
+		repoPath: string,
+	): Promise<{ success: boolean; error?: string }> =>
+		ipcRenderer.invoke("sync-git-pull", repoPath),
+	commitGitChanges: (
+		repoPath: string,
+		message: string,
+	): Promise<{ success: boolean; error?: string }> =>
+		ipcRenderer.invoke("commit-git-changes", repoPath, message),
 
 	// Auto-update
 	checkForUpdates: (): Promise<{ supported: boolean; message?: string }> =>

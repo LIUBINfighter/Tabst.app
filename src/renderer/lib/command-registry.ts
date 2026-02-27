@@ -25,6 +25,7 @@ export type GlobalOnlyCommandId =
 	| "workspace.mode.enjoy.toggle"
 	| "workspace.mode.tutorial"
 	| "workspace.mode.settings"
+	| "workspace.mode.git"
 	| "workspace.editor-inline-command.open"
 	| "settings.playback.progress-bar.toggle"
 	| "settings.playback.progress-seek.toggle"
@@ -235,6 +236,15 @@ const GLOBAL_ONLY_COMMANDS: RegisteredCommand<GlobalOnlyCommandId>[] = [
 			"settings:commandRegistry.workspace_mode_settings.description",
 		),
 		keywords: ["workspace", "mode", "settings"],
+		icon: "command",
+	},
+	{
+		id: "workspace.mode.git",
+		label: i18n.t("settings:commandRegistry.workspace_mode_git.label"),
+		description: i18n.t(
+			"settings:commandRegistry.workspace_mode_git.description",
+		),
+		keywords: ["workspace", "mode", "git", "source-control"],
 		icon: "command",
 	},
 	{

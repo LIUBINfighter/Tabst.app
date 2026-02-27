@@ -19,7 +19,7 @@ import {
 	type UiShellCommandId,
 } from "./ui-shell-events";
 
-type WorkspaceMode = "editor" | "enjoy" | "tutorial" | "settings";
+type WorkspaceMode = "editor" | "enjoy" | "tutorial" | "settings" | "git";
 
 export type UiCommandId = GlobalCommandId;
 
@@ -288,6 +288,7 @@ export function runUiCommand(commandId: UiCommandId): UiCommandRunResult {
 		"workspace.mode.editor": "editor",
 		"workspace.mode.tutorial": "tutorial",
 		"workspace.mode.settings": "settings",
+		"workspace.mode.git": "git",
 	};
 	if (workspaceModes[commandId]) {
 		const mode = workspaceModes[commandId];
