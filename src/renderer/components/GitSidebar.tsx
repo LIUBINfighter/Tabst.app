@@ -307,9 +307,9 @@ export function GitSidebar() {
 				<div className="grid grid-cols-2 gap-1.5">
 					<Button
 						type="button"
-						variant="outline"
+						variant="ghost"
 						size="sm"
-						className="h-8 text-xs"
+						className="h-8 text-xs rounded-md bg-muted text-muted-foreground border border-transparent hover:bg-[var(--hover-bg)] hover:text-[var(--hover-text)]"
 						disabled={gitActionLoading}
 						onClick={() => void syncGitPull()}
 					>
@@ -317,9 +317,9 @@ export function GitSidebar() {
 					</Button>
 					<Button
 						type="button"
-						variant="outline"
+						variant="ghost"
 						size="sm"
-						className="h-8 text-xs"
+						className="h-8 text-xs rounded-md bg-muted text-muted-foreground border border-transparent hover:bg-[var(--hover-bg)] hover:text-[var(--hover-text)]"
 						disabled={gitActionLoading}
 						onClick={() => void addAllGitChanges()}
 					>
@@ -335,8 +335,13 @@ export function GitSidebar() {
 				/>
 				<Button
 					type="button"
+					variant="ghost"
 					size="sm"
-					className="w-full h-8 text-xs"
+					className={`w-full h-8 text-xs rounded-md border transition-colors ${
+						gitCommitMessage.trim().length > 0
+							? "bg-[var(--highlight-bg)] text-[var(--highlight-text)] border-[var(--highlight-text)] hover:bg-[var(--highlight-bg)]/90"
+							: "bg-muted text-muted-foreground border-transparent"
+					}`}
 					disabled={gitActionLoading || gitCommitMessage.trim().length === 0}
 					onClick={() => void commitGitChanges()}
 				>

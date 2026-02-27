@@ -28,6 +28,9 @@
 		"nextTooltip": "后一页：{{title}} (→ 键)",
 		"keyboardHint": "使用 ← → 键翻页"
 	},
+	"git": {
+		"keyboardHint": "使用 ← → 键切换文件"
+	},
 	"bpm": {
 		"label": "BPM",
 		"decrease": "减少 1 BPM",

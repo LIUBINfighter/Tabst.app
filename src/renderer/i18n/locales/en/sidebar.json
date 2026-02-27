@@ -44,6 +44,12 @@
 	"gitCommitting": "Committing...",
 	"gitSyncButton": "Sync",
 	"gitAddAllButton": "Add All",
+	"gitPrimaryAdd": "Add",
+	"gitPrimaryAddKeys": "Enter / Space",
+	"gitPrimaryPrev": "Prev",
+	"gitPrimaryNext": "Next",
+	"gitPrimaryNextKeys": "Enter / Space",
+	"gitPrimaryArrowHint": "← / → Navigate",
 	"openSettings": "Open settings",
 	"settings": "Settings"
 }

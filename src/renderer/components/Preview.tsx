@@ -37,6 +37,7 @@ import {
 	exportToWav,
 	getDefaultExportFilename,
 } from "../lib/alphatab-export";
+import { mapSelectionToCodeRange } from "../lib/alphatex-selection-sync";
 import { loadBravuraFont, loadSoundFontFromUrl } from "../lib/assets";
 import { type AtDocConfig, parseAtDoc } from "../lib/atdoc";
 import { applyAtDocColoring } from "../lib/atdoc-coloring";
@@ -314,6 +315,48 @@ export default function Preview({
 		window.addEventListener(PREVIEW_COMMAND_EVENT, handler);
 		return () => window.removeEventListener(PREVIEW_COMMAND_EVENT, handler);
 	}, [fileName]);
+
+	useEffect(() => {
+		const isTypingTarget = (target: EventTarget | null): boolean => {
+			if (!(target instanceof HTMLElement)) return false;
+			const tagName = target.tagName.toLowerCase();
+			return (
+				tagName === "input" ||
+				tagName === "textarea" ||
+				tagName === "select" ||
+				target.isContentEditable
+			);
+		};
+
+		const handleDeleteKey = (event: KeyboardEvent) => {
+			if (event.key !== "Delete") return;
+			if (event.metaKey || event.ctrlKey || event.altKey) return;
+			if (editorHasFocusRef.current) return;
+			if (isTypingTarget(event.target)) return;
+
+			const selection = useAppStore.getState().scoreSelection;
+			if (!selection) return;
+
+			const activeFile = useAppStore.getState().getActiveFile();
+			if (!activeFile || !activeFile.path.endsWith(".atex")) return;
+
+			const source = latestContentRef.current ?? activeFile.content ?? "";
+			const range = mapSelectionToCodeRange(source, selection);
+			if (!range) return;
+
+			event.preventDefault();
+			event.stopPropagation();
+
+			const nextContent = source.slice(0, range.from) + source.slice(range.to);
+			latestContentRef.current = nextContent;
+			useAppStore.getState().updateFileContent(activeFile.id, nextContent);
+			useAppStore.getState().clearScoreSelection();
+			void window.electronAPI.saveFile(activeFile.path, nextContent);
+		};
+
+		window.addEventListener("keydown", handleDeleteKey);
+		return () => window.removeEventListener("keydown", handleDeleteKey);
+	}, []);
 
 	useEffect(() => {
 		editorHasFocusRef.current = editorHasFocus;

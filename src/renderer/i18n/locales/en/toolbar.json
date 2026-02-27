@@ -28,6 +28,9 @@
 		"nextTooltip": "Next: {{title}} (→ key)",
 		"keyboardHint": "Use ← → keys to navigate"
 	},
+	"git": {
+		"keyboardHint": "Use ← → keys to navigate files"
+	},
 	"bpm": {
 		"label": "BPM",
 		"decrease": "Decrease 1 BPM",

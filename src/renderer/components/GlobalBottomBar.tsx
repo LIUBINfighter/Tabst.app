@@ -142,6 +142,14 @@ function SettingsBottomBar({
 	);
 }
 
+function GitBottomBar({ t }: { t: (key: string) => string }) {
+	return (
+		<div className="flex items-center gap-2 text-xs text-muted-foreground">
+			<span>{t("toolbar:git.keyboardHint")}</span>
+		</div>
+	);
+}
+
 function formatPlaybackTime(ms: number): string {
 	if (!Number.isFinite(ms) || ms <= 0) return "00:00";
 	const totalSeconds = Math.floor(ms / 1000);
@@ -627,8 +635,9 @@ export default function GlobalBottomBar() {
 		: null;
 
 	const bottomBarContent =
-		workspaceMode === "git" ? null : isTutorialMode &&
-			(prevTutorial || nextTutorial) ? (
+		workspaceMode === "git" ? (
+			<GitBottomBar t={t} />
+		) : isTutorialMode && (prevTutorial || nextTutorial) ? (
 			<TutorialBottomBar
 				prevTutorial={prevTutorial}
 				nextTutorial={nextTutorial}

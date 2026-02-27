@@ -8,17 +8,22 @@ import {
 import { basicSetup } from "codemirror";
 import {
 	AlertCircle,
+	ArrowLeft,
+	ArrowRight,
 	ChevronLeft,
 	ChevronRight,
 	FileDiff,
 	GitBranch,
 	Loader2,
+	Plus,
 	X,
 } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useAppStore } from "../store/appStore";
+import type { GitChangeEntry, GitChangeGroup } from "../types/git";
 import TopBar from "./TopBar";
+import { Button } from "./ui/button";
 import IconButton from "./ui/icon-button";
 import {
 	Tooltip,
@@ -158,10 +163,221 @@ export default function GitWorkspace({
 	const { t } = useTranslation(["sidebar", "common"]);
 	const setWorkspaceMode = useAppStore((s) => s.setWorkspaceMode);
 	const activeRepoId = useAppStore((s) => s.activeRepoId);
+	const gitStatus = useAppStore((s) => s.gitStatus);
 	const gitSelectedChange = useAppStore((s) => s.gitSelectedChange);
 	const gitDiff = useAppStore((s) => s.gitDiff);
 	const gitDiffLoading = useAppStore((s) => s.gitDiffLoading);
 	const gitDiffError = useAppStore((s) => s.gitDiffError);
+	const gitActionLoading = useAppStore((s) => s.gitActionLoading);
+	const selectGitChange = useAppStore((s) => s.selectGitChange);
+	const toggleGitStage = useAppStore((s) => s.toggleGitStage);
+	const rowOrderRef = useRef<Map<string, number>>(new Map());
+
+	useEffect(() => {
+		if (!activeRepoId) {
+			rowOrderRef.current = new Map();
+			return;
+		}
+		rowOrderRef.current = new Map();
+	}, [activeRepoId]);
+
+	type UnifiedRow = {
+		key: string;
+		path: string;
+		fromPath?: string;
+		order: number;
+		preferredGroup: GitChangeGroup;
+		staged: boolean;
+		partiallyStaged: boolean;
+	};
+
+	const rows = useMemo(() => {
+		const stagedMap = new Map<string, GitChangeEntry>();
+		const unstagedMap = new Map<string, GitChangeEntry>();
+		for (const entry of gitStatus?.staged ?? []) {
+			stagedMap.set(`${entry.path}:${entry.fromPath ?? ""}`, entry);
+		}
+
+		for (const entry of gitStatus?.unstaged ?? []) {
+			unstagedMap.set(`${entry.path}:${entry.fromPath ?? ""}`, entry);
+		}
+
+		const merged = new Map<string, UnifiedRow>();
+		const order: Array<{ group: GitChangeGroup; entries: GitChangeEntry[] }> = [
+			{ group: "conflicted", entries: gitStatus?.conflicted ?? [] },
+			{ group: "unstaged", entries: gitStatus?.unstaged ?? [] },
+			{ group: "untracked", entries: gitStatus?.untracked ?? [] },
+			{ group: "staged", entries: gitStatus?.staged ?? [] },
+		];
+
+		for (const { group, entries } of order) {
+			for (const entry of entries) {
+				const key = `${entry.path}:${entry.fromPath ?? ""}`;
+				const isStaged = stagedMap.has(key);
+				const isUnstaged = unstagedMap.has(key);
+				if (!merged.has(key)) {
+					merged.set(key, {
+						key,
+						path: entry.path,
+						fromPath: entry.fromPath,
+						order: entry.order,
+						preferredGroup: group,
+						staged: isStaged,
+						partiallyStaged: isStaged && isUnstaged,
+					});
+					continue;
+				}
+
+				const current = merged.get(key);
+				if (current) {
+					merged.set(key, {
+						...current,
+						order: Math.min(current.order, entry.order),
+						staged: current.staged || isStaged,
+						partiallyStaged:
+							current.partiallyStaged ||
+							((current.staged || isStaged) && isUnstaged),
+					});
+				}
+			}
+		}
+
+		const nextRows = [...merged.values()];
+		const hasPriorOrder = rowOrderRef.current.size > 0;
+		nextRows.sort((left, right) => {
+			const leftOrder = rowOrderRef.current.get(left.key);
+			const rightOrder = rowOrderRef.current.get(right.key);
+
+			if (leftOrder !== undefined && rightOrder !== undefined) {
+				return leftOrder - rightOrder;
+			}
+			if (leftOrder !== undefined) return -1;
+			if (rightOrder !== undefined) return 1;
+			if (!hasPriorOrder) {
+				return left.order - right.order || left.key.localeCompare(right.key);
+			}
+			return left.order - right.order || left.key.localeCompare(right.key);
+		});
+
+		const nextOrder = new Map<string, number>();
+		nextRows.forEach((row, index) => {
+			nextOrder.set(row.key, index);
+		});
+		rowOrderRef.current = nextOrder;
+
+		return nextRows;
+	}, [gitStatus]);
+
+	const selectedIndex = useMemo(() => {
+		if (!gitSelectedChange) return -1;
+		return rows.findIndex(
+			(row) =>
+				row.path === gitSelectedChange.path &&
+				(row.fromPath ?? "") === (gitSelectedChange.fromPath ?? ""),
+		);
+	}, [rows, gitSelectedChange]);
+
+	const selectedRow = selectedIndex >= 0 ? rows[selectedIndex] : null;
+	const canAddCurrent =
+		!!selectedRow && (!selectedRow.staged || selectedRow.partiallyStaged);
+
+	const selectRow = useCallback(
+		async (row: UnifiedRow | null) => {
+			if (!row) return;
+			const group: GitChangeGroup =
+				row.staged && !row.partiallyStaged ? "staged" : row.preferredGroup;
+			await selectGitChange({
+				group,
+				path: row.path,
+				fromPath: row.fromPath,
+			});
+		},
+		[selectGitChange],
+	);
+
+	const selectRelative = useCallback(
+		async (direction: 1 | -1) => {
+			if (rows.length === 0) return;
+			if (selectedIndex < 0) {
+				const fallback = direction === 1 ? rows[0] : rows[rows.length - 1];
+				await selectRow(fallback);
+				return;
+			}
+			const nextIndex =
+				(selectedIndex + direction + rows.length) % Math.max(rows.length, 1);
+			await selectRow(rows[nextIndex] ?? null);
+		},
+		[rows, selectedIndex, selectRow],
+	);
+
+	const addCurrent = useCallback(async () => {
+		if (!selectedRow) return;
+		const group: GitChangeGroup =
+			selectedRow.staged && !selectedRow.partiallyStaged
+				? "staged"
+				: selectedRow.preferredGroup;
+		await toggleGitStage(
+			{
+				group,
+				path: selectedRow.path,
+				fromPath: selectedRow.fromPath,
+			},
+			true,
+		);
+	}, [selectedRow, toggleGitStage]);
+
+	useEffect(() => {
+		const isTypingTarget = (target: EventTarget | null): boolean => {
+			if (!(target instanceof HTMLElement)) return false;
+			const tagName = target.tagName.toLowerCase();
+			return (
+				tagName === "input" ||
+				tagName === "textarea" ||
+				tagName === "select" ||
+				target.isContentEditable
+			);
+		};
+
+		const handleKeyDown = (event: KeyboardEvent) => {
+			if (gitActionLoading) return;
+			if (isTypingTarget(event.target)) return;
+
+			if (
+				event.key === "Enter" ||
+				event.key === " " ||
+				event.key === "Spacebar"
+			) {
+				if (!selectedRow) return;
+				event.preventDefault();
+				if (canAddCurrent) {
+					void addCurrent();
+				} else {
+					void selectRelative(1);
+				}
+				return;
+			}
+
+			if (event.key === "ArrowRight") {
+				event.preventDefault();
+				void selectRelative(1);
+				return;
+			}
+
+			if (event.key === "ArrowLeft") {
+				event.preventDefault();
+				void selectRelative(-1);
+			}
+		};
+
+		window.addEventListener("keydown", handleKeyDown);
+		return () => window.removeEventListener("keydown", handleKeyDown);
+	}, [
+		canAddCurrent,
+		gitActionLoading,
+		addCurrent,
+		selectRelative,
+		selectedRow,
+	]);
 
 	return (
 		<TooltipProvider delayDuration={200}>
@@ -221,7 +437,7 @@ export default function GitWorkspace({
 					}
 				/>
 
-				<div className="flex-1 overflow-hidden bg-background">
+				<div className="relative flex-1 overflow-hidden bg-background">
 					{!activeRepoId ? (
 						<div className="h-full flex items-center justify-center text-sm text-muted-foreground">
 							{t("sidebar:noRepoSelected")}
@@ -257,6 +473,55 @@ export default function GitWorkspace({
 							content={gitDiff?.content || t("sidebar:gitEmptyDiffFallback")}
 						/>
 					)}
+
+					{selectedRow ? (
+						<div className="pointer-events-none absolute bottom-4 right-4 z-20">
+							{canAddCurrent ? (
+								<Button
+									type="button"
+									variant="ghost"
+									size="sm"
+									onClick={() => void addCurrent()}
+									disabled={gitActionLoading}
+									className="pointer-events-auto h-9 min-w-28 justify-center gap-1.5 text-xs rounded-md transition-colors bg-[var(--highlight-bg)] text-[var(--highlight-text)] border border-[var(--highlight-text)] hover:bg-[var(--highlight-bg)]/90"
+								>
+									<Plus className="h-3.5 w-3.5 text-emerald-500" />
+									<span>{t("sidebar:gitPrimaryAdd")}</span>
+									<span className="rounded border border-current/20 px-1 py-0 text-[10px] leading-none opacity-80">
+										{t("sidebar:gitPrimaryAddKeys")}
+									</span>
+								</Button>
+							) : (
+								<div className="pointer-events-auto flex items-center gap-1.5">
+									<Button
+										type="button"
+										variant="ghost"
+										size="sm"
+										onClick={() => void selectRelative(-1)}
+										disabled={gitActionLoading}
+										className="h-9 min-w-20 justify-center gap-1.5 text-xs rounded-md bg-muted text-muted-foreground border border-transparent hover:bg-[var(--hover-bg)] hover:text-[var(--hover-text)]"
+									>
+										<ArrowLeft className="h-3.5 w-3.5" />
+										<span>{t("sidebar:gitPrimaryPrev")}</span>
+									</Button>
+									<Button
+										type="button"
+										variant="ghost"
+										size="sm"
+										onClick={() => void selectRelative(1)}
+										disabled={gitActionLoading}
+										className="h-9 min-w-24 justify-center gap-1.5 text-xs rounded-md bg-muted text-muted-foreground border border-transparent hover:bg-[var(--hover-bg)] hover:text-[var(--hover-text)]"
+									>
+										<ArrowRight className="h-3.5 w-3.5" />
+										<span>{t("sidebar:gitPrimaryNext")}</span>
+										<span className="rounded border border-current/20 px-1 py-0 text-[10px] leading-none opacity-80">
+											{t("sidebar:gitPrimaryNextKeys")}
+										</span>
+									</Button>
+								</div>
+							)}
+						</div>
+					) : null}
 				</div>
 			</div>
 		</TooltipProvider>
