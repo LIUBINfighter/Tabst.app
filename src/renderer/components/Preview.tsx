@@ -18,6 +18,7 @@ import { usePreviewBarHighlight } from "../hooks/usePreviewBarHighlight";
 import { usePreviewErrorRecovery } from "../hooks/usePreviewErrorRecovery";
 import { usePreviewEventBindings } from "../hooks/usePreviewEventBindings";
 import {
+	type PreviewLifecycleReason,
 	type PreviewLifecycleState,
 	usePreviewLifecycleTelemetry,
 } from "../hooks/usePreviewLifecycleTelemetry";
@@ -161,6 +162,17 @@ export default function Preview({
 	const lastAppliedMetronomeVolumeRef = useRef<number | null>(null);
 	const lastAppliedCountInRef = useRef<number | null>(null);
 	const lastAppliedTexContentRef = useRef<string | null>(null);
+	const lastPlaybackProgressRef = useRef<{
+		positionTick: number;
+		endTick: number;
+		positionMs: number;
+		endMs: number;
+	} | null>(null);
+	const lastPlayerIsPlayingRef = useRef<boolean | null>(null);
+	const lastPlayerCursorRef = useRef<{
+		barIndex: number;
+		beatIndex: number;
+	} | null>(null);
 
 	const emitApiChange = useCallback(
 		(api: alphaTab.AlphaTabApi | null) => {
@@ -175,7 +187,7 @@ export default function Preview({
 		usePreviewEventBindings();
 
 	const transitionLifecycle = useCallback(
-		(next: PreviewLifecycleState, reason: string) => {
+		(next: PreviewLifecycleState, reason: PreviewLifecycleReason) => {
 			lifecycleStateRef.current = next;
 			transition(next, reason);
 		},
@@ -198,7 +210,55 @@ export default function Preview({
 		lastAppliedMetronomeVolumeRef.current = null;
 		lastAppliedCountInRef.current = null;
 		lastAppliedTexContentRef.current = null;
+		lastPlaybackProgressRef.current = null;
+		lastPlayerIsPlayingRef.current = null;
+		lastPlayerCursorRef.current = null;
 	}, [runListenerTeardowns, increment, emitApiChange]);
+
+	const setPlayerIsPlayingIfChanged = useCallback((next: boolean) => {
+		if (lastPlayerIsPlayingRef.current === next) return;
+		lastPlayerIsPlayingRef.current = next;
+		useAppStore.getState().setPlayerIsPlaying(next);
+	}, []);
+
+	const setPlayerCursorIfChanged = useCallback(
+		(next: { barIndex: number; beatIndex: number }) => {
+			const prev = lastPlayerCursorRef.current;
+			if (
+				prev &&
+				prev.barIndex === next.barIndex &&
+				prev.beatIndex === next.beatIndex
+			) {
+				return;
+			}
+			lastPlayerCursorRef.current = next;
+			useAppStore.getState().setPlayerCursorPosition(next);
+		},
+		[],
+	);
+
+	const setPlaybackProgressIfChanged = useCallback(
+		(next: {
+			positionTick: number;
+			endTick: number;
+			positionMs: number;
+			endMs: number;
+		}) => {
+			const prev = lastPlaybackProgressRef.current;
+			if (
+				prev &&
+				prev.positionTick === next.positionTick &&
+				prev.endTick === next.endTick &&
+				prev.positionMs === next.positionMs &&
+				prev.endMs === next.endMs
+			) {
+				return;
+			}
+			lastPlaybackProgressRef.current = next;
+			useAppStore.getState().setPlaybackProgress(next);
+		},
+		[],
+	);
 	// Prevent loop from cursor updates triggered by score selection
 	const isEditorCursorFromScoreRef = useRef(false);
 	// Track whether current highlight is triggered by editor cursor (to distinguish from manual selection)
@@ -627,7 +687,7 @@ export default function Preview({
 				// if (cursor) cursor.classList.add("hidden");
 				// 渲染完成时回到无高亮状态（避免保留旧的黄色小节高亮导致滚动锁定）
 				useAppStore.getState().clearPlaybackHighlights();
-				useAppStore.getState().setPlaybackProgress({
+				setPlaybackProgressIfChanged({
 					positionTick: 0,
 					endTick:
 						typeof api.endTick === "number" ? Math.max(0, api.endTick) : 0,
@@ -667,8 +727,8 @@ export default function Preview({
 				if (!beat) {
 					// 播放停止/结束时回到无高亮状态（同时清除黄色小节高亮的来源）
 					useAppStore.getState().clearPlaybackHighlights();
-					useAppStore.getState().setPlayerIsPlaying(false);
-					useAppStore.getState().setPlaybackProgress({
+					setPlayerIsPlayingIfChanged(false);
+					setPlaybackProgressIfChanged({
 						positionTick: 0,
 						endTick:
 							typeof api.endTick === "number" ? Math.max(0, api.endTick) : 0,
@@ -682,7 +742,7 @@ export default function Preview({
 				const beatIndex = beat.index ?? 0;
 				useAppStore.getState().setPlaybackBeat({ barIndex, beatIndex });
 				// 🆕 同时更新播放器光标位置（暂停后保留）
-				useAppStore.getState().setPlayerCursorPosition({ barIndex, beatIndex });
+				setPlayerCursorIfChanged({ barIndex, beatIndex });
 
 				// 暂时关闭自定义播放器光标更新
 				/*
@@ -734,7 +794,7 @@ export default function Preview({
 								? api.endTime
 								: 0;
 
-					useAppStore.getState().setPlaybackProgress({
+					setPlaybackProgressIfChanged({
 						positionTick: Math.max(0, positionTick),
 						endTick: Math.max(0, endTick),
 						positionMs: Math.max(0, positionMs),
@@ -749,8 +809,8 @@ export default function Preview({
 				// 播放结束后播放器光标可能回到默认位置，但 store 仍可能停留在末尾
 				// 这里强制回到无高亮状态，避免编辑器高亮/滚动锁死在末尾
 				useAppStore.getState().clearPlaybackHighlights();
-				useAppStore.getState().setPlayerIsPlaying(false);
-				useAppStore.getState().setPlaybackProgress({
+				setPlayerIsPlayingIfChanged(false);
+				setPlaybackProgressIfChanged({
 					positionTick: 0,
 					endTick: typeof api.endTick === "number" ? api.endTick : 0,
 					positionMs: 0,
@@ -763,17 +823,17 @@ export default function Preview({
 				if (e?.stopped) {
 					// stopped 明确表示停止（而不是暂停），停止时清除播放相关高亮
 					useAppStore.getState().clearPlaybackHighlights();
-					useAppStore.getState().setPlayerIsPlaying(false);
-					useAppStore.getState().setPlaybackProgress({
+					setPlayerIsPlayingIfChanged(false);
+					setPlaybackProgressIfChanged({
 						positionTick: 0,
 						endTick: typeof api.endTick === "number" ? api.endTick : 0,
 						positionMs: 0,
 						endMs: typeof api.endTime === "number" ? api.endTime : 0,
 					});
 				} else if (e?.state === 1 /* Playing */) {
-					useAppStore.getState().setPlayerIsPlaying(true);
+					setPlayerIsPlayingIfChanged(true);
 				} else {
-					useAppStore.getState().setPlayerIsPlaying(false);
+					setPlayerIsPlayingIfChanged(false);
 				}
 			});
 
@@ -810,7 +870,7 @@ export default function Preview({
 								api.stop?.();
 
 								// 先设置播放器光标位置
-								useAppStore.getState().setPlayerCursorPosition({
+								setPlayerCursorIfChanged({
 									barIndex,
 									beatIndex,
 								});
@@ -862,7 +922,7 @@ export default function Preview({
 						useAppStore.getState().clearPlaybackHighlights();
 
 						// 4. 重置播放器状态
-						useAppStore.getState().setPlayerIsPlaying(false);
+						setPlayerIsPlayingIfChanged(false);
 
 						// 5. 清除编辑器光标相关的 refs（避免残留状态）
 						isHighlightFromEditorCursorRef.current = false;
@@ -972,7 +1032,7 @@ export default function Preview({
 								typeof api.timePosition === "number"
 									? Math.max(0, api.timePosition)
 									: fallbackPositionMs;
-							useAppStore.getState().setPlaybackProgress({
+							setPlaybackProgressIfChanged({
 								positionTick: targetTick,
 								endTick,
 								positionMs,
@@ -999,7 +1059,7 @@ export default function Preview({
 				// 🆕 清除用户手动选择的选区高亮（点击乐谱时，应该清除之前的选区）
 				useAppStore.getState().clearScoreSelection();
 				// 更新播放器光标位置，触发编辑器黄色高亮
-				useAppStore.getState().setPlayerCursorPosition({ barIndex, beatIndex });
+				setPlayerCursorIfChanged({ barIndex, beatIndex });
 			});
 
 			// 🆕 3.5. Selection API (alphaTab 1.8.0+): 监听选区变化，同步到编辑器
@@ -1439,6 +1499,9 @@ export default function Preview({
 		increment,
 		dumpCounters,
 		transitionLifecycle,
+		setPlaybackProgressIfChanged,
+		setPlayerCursorIfChanged,
+		setPlayerIsPlayingIfChanged,
 	]);
 
 	// 内容更新：仅调用 tex，不销毁 API，避免闪烁

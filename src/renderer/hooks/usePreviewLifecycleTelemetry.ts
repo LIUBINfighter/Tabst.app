@@ -8,6 +8,22 @@ export type PreviewLifecycleState =
 	| "destroyed"
 	| "error";
 
+export type PreviewLifecycleReason =
+	| "initAlphaTab-start"
+	| "theme-observer"
+	| "theme-rebuild-complete"
+	| "initAlphaTab-done-noop"
+	| "init-done-noop-tex"
+	| "initAlphaTab-done-empty-noop"
+	| "init-done-empty-noop"
+	| "initAlphaTab-done"
+	| "init-done"
+	| "initAlphaTab-error"
+	| "preview-unmount"
+	| "listener-bound"
+	| "listener-unbound"
+	| "listener-unbound-force";
+
 interface PreviewLifecycleCounters {
 	apiCreated: number;
 	apiDestroyed: number;
@@ -33,7 +49,7 @@ export function usePreviewLifecycleTelemetry() {
 	});
 
 	const transition = useCallback(
-		(next: PreviewLifecycleState, reason: string) => {
+		(next: PreviewLifecycleState, reason: PreviewLifecycleReason) => {
 			const prev = lifecycleStateRef.current;
 			lifecycleStateRef.current = next;
 			if (import.meta.env.DEV) {
@@ -47,7 +63,7 @@ export function usePreviewLifecycleTelemetry() {
 		countersRef.current[key] += 1;
 	}, []);
 
-	const dumpCounters = useCallback((reason: string) => {
+	const dumpCounters = useCallback((reason: PreviewLifecycleReason) => {
 		if (!import.meta.env.DEV) return;
 		console.info(`[PreviewLifecycle] counters (${reason})`, {
 			state: lifecycleStateRef.current,

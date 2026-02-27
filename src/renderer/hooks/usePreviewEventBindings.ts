@@ -1,5 +1,6 @@
 import type * as alphaTab from "@coderline/alphatab";
 import { useCallback, useRef } from "react";
+import type { PreviewLifecycleReason } from "./usePreviewLifecycleTelemetry";
 
 interface BindPreviewEventsParams {
 	api: alphaTab.AlphaTabApi;
@@ -16,7 +17,7 @@ interface BindPreviewEventsParams {
 			| "timeoutTriggered",
 	) => void;
 
-	dumpCounters: (reason: string) => void;
+	dumpCounters: (reason: PreviewLifecycleReason) => void;
 }
 
 interface BoundToken {
