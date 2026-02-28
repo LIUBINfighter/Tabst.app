@@ -2,6 +2,7 @@ import { create } from "zustand";
 import i18n, { type Locale } from "../i18n";
 import { extractAtDocFileMeta } from "../lib/atdoc";
 import { loadGlobalSettings, saveGlobalSettings } from "../lib/global-settings";
+import { sanitizeShortcutList } from "../lib/shortcut-utils";
 import type { StaffDisplayOptions } from "../lib/staff-config";
 import {
 	isTemplateCandidatePath,
@@ -313,6 +314,9 @@ interface AppState {
 	setFileTemplate: (filePath: string, enabled: boolean) => void;
 	toggleFileTemplate: (filePath: string) => void;
 	remapTemplatePaths: (oldPrefix: string, newPrefix: string) => void;
+	commandShortcuts: Record<string, string[]>;
+	setCommandShortcuts: (commandId: string, shortcuts: string[]) => void;
+	resetCommandShortcuts: (commandId: string) => void;
 	// Actions
 	addFile: (file: FileItem) => void;
 	removeFile: (id: string) => void;
@@ -641,6 +645,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 						fileTree: result.nodes,
 						files: flattenFileNodes(result.nodes),
 						templateFilePaths: [],
+						commandShortcuts: {},
 						activeFileId: null,
 						scoreSelection: null,
 						playbackBeat: null,
@@ -740,6 +745,25 @@ export const useAppStore = create<AppState>((set, get) => ({
 									),
 								),
 							});
+						}
+						if (
+							prefs.commandShortcuts &&
+							typeof prefs.commandShortcuts === "object"
+						) {
+							const nextShortcuts: Record<string, string[]> = {};
+							for (const [commandId, rawShortcuts] of Object.entries(
+								prefs.commandShortcuts,
+							)) {
+								if (!Array.isArray(rawShortcuts)) continue;
+								const shortcuts = sanitizeShortcutList(
+									rawShortcuts.filter(
+										(shortcut): shortcut is string =>
+											typeof shortcut === "string",
+									),
+								);
+								nextShortcuts[commandId] = shortcuts;
+							}
+							set({ commandShortcuts: nextShortcuts });
 						}
 						if (
 							prefs.customPlayerConfig?.components &&
@@ -1469,6 +1493,33 @@ export const useAppStore = create<AppState>((set, get) => ({
 			if (isSameStringList(state.templateFilePaths, next)) return {};
 			void mergeAndSaveWorkspacePreferences({ templateFilePaths: next });
 			return { templateFilePaths: next };
+		});
+	},
+	commandShortcuts: {},
+	setCommandShortcuts: (commandId, shortcuts) => {
+		const normalized = sanitizeShortcutList(shortcuts);
+		set((state) => {
+			const current = state.commandShortcuts[commandId] ?? [];
+			if (isSameStringList(current, normalized)) return {};
+
+			const next = {
+				...state.commandShortcuts,
+				[commandId]: normalized,
+			};
+			void mergeAndSaveWorkspacePreferences({ commandShortcuts: next });
+			return { commandShortcuts: next };
+		});
+	},
+	resetCommandShortcuts: (commandId) => {
+		set((state) => {
+			if (!Object.hasOwn(state.commandShortcuts, commandId)) {
+				return {};
+			}
+
+			const next = { ...state.commandShortcuts };
+			delete next[commandId];
+			void mergeAndSaveWorkspacePreferences({ commandShortcuts: next });
+			return { commandShortcuts: next };
 		});
 	},
 

@@ -18,6 +18,7 @@ export interface RepoPreferences {
 	pinnedCommandIds?: string[];
 	commandMruIds?: string[];
 	templateFilePaths?: string[];
+	commandShortcuts?: Record<string, string[]>;
 	staffOptions?: StaffDisplayOptions;
 	zoomPercent?: number;
 	playbackSpeed?: number;

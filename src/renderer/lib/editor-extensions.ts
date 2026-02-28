@@ -10,6 +10,7 @@ import { useAppStore } from "../store/appStore";
 import { alphatexAbbreviations } from "./alphatex-abbreviations";
 import { createAlphaTexBarlinesExtension } from "./alphatex-barlines";
 import { createAlphaTexAutocomplete } from "./alphatex-completion";
+import { createAlphaTexDiagnosticsExtension } from "./alphatex-diagnostics";
 import { getAlphaTexHighlight } from "./alphatex-highlight";
 import type { AlphaTexLSPClient } from "./alphatex-lsp";
 import {
@@ -104,6 +105,9 @@ export async function createAlphaTexExtensions(
 
 		const completionExts = createAlphaTexAutocomplete(lspClient);
 		extensions.push(...completionExts);
+
+		const diagnosticsExt = createAlphaTexDiagnosticsExtension(lspClient);
+		extensions.push(diagnosticsExt);
 
 		const barlinesExt = createAlphaTexBarlinesExtension(lspClient);
 		extensions.push(barlinesExt);

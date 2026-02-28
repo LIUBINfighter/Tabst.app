@@ -31,6 +31,11 @@ export const defaultSettingsPages: SettingsPage[] = [
 		description: "管理可插入和可复用的文件模板",
 	},
 	{
+		id: "shortcuts",
+		title: "快捷键",
+		description: "快捷键绑定与冲突管理",
+	},
+	{
 		id: "updates",
 		title: "更新", // 后备值，实际使用 t("settings:updates")
 		description: "版本检查与更新相关功能",
