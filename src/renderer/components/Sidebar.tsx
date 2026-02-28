@@ -36,6 +36,39 @@ function flattenNodes(nodes: FileNode[]): FileNode[] {
 	return out;
 }
 
+const SIDEBAR_VISIBLE_EXTENSIONS = new Set([".atex", ".md"]);
+
+function getFileExtension(fileName: string): string {
+	const lastDotIndex = fileName.lastIndexOf(".");
+	if (lastDotIndex <= 0) return "";
+	return fileName.slice(lastDotIndex).toLowerCase();
+}
+
+function filterSidebarVisibleNodes(nodes: FileNode[]): FileNode[] {
+	const result: FileNode[] = [];
+
+	for (const node of nodes) {
+		if (node.type === "file") {
+			if (SIDEBAR_VISIBLE_EXTENSIONS.has(getFileExtension(node.name))) {
+				result.push(node);
+			}
+			continue;
+		}
+
+		const visibleChildren = node.children
+			? filterSidebarVisibleNodes(node.children)
+			: [];
+		if (visibleChildren.length === 0) continue;
+
+		result.push({
+			...node,
+			children: visibleChildren,
+		});
+	}
+
+	return result;
+}
+
 export function Sidebar({ onCollapse }: SidebarProps) {
 	const { t } = useTranslation("sidebar");
 	const fileTree = useAppStore((s) => s.fileTree);
@@ -307,6 +340,11 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 		return order.filter((status) => set.has(status));
 	}, [files]);
 
+	const sidebarVisibleTree = useMemo(
+		() => filterSidebarVisibleNodes(fileTree),
+		[fileTree],
+	);
+
 	const toggleTagFilter = (tag: string) => {
 		const lower = tag.toLowerCase();
 		setSelectedTagFilters((current) => {
@@ -331,7 +369,7 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 
 	const filteredFileTree = useMemo(() => {
 		if (selectedTagFilters.length === 0 && selectedStatusFilters.length === 0) {
-			return fileTree;
+			return sidebarVisibleTree;
 		}
 
 		const required = selectedTagFilters.map((tag) => tag.toLowerCase());
@@ -367,8 +405,14 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 			return out;
 		};
 
-		return filterNodes(fileTree);
-	}, [fileTree, files, selectedStatusFilters, selectedTagFilters, tagsByPath]);
+		return filterNodes(sidebarVisibleTree);
+	}, [
+		sidebarVisibleTree,
+		files,
+		selectedStatusFilters,
+		selectedTagFilters,
+		tagsByPath,
+	]);
 
 	useEffect(() => {
 		if (workspaceMode !== "editor" || !activeRepoId) return;
@@ -692,7 +736,7 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 			);
 		}
 
-		if (fileTree.length === 0) {
+		if (sidebarVisibleTree.length === 0) {
 			return (
 				<div className="p-3 text-xs text-muted-foreground text-center">
 					{t("noFiles")}

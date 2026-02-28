@@ -8,5 +8,9 @@
 	"powerUser": "进阶用户",
 	"developer": "开发者",
 	"loadFailed": "加载失败：{{reason}}",
-	"selectOrCreateFile": "选择或创建一个文件开始编辑"
+	"selectOrCreateFile": "选择或创建一个文件开始编辑",
+	"webSandboxCardTitle": "Website Sandbox",
+	"webSandboxCardDescription": "Tabst 是基于 AlphaTex 的吉他谱编辑器。你可以在这个 Sandbox 中直接学习语法并尝试示例。",
+	"webSandboxCardRepo": "GitHub：LIUBINfighter/Tabst.app",
+	"webSandboxCardOpenRepo": "查看仓库"
 }

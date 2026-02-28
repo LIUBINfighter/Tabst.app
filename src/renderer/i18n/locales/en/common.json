@@ -8,5 +8,9 @@
 	"powerUser": "PowerUser",
 	"developer": "Developer",
 	"loadFailed": "Load failed: {{reason}}",
-	"selectOrCreateFile": "Select or create a file to start editing"
+	"selectOrCreateFile": "Select or create a file to start editing",
+	"webSandboxCardTitle": "Website Sandbox",
+	"webSandboxCardDescription": "Tabst is a guitar tab editor powered by AlphaTex. Use this sandbox to learn syntax and try examples instantly.",
+	"webSandboxCardRepo": "GitHub: LIUBINfighter/Tabst.app",
+	"webSandboxCardOpenRepo": "Open repository"
 }

@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { DEFAULT_SANDBOX_ATEX_CONTENT } from "../data/default-sandbox-content";
 import i18n, { type Locale } from "../i18n";
 import { extractAtDocFileMeta } from "../lib/atdoc";
 import { loadGlobalSettings, saveGlobalSettings } from "../lib/global-settings";
@@ -42,6 +43,88 @@ function isSameStringList(a: string[] | undefined, b: string[] | undefined) {
 		if (a[i] !== b[i]) return false;
 	}
 	return true;
+}
+
+const DEFAULT_SANDBOX_REPO_NAME = "Sandbox";
+
+const DEFAULT_SANDBOX_README_CONTENT = `# Tabst Sandbox
+
+Welcome to the default sandbox.
+
+- Start with \`sandbox.atex\` to learn AlphaTex basics.
+- Keep notes in this \`README.md\` file.
+- Official repository: https://github.com/LIUBINfighter/Tabst.app
+`;
+
+interface SandboxSeedFile {
+	content: string;
+	ext: ".atex" | ".md";
+	name: string;
+}
+
+const DEFAULT_SANDBOX_FILES: SandboxSeedFile[] = [
+	{
+		name: "sandbox.atex",
+		ext: ".atex",
+		content: DEFAULT_SANDBOX_ATEX_CONTENT,
+	},
+	{
+		name: "README.md",
+		ext: ".md",
+		content: DEFAULT_SANDBOX_README_CONTENT,
+	},
+];
+
+async function seedSandboxFile(
+	directoryPath: string,
+	seed: SandboxSeedFile,
+): Promise<void> {
+	const created = await window.electronAPI.createFile(seed.ext, directoryPath);
+	if (!created) return;
+
+	let targetPath = created.path;
+	try {
+		const renamed = await window.electronAPI.renameFile(
+			created.path,
+			seed.name,
+		);
+		if (renamed?.success && renamed.newPath) {
+			targetPath = renamed.newPath;
+		}
+	} catch (error) {
+		console.error("Failed to rename sandbox file:", error);
+	}
+
+	const saveResult = await window.electronAPI.saveFile(
+		targetPath,
+		seed.content,
+	);
+	if (!saveResult.success) {
+		console.error("Failed to seed sandbox file:", saveResult.error);
+	}
+}
+
+async function createDefaultSandboxRepo(): Promise<Repo | null> {
+	try {
+		const folder = await window.electronAPI.createFolder(
+			DEFAULT_SANDBOX_REPO_NAME,
+		);
+		if (!folder) return null;
+
+		for (const seed of DEFAULT_SANDBOX_FILES) {
+			await seedSandboxFile(folder.path, seed);
+		}
+
+		return {
+			id: crypto.randomUUID(),
+			name: folder.name,
+			path: folder.path,
+			lastOpenedAt: Date.now(),
+		};
+	} catch (error) {
+		console.error("Failed to create default sandbox repo:", error);
+		return null;
+	}
 }
 
 /**
@@ -1981,12 +2064,26 @@ export const useAppStore = create<AppState>((set, get) => ({
 	initialize: async () => {
 		try {
 			isRestoringAppState = true;
-			const [repos, appState] = await Promise.all([
+			const [loadedRepos, appState] = await Promise.all([
 				window.electronAPI?.loadRepos?.(),
 				window.electronAPI?.loadAppState?.(),
 			]);
 
-			if (!repos) return;
+			if (!loadedRepos) return;
+
+			let repos = loadedRepos;
+			if (repos.length === 0) {
+				const sandboxRepo = await createDefaultSandboxRepo();
+				if (sandboxRepo) {
+					repos = [sandboxRepo];
+					try {
+						await window.electronAPI.saveRepos(repos);
+					} catch (error) {
+						console.error("Failed to persist default sandbox repo:", error);
+					}
+				}
+			}
+
 			set({ repos });
 
 			const persistedRepoId = appState?.activeRepoId ?? null;

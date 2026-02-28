@@ -2,7 +2,7 @@ import type { Extension } from "@codemirror/state";
 import { EditorState } from "@codemirror/state";
 import type { ViewUpdate } from "@codemirror/view";
 import { basicSetup, EditorView } from "codemirror";
-import { ChevronRight, Edit } from "lucide-react";
+import { ChevronRight, Edit, ExternalLink, Github } from "lucide-react";
 import {
 	useCallback,
 	useEffect,
@@ -73,6 +73,7 @@ export function Editor({
 	const [inlineCommandOpen, setInlineCommandOpen] = useState(false);
 	const [inlineCommandTop, setInlineCommandTop] = useState(8);
 	const [inlineCommandLeft, setInlineCommandLeft] = useState(8);
+	const [isWebRuntime, setIsWebRuntime] = useState(false);
 
 	// Track current file path to detect language changes
 	const currentFilePathRef = useRef<string>("");
@@ -93,6 +94,24 @@ export function Editor({
 	const _playbackBeat = useAppStore((s) => s.playbackBeat);
 	const _playerCursorPosition = useAppStore((s) => s.playerCursorPosition);
 	const enableSyncScroll = useAppStore((s) => s.enableSyncScroll);
+
+	useEffect(() => {
+		let mounted = true;
+		void window.electronAPI
+			.getAppVersion()
+			.then((version) => {
+				if (!mounted) return;
+				setIsWebRuntime(version === "web");
+			})
+			.catch(() => {
+				if (!mounted) return;
+				setIsWebRuntime(false);
+			});
+
+		return () => {
+			mounted = false;
+		};
+	}, []);
 
 	const { themeCompartment, themeExtension } = useEditorTheme();
 	const {
@@ -614,6 +633,33 @@ export function Editor({
 		return (
 			<div className="flex-1 flex items-center justify-center">
 				<div className="flex flex-col items-center gap-6">
+					{isWebRuntime ? (
+						<a
+							href="https://github.com/LIUBINfighter/Tabst.app"
+							target="_blank"
+							rel="noopener noreferrer"
+							className="w-[min(44rem,94vw)] rounded-2xl border border-primary/30 bg-gradient-to-br from-primary/10 via-card to-card p-6 shadow-sm transition-colors hover:border-primary/60 hover:bg-primary/5"
+						>
+							<div className="mb-4 flex items-start justify-between gap-3">
+								<div className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-primary/15 text-primary">
+									<Github className="h-5 w-5" />
+								</div>
+								<ExternalLink className="h-4 w-4 text-muted-foreground" />
+							</div>
+							<h2 className="mb-2 text-lg font-semibold tracking-tight text-foreground">
+								{t("common:webSandboxCardTitle")}
+							</h2>
+							<p className="mb-3 text-sm leading-6 text-muted-foreground">
+								{t("common:webSandboxCardDescription")}
+							</p>
+							<p className="mb-2 text-xs font-medium uppercase tracking-wide text-primary">
+								{t("common:webSandboxCardRepo")}
+							</p>
+							<span className="text-sm font-medium text-primary">
+								{t("common:webSandboxCardOpenRepo")}
+							</span>
+						</a>
+					) : null}
 					<p className="text-sm text-muted-foreground">
 						{t("common:selectOrCreateFile")}
 					</p>
