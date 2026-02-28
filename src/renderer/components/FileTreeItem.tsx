@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { isTemplateCandidateName } from "../lib/template-utils";
 import { useAppStore } from "../store/appStore";
 import type { FileNode } from "../types/repo";
 import { FileContextMenu } from "./FileContextMenu";
@@ -109,6 +110,8 @@ export function FileTreeItem({
 
 	const isActive = activeFileId === node.id;
 	const isFolder = node.type === "folder";
+	const isTemplateCandidate =
+		node.type === "file" && isTemplateCandidateName(node.name);
 	const isExpanded = node.isExpanded ?? false;
 	const fileMetaTags = useAppStore(
 		useCallback(
@@ -553,7 +556,7 @@ export function FileTreeItem({
 				node={node}
 				onOpen={() => handleContextMenuAction(() => onFileSelect?.(node))}
 				onToggleTemplate={
-					isFolder
+					isFolder || !isTemplateCandidate
 						? undefined
 						: () => handleContextMenuAction(() => toggleFileTemplate(node.path))
 				}

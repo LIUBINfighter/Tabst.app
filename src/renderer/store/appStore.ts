@@ -3,6 +3,10 @@ import i18n, { type Locale } from "../i18n";
 import { extractAtDocFileMeta } from "../lib/atdoc";
 import { loadGlobalSettings, saveGlobalSettings } from "../lib/global-settings";
 import type { StaffDisplayOptions } from "../lib/staff-config";
+import {
+	isTemplateCandidatePath,
+	sanitizeTemplatePathList,
+} from "../lib/template-utils";
 import type { TutorialAudience } from "../lib/tutorial-loader";
 import type {
 	GitDiffResult,
@@ -730,9 +734,11 @@ export const useAppStore = create<AppState>((set, get) => ({
 						}
 						if (Array.isArray(prefs.templateFilePaths)) {
 							set({
-								templateFilePaths: prefs.templateFilePaths
-									.filter((path): path is string => typeof path === "string")
-									.map((path) => normalizePathForCompare(path)),
+								templateFilePaths: sanitizeTemplatePathList(
+									prefs.templateFilePaths.filter(
+										(path): path is string => typeof path === "string",
+									),
+								),
 							});
 						}
 						if (
@@ -1410,20 +1416,21 @@ export const useAppStore = create<AppState>((set, get) => ({
 	setFileTemplate: (filePath, enabled) => {
 		const normalizedPath = normalizePathForCompare(filePath);
 		if (!normalizedPath) return;
+		if (enabled && !isTemplateCandidatePath(normalizedPath)) return;
 
 		set((state) => {
 			const exists = state.templateFilePaths.includes(normalizedPath);
-			if (enabled) {
-				if (exists) return {};
-				const next = [...state.templateFilePaths, normalizedPath];
-				void mergeAndSaveWorkspacePreferences({ templateFilePaths: next });
-				return { templateFilePaths: next };
-			}
-
-			if (!exists) return {};
-			const next = state.templateFilePaths.filter(
-				(path) => path !== normalizedPath,
+			const next = sanitizeTemplatePathList(
+				enabled
+					? exists
+						? state.templateFilePaths
+						: [...state.templateFilePaths, normalizedPath]
+					: exists
+						? state.templateFilePaths.filter((path) => path !== normalizedPath)
+						: state.templateFilePaths,
 			);
+
+			if (isSameStringList(state.templateFilePaths, next)) return {};
 			void mergeAndSaveWorkspacePreferences({ templateFilePaths: next });
 			return { templateFilePaths: next };
 		});
@@ -1434,9 +1441,15 @@ export const useAppStore = create<AppState>((set, get) => ({
 
 		set((state) => {
 			const exists = state.templateFilePaths.includes(normalizedPath);
-			const next = exists
-				? state.templateFilePaths.filter((path) => path !== normalizedPath)
-				: [...state.templateFilePaths, normalizedPath];
+			const next = sanitizeTemplatePathList(
+				exists
+					? state.templateFilePaths.filter((path) => path !== normalizedPath)
+					: isTemplateCandidatePath(normalizedPath)
+						? [...state.templateFilePaths, normalizedPath]
+						: state.templateFilePaths,
+			);
+
+			if (isSameStringList(state.templateFilePaths, next)) return {};
 			void mergeAndSaveWorkspacePreferences({ templateFilePaths: next });
 			return { templateFilePaths: next };
 		});
@@ -1447,19 +1460,15 @@ export const useAppStore = create<AppState>((set, get) => ({
 		if (!normalizedOldPrefix || !normalizedNewPrefix) return;
 
 		set((state) => {
-			const remapped = state.templateFilePaths.map((path) =>
-				replacePathPrefix(path, normalizedOldPrefix, normalizedNewPrefix),
+			const next = sanitizeTemplatePathList(
+				state.templateFilePaths.map((path) =>
+					replacePathPrefix(path, normalizedOldPrefix, normalizedNewPrefix),
+				),
 			);
-			const deduped: string[] = [];
-			for (const path of remapped) {
-				if (!deduped.includes(path)) {
-					deduped.push(path);
-				}
-			}
 
-			if (isSameStringList(state.templateFilePaths, deduped)) return {};
-			void mergeAndSaveWorkspacePreferences({ templateFilePaths: deduped });
-			return { templateFilePaths: deduped };
+			if (isSameStringList(state.templateFilePaths, next)) return {};
+			void mergeAndSaveWorkspacePreferences({ templateFilePaths: next });
+			return { templateFilePaths: next };
 		});
 	},
 
@@ -1548,9 +1557,11 @@ export const useAppStore = create<AppState>((set, get) => ({
 						? newFiles[0].id
 						: null
 					: state.activeFileId;
-			const nextTemplatePaths = removedPath
-				? state.templateFilePaths.filter((path) => path !== removedPath)
-				: state.templateFilePaths;
+			const nextTemplatePaths = sanitizeTemplatePathList(
+				removedPath
+					? state.templateFilePaths.filter((path) => path !== removedPath)
+					: state.templateFilePaths,
+			);
 
 			if (nextTemplatePaths.length !== state.templateFilePaths.length) {
 				void mergeAndSaveWorkspacePreferences({
@@ -1617,8 +1628,10 @@ export const useAppStore = create<AppState>((set, get) => ({
 						: state.activeFileId;
 
 				const newTree = renameNodeInTree(state.fileTree, oldPath, newPath);
-				const nextTemplatePaths = state.templateFilePaths.map((path) =>
-					replacePathPrefix(path, oldPath, newPath),
+				const nextTemplatePaths = sanitizeTemplatePathList(
+					state.templateFilePaths.map((path) =>
+						replacePathPrefix(path, oldPath, newPath),
+					),
 				);
 				const templatePathsChanged = !isSameStringList(
 					nextTemplatePaths,

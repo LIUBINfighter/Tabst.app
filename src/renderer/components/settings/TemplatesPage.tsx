@@ -1,19 +1,14 @@
 import { Sparkles } from "lucide-react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import {
+	isTemplateCandidateName,
+	normalizeTemplatePath,
+} from "../../lib/template-utils";
 import { runUiCommand } from "../../lib/ui-command-registry";
 import { useAppStore } from "../../store/appStore";
 import { Button } from "../ui/button";
 import { CheckboxToggle } from "../ui/checkbox-toggle";
-
-function normalizePath(path: string): string {
-	return path.replace(/\\/g, "/");
-}
-
-function isTemplateCandidate(name: string): boolean {
-	const lower = name.toLowerCase();
-	return lower.endsWith(".atex") || lower.endsWith(".md");
-}
 
 export function TemplatesPage() {
 	const { t } = useTranslation("settings");
@@ -23,7 +18,7 @@ export function TemplatesPage() {
 	const setFileTemplate = useAppStore((s) => s.setFileTemplate);
 
 	const templatePathSet = useMemo(
-		() => new Set(templateFilePaths.map((path) => normalizePath(path))),
+		() => new Set(templateFilePaths.map((path) => normalizeTemplatePath(path))),
 		[templateFilePaths],
 	);
 
@@ -33,14 +28,17 @@ export function TemplatesPage() {
 	);
 
 	const candidateFiles = useMemo(
-		() => files.filter((file) => isTemplateCandidate(file.name)),
+		() => files.filter((file) => isTemplateCandidateName(file.name)),
 		[files],
 	);
+
+	const activeFileSupportsTemplate =
+		activeFile != null && isTemplateCandidateName(activeFile.name);
 
 	const markedTemplates = useMemo(
 		() =>
 			candidateFiles.filter((file) =>
-				templatePathSet.has(normalizePath(file.path)),
+				templatePathSet.has(normalizeTemplatePath(file.path)),
 			),
 		[candidateFiles, templatePathSet],
 	);
@@ -72,13 +70,17 @@ export function TemplatesPage() {
 				<h3 className="text-sm font-medium">{t("templatesActiveFile")}</h3>
 				{activeFile ? (
 					<div className="flex items-start gap-3">
-						<CheckboxToggle
-							checked={templatePathSet.has(normalizePath(activeFile.path))}
-							onCheckedChange={(checked) =>
-								setFileTemplate(activeFile.path, checked)
-							}
-							aria-label={activeFile.name}
-						/>
+						{activeFileSupportsTemplate ? (
+							<CheckboxToggle
+								checked={templatePathSet.has(
+									normalizeTemplatePath(activeFile.path),
+								)}
+								onCheckedChange={(checked) =>
+									setFileTemplate(activeFile.path, checked)
+								}
+								aria-label={activeFile.name}
+							/>
+						) : null}
 						<div className="min-w-0 flex-1">
 							<div className="flex items-center gap-2 text-sm font-medium">
 								<Sparkles className="h-4 w-4 text-muted-foreground" />
@@ -87,6 +89,11 @@ export function TemplatesPage() {
 							<p className="mt-1 text-xs text-muted-foreground truncate font-mono">
 								{activeFile.path}
 							</p>
+							{!activeFileSupportsTemplate ? (
+								<p className="mt-1 text-xs text-muted-foreground">
+									{t("templatesUnsupportedActiveFile")}
+								</p>
+							) : null}
 						</div>
 					</div>
 				) : (
@@ -135,7 +142,9 @@ export function TemplatesPage() {
 				</p>
 				<div className="space-y-2">
 					{candidateFiles.map((file) => {
-						const checked = templatePathSet.has(normalizePath(file.path));
+						const checked = templatePathSet.has(
+							normalizeTemplatePath(file.path),
+						);
 						return (
 							<div
 								key={`candidate-${file.path}`}

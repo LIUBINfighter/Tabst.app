@@ -14,6 +14,7 @@ import {
 	dispatchPreviewCommand,
 	type PreviewCommandId,
 } from "./preview-command-events";
+import { isTemplateCandidatePath } from "./template-utils";
 import {
 	dispatchUiShellCommand,
 	type UiShellCommandId,
@@ -161,6 +162,16 @@ export function getCommandAvailability(
 			enabled: false,
 			reason: "No active file.",
 		};
+	}
+
+	if (commandId === "template.toggle-active-file") {
+		const activeFilePath = getActiveFilePath();
+		if (activeFilePath && !isTemplateCandidatePath(activeFilePath)) {
+			return {
+				enabled: false,
+				reason: "Only .atex and .md files can be marked as templates.",
+			};
+		}
 	}
 
 	return { enabled: true };

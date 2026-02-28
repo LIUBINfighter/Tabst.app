@@ -15,6 +15,7 @@
 	"templatesDesc": "Manage reusable file templates",
 	"templatesActiveFile": "Active File",
 	"templatesNoActiveFile": "No active file. Open a file to mark it as a template.",
+	"templatesUnsupportedActiveFile": "Only .atex or .md files can be marked as templates.",
 	"templatesMarked": "Marked Templates",
 	"templatesNone": "No templates marked yet",
 	"templatesAllFiles": "All Candidate Files",

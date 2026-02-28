@@ -18,6 +18,7 @@ import UpdateToast from "./components/UpdateToast";
 import { useFileOperations } from "./hooks/useFileOperations";
 import { getAlphaTexHighlight } from "./lib/alphatex-highlight";
 import { createAlphaTexLSPClient } from "./lib/alphatex-lsp";
+import { isTemplateCandidateName } from "./lib/template-utils";
 import { runUiCommand } from "./lib/ui-command-registry";
 import {
 	UI_SHELL_COMMAND_EVENT,
@@ -79,7 +80,11 @@ function App() {
 
 	const templateItems = useMemo<TemplatePickerItem[]>(() => {
 		return files
-			.filter((file) => templatePathSet.has(normalizePath(file.path)))
+			.filter(
+				(file) =>
+					templatePathSet.has(normalizePath(file.path)) &&
+					isTemplateCandidateName(file.name),
+			)
 			.map((file) => ({
 				path: file.path,
 				name: file.name,
@@ -115,6 +120,7 @@ function App() {
 
 		const templateFile = filesByNormalizedPath.get(normalizePath(templatePath));
 		if (!templateFile) return;
+		if (!isTemplateCandidateName(templateFile.name)) return;
 
 		const [activeContent, templateContent] = await Promise.all([
 			resolveFileContent(activeFile),
@@ -154,6 +160,7 @@ function App() {
 	const handleCreateFromTemplate = async (templatePath: string) => {
 		const templateFile = filesByNormalizedPath.get(normalizePath(templatePath));
 		if (!templateFile) return;
+		if (!isTemplateCandidateName(templateFile.name)) return;
 
 		const templateContent = await resolveFileContent(templateFile);
 		if (templateContent == null) return;

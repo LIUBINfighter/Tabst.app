@@ -15,6 +15,7 @@
 	"templatesDesc": "管理可复用的文件模板",
 	"templatesActiveFile": "当前文件",
 	"templatesNoActiveFile": "暂无当前文件，请先打开文件再标记为模板。",
+	"templatesUnsupportedActiveFile": "仅 .atex 或 .md 文件可标记为模板。",
 	"templatesMarked": "已标记模板",
 	"templatesNone": "尚未标记任何模板",
 	"templatesAllFiles": "候选文件",
