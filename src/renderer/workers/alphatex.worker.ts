@@ -6,6 +6,7 @@
  * code completions, hover information, and other language features.
  */
 
+import * as alphaTab from "@coderline/alphatab";
 import { documentation } from "@coderline/alphatab-language-server";
 import commandsJSON from "../data/alphatex-commands.json";
 import { ATDOC_KEY_DEFINITIONS } from "../data/atdoc-keys";
@@ -703,6 +704,289 @@ function handleBarlines(params: unknown) {
 	return { barlines };
 }
 
+type AlphaTexRawLocation = {
+	line?: number;
+	row?: number;
+	col?: number;
+	character?: number;
+	offset?: number;
+};
+
+type AlphaTexDiagnosticLike = {
+	code?: string | number;
+	severity?: number;
+	message?: string;
+	start?: AlphaTexRawLocation;
+	end?: AlphaTexRawLocation;
+	line?: number;
+	character?: number;
+	col?: number;
+	offset?: number;
+	range?: {
+		start?: AlphaTexRawLocation;
+		end?: AlphaTexRawLocation;
+	};
+};
+
+type WorkerDiagnostic = {
+	range: {
+		start: { line: number; character: number };
+		end: { line: number; character: number };
+	};
+	severity: 1 | 2 | 3 | 4;
+	code: string | number;
+	source: "alphaTab.alphaTex";
+	message: string;
+	data: {
+		phase: "lexer" | "parser" | "semantic";
+		line: number;
+		col: number;
+		offset: number;
+		endLine: number;
+		endCol: number;
+		endOffset: number;
+	};
+};
+
+type WorkerDiagnosticResponse = {
+	kind: "full";
+	items: WorkerDiagnostic[];
+};
+
+function toLspSeverity(severity: number | undefined): 1 | 2 | 3 | 4 {
+	if (severity === 2) return 1; // Error
+	if (severity === 1) return 2; // Warning
+	if (severity === 0) return 4; // Hint
+	return 2;
+}
+
+function normalizeLocation(raw: AlphaTexRawLocation | undefined): {
+	line0: number;
+	character0: number;
+	line1: number;
+	col1: number;
+	offset: number;
+} {
+	const line1Raw =
+		typeof raw?.line === "number"
+			? raw.line
+			: typeof raw?.row === "number"
+				? raw.row
+				: 1;
+	const col1Raw =
+		typeof raw?.col === "number"
+			? raw.col
+			: typeof raw?.character === "number"
+				? raw.character
+				: 1;
+
+	const line1 = Math.max(1, Math.floor(line1Raw));
+	const col1 = Math.max(1, Math.floor(col1Raw));
+	const line0 = line1 - 1;
+	const character0 = col1 - 1;
+	const offset =
+		typeof raw?.offset === "number" && Number.isFinite(raw.offset)
+			? Math.max(0, Math.floor(raw.offset))
+			: 0;
+
+	return { line0, character0, line1, col1, offset };
+}
+
+function toStartLocation(
+	diagnostic: AlphaTexDiagnosticLike,
+): AlphaTexRawLocation {
+	if (diagnostic.start) return diagnostic.start;
+	if (diagnostic.range?.start) return diagnostic.range.start;
+	return {
+		line: diagnostic.line,
+		character: diagnostic.character,
+		col: diagnostic.col,
+		offset: diagnostic.offset,
+	};
+}
+
+function toEndLocation(
+	diagnostic: AlphaTexDiagnosticLike,
+	start: {
+		line1: number;
+		col1: number;
+		offset: number;
+	},
+): AlphaTexRawLocation {
+	if (diagnostic.end) return diagnostic.end;
+	if (diagnostic.range?.end) return diagnostic.range.end;
+	return {
+		line: start.line1,
+		col: start.col1 + 1,
+		offset: start.offset + 1,
+	};
+}
+
+function toDiagnosticCode(
+	rawCode: string | number | undefined,
+): string | number {
+	if (typeof rawCode === "number" || typeof rawCode === "string") {
+		return rawCode;
+	}
+	return "AT000";
+}
+
+function toWorkerDiagnostic(
+	phase: "lexer" | "parser" | "semantic",
+	diagnostic: AlphaTexDiagnosticLike,
+): WorkerDiagnostic {
+	const start = normalizeLocation(toStartLocation(diagnostic));
+	const end = normalizeLocation(toEndLocation(diagnostic, start));
+
+	const message =
+		typeof diagnostic.message === "string" &&
+		diagnostic.message.trim().length > 0
+			? diagnostic.message
+			: "Unknown AlphaTex diagnostic";
+
+	const startCharacter = Math.max(0, start.character0);
+	const endCharacter =
+		end.line0 === start.line0 && end.character0 <= startCharacter
+			? startCharacter + 1
+			: Math.max(0, end.character0);
+
+	return {
+		range: {
+			start: { line: Math.max(0, start.line0), character: startCharacter },
+			end: { line: Math.max(0, end.line0), character: endCharacter },
+		},
+		severity: toLspSeverity(diagnostic.severity),
+		code: toDiagnosticCode(diagnostic.code),
+		source: "alphaTab.alphaTex",
+		message,
+		data: {
+			phase,
+			line: start.line1,
+			col: start.col1,
+			offset: start.offset,
+			endLine: end.line1,
+			endCol: end.col1,
+			endOffset: end.offset,
+		},
+	};
+}
+
+function iterateDiagnosticsBag(bag: unknown): AlphaTexDiagnosticLike[] {
+	if (!bag) return [];
+	const withItems = bag as { items?: unknown };
+	if (Array.isArray(withItems.items)) {
+		return withItems.items as AlphaTexDiagnosticLike[];
+	}
+
+	if (typeof (bag as Iterable<unknown>)[Symbol.iterator] === "function") {
+		return Array.from(bag as Iterable<unknown>) as AlphaTexDiagnosticLike[];
+	}
+
+	return [];
+}
+
+function appendUniqueDiagnostics(
+	target: WorkerDiagnostic[],
+	seen: Set<string>,
+	phase: "lexer" | "parser" | "semantic",
+	items: AlphaTexDiagnosticLike[],
+) {
+	for (const item of items) {
+		const converted = toWorkerDiagnostic(phase, item);
+		const key = `${converted.code}:${converted.data.phase}:${converted.range.start.line}:${converted.range.start.character}:${converted.message}`;
+		if (seen.has(key)) continue;
+		seen.add(key);
+		target.push(converted);
+	}
+}
+
+function diagnosticsFromThrownError(err: unknown): AlphaTexDiagnosticLike[] {
+	const asRecord = err as {
+		cause?: unknown;
+		inner?: unknown;
+		iterateDiagnostics?: () => Iterable<unknown>;
+	};
+
+	if (typeof asRecord?.iterateDiagnostics === "function") {
+		return Array.from(
+			asRecord.iterateDiagnostics(),
+		) as AlphaTexDiagnosticLike[];
+	}
+
+	const causeCandidate = asRecord?.cause ?? asRecord?.inner;
+	const causeRecord = causeCandidate as {
+		iterateDiagnostics?: () => Iterable<unknown>;
+	};
+	if (typeof causeRecord?.iterateDiagnostics === "function") {
+		return Array.from(
+			causeRecord.iterateDiagnostics(),
+		) as AlphaTexDiagnosticLike[];
+	}
+
+	return [];
+}
+
+/**
+ * Handle textDocument/diagnostic request
+ * Runs AlphaTex importer and returns diagnostics including code/line/col/offset.
+ */
+function handleDiagnostic(params: unknown): WorkerDiagnosticResponse {
+	const text =
+		typeof (params as { text?: unknown })?.text === "string"
+			? ((params as { text?: string }).text ?? "")
+			: "";
+
+	if (text.length === 0) {
+		return { kind: "full", items: [] };
+	}
+
+	const importer = new alphaTab.importer.AlphaTexImporter();
+	importer.initFromString(text, new alphaTab.Settings());
+
+	let parseError: unknown = null;
+	try {
+		importer.readScore();
+	} catch (err) {
+		parseError = err;
+	}
+
+	const items: WorkerDiagnostic[] = [];
+	const seen = new Set<string>();
+
+	appendUniqueDiagnostics(
+		items,
+		seen,
+		"lexer",
+		iterateDiagnosticsBag(importer.lexerDiagnostics),
+	);
+	appendUniqueDiagnostics(
+		items,
+		seen,
+		"parser",
+		iterateDiagnosticsBag(importer.parserDiagnostics),
+	);
+	appendUniqueDiagnostics(
+		items,
+		seen,
+		"semantic",
+		iterateDiagnosticsBag(importer.semanticDiagnostics),
+	);
+
+	if (items.length === 0 && parseError) {
+		appendUniqueDiagnostics(
+			items,
+			seen,
+			"parser",
+			diagnosticsFromThrownError(parseError),
+		);
+	}
+
+	return {
+		kind: "full",
+		items,
+	};
+}
+
 /**
  * Main message handler
  */
@@ -716,6 +1000,10 @@ self.onmessage = (event: MessageEvent) => {
 		switch (method) {
 			case "initialize":
 				result = handleInitialize();
+				break;
+
+			case "textDocument/diagnostic":
+				result = handleDiagnostic(params);
 				break;
 
 			case "textDocument/completion":
