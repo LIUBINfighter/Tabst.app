@@ -5,6 +5,7 @@ import {
 	FilePlus,
 	FolderOpen,
 	FolderPlus,
+	Sparkles,
 	Trash2,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -26,6 +27,8 @@ export interface FileContextMenuProps {
 	onReveal: () => void;
 	onCopyPath: () => void;
 	onDelete: () => void;
+	isTemplate?: boolean;
+	onToggleTemplate?: () => void;
 	onCreateFileInFolder?: (ext: ".md" | ".atex") => void;
 	onCreateFolderInFolder?: () => void;
 	onCloseAutoFocus?: (event: Event) => void;
@@ -39,6 +42,8 @@ export function FileContextMenu({
 	onReveal,
 	onCopyPath,
 	onDelete,
+	isTemplate,
+	onToggleTemplate,
 	onCreateFileInFolder,
 	onCreateFolderInFolder,
 	onCloseAutoFocus,
@@ -54,6 +59,13 @@ export function FileContextMenu({
 						<ExternalLink className="mr-2 h-4 w-4" />
 						{t("open")}
 						<ContextMenuShortcut>↵</ContextMenuShortcut>
+					</ContextMenuItem>
+				)}
+
+				{node.type === "file" && onToggleTemplate && (
+					<ContextMenuItem onClick={onToggleTemplate}>
+						<Sparkles className="mr-2 h-4 w-4" />
+						{isTemplate ? t("unmarkAsTemplate") : t("markAsTemplate")}
 					</ContextMenuItem>
 				)}
 

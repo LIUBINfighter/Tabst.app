@@ -86,6 +86,7 @@ export function FileTreeItem({
 	const activeFileId = useAppStore((s) => s.activeFileId);
 	const expandFolder = useAppStore((s) => s.expandFolder);
 	const collapseFolder = useAppStore((s) => s.collapseFolder);
+	const toggleFileTemplate = useAppStore((s) => s.toggleFileTemplate);
 
 	const [isEditing, setIsEditing] = useState(false);
 	const [editValue, setEditValue] = useState("");
@@ -143,6 +144,18 @@ export function FileTreeItem({
 				return current?.metaStatus;
 			},
 			[isFolder, node.id, node.path],
+		),
+	);
+	const isTemplateFile = useAppStore(
+		useCallback(
+			(s) => {
+				if (isFolder) return false;
+				const normalized = normalizePath(node.path);
+				return s.templateFilePaths.some(
+					(templatePath) => normalizePath(templatePath) === normalized,
+				);
+			},
+			[isFolder, node.path],
 		),
 	);
 	const statusBadgeClass =
@@ -539,6 +552,12 @@ export function FileTreeItem({
 			<FileContextMenu
 				node={node}
 				onOpen={() => handleContextMenuAction(() => onFileSelect?.(node))}
+				onToggleTemplate={
+					isFolder
+						? undefined
+						: () => handleContextMenuAction(() => toggleFileTemplate(node.path))
+				}
+				isTemplate={isTemplateFile}
 				onRename={() =>
 					handleContextMenuAction(() => {
 						preventCloseAutoFocusRef.current = true;

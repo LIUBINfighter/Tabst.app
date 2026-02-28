@@ -26,6 +26,9 @@ export type GlobalOnlyCommandId =
 	| "workspace.mode.tutorial"
 	| "workspace.mode.settings"
 	| "workspace.mode.git"
+	| "template.insert.open-picker"
+	| "template.new-from.open-picker"
+	| "template.toggle-active-file"
 	| "workspace.editor-inline-command.open"
 	| "settings.playback.progress-bar.toggle"
 	| "settings.playback.progress-seek.toggle"
@@ -116,6 +119,35 @@ const GLOBAL_ONLY_COMMANDS: RegisteredCommand<GlobalOnlyCommandId>[] = [
 		),
 		keywords: ["editor", "inline", "line", "command"],
 		icon: "command",
+	},
+	{
+		id: "template.insert.open-picker",
+		label: i18n.t("settings:commandRegistry.template_insert_open_picker.label"),
+		description: i18n.t(
+			"settings:commandRegistry.template_insert_open_picker.description",
+		),
+		keywords: ["template", "insert", "editor", "snippet"],
+		icon: "file",
+	},
+	{
+		id: "template.new-from.open-picker",
+		label: i18n.t(
+			"settings:commandRegistry.template_new_from_open_picker.label",
+		),
+		description: i18n.t(
+			"settings:commandRegistry.template_new_from_open_picker.description",
+		),
+		keywords: ["template", "create", "new", "file"],
+		icon: "file",
+	},
+	{
+		id: "template.toggle-active-file",
+		label: i18n.t("settings:commandRegistry.template_toggle_active_file.label"),
+		description: i18n.t(
+			"settings:commandRegistry.template_toggle_active_file.description",
+		),
+		keywords: ["template", "mark", "active", "file"],
+		icon: "sparkles",
 	},
 	{
 		id: "layout.sidebar.open",

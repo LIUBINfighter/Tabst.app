@@ -87,6 +87,16 @@ function hasPlayerControls() {
 	return Boolean(useAppStore.getState().playerControls);
 }
 
+function hasTemplateFiles() {
+	return useAppStore.getState().templateFilePaths.length > 0;
+}
+
+function getActiveFilePath(): string | null {
+	const state = useAppStore.getState();
+	const activeFile = state.files.find((file) => file.id === state.activeFileId);
+	return activeFile?.path ?? null;
+}
+
 export function getCommandAvailability(
 	commandId: UiCommandId,
 ): UiCommandAvailability {
@@ -125,6 +135,32 @@ export function getCommandAvailability(
 				reason: "Playback not ready. Open a score preview first.",
 			};
 		}
+	}
+
+	if (commandId === "template.new-from.open-picker" && !hasTemplateFiles()) {
+		return {
+			enabled: false,
+			reason: "No templates yet. Mark at least one file as template.",
+		};
+	}
+
+	if (
+		commandId === "template.insert.open-picker" &&
+		(!hasTemplateFiles() || !hasActiveFile())
+	) {
+		return {
+			enabled: false,
+			reason: !hasTemplateFiles()
+				? "No templates yet. Mark at least one file as template."
+				: "No active file.",
+		};
+	}
+
+	if (commandId === "template.toggle-active-file" && !hasActiveFile()) {
+		return {
+			enabled: false,
+			reason: "No active file.",
+		};
 	}
 
 	return { enabled: true };
@@ -271,6 +307,31 @@ export function runUiCommand(commandId: UiCommandId): UiCommandRunResult {
 	) {
 		dispatchUiShellCommand(commandId as UiShellCommandId);
 		return success(`Dispatch shell event: ${commandId}`);
+	}
+
+	if (commandId === "template.insert.open-picker") {
+		dispatchUiShellCommand("template.insert-picker.open");
+		return success("Dispatch shell event: template.insert-picker.open");
+	}
+
+	if (commandId === "template.new-from.open-picker") {
+		dispatchUiShellCommand("template.create-picker.open");
+		return success("Dispatch shell event: template.create-picker.open");
+	}
+
+	if (commandId === "template.toggle-active-file") {
+		const activeFilePath = getActiveFilePath();
+		if (!activeFilePath) {
+			return {
+				ok: false,
+				commandId,
+				action: "No active file",
+				warnings: ["Open a file before toggling template flag."],
+			};
+		}
+
+		useAppStore.getState().toggleFileTemplate(activeFilePath);
+		return success(`Toggled template flag for: ${activeFilePath}`);
 	}
 
 	if (commandId === "open-quick-file") {

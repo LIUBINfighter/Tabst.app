@@ -26,6 +26,11 @@ export const defaultSettingsPages: SettingsPage[] = [
 		description: "命令开关与可用性配置",
 	},
 	{
+		id: "templates",
+		title: "模板",
+		description: "管理可插入和可复用的文件模板",
+	},
+	{
 		id: "updates",
 		title: "更新", // 后备值，实际使用 t("settings:updates")
 		description: "版本检查与更新相关功能",

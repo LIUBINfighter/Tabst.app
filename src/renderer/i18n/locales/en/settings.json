@@ -11,6 +11,20 @@
 	"playbackDesc": "Speed and mode",
 	"commands": "Commands",
 	"commandsDesc": "Enable or disable registered commands",
+	"templates": "Templates",
+	"templatesDesc": "Manage reusable file templates",
+	"templatesActiveFile": "Active File",
+	"templatesNoActiveFile": "No active file. Open a file to mark it as a template.",
+	"templatesMarked": "Marked Templates",
+	"templatesNone": "No templates marked yet",
+	"templatesAllFiles": "All Candidate Files",
+	"templatesAllFilesHint": "Only .atex and .md files are listed",
+	"templatesOpenInsertCommand": "Insert template",
+	"templatesOpenCreateCommand": "New file from template",
+	"templatesPickerInsertTitle": "Insert Template",
+	"templatesPickerCreateTitle": "Create From Template",
+	"templatesPickerSearchPlaceholder": "Search templates...",
+	"templatesPickerEmpty": "No matching templates",
 	"commandsEnable": "Enable",
 	"commandsPinTop": "Pin to top",
 	"commandsPinned": "Pinned",
@@ -37,6 +51,18 @@
 		"open_editor_command_palette": {
 			"label": "Editor Command Palette",
 			"description": "Open line-level command palette"
+		},
+		"template_insert_open_picker": {
+			"label": "Insert Template",
+			"description": "Pick a template and insert it into the active file"
+		},
+		"template_new_from_open_picker": {
+			"label": "New File From Template",
+			"description": "Pick a template and create a new file from it"
+		},
+		"template_toggle_active_file": {
+			"label": "Toggle Active File As Template",
+			"description": "Mark or unmark the active file as a reusable template"
 		},
 		"layout_sidebar_open": {
 			"label": "Open Sidebar",

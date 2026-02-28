@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Editor } from "./components/Editor";
 import GlobalBottomBar from "./components/GlobalBottomBar";
 import type { GlobalCommandId } from "./lib/command-registry";
@@ -7,6 +7,10 @@ const SettingsView = lazy(() => import("./components/SettingsView"));
 const GitWorkspace = lazy(() => import("./components/GitWorkspace"));
 
 import { Sidebar } from "./components/Sidebar";
+import {
+	TemplatePickerDialog,
+	type TemplatePickerItem,
+} from "./components/TemplatePickerDialog";
 
 const TutorialView = lazy(() => import("./components/TutorialView"));
 
@@ -19,17 +23,30 @@ import {
 	UI_SHELL_COMMAND_EVENT,
 	type UiShellCommandId,
 } from "./lib/ui-shell-events";
-import { useAppStore } from "./store/appStore";
+import { type FileItem, useAppStore } from "./store/appStore";
 
 const QuickFileSwitcher = lazy(() => import("./components/QuickFileSwitcher"));
 const GlobalCommandPalette = lazy(
 	() => import("./components/GlobalCommandPalette"),
 );
 
+function normalizePath(path: string): string {
+	return path.replace(/\\/g, "/");
+}
+
+function getParentDirectory(path: string): string | undefined {
+	const normalized = normalizePath(path);
+	const index = normalized.lastIndexOf("/");
+	if (index <= 0) return undefined;
+	return normalized.slice(0, index);
+}
+
 function App() {
 	const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 	const [quickSwitcherOpen, setQuickSwitcherOpen] = useState(false);
 	const [globalPaletteOpen, setGlobalPaletteOpen] = useState(false);
+	const [templateInsertOpen, setTemplateInsertOpen] = useState(false);
+	const [templateCreateOpen, setTemplateCreateOpen] = useState(false);
 	const workspaceMode = useAppStore((s) => s.workspaceMode);
 	const editorRefreshVersion = useAppStore((s) => s.editorRefreshVersion);
 	const bottomBarRefreshVersion = useAppStore((s) => s.bottomBarRefreshVersion);
@@ -41,14 +58,136 @@ function App() {
 	const initialize = useAppStore((s) => s.initialize);
 	const activeRepoId = useAppStore((s) => s.activeRepoId);
 	const repos = useAppStore((s) => s.repos);
+	const files = useAppStore((s) => s.files);
+	const activeFileId = useAppStore((s) => s.activeFileId);
+	const templateFilePaths = useAppStore((s) => s.templateFilePaths);
+	const updateFileContent = useAppStore((s) => s.updateFileContent);
+	const setWorkspaceMode = useAppStore((s) => s.setWorkspaceMode);
 	const refreshFileTree = useAppStore((s) => s.refreshFileTree);
-	const { handleImportGpBytes } = useFileOperations();
+	const { handleImportGpBytes, handleNewFile } = useFileOperations();
 	const fsRefreshTimerRef = useRef<number | null>(null);
 	const fsRecentEventRef = useRef<Map<string, number>>(new Map());
 
 	const SUPPORTED_EXTENSIONS = useRef(
 		new Set([".md", ".atex", ".gp", ".gp3", ".gp4", ".gp5", ".gpx"]),
 	);
+
+	const templatePathSet = useMemo(
+		() => new Set(templateFilePaths.map((path) => normalizePath(path))),
+		[templateFilePaths],
+	);
+
+	const templateItems = useMemo<TemplatePickerItem[]>(() => {
+		return files
+			.filter((file) => templatePathSet.has(normalizePath(file.path)))
+			.map((file) => ({
+				path: file.path,
+				name: file.name,
+				title: file.metaTitle,
+			}))
+			.sort((left, right) => left.name.localeCompare(right.name));
+	}, [files, templatePathSet]);
+
+	const filesByNormalizedPath = useMemo(
+		() => new Map(files.map((file) => [normalizePath(file.path), file])),
+		[files],
+	);
+
+	const resolveFileContent = async (file: FileItem): Promise<string | null> => {
+		if (file.contentLoaded) return file.content;
+		try {
+			const result = await window.electronAPI.readFile(file.path);
+			if (result.error) {
+				console.error("Failed to read template file:", result.error);
+				return null;
+			}
+			updateFileContent(file.id, result.content);
+			return result.content;
+		} catch (error) {
+			console.error("Failed to resolve file content:", error);
+			return null;
+		}
+	};
+
+	const handleInsertTemplate = async (templatePath: string) => {
+		const activeFile = files.find((file) => file.id === activeFileId);
+		if (!activeFile) return;
+
+		const templateFile = filesByNormalizedPath.get(normalizePath(templatePath));
+		if (!templateFile) return;
+
+		const [activeContent, templateContent] = await Promise.all([
+			resolveFileContent(activeFile),
+			resolveFileContent(templateFile),
+		]);
+		if (activeContent == null || templateContent == null) return;
+
+		const joiner =
+			activeContent.length === 0
+				? ""
+				: activeContent.endsWith("\n\n")
+					? ""
+					: activeContent.endsWith("\n")
+						? "\n"
+						: "\n\n";
+		const nextContent = `${activeContent}${joiner}${templateContent}`;
+
+		updateFileContent(activeFile.id, nextContent);
+		try {
+			await window.electronAPI.saveFile(activeFile.path, nextContent);
+		} catch (error) {
+			console.error("Failed to save file after template insertion:", error);
+		}
+		setWorkspaceMode("editor");
+	};
+
+	const resolveCreateTargetDirectory = () => {
+		const activeFile = files.find((file) => file.id === activeFileId);
+		if (activeFile) {
+			return getParentDirectory(activeFile.path);
+		}
+
+		const activeRepo = repos.find((repo) => repo.id === activeRepoId);
+		return activeRepo?.path;
+	};
+
+	const handleCreateFromTemplate = async (templatePath: string) => {
+		const templateFile = filesByNormalizedPath.get(normalizePath(templatePath));
+		if (!templateFile) return;
+
+		const templateContent = await resolveFileContent(templateFile);
+		if (templateContent == null) return;
+
+		const templateExt: ".md" | ".atex" = templateFile.name
+			.toLowerCase()
+			.endsWith(".atex")
+			? ".atex"
+			: ".md";
+
+		const createdPath = await handleNewFile(
+			templateExt,
+			resolveCreateTargetDirectory(),
+		);
+		if (!createdPath) return;
+
+		const normalizedCreatedPath = normalizePath(createdPath);
+		const createdFile = useAppStore
+			.getState()
+			.files.find(
+				(file) =>
+					normalizePath(file.path) === normalizedCreatedPath ||
+					file.id === createdPath,
+			);
+		if (!createdFile) return;
+
+		updateFileContent(createdFile.id, templateContent);
+		try {
+			await window.electronAPI.saveFile(createdFile.path, templateContent);
+		} catch (error) {
+			console.error("Failed to save file created from template:", error);
+		}
+		setWorkspaceMode("editor");
+	};
 
 	useEffect(() => {
 		initialize();
@@ -78,6 +217,16 @@ function App() {
 			}
 			if (commandId === "workspace.global-command-palette.open") {
 				setGlobalPaletteOpen(true);
+				return;
+			}
+
+			if (commandId === "template.insert-picker.open") {
+				setTemplateInsertOpen(true);
+				return;
+			}
+
+			if (commandId === "template.create-picker.open") {
+				setTemplateCreateOpen(true);
 			}
 		};
 
@@ -132,6 +281,9 @@ function App() {
 			case "workspace.mode.tutorial":
 			case "workspace.mode.settings":
 			case "workspace.mode.git":
+			case "template.insert.open-picker":
+			case "template.new-from.open-picker":
+			case "template.toggle-active-file":
 			case "workspace.editor-inline-command.open":
 			case "settings.playback.progress-bar.toggle":
 			case "settings.playback.progress-seek.toggle":
@@ -429,6 +581,24 @@ function App() {
 					/>
 				</Suspense>
 			)}
+			<TemplatePickerDialog
+				open={templateInsertOpen}
+				mode="insert"
+				templates={templateItems}
+				onOpenChange={setTemplateInsertOpen}
+				onSelect={(path) => {
+					void handleInsertTemplate(path);
+				}}
+			/>
+			<TemplatePickerDialog
+				open={templateCreateOpen}
+				mode="create"
+				templates={templateItems}
+				onOpenChange={setTemplateCreateOpen}
+				onSelect={(path) => {
+					void handleCreateFromTemplate(path);
+				}}
+			/>
 		</div>
 	);
 }

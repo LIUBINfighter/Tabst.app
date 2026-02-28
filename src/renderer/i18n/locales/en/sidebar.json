@@ -11,6 +11,8 @@
 	"themeSystem": "Follow system",
 	"noFiles": "No files",
 	"rename": "Rename",
+	"markAsTemplate": "Mark as template",
+	"unmarkAsTemplate": "Remove template mark",
 	"renameFile": "Rename file",
 	"renameFailed": "Failed to rename \"{{name}}\": {{reason}}",
 	"moveFailed": "Failed to move \"{{name}}\": {{reason}}",

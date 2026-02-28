@@ -305,6 +305,10 @@ interface AppState {
 	setCommandPinned: (commandId: string, pinned: boolean) => void;
 	commandMruIds: string[];
 	recordCommandUsage: (commandId: string) => void;
+	templateFilePaths: string[];
+	setFileTemplate: (filePath: string, enabled: boolean) => void;
+	toggleFileTemplate: (filePath: string) => void;
+	remapTemplatePaths: (oldPrefix: string, newPrefix: string) => void;
 	// Actions
 	addFile: (file: FileItem) => void;
 	removeFile: (id: string) => void;
@@ -632,6 +636,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 						activeRepoId: id,
 						fileTree: result.nodes,
 						files: flattenFileNodes(result.nodes),
+						templateFilePaths: [],
 						activeFileId: null,
 						scoreSelection: null,
 						playbackBeat: null,
@@ -721,6 +726,13 @@ export const useAppStore = create<AppState>((set, get) => ({
 								commandMruIds: prefs.commandMruIds
 									.filter((id): id is string => typeof id === "string")
 									.slice(0, 30),
+							});
+						}
+						if (Array.isArray(prefs.templateFilePaths)) {
+							set({
+								templateFilePaths: prefs.templateFilePaths
+									.filter((path): path is string => typeof path === "string")
+									.map((path) => normalizePathForCompare(path)),
 							});
 						}
 						if (
@@ -1394,6 +1406,63 @@ export const useAppStore = create<AppState>((set, get) => ({
 		});
 	},
 
+	templateFilePaths: [],
+	setFileTemplate: (filePath, enabled) => {
+		const normalizedPath = normalizePathForCompare(filePath);
+		if (!normalizedPath) return;
+
+		set((state) => {
+			const exists = state.templateFilePaths.includes(normalizedPath);
+			if (enabled) {
+				if (exists) return {};
+				const next = [...state.templateFilePaths, normalizedPath];
+				void mergeAndSaveWorkspacePreferences({ templateFilePaths: next });
+				return { templateFilePaths: next };
+			}
+
+			if (!exists) return {};
+			const next = state.templateFilePaths.filter(
+				(path) => path !== normalizedPath,
+			);
+			void mergeAndSaveWorkspacePreferences({ templateFilePaths: next });
+			return { templateFilePaths: next };
+		});
+	},
+	toggleFileTemplate: (filePath) => {
+		const normalizedPath = normalizePathForCompare(filePath);
+		if (!normalizedPath) return;
+
+		set((state) => {
+			const exists = state.templateFilePaths.includes(normalizedPath);
+			const next = exists
+				? state.templateFilePaths.filter((path) => path !== normalizedPath)
+				: [...state.templateFilePaths, normalizedPath];
+			void mergeAndSaveWorkspacePreferences({ templateFilePaths: next });
+			return { templateFilePaths: next };
+		});
+	},
+	remapTemplatePaths: (oldPrefix, newPrefix) => {
+		const normalizedOldPrefix = normalizePathForCompare(oldPrefix);
+		const normalizedNewPrefix = normalizePathForCompare(newPrefix);
+		if (!normalizedOldPrefix || !normalizedNewPrefix) return;
+
+		set((state) => {
+			const remapped = state.templateFilePaths.map((path) =>
+				replacePathPrefix(path, normalizedOldPrefix, normalizedNewPrefix),
+			);
+			const deduped: string[] = [];
+			for (const path of remapped) {
+				if (!deduped.includes(path)) {
+					deduped.push(path);
+				}
+			}
+
+			if (isSameStringList(state.templateFilePaths, deduped)) return {};
+			void mergeAndSaveWorkspacePreferences({ templateFilePaths: deduped });
+			return { templateFilePaths: deduped };
+		});
+	},
+
 	addFile: (file) => {
 		set((state) => {
 			const parsedMeta = extractAtDocFileMeta(file.content ?? "");
@@ -1468,6 +1537,10 @@ export const useAppStore = create<AppState>((set, get) => ({
 
 	removeFile: (id) => {
 		set((state) => {
+			const removedFile = state.files.find((file) => file.id === id);
+			const removedPath = removedFile
+				? normalizePathForCompare(removedFile.path)
+				: null;
 			const newFiles = state.files.filter((f) => f.id !== id);
 			const newActiveId =
 				state.activeFileId === id
@@ -1475,7 +1548,21 @@ export const useAppStore = create<AppState>((set, get) => ({
 						? newFiles[0].id
 						: null
 					: state.activeFileId;
-			return { files: newFiles, activeFileId: newActiveId };
+			const nextTemplatePaths = removedPath
+				? state.templateFilePaths.filter((path) => path !== removedPath)
+				: state.templateFilePaths;
+
+			if (nextTemplatePaths.length !== state.templateFilePaths.length) {
+				void mergeAndSaveWorkspacePreferences({
+					templateFilePaths: nextTemplatePaths,
+				});
+			}
+
+			return {
+				files: newFiles,
+				activeFileId: newActiveId,
+				templateFilePaths: nextTemplatePaths,
+			};
 		});
 		scheduleSaveAppState();
 	},
@@ -1530,11 +1617,27 @@ export const useAppStore = create<AppState>((set, get) => ({
 						: state.activeFileId;
 
 				const newTree = renameNodeInTree(state.fileTree, oldPath, newPath);
+				const nextTemplatePaths = state.templateFilePaths.map((path) =>
+					replacePathPrefix(path, oldPath, newPath),
+				);
+				const templatePathsChanged = !isSameStringList(
+					nextTemplatePaths,
+					state.templateFilePaths,
+				);
+
+				if (templatePathsChanged) {
+					void mergeAndSaveWorkspacePreferences({
+						templateFilePaths: nextTemplatePaths,
+					});
+				}
 
 				return {
 					files: newFiles,
 					activeFileId: newActiveFileId,
 					fileTree: newTree,
+					templateFilePaths: templatePathsChanged
+						? nextTemplatePaths
+						: state.templateFilePaths,
 				};
 			});
 			scheduleSaveAppState();

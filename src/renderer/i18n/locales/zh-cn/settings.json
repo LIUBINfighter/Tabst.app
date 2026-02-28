@@ -11,6 +11,20 @@
 	"playbackDesc": "播放速度与模式相关设置",
 	"commands": "命令",
 	"commandsDesc": "启用或禁用已注册命令",
+	"templates": "模板",
+	"templatesDesc": "管理可复用的文件模板",
+	"templatesActiveFile": "当前文件",
+	"templatesNoActiveFile": "暂无当前文件，请先打开文件再标记为模板。",
+	"templatesMarked": "已标记模板",
+	"templatesNone": "尚未标记任何模板",
+	"templatesAllFiles": "候选文件",
+	"templatesAllFilesHint": "仅显示 .atex 和 .md 文件",
+	"templatesOpenInsertCommand": "插入模板",
+	"templatesOpenCreateCommand": "按模板新建文件",
+	"templatesPickerInsertTitle": "插入模板",
+	"templatesPickerCreateTitle": "按模板新建",
+	"templatesPickerSearchPlaceholder": "搜索模板...",
+	"templatesPickerEmpty": "没有匹配的模板",
 	"commandsEnable": "启用",
 	"commandsPinTop": "置顶",
 	"commandsPinned": "置顶",
@@ -37,6 +51,18 @@
 		"open_editor_command_palette": {
 			"label": "编辑器命令面板",
 			"description": "打开行间命令面板"
+		},
+		"template_insert_open_picker": {
+			"label": "插入模板",
+			"description": "选择模板并插入到当前文件"
+		},
+		"template_new_from_open_picker": {
+			"label": "按模板新建文件",
+			"description": "选择模板并基于它创建新文件"
+		},
+		"template_toggle_active_file": {
+			"label": "切换当前文件模板状态",
+			"description": "将当前文件标记为模板或取消模板标记"
 		},
 		"layout_sidebar_open": {
 			"label": "打开侧边栏",
