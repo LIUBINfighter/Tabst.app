@@ -14,6 +14,7 @@ import UpdateToast from "./components/UpdateToast";
 import { useFileOperations } from "./hooks/useFileOperations";
 import { getAlphaTexHighlight } from "./lib/alphatex-highlight";
 import { createAlphaTexLSPClient } from "./lib/alphatex-lsp";
+import { bindGlobalShortcutListener } from "./lib/shortcut-manager";
 import { runUiCommand } from "./lib/ui-command-registry";
 import {
 	UI_SHELL_COMMAND_EVENT,
@@ -86,32 +87,7 @@ function App() {
 	}, []);
 
 	useEffect(() => {
-		const handleQuickSwitcherShortcut = (event: KeyboardEvent) => {
-			if (event.key.toLowerCase() === "o") {
-				if (!(event.metaKey || event.ctrlKey)) return;
-				if (event.shiftKey || event.altKey) return;
-				event.preventDefault();
-				runUiCommand("workspace.quick-switcher.open");
-				return;
-			}
-
-			if (event.key.toLowerCase() === "p") {
-				if (!(event.metaKey || event.ctrlKey)) return;
-				if (event.shiftKey) {
-					event.preventDefault();
-					runUiCommand("workspace.global-command-palette.open");
-					return;
-				}
-				if (!event.altKey) {
-					event.preventDefault();
-					runUiCommand("workspace.editor-inline-command.open");
-				}
-			}
-		};
-
-		window.addEventListener("keydown", handleQuickSwitcherShortcut);
-		return () =>
-			window.removeEventListener("keydown", handleQuickSwitcherShortcut);
+		return bindGlobalShortcutListener();
 	}, []);
 
 	const runGlobalCommand = (commandId: GlobalCommandId) => {

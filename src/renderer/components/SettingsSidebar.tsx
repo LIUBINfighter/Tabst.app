@@ -1,4 +1,5 @@
 import {
+	Command,
 	Info,
 	Keyboard,
 	Map as MapIcon,
@@ -94,6 +95,16 @@ export function SettingsSidebar() {
 									/>
 								);
 							case "commands":
+								return (
+									<Command
+										className={`flex-none h-3.5 w-3.5 ${
+											activeSettingsPageId === p.id
+												? "text-[var(--highlight-text)]"
+												: "text-muted-foreground hover:text-[var(--hover-text)]"
+										}`}
+									/>
+								);
+							case "shortcuts":
 								return (
 									<Keyboard
 										className={`flex-none h-3.5 w-3.5 ${

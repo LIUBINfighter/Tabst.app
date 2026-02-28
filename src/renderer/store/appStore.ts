@@ -2,6 +2,7 @@ import { create } from "zustand";
 import i18n, { type Locale } from "../i18n";
 import { extractAtDocFileMeta } from "../lib/atdoc";
 import { loadGlobalSettings, saveGlobalSettings } from "../lib/global-settings";
+import { sanitizeShortcutList } from "../lib/shortcut-utils";
 import type { StaffDisplayOptions } from "../lib/staff-config";
 import type { TutorialAudience } from "../lib/tutorial-loader";
 import type {
@@ -305,6 +306,9 @@ interface AppState {
 	setCommandPinned: (commandId: string, pinned: boolean) => void;
 	commandMruIds: string[];
 	recordCommandUsage: (commandId: string) => void;
+	commandShortcuts: Record<string, string[]>;
+	setCommandShortcuts: (commandId: string, shortcuts: string[]) => void;
+	resetCommandShortcuts: (commandId: string) => void;
 	// Actions
 	addFile: (file: FileItem) => void;
 	removeFile: (id: string) => void;
@@ -632,6 +636,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 						activeRepoId: id,
 						fileTree: result.nodes,
 						files: flattenFileNodes(result.nodes),
+						commandShortcuts: {},
 						activeFileId: null,
 						scoreSelection: null,
 						playbackBeat: null,
@@ -722,6 +727,25 @@ export const useAppStore = create<AppState>((set, get) => ({
 									.filter((id): id is string => typeof id === "string")
 									.slice(0, 30),
 							});
+						}
+						if (
+							prefs.commandShortcuts &&
+							typeof prefs.commandShortcuts === "object"
+						) {
+							const nextShortcuts: Record<string, string[]> = {};
+							for (const [commandId, rawShortcuts] of Object.entries(
+								prefs.commandShortcuts,
+							)) {
+								if (!Array.isArray(rawShortcuts)) continue;
+								const shortcuts = sanitizeShortcutList(
+									rawShortcuts.filter(
+										(shortcut): shortcut is string =>
+											typeof shortcut === "string",
+									),
+								);
+								nextShortcuts[commandId] = shortcuts;
+							}
+							set({ commandShortcuts: nextShortcuts });
 						}
 						if (
 							prefs.customPlayerConfig?.components &&
@@ -1391,6 +1415,34 @@ export const useAppStore = create<AppState>((set, get) => ({
 			].slice(0, 30);
 			void mergeAndSaveWorkspacePreferences({ commandMruIds: next });
 			return { commandMruIds: next };
+		});
+	},
+
+	commandShortcuts: {},
+	setCommandShortcuts: (commandId, shortcuts) => {
+		const normalized = sanitizeShortcutList(shortcuts);
+		set((state) => {
+			const current = state.commandShortcuts[commandId] ?? [];
+			if (isSameStringList(current, normalized)) return {};
+
+			const next = {
+				...state.commandShortcuts,
+				[commandId]: normalized,
+			};
+			void mergeAndSaveWorkspacePreferences({ commandShortcuts: next });
+			return { commandShortcuts: next };
+		});
+	},
+	resetCommandShortcuts: (commandId) => {
+		set((state) => {
+			if (!Object.hasOwn(state.commandShortcuts, commandId)) {
+				return {};
+			}
+
+			const next = { ...state.commandShortcuts };
+			delete next[commandId];
+			void mergeAndSaveWorkspacePreferences({ commandShortcuts: next });
+			return { commandShortcuts: next };
 		});
 	},
 
