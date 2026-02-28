@@ -15,6 +15,23 @@ export interface ResourceUrls {
 	soundFontUrl: string;
 }
 
+function normalizeDirectoryPath(pathname: string): string {
+	if (pathname.length === 0) return "/";
+	if (pathname.endsWith("/")) return pathname;
+
+	const lastSlashIndex = pathname.lastIndexOf("/");
+	const lastSegment = pathname.slice(lastSlashIndex + 1);
+	if (lastSegment.includes(".")) {
+		return lastSlashIndex >= 0 ? pathname.slice(0, lastSlashIndex + 1) : "/";
+	}
+
+	return `${pathname}/`;
+}
+
+function toBaseWithTrailingSlash(base: string): string {
+	return base.endsWith("/") ? base : `${base}/`;
+}
+
 /**
  * 获取所有 AlphaTab 资源 URL
  * 自动区分开发环境和打包环境，生成正确的资源 URL
@@ -32,6 +49,7 @@ export async function getResourceUrls(): Promise<ResourceUrls> {
 		}
 
 		const href = window.location.href;
+		const origin = window.location.origin;
 		const viteBaseUrlRaw =
 			typeof import.meta !== "undefined" &&
 			"env" in import.meta &&
@@ -42,7 +60,7 @@ export async function getResourceUrls(): Promise<ResourceUrls> {
 				: undefined;
 		const viteBaseUrl =
 			typeof viteBaseUrlRaw === "string" && viteBaseUrlRaw.trim().length > 0
-				? viteBaseUrlRaw
+				? viteBaseUrlRaw.trim()
 				: "/";
 
 		try {
@@ -57,27 +75,32 @@ export async function getResourceUrls(): Promise<ResourceUrls> {
 			}
 
 			// HTTP 环境：使用 Vite BASE_URL，兼容 GitHub Pages 子路径部署（如 /Tabst.app/）
-			// 注意：当页面 URL 是 https://host/Tabst.app（无尾斜杠）时，必须先规范成目录基准 URL
-			const pageBaseUrl = new URL(".", href);
-			const baseWithSlash = viteBaseUrl.endsWith("/")
-				? viteBaseUrl
-				: `${viteBaseUrl}/`;
-
-			let url: string;
-			if (baseWithSlash === "/") {
-				url = new URL(`/${assetPath}`, pageBaseUrl).toString();
-			} else if (
-				baseWithSlash.startsWith("./") ||
-				baseWithSlash.startsWith("../")
-			) {
-				url = new URL(`${baseWithSlash}${assetPath}`, pageBaseUrl).toString();
-			} else {
-				const absoluteBase = baseWithSlash.startsWith("/")
-					? baseWithSlash
-					: `/${baseWithSlash}`;
-				url = new URL(`${absoluteBase}${assetPath}`, pageBaseUrl).toString();
+			if (/^https?:\/\//i.test(viteBaseUrl)) {
+				return new URL(
+					assetPath,
+					toBaseWithTrailingSlash(viteBaseUrl),
+				).toString();
 			}
-			return url;
+
+			if (viteBaseUrl === "/") {
+				return new URL(`/${assetPath}`, origin).toString();
+			}
+
+			if (
+				viteBaseUrl === "." ||
+				viteBaseUrl.startsWith("./") ||
+				viteBaseUrl.startsWith("../")
+			) {
+				const pageBasePath = normalizeDirectoryPath(window.location.pathname);
+				const pageBaseUrl = new URL(pageBasePath, origin);
+				const relativeBase = viteBaseUrl === "." ? "./" : viteBaseUrl;
+				return new URL(`${relativeBase}${assetPath}`, pageBaseUrl).toString();
+			}
+
+			const normalizedBase = toBaseWithTrailingSlash(
+				viteBaseUrl.startsWith("/") ? viteBaseUrl : `/${viteBaseUrl}`,
+			);
+			return new URL(`${normalizedBase}${assetPath}`, origin).toString();
 		} catch (err) {
 			console.warn(
 				"[ResourceLoaderService] Failed to build asset URL via URL constructor",

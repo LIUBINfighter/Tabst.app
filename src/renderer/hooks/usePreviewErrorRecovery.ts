@@ -66,6 +66,7 @@ export function usePreviewErrorRecovery(
 	const pendingTexRef = useRef<{ id: number; content: string } | null>(null);
 	const pendingTexTimerRef = useRef<number | null>(null);
 	const texSeqRef = useRef(0);
+	const restoreGuardRef = useRef(false);
 
 	const scheduleTexTimeout = useCallback(
 		(
@@ -77,6 +78,7 @@ export function usePreviewErrorRecovery(
 		) => {
 			texSeqRef.current += 1;
 			const seq = texSeqRef.current;
+			restoreGuardRef.current = false;
 			const setErrorOnTimeout = timeoutOptions?.setErrorOnTimeout !== false;
 			const timeoutMessage =
 				timeoutOptions?.timeoutMessage ?? DEFAULT_TIMEOUT_MESSAGE;
@@ -111,8 +113,9 @@ export function usePreviewErrorRecovery(
 				pendingTexTimerRef.current = null;
 			}
 			pendingTexRef.current = null;
-			if (lastValidScoreRef.current?.score && api) {
+			if (!restoreGuardRef.current && lastValidScoreRef.current?.score && api) {
 				try {
+					restoreGuardRef.current = true;
 					onRecoveryTriggeredRef.current?.();
 					lastLoadWasUserContentRef.current = false;
 					setRestorePerformed(true);
@@ -134,6 +137,7 @@ export function usePreviewErrorRecovery(
 				pendingTexRef.current &&
 				pendingTexRef.current.content === currentContent
 			) {
+				restoreGuardRef.current = false;
 				lastValidScoreRef.current = { score, content: currentContent };
 				setParseError(null);
 				if (pendingTexTimerRef.current) {
@@ -150,6 +154,9 @@ export function usePreviewErrorRecovery(
 
 	const markLoadAsUserContent = useCallback((value: boolean) => {
 		lastLoadWasUserContentRef.current = value;
+		if (value) {
+			restoreGuardRef.current = false;
+		}
 	}, []);
 
 	return {
