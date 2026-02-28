@@ -7,6 +7,50 @@
 
 import type { Diagnostic } from "@codemirror/lint";
 
+export interface LspDiagnostic {
+	range: {
+		start: { line: number; character: number };
+		end: { line: number; character: number };
+	};
+	severity?: number;
+	code?: string | number;
+	source?: string;
+	message?: string;
+}
+
+function buildLineOffsets(text: string): number[] {
+	const offsets = [0];
+	for (let i = 0; i < text.length; i++) {
+		if (text[i] === "\n") {
+			offsets.push(i + 1);
+		}
+	}
+	return offsets;
+}
+
+function positionToOffset(
+	position: { line: number; character: number },
+	lineOffsets: number[],
+	textLength: number,
+): number {
+	if (lineOffsets.length === 0) {
+		return 0;
+	}
+
+	const safeLine = Math.max(0, Math.min(position.line, lineOffsets.length - 1));
+	const lineStart = lineOffsets[safeLine] ?? 0;
+	const lineEndExclusive =
+		safeLine + 1 < lineOffsets.length
+			? (lineOffsets[safeLine + 1] ?? textLength) - 1
+			: textLength;
+	const safeCharacter = Math.max(0, position.character);
+
+	return Math.max(
+		lineStart,
+		Math.min(lineStart + safeCharacter, Math.max(lineStart, lineEndExclusive)),
+	);
+}
+
 /**
  * Represents an LSP client connection
  */
@@ -143,19 +187,35 @@ export function createAlphaTexLSPClient(
  * Extract diagnostics from LSP diagnostic messages
  */
 export function lspDiagnosticsToCM6(
-	diagnostics: Array<{
-		range: {
-			start: { line: number; character: number };
-			end: { line: number; character: number };
-		};
-		severity?: number;
-		message?: string;
-	}>,
+	diagnostics: LspDiagnostic[],
+	text: string,
 ): Diagnostic[] {
-	return diagnostics.map((diag) => ({
-		from: diag.range.start.character,
-		to: diag.range.end.character,
-		severity: diag.severity === 1 ? "error" : "warning",
-		message: diag.message || "",
-	}));
+	const lineOffsets = buildLineOffsets(text);
+	const textLength = text.length;
+
+	return diagnostics.map((diag) => {
+		const from = positionToOffset(diag.range.start, lineOffsets, textLength);
+		const rawTo = positionToOffset(diag.range.end, lineOffsets, textLength);
+		const to =
+			rawTo > from
+				? rawTo
+				: from < textLength
+					? Math.min(textLength, from + 1)
+					: from;
+
+		const severity =
+			diag.severity === 1 ? "error" : diag.severity === 2 ? "warning" : "info";
+
+		const code =
+			typeof diag.code === "string" || typeof diag.code === "number"
+				? `[${diag.code}] `
+				: "";
+
+		return {
+			from,
+			to,
+			severity,
+			message: `${code}${diag.message ?? ""}`.trim(),
+		};
+	});
 }
