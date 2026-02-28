@@ -15,13 +15,37 @@ export interface ResourceUrls {
 	soundFontUrl: string;
 }
 
+const DOCUMENT_PATH_EXTENSIONS = new Set([
+	"html",
+	"htm",
+	"xhtml",
+	"php",
+	"asp",
+	"aspx",
+	"jsp",
+]);
+
+function looksLikeDocumentPath(pathname: string): boolean {
+	const lastSlashIndex = pathname.lastIndexOf("/");
+	const lastSegment = pathname
+		.slice(lastSlashIndex + 1)
+		.trim()
+		.toLowerCase();
+	if (!lastSegment) return false;
+
+	const dotIndex = lastSegment.lastIndexOf(".");
+	if (dotIndex <= 0 || dotIndex >= lastSegment.length - 1) return false;
+
+	const extension = lastSegment.slice(dotIndex + 1);
+	return DOCUMENT_PATH_EXTENSIONS.has(extension);
+}
+
 function normalizeDirectoryPath(pathname: string): string {
 	if (pathname.length === 0) return "/";
 	if (pathname.endsWith("/")) return pathname;
 
-	const lastSlashIndex = pathname.lastIndexOf("/");
-	const lastSegment = pathname.slice(lastSlashIndex + 1);
-	if (lastSegment.includes(".")) {
+	if (looksLikeDocumentPath(pathname)) {
+		const lastSlashIndex = pathname.lastIndexOf("/");
 		return lastSlashIndex >= 0 ? pathname.slice(0, lastSlashIndex + 1) : "/";
 	}
 
