@@ -53,6 +53,17 @@ export const DEFAULT_PRINT_COLORS: PrintColors = {
 	scoreInfoColor: "#000000",
 };
 
+function isAudioContextAvailable(): boolean {
+	if (typeof window === "undefined") return true;
+	const webAudioWindow = window as Window & {
+		webkitAudioContext?: typeof AudioContext;
+	};
+	return (
+		typeof window.AudioContext === "function" ||
+		typeof webAudioWindow.webkitAudioContext === "function"
+	);
+}
+
 /**
  * 创建预览场景的 AlphaTab 配置
  *
@@ -65,6 +76,7 @@ export function createPreviewSettings(
 	options: PreviewConfigOptions = {},
 ): Record<string, unknown> {
 	const { scale = 0.6, scrollElement, enablePlayer = true, colors } = options;
+	const enablePlayerSafely = enablePlayer && isAudioContextAvailable();
 
 	return {
 		core: {
@@ -94,7 +106,7 @@ export function createPreviewSettings(
 		},
 		player: {
 			playerMode: alphaTab.PlayerMode.EnabledAutomatic,
-			enablePlayer,
+			enablePlayer: enablePlayerSafely,
 			soundFont: urls.soundFontUrl,
 			...(scrollElement && {
 				scrollMode: alphaTab.ScrollMode.OffScreen,

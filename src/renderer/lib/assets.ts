@@ -1,5 +1,32 @@
 import type * as alphaTab from "@coderline/alphatab";
 
+function toAscii(bytes: Uint8Array, start: number, length: number): string {
+	return String.fromCharCode(...bytes.slice(start, start + length));
+}
+
+function isLikelySoundFont(bytes: Uint8Array): boolean {
+	if (bytes.length < 12) return false;
+	const riff = toAscii(bytes, 0, 4);
+	const sfbk = toAscii(bytes, 8, 4);
+	return riff === "RIFF" && sfbk === "sfbk";
+}
+
+function isElectronRuntime(): boolean {
+	if (typeof navigator === "undefined") return false;
+	return /\bElectron\//.test(navigator.userAgent);
+}
+
+function hasUserActivatedAudio(): boolean {
+	if (typeof navigator === "undefined") return true;
+	const userActivation = (
+		navigator as Navigator & {
+			userActivation?: { hasBeenActive?: boolean; isActive?: boolean };
+		}
+	).userActivation;
+	if (!userActivation) return true;
+	return Boolean(userActivation.hasBeenActive || userActivation.isActive);
+}
+
 /**
  * 通过 URL 注入字体到 DOM
  * 适用于已经通过 ResourceLoaderService 生成的字体 URL
@@ -32,6 +59,13 @@ export async function loadSoundFontFromUrl(
 	}
 
 	try {
+		if (!isElectronRuntime() && !hasUserActivatedAudio()) {
+			console.info(
+				"[AssetLoader] Skip soundfont preload before user activation in web runtime",
+			);
+			return false;
+		}
+
 		const response = await fetch(soundFontUrl);
 		if (!response.ok) {
 			console.warn(
@@ -40,9 +74,32 @@ export async function loadSoundFontFromUrl(
 			return false;
 		}
 
+		const contentType =
+			response.headers.get("content-type")?.toLowerCase() ?? "";
+		if (contentType.includes("text/html")) {
+			console.warn(
+				`[AssetLoader] Soundfont URL returned HTML content: ${soundFontUrl}`,
+			);
+			return false;
+		}
+
 		const buffer = await response.arrayBuffer();
 		const u8 = new Uint8Array(buffer);
-		api.loadSoundFont?.(u8, true);
+		if (!isLikelySoundFont(u8)) {
+			const preview = toAscii(u8, 0, Math.min(16, u8.length));
+			console.warn(
+				`[AssetLoader] Invalid soundfont payload from ${soundFontUrl}; header="${preview}"`,
+			);
+			return false;
+		}
+
+		try {
+			api.loadSoundFont?.(u8, true);
+		} catch (error) {
+			console.warn("[AssetLoader] alphaTab rejected soundfont payload:", error);
+			return false;
+		}
+
 		console.info(`[AssetLoader] Loaded soundfont from: ${soundFontUrl}`);
 		return true;
 	} catch (err) {
