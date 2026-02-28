@@ -1,7 +1,7 @@
 {
 	"name": "tabst",
 	"productName": "Tabst",
-	"version": "0.5.0",
+	"version": "0.6.0",
 	"description": "A minimal Guitar Tabs typewriter.",
 	"type": "module",
 	"main": "dist-electron/main.cjs",
