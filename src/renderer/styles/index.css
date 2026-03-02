@@ -303,16 +303,16 @@
 */
 .preview-mobile-fit .at-surface,
 .preview-mobile-fit .at-surface > div {
-	width: 100% !important;
-	max-width: 100% !important;
+	width: 100%;
+	max-width: 100%;
 }
 
 .preview-mobile-fit .at-surface svg,
 .preview-mobile-fit .at-surface-svg {
 	display: block;
-	width: 100% !important;
-	max-width: 100% !important;
-	height: auto !important;
+	width: 100%;
+	max-width: 100%;
+	height: auto;
 }
 
 /* AlphaTab 光标和选择样式 */

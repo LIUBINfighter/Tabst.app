@@ -54,6 +54,22 @@ interface RepoWatchState {
 
 const repoWatchersByWebContents = new Map<number, RepoWatchState>();
 
+function resolveWindowIconPath(): string | undefined {
+	const candidates = isDev
+		? [path.join(process.cwd(), "public/icon.jpg")]
+		: [path.join(__dirname, "../dist/icon.jpg")];
+
+	for (const candidate of candidates) {
+		try {
+			if (fs.existsSync(candidate)) return candidate;
+		} catch {
+			// Ignore invalid path checks and continue with next candidate.
+		}
+	}
+
+	return undefined;
+}
+
 function stopRepoWatchForSender(webContentsId: number) {
 	const existing = repoWatchersByWebContents.get(webContentsId);
 	if (!existing) return;
@@ -168,7 +184,10 @@ function _getDefaultSaveDir(): string {
 }
 
 function createWindow() {
+	const windowIconPath = resolveWindowIconPath();
+
 	const win = new BrowserWindow({
+		...(windowIconPath ? { icon: windowIconPath } : {}),
 		webPreferences: {
 			preload: path.join(__dirname, "preload.cjs"),
 			nodeIntegration: false,
