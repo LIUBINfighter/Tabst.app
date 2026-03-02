@@ -28,6 +28,7 @@ import {
 	type InlineCommandId,
 } from "../lib/command-registry";
 import { runUiCommand } from "../lib/ui-command-registry";
+import { isWebsiteMobilePreviewStack } from "../lib/website-layout";
 import { whitespaceDecoration } from "../lib/whitespace-decoration";
 import { type FileItem, useAppStore } from "../store/appStore";
 import InlineEditorCommandBar from "./InlineEditorCommandBar";
@@ -74,6 +75,7 @@ export function Editor({
 	const [inlineCommandTop, setInlineCommandTop] = useState(8);
 	const [inlineCommandLeft, setInlineCommandLeft] = useState(8);
 	const [isWebRuntime, setIsWebRuntime] = useState(false);
+	const [viewportWidth, setViewportWidth] = useState<number>(window.innerWidth);
 
 	// Track current file path to detect language changes
 	const currentFilePathRef = useRef<string>("");
@@ -108,10 +110,20 @@ export function Editor({
 				setIsWebRuntime(false);
 			});
 
+		const handleResize = () => setViewportWidth(window.innerWidth);
+		window.addEventListener("resize", handleResize);
+
 		return () => {
 			mounted = false;
+			window.removeEventListener("resize", handleResize);
 		};
 	}, []);
+
+	const shouldStackWebsitePreview = isWebsiteMobilePreviewStack({
+		isWebRuntime,
+		viewportWidth,
+		enjoyMode,
+	});
 
 	const { themeCompartment, themeExtension } = useEditorTheme();
 	const {
@@ -632,13 +644,13 @@ export function Editor({
 	if (!activeFile) {
 		return (
 			<div className="flex-1 flex items-center justify-center">
-				<div className="flex flex-col items-center gap-6">
+				<div className="flex flex-col items-center gap-5 px-4 py-6 sm:gap-6">
 					{isWebRuntime ? (
 						<a
 							href="https://github.com/LIUBINfighter/Tabst.app"
 							target="_blank"
 							rel="noopener noreferrer"
-							className="w-[min(44rem,94vw)] rounded-2xl border border-primary/30 bg-gradient-to-br from-primary/10 via-card to-card p-6 shadow-sm transition-colors hover:border-primary/60 hover:bg-primary/5"
+							className="w-[min(44rem,94vw)] rounded-2xl border border-primary/30 bg-gradient-to-br from-primary/10 via-card to-card p-4 shadow-sm transition-colors hover:border-primary/60 hover:bg-primary/5 sm:p-6"
 						>
 							<div className="mb-4 flex items-start justify-between gap-3">
 								<div className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-primary/15 text-primary">
@@ -707,10 +719,14 @@ export function Editor({
 		<div className="flex-1 flex flex-col h-full overflow-hidden">
 			{/* If the active file is AlphaTex, render a two-column editor/preview layout */}
 			{languageForActive === "alphatex" && !hidePreview ? (
-				<div className="flex-1 overflow-hidden flex">
+				<div
+					className={`flex-1 overflow-hidden flex ${shouldStackWebsitePreview ? "flex-col" : ""}`}
+				>
 					{/* Left: Editor */}
 					{!enjoyMode && (
-						<div className="w-1/2 border-r border-border flex flex-col min-h-0">
+						<div
+							className={`flex flex-col min-h-0 ${shouldStackWebsitePreview ? "h-1/2 w-full border-b border-border" : "w-1/2 border-r border-border"}`}
+						>
 							{/* Column header to align with Preview header */}
 							<TopBar
 								leading={
@@ -754,7 +770,7 @@ export function Editor({
 
 					{/* Right: Preview */}
 					<div
-						className={`${enjoyMode ? "w-full" : "w-1/2"} relative flex flex-col bg-card min-h-0 overflow-y-auto overflow-x-hidden`}
+						className={`${enjoyMode ? "w-full" : shouldStackWebsitePreview ? "h-1/2 w-full" : "w-1/2"} relative flex flex-col bg-card min-h-0 overflow-y-auto overflow-x-hidden`}
 					>
 						<Preview
 							fileName={`${activeFile.name} ${t("common:preview")}`}

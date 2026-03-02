@@ -25,6 +25,7 @@ import {
 	UI_SHELL_COMMAND_EVENT,
 	type UiShellCommandId,
 } from "./lib/ui-shell-events";
+import { isWebsiteMobileLayout } from "./lib/website-layout";
 import { type FileItem, useAppStore } from "./store/appStore";
 
 const QuickFileSwitcher = lazy(() => import("./components/QuickFileSwitcher"));
@@ -49,6 +50,8 @@ function App() {
 	const [globalPaletteOpen, setGlobalPaletteOpen] = useState(false);
 	const [templateInsertOpen, setTemplateInsertOpen] = useState(false);
 	const [templateCreateOpen, setTemplateCreateOpen] = useState(false);
+	const [isWebRuntime, setIsWebRuntime] = useState(false);
+	const [viewportWidth, setViewportWidth] = useState<number>(window.innerWidth);
 	const workspaceMode = useAppStore((s) => s.workspaceMode);
 	const editorRefreshVersion = useAppStore((s) => s.editorRefreshVersion);
 	const bottomBarRefreshVersion = useAppStore((s) => s.bottomBarRefreshVersion);
@@ -69,10 +72,15 @@ function App() {
 	const { handleImportGpBytes, handleNewFile } = useFileOperations();
 	const fsRefreshTimerRef = useRef<number | null>(null);
 	const fsRecentEventRef = useRef<Map<string, number>>(new Map());
+	const wasWebsiteMobileRef = useRef(false);
 
 	const SUPPORTED_EXTENSIONS = useRef(
 		new Set([".md", ".atex", ".gp", ".gp3", ".gp4", ".gp5", ".gpx"]),
 	);
+	const websiteMobileLayout = isWebsiteMobileLayout({
+		isWebRuntime,
+		viewportWidth,
+	});
 
 	const templatePathSet = useMemo(
 		() => new Set(templateFilePaths.map((path) => normalizePath(path))),
@@ -200,6 +208,27 @@ function App() {
 	useEffect(() => {
 		initialize();
 	}, [initialize]);
+
+	useEffect(() => {
+		let mounted = true;
+		void window.electronAPI
+			.getAppVersion()
+			.then((version) => {
+				if (!mounted) return;
+				setIsWebRuntime(version === "web");
+			})
+			.catch(() => {
+				if (!mounted) return;
+				setIsWebRuntime(false);
+			});
+
+		const handleResize = () => setViewportWidth(window.innerWidth);
+		window.addEventListener("resize", handleResize);
+		return () => {
+			mounted = false;
+			window.removeEventListener("resize", handleResize);
+		};
+	}, []);
 
 	useEffect(() => {
 		const handler = (event: Event) => {
@@ -458,11 +487,19 @@ function App() {
 		if (
 			(prevMode === "tutorial" || prevMode === "settings") &&
 			workspaceMode === "editor" &&
-			sidebarCollapsed
+			sidebarCollapsed &&
+			!websiteMobileLayout
 		) {
 			setSidebarCollapsed(false);
 		}
-	}, [workspaceMode, sidebarCollapsed]);
+	}, [workspaceMode, sidebarCollapsed, websiteMobileLayout]);
+
+	useEffect(() => {
+		if (websiteMobileLayout && !wasWebsiteMobileRef.current) {
+			setSidebarCollapsed(true);
+		}
+		wasWebsiteMobileRef.current = websiteMobileLayout;
+	}, [websiteMobileLayout]);
 
 	useEffect(() => {
 		// Preload highlight and worker in the background to reduce initial latency
@@ -493,9 +530,22 @@ function App() {
 	}, []);
 
 	return (
-		<div className="flex h-screen w-screen overflow-hidden bg-background">
-			{!sidebarCollapsed && (
+		<div className="relative flex h-screen w-screen overflow-hidden bg-background">
+			{!sidebarCollapsed && !websiteMobileLayout && (
 				<Sidebar onCollapse={() => setSidebarCollapsed(true)} />
+			)}
+			{!sidebarCollapsed && websiteMobileLayout && (
+				<>
+					<button
+						type="button"
+						aria-label="Close sidebar"
+						className="absolute inset-0 z-40 bg-background/70 backdrop-blur-[1px]"
+						onClick={() => setSidebarCollapsed(true)}
+					/>
+					<div className="absolute inset-y-0 left-0 z-50">
+						<Sidebar onCollapse={() => setSidebarCollapsed(true)} />
+					</div>
+				</>
 			)}
 
 			{/* 编辑器主体 + 全局底部栏（将底部栏放在主内容流中，避免遮挡滚动内容） */}
