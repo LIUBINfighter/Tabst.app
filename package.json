@@ -72,7 +72,7 @@
 		"effect": "^3.19.15",
 		"electron-log": "^5.4.3",
 		"electron-squirrel-startup": "^1.0.1",
-		"electron-updater": "^6.7.3",
+		"electron-updater": "^6.8.3",
 		"i18next": "^25.8.10",
 		"lucide-react": "^0.576.0",
 		"moment": "^2.30.1",
