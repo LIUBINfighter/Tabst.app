@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { setTimeout as sleep } from "node:timers/promises";
 
 const ROOT = process.cwd();
 const OPS_DIR = path.join(ROOT, "docs", "dev", "ops");
@@ -8,6 +9,7 @@ const OPS_DIR = path.join(ROOT, "docs", "dev", "ops");
 function parseArgs() {
 	const args = process.argv.slice(2);
 	let runs = 10;
+	let retries = 2;
 	let coldDelayMs = 2_000;
 	let idleDelayMs = 5_000;
 	let prefix = "multi-baseline";
@@ -17,6 +19,11 @@ function parseArgs() {
 		const arg = args[i];
 		if (arg === "--runs" && args[i + 1]) {
 			runs = Number(args[i + 1]);
+			i += 1;
+			continue;
+		}
+		if (arg === "--retries" && args[i + 1]) {
+			retries = Number(args[i + 1]);
 			i += 1;
 			continue;
 		}
@@ -41,7 +48,14 @@ function parseArgs() {
 		}
 	}
 
-	return { runs, coldDelayMs, idleDelayMs, prefix, compareFile };
+	return {
+		runs,
+		retries: Number.isFinite(retries) ? Math.max(0, Math.floor(retries)) : 2,
+		coldDelayMs,
+		idleDelayMs,
+		prefix,
+		compareFile,
+	};
 }
 
 function runCollect(out, coldDelayMs, idleDelayMs) {
@@ -95,13 +109,39 @@ function stats(values) {
 
 async function main() {
 	fs.mkdirSync(OPS_DIR, { recursive: true });
-	const { runs, coldDelayMs, idleDelayMs, prefix, compareFile } = parseArgs();
+	const { runs, retries, coldDelayMs, idleDelayMs, prefix, compareFile } =
+		parseArgs();
 
 	const runFiles = [];
 	for (let i = 1; i <= runs; i += 1) {
 		const out = `${prefix}-${i}.json`;
 		runFiles.push(out);
-		await runCollect(out, coldDelayMs, idleDelayMs);
+		let success = false;
+		let lastError = null;
+
+		for (let attempt = 0; attempt <= retries; attempt += 1) {
+			try {
+				if (attempt > 0) {
+					console.warn(
+						`Retrying baseline run ${i}/${runs}, attempt ${attempt + 1}/${retries + 1}`,
+					);
+				}
+				await runCollect(out, coldDelayMs, idleDelayMs);
+				success = true;
+				break;
+			} catch (error) {
+				lastError = error;
+				if (attempt < retries) {
+					await sleep(1_000 * (attempt + 1));
+				}
+			}
+		}
+
+		if (!success) {
+			throw new Error(
+				`Baseline run ${i}/${runs} failed after ${retries + 1} attempt(s): ${lastError instanceof Error ? lastError.message : String(lastError)}`,
+			);
+		}
 	}
 
 	const docs = runFiles.map((name) =>
@@ -130,7 +170,7 @@ async function main() {
 
 	const result = {
 		generatedAt: new Date().toISOString(),
-		config: { runs, coldDelayMs, idleDelayMs, prefix, compareFile },
+		config: { runs, retries, coldDelayMs, idleDelayMs, prefix, compareFile },
 		runFiles,
 		metrics,
 		summary,

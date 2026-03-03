@@ -11,6 +11,8 @@ const require = createRequire(import.meta.url);
 const ROOT = process.cwd();
 const DEBUG_PORT = 9333;
 const OUTPUT_DIR = path.join(ROOT, "docs", "dev", "ops");
+const STARTUP_TIMEOUT_MS = 60_000;
+const STARTUP_POLL_MS = 400;
 
 function waitForChildExit(child, timeoutMs) {
 	if (child.exitCode !== null) {
@@ -83,9 +85,27 @@ function parseArgs() {
 	};
 }
 
-async function waitForJson(pathname, timeoutMs = 20_000) {
+function getChildExitSummary(child) {
+	if (child.exitCode === null) {
+		return null;
+	}
+	if (typeof child.signalCode === "string" && child.signalCode.length > 0) {
+		return `signal ${child.signalCode}`;
+	}
+	return `code ${child.exitCode}`;
+}
+
+async function waitForJson(pathname, options = {}) {
+	const { child = null, timeoutMs = STARTUP_TIMEOUT_MS } = options;
 	const start = Date.now();
 	while (Date.now() - start < timeoutMs) {
+		const exitSummary = child ? getChildExitSummary(child) : null;
+		if (exitSummary) {
+			throw new Error(
+				`Electron exited early (${exitSummary}) while waiting for ${pathname}`,
+			);
+		}
+
 		try {
 			const res = await fetch(`http://127.0.0.1:${DEBUG_PORT}${pathname}`);
 			if (res.ok) {
@@ -94,9 +114,31 @@ async function waitForJson(pathname, timeoutMs = 20_000) {
 		} catch {
 			// ignore until timeout
 		}
-		await sleep(300);
+		await sleep(STARTUP_POLL_MS);
 	}
-	throw new Error(`Timed out waiting for ${pathname}`);
+
+	const exitSummary = child ? getChildExitSummary(child) : null;
+	if (exitSummary) {
+		throw new Error(
+			`Timed out waiting for ${pathname}; Electron exited with ${exitSummary}`,
+		);
+	}
+
+	throw new Error(`Timed out waiting for ${pathname} after ${timeoutMs}ms`);
+}
+
+function createElectronArgs() {
+	const args = [
+		".",
+		`--remote-debugging-port=${DEBUG_PORT}`,
+		"--remote-debugging-address=127.0.0.1",
+	];
+
+	if (process.platform === "linux" && process.env.CI === "true") {
+		args.push("--disable-gpu", "--no-sandbox");
+	}
+
+	return args;
 }
 
 async function selectRendererPage(browser) {
@@ -192,24 +234,27 @@ async function main() {
 	const { outputFile, coldDelayMs, idleDelayMs } = parseArgs();
 
 	const electronBinary = require("electron");
-	const child = spawn(
-		electronBinary,
-		[".", `--remote-debugging-port=${DEBUG_PORT}`],
-		{
-			cwd: ROOT,
-			stdio: "ignore",
-			env: {
-				...process.env,
-				NODE_ENV: "production",
-				TABST_FORCE_PRODUCTION_WINDOW: "1",
-			},
+	const child = spawn(electronBinary, createElectronArgs(), {
+		cwd: ROOT,
+		stdio: "ignore",
+		env: {
+			...process.env,
+			NODE_ENV: "production",
+			TABST_FORCE_PRODUCTION_WINDOW: "1",
 		},
-	);
+	});
 
 	let browser;
 	try {
-		const version = await waitForJson("/json/version");
-		await waitForJson("/json/list");
+		await sleep(500);
+		const version = await waitForJson("/json/version", {
+			child,
+			timeoutMs: STARTUP_TIMEOUT_MS,
+		});
+		await waitForJson("/json/list", {
+			child,
+			timeoutMs: STARTUP_TIMEOUT_MS,
+		});
 
 		browser = await puppeteer.connect({
 			browserURL: `http://127.0.0.1:${DEBUG_PORT}`,
