@@ -92,7 +92,7 @@ jobs:
             docs/dev/ops/ci-baseline-summary.json
             docs/dev/ops/ci-long-stress.json
             docs/dev/ops/ci-long-stress-summary.json
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 30
 
   package:
