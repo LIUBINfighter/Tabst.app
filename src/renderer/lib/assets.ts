@@ -27,20 +27,49 @@ function hasUserActivatedAudio(): boolean {
 	return Boolean(userActivation.hasBeenActive || userActivation.isActive);
 }
 
+let bravuraFontLoadPromise: Promise<boolean> | null = null;
+let loadedBravuraFontUrl: string | null = null;
+
 /**
  * 通过 URL 注入字体到 DOM
  * 适用于已经通过 ResourceLoaderService 生成的字体 URL
  */
 export async function loadBravuraFont(fontUrl: string): Promise<boolean> {
 	const fontName = "Bravura";
-	try {
-		const fontFace = new FontFace(fontName, `url(${fontUrl})`);
-		await fontFace.load();
-		document.fonts.add(fontFace);
-		console.info(`[AssetLoader] Loaded Bravura font from: ${fontUrl}`);
+	if (
+		typeof document !== "undefined" &&
+		typeof document.fonts?.check === "function" &&
+		document.fonts.check(`1em "${fontName}"`)
+	) {
 		return true;
+	}
+
+	if (bravuraFontLoadPromise && loadedBravuraFontUrl === fontUrl) {
+		return bravuraFontLoadPromise;
+	}
+
+	loadedBravuraFontUrl = fontUrl;
+	bravuraFontLoadPromise = (async () => {
+		try {
+			const fontFace = new FontFace(fontName, `url(${fontUrl})`);
+			await fontFace.load();
+			document.fonts.add(fontFace);
+			console.info(`[AssetLoader] Loaded Bravura font from: ${fontUrl}`);
+			return true;
+		} catch (err) {
+			console.warn("[AssetLoader] Failed to load Bravura font:", err);
+			loadedBravuraFontUrl = null;
+			bravuraFontLoadPromise = null;
+			return false;
+		}
+	})();
+
+	try {
+		return await bravuraFontLoadPromise;
 	} catch (err) {
 		console.warn("[AssetLoader] Failed to load Bravura font:", err);
+		loadedBravuraFontUrl = null;
+		bravuraFontLoadPromise = null;
 		return false;
 	}
 }

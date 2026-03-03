@@ -71,6 +71,7 @@ export function Editor({
 	const editorRef = useRef<HTMLDivElement | null>(null);
 	const viewRef = useRef<EditorView | null>(null);
 	const saveTimerRef = useRef<number | null>(null);
+	const playbackHighlightRafRef = useRef<number | null>(null);
 	const lastContentRef = useRef<string>("");
 	const focusCleanupRef = useRef<(() => void) | null>(null);
 	const [previewApi, setPreviewApi] = useState<TracksPanelProps["api"]>(null);
@@ -538,14 +539,25 @@ export function Editor({
 
 		const content = activeFile?.content ?? "";
 		const isPlaying = _playbackBeat !== null;
-		updateEditorPlaybackHighlight(
-			view,
-			content,
-			_playbackBeat,
-			_playerCursorPosition,
-			isPlaying,
-			enableSyncScroll,
-		);
+
+		if (playbackHighlightRafRef.current !== null) {
+			cancelAnimationFrame(playbackHighlightRafRef.current);
+			playbackHighlightRafRef.current = null;
+		}
+
+		playbackHighlightRafRef.current = requestAnimationFrame(() => {
+			playbackHighlightRafRef.current = null;
+			const latestView = viewRef.current;
+			if (!latestView) return;
+			updateEditorPlaybackHighlight(
+				latestView,
+				content,
+				_playbackBeat,
+				_playerCursorPosition,
+				isPlaying,
+				enableSyncScroll,
+			);
+		});
 	}, [
 		_playbackBeat,
 		_playerCursorPosition,
@@ -557,6 +569,10 @@ export function Editor({
 	// Cleanup on unmount
 	useEffect(() => {
 		return () => {
+			if (playbackHighlightRafRef.current !== null) {
+				cancelAnimationFrame(playbackHighlightRafRef.current);
+				playbackHighlightRafRef.current = null;
+			}
 			if (viewRef.current) {
 				viewRef.current.destroy();
 				viewRef.current = null;

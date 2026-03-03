@@ -17,6 +17,12 @@ import {
 	getBarRanges,
 	parseBeatPositions,
 } from "./alphatex-parse-positions";
+import { createPlaybackRangeCache } from "./playback-range-cache";
+
+const playbackRangeCache = createPlaybackRangeCache({
+	parseBeats: (text) => parseBeatPositions(text).beats,
+	resolveBarRanges: (text, barIndex) => getBarRanges(text, barIndex),
+});
 
 /**
  * Effect to update playback highlight in the editor
@@ -199,7 +205,7 @@ export function mapPlaybackToCodeRange(
 	text: string,
 	playback: PlaybackBeatInfo,
 ): CodeRange | null {
-	const { beats } = parseBeatPositions(text);
+	const beats = playbackRangeCache.getBeats(text);
 
 	if (beats.length === 0) {
 		return null;
@@ -228,6 +234,88 @@ export function mapPlaybackToCodeRange(
 	};
 }
 
+const pendingFrameTasks = new WeakMap<EditorView, Map<string, number>>();
+const lastScrollAtByView = new WeakMap<
+	EditorView,
+	{ playback: number; bar: number }
+>();
+
+function requestFrame(callback: () => void): number {
+	if (
+		typeof window !== "undefined" &&
+		typeof window.requestAnimationFrame === "function"
+	) {
+		return window.requestAnimationFrame(callback);
+	}
+	return globalThis.setTimeout(callback, 0) as unknown as number;
+}
+
+function cancelFrame(id: number): void {
+	if (
+		typeof window !== "undefined" &&
+		typeof window.cancelAnimationFrame === "function"
+	) {
+		window.cancelAnimationFrame(id);
+		return;
+	}
+	globalThis.clearTimeout(id);
+}
+
+function nowMs(): number {
+	if (
+		typeof performance !== "undefined" &&
+		typeof performance.now === "function"
+	) {
+		return performance.now();
+	}
+	return Date.now();
+}
+
+function scheduleViewTask(
+	view: EditorView,
+	key: string,
+	task: () => void,
+): void {
+	let entry = pendingFrameTasks.get(view);
+	if (!entry) {
+		entry = new Map();
+		pendingFrameTasks.set(view, entry);
+	}
+
+	const previous = entry.get(key);
+	if (typeof previous === "number") {
+		cancelFrame(previous);
+	}
+
+	const id = requestFrame(() => {
+		const current = pendingFrameTasks.get(view);
+		current?.delete(key);
+		task();
+	});
+	entry.set(key, id);
+}
+
+function shouldRunScrollTask(
+	view: EditorView,
+	scope: "playback" | "bar",
+	minIntervalMs: number,
+): boolean {
+	const now = nowMs();
+	const prev = lastScrollAtByView.get(view) ?? { playback: 0, bar: 0 };
+	const last = scope === "playback" ? prev.playback : prev.bar;
+	if (now - last < minIntervalMs) {
+		return false;
+	}
+
+	if (scope === "playback") {
+		prev.playback = now;
+	} else {
+		prev.bar = now;
+	}
+	lastScrollAtByView.set(view, prev);
+	return true;
+}
+
 /**
  * Safely dispatch effect, avoiding conflicts during view updates
  */
@@ -239,7 +327,7 @@ function safeDispatch(
 		return;
 	}
 
-	setTimeout(() => {
+	scheduleViewTask(view, "dispatch-playback-highlight", () => {
 		if (!view || !view.dom || !document.contains(view.dom)) {
 			return;
 		}
@@ -248,7 +336,7 @@ function safeDispatch(
 		} catch (err) {
 			console.error("[PlaybackSync] Failed to dispatch:", err);
 		}
-	}, 0);
+	});
 }
 
 /**
@@ -262,7 +350,7 @@ function safeDispatchBarHighlight(
 		return;
 	}
 
-	setTimeout(() => {
+	scheduleViewTask(view, "dispatch-playback-bar", () => {
 		if (!view || !view.dom || !document.contains(view.dom)) {
 			return;
 		}
@@ -271,7 +359,7 @@ function safeDispatchBarHighlight(
 		} catch (err) {
 			void err;
 		}
-	}, 0);
+	});
 }
 
 /**
@@ -289,8 +377,11 @@ function scrollToPlaybackHighlight(
 	if (!view || !view.dom || !document.contains(view.dom)) {
 		return;
 	}
+	if (!shouldRunScrollTask(view, "playback", 48)) {
+		return;
+	}
 
-	setTimeout(() => {
+	scheduleViewTask(view, "scroll-playback-highlight", () => {
 		if (!view || !view.dom || !document.contains(view.dom)) {
 			return;
 		}
@@ -336,7 +427,7 @@ function scrollToPlaybackHighlight(
 				err,
 			);
 		}
-	}, 0);
+	});
 }
 
 /**
@@ -350,8 +441,11 @@ function scrollToBarHighlight(view: EditorView, codeRange: CodeRange): void {
 	if (!view || !view.dom || !document.contains(view.dom)) {
 		return;
 	}
+	if (!shouldRunScrollTask(view, "bar", 64)) {
+		return;
+	}
 
-	setTimeout(() => {
+	scheduleViewTask(view, "scroll-bar-highlight", () => {
 		if (!view || !view.dom || !document.contains(view.dom)) {
 			return;
 		}
@@ -394,7 +488,7 @@ function scrollToBarHighlight(view: EditorView, codeRange: CodeRange): void {
 		} catch (err) {
 			console.error("[PlaybackSync] Failed to scroll to bar highlight:", err);
 		}
-	}, 0);
+	});
 }
 
 /**
@@ -428,7 +522,10 @@ export function updateEditorPlaybackHighlight(
 		}
 	} else if (!isPlaying && cursorPosition) {
 		safeDispatch(view, setPlaybackHighlightEffect.of(null));
-		const barRanges = getBarRanges(text, cursorPosition.barIndex);
+		const barRanges = playbackRangeCache.getBarRanges(
+			text,
+			cursorPosition.barIndex,
+		);
 		safeDispatchBarHighlight(
 			view,
 			barRanges.length > 0 ? { ranges: barRanges } : null,

@@ -1,4 +1,3 @@
-// @ts-nocheck
 import * as alphaTab from "@coderline/alphatab";
 import { FileText } from "lucide-react";
 import {
@@ -42,6 +41,14 @@ import { loadBravuraFont, loadSoundFontFromUrl } from "../lib/assets";
 import { type AtDocConfig, parseAtDoc } from "../lib/atdoc";
 import { applyAtDocColoring } from "../lib/atdoc-coloring";
 import {
+	disableNumberedNotationAcrossScore,
+	isNumberedNotationBeatError,
+} from "../lib/numbered-notation-guard";
+import {
+	createPlaybackFrameGate,
+	type PlaybackFrameGate,
+} from "../lib/playback-frame-gate";
+import {
 	PREVIEW_COMMAND_EVENT,
 	type PreviewCommandId,
 } from "../lib/preview-command-events";
@@ -76,6 +83,18 @@ export interface PreviewProps {
 	mobileScoreFit?: boolean;
 }
 
+type PlaybackProgressSnapshot = {
+	positionTick: number;
+	endTick: number;
+	positionMs: number;
+	endMs: number;
+};
+
+type PlaybackCursorSnapshot = {
+	barIndex: number;
+	beatIndex: number;
+};
+
 const PrintPreview = lazy(() => import("./PrintPreview"));
 
 export default function Preview({
@@ -108,7 +127,7 @@ export default function Preview({
 		prev: ReturnType<typeof getFirstStaffOptions>;
 		timeoutId: number | null;
 		lastProbeAt: number;
-	}>({ active: false, prev: null, timeoutId: null });
+	}>({ active: false, prev: null, timeoutId: null, lastProbeAt: 0 });
 	// Error recovery: parse timeout + last valid score restore
 	const errorRecovery = usePreviewErrorRecovery({
 		onTimeoutTriggered: () => increment("timeoutTriggered"),
@@ -191,6 +210,32 @@ export default function Preview({
 		barIndex: number;
 		beatIndex: number;
 	} | null>(null);
+	const playbackProgressGateRef =
+		useRef<PlaybackFrameGate<PlaybackProgressSnapshot> | null>(null);
+	const playbackCursorGateRef =
+		useRef<PlaybackFrameGate<PlaybackCursorSnapshot> | null>(null);
+
+	useEffect(() => {
+		playbackProgressGateRef.current = createPlaybackFrameGate(
+			(next) => {
+				useAppStore.getState().setPlaybackProgress(next);
+			},
+			{ minIntervalMs: 16 },
+		);
+		playbackCursorGateRef.current = createPlaybackFrameGate(
+			(next) => {
+				useAppStore.getState().setPlayerCursorPosition(next);
+			},
+			{ minIntervalMs: 16 },
+		);
+
+		return () => {
+			playbackProgressGateRef.current?.dispose();
+			playbackCursorGateRef.current?.dispose();
+			playbackProgressGateRef.current = null;
+			playbackCursorGateRef.current = null;
+		};
+	}, []);
 
 	const emitApiChange = useCallback(
 		(api: alphaTab.AlphaTabApi | null) => {
@@ -250,18 +295,18 @@ export default function Preview({
 				return;
 			}
 			lastPlayerCursorRef.current = next;
+			const gate = playbackCursorGateRef.current;
+			if (gate) {
+				gate.push(next);
+				return;
+			}
 			useAppStore.getState().setPlayerCursorPosition(next);
 		},
 		[],
 	);
 
 	const setPlaybackProgressIfChanged = useCallback(
-		(next: {
-			positionTick: number;
-			endTick: number;
-			positionMs: number;
-			endMs: number;
-		}) => {
+		(next: PlaybackProgressSnapshot) => {
 			const prev = lastPlaybackProgressRef.current;
 			if (
 				prev &&
@@ -273,6 +318,11 @@ export default function Preview({
 				return;
 			}
 			lastPlaybackProgressRef.current = next;
+			const gate = playbackProgressGateRef.current;
+			if (gate) {
+				gate.push(next);
+				return;
+			}
 			useAppStore.getState().setPlaybackProgress(next);
 		},
 		[],
@@ -846,7 +896,9 @@ export default function Preview({
 				try {
 					const off = emitter.on(...args);
 					if (typeof off === "function") {
-						eventTeardowns.push(off);
+						eventTeardowns.push(() => {
+							off();
+						});
 					}
 				} catch {}
 			};
@@ -1137,7 +1189,8 @@ export default function Preview({
 						// 6. 🆕 清除小节号红色高亮（Editor -> Preview 的高亮）
 						// 恢复之前高亮的小节到默认主题颜色
 						try {
-							if (lastColoredBarsRef.current?.bars?.length > 0) {
+							const bars = lastColoredBarsRef.current?.bars;
+							if (Array.isArray(bars) && bars.length > 0) {
 								applyThemeColorsToPreviousBars(api);
 								// 清除 refs
 								lastColoredBarsRef.current = null;
@@ -1154,18 +1207,6 @@ export default function Preview({
 						// 7. 清除播放范围和高亮范围
 						try {
 							api.playbackRange = null;
-
-							// 清除高亮范围（如果 API 支持）
-							if (typeof api.highlightPlaybackRange === "function") {
-								// 注意：alphaTab 可能不支持传递 null 来清除，但我们可以尝试
-								// 如果不行，这个调用会被忽略
-								try {
-									// 尝试清除：传递 undefined 或 null（如果 API 支持）
-									api.highlightPlaybackRange(null, null);
-								} catch {
-									// 如果 API 不支持，忽略错误
-								}
-							}
 						} catch {
 							// Failed to clear playback range
 						}
@@ -1395,6 +1436,32 @@ export default function Preview({
 					setParseError(null);
 					return;
 				}
+
+				if (isNumberedNotationBeatError(fullError)) {
+					const rollbackApplied = disableNumberedNotationAcrossScore(api.score);
+					if (rollbackApplied) {
+						console.warn(
+							"[Preview] Numbered notation render failed; rolling back to safe staff options.",
+							fullError,
+						);
+						const restoredFirstStaff = getFirstStaffOptions(api);
+						if (restoredFirstStaff) {
+							trackConfigRef.current = restoredFirstStaff;
+							setFirstStaffOptions(restoredFirstStaff);
+						}
+						try {
+							api.render();
+						} catch (rollbackErr) {
+							console.warn(
+								"[Preview] Failed to re-render after numbered rollback:",
+								rollbackErr,
+							);
+						}
+						setParseError(null);
+						return;
+					}
+				}
+
 				console.error("[Preview] alphaTab error:", err);
 				console.error("[Preview] Setting error state:", fullError);
 				onErrorRecovery(apiRef.current, fullError);
@@ -1476,7 +1543,7 @@ export default function Preview({
 		const initAlphaTab = async () => {
 			try {
 				transitionLifecycle("initializing", "initAlphaTab-start");
-				dumpCounters("init-start");
+				dumpCounters("initAlphaTab-start");
 				const parsedAtDoc = parseAtDoc(latestContentRef.current ?? "");
 				atDocConfigRef.current = parsedAtDoc.config;
 				syncStoreFromAtDoc(parsedAtDoc.config);
