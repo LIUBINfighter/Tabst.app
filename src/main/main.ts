@@ -44,8 +44,13 @@ import {
 	handleSaveWorkspaceMetadataEffect,
 	handleScanDirectoryEffect,
 } from "./ipc/repo-operations-effect";
+import { isDevelopmentRuntime } from "./runtime-mode";
 
-const isDev = process.env.NODE_ENV === "development" || !app.isPackaged;
+const isDev = isDevelopmentRuntime({
+	nodeEnv: process.env.NODE_ENV,
+	isPackaged: app.isPackaged,
+	forceProductionWindow: process.env.TABST_FORCE_PRODUCTION_WINDOW,
+});
 
 interface RepoWatchState {
 	repoPath: string;

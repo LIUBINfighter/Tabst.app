@@ -44,10 +44,61 @@ jobs:
       - name: Run lint
         run: pnpm lint
 
+  performance:
+    name: Performance Gate (pnpm perf:ci)
+    runs-on: ubuntu-latest
+    needs: lint
+    timeout-minutes: 25
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "20.x"
+          cache: "pnpm"
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Check pnpm version
+        run: pnpm -v
+
+      - name: Ensure pnpm uses hoisted node linker
+        run: pnpm config set node-linker hoisted
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Ensure xvfb-run is available
+        run: |
+          if ! command -v xvfb-run >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y xvfb
+          fi
+
+      - name: Run performance CI pipeline
+        run: xvfb-run -a pnpm perf:ci
+
+      - name: Upload performance artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: perf-metrics-${{ github.run_id }}
+          path: |
+            docs/dev/ops/ci-baseline-*.json
+            docs/dev/ops/ci-baseline-summary.json
+            docs/dev/ops/ci-long-stress.json
+            docs/dev/ops/ci-long-stress-summary.json
+          if-no-files-found: error
+          retention-days: 30
+
   package:
     name: Package (pnpm package)
     runs-on: ubuntu-latest
-    needs: lint
+    needs: [lint, performance]
     steps:
       - name: Checkout code
         uses: actions/checkout@v6

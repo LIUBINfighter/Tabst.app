@@ -12,6 +12,44 @@ const ROOT = process.cwd();
 const DEBUG_PORT = 9333;
 const OUTPUT_DIR = path.join(ROOT, "docs", "dev", "ops");
 
+function waitForChildExit(child, timeoutMs) {
+	if (child.exitCode !== null) {
+		return Promise.resolve();
+	}
+
+	return new Promise((resolve) => {
+		let settled = false;
+		const finish = () => {
+			if (settled) return;
+			settled = true;
+			clearTimeout(timer);
+			child.removeListener("exit", onExit);
+			child.removeListener("close", onExit);
+			resolve();
+		};
+		const onExit = () => finish();
+		const timer = setTimeout(() => finish(), timeoutMs);
+		child.once("exit", onExit);
+		child.once("close", onExit);
+	});
+}
+
+async function terminateChild(child) {
+	if (child.exitCode !== null) return;
+
+	try {
+		child.kill("SIGTERM");
+	} catch {}
+	await waitForChildExit(child, 2_500);
+
+	if (child.exitCode !== null) return;
+
+	try {
+		child.kill("SIGKILL");
+	} catch {}
+	await waitForChildExit(child, 1_500);
+}
+
 function parseArgs() {
 	const args = process.argv.slice(2);
 	let outFileName = "week1-baseline.json";
@@ -82,9 +120,33 @@ async function selectRendererPage(browser) {
 	throw new Error("Renderer page not found");
 }
 
+async function waitForRendererReady(page, timeoutMs = 20_000) {
+	try {
+		await page.waitForFunction(() => document.readyState === "complete", {
+			timeout: timeoutMs,
+		});
+	} catch {}
+
+	try {
+		await page.waitForFunction(
+			() => {
+				const root = document.getElementById("root");
+				if (!root) return false;
+				if (document.querySelector(".cm-editor")) return true;
+				return root.childElementCount > 0;
+			},
+			{ timeout: timeoutMs },
+		);
+	} catch {}
+}
+
 async function captureSample(page, label) {
 	const cdp = await page.createCDPSession();
 	await cdp.send("Performance.enable");
+	try {
+		await cdp.send("HeapProfiler.enable");
+		await cdp.send("HeapProfiler.collectGarbage");
+	} catch {}
 
 	const [pageMetrics, perfMetrics, heapUsage, navTiming, memoryInfo] =
 		await Promise.all([
@@ -139,6 +201,7 @@ async function main() {
 			env: {
 				...process.env,
 				NODE_ENV: "production",
+				TABST_FORCE_PRODUCTION_WINDOW: "1",
 			},
 		},
 	);
@@ -151,9 +214,13 @@ async function main() {
 		browser = await puppeteer.connect({
 			browserURL: `http://127.0.0.1:${DEBUG_PORT}`,
 			defaultViewport: null,
+			protocolTimeout: 30_000,
 		});
 
 		const page = await selectRendererPage(browser);
+		page.setDefaultTimeout(20_000);
+		page.setDefaultNavigationTimeout(20_000);
+		await waitForRendererReady(page);
 
 		await sleep(coldDelayMs);
 		const coldStart = await captureSample(
@@ -194,14 +261,7 @@ async function main() {
 		} catch {
 			// ignore
 		}
-
-		if (!child.killed) {
-			child.kill("SIGTERM");
-			await sleep(1500);
-			if (!child.killed) {
-				child.kill("SIGKILL");
-			}
-		}
+		await terminateChild(child);
 	}
 }
 

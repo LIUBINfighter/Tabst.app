@@ -1,0 +1,19 @@
+{
+	"baseline": {
+		"coldLoadMeanMsMax": 450,
+		"coldLoadP95MsMax": 700,
+		"heapDeltaMeanBytesMax": 3500000,
+		"idleListenersP95Max": 3000
+	},
+	"stress": {
+		"minDurationMin": 2,
+		"heapDeltaPerMinBytesMax": 650000,
+		"listenersP95Max": 3500,
+		"listenersDeltaPerMinMax": 30
+	},
+	"build": {
+		"mainChunkMaxBytes": 900000,
+		"vendorAlphaTabMaxBytes": 1700000,
+		"vendorCodeMirrorMaxBytes": 700000
+	}
+}

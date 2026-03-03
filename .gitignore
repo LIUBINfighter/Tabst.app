@@ -1,6 +1,6 @@
 # temp
 .tmp
-
+.sisyphus
 # dist
 dist
 dist-electron

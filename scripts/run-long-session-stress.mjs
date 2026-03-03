@@ -11,6 +11,44 @@ const ROOT = process.cwd();
 const DEBUG_PORT = 9333;
 const OUTPUT_DIR = path.join(ROOT, "docs", "dev", "ops");
 
+function waitForChildExit(child, timeoutMs) {
+	if (child.exitCode !== null) {
+		return Promise.resolve();
+	}
+
+	return new Promise((resolve) => {
+		let settled = false;
+		const finish = () => {
+			if (settled) return;
+			settled = true;
+			clearTimeout(timer);
+			child.removeListener("exit", onExit);
+			child.removeListener("close", onExit);
+			resolve();
+		};
+		const onExit = () => finish();
+		const timer = setTimeout(() => finish(), timeoutMs);
+		child.once("exit", onExit);
+		child.once("close", onExit);
+	});
+}
+
+async function terminateChild(child) {
+	if (child.exitCode !== null) return;
+
+	try {
+		child.kill("SIGTERM");
+	} catch {}
+	await waitForChildExit(child, 2_500);
+
+	if (child.exitCode !== null) return;
+
+	try {
+		child.kill("SIGKILL");
+	} catch {}
+	await waitForChildExit(child, 1_500);
+}
+
 function parseArgs() {
 	const args = process.argv.slice(2);
 	let durationMin = 15;
@@ -97,21 +135,29 @@ async function capture(page, label) {
 }
 
 async function stressActions(page, tick) {
-	const width = 1280;
-	const height = 800;
-	await page.mouse.move((tick * 37) % width, (tick * 53) % height);
-	await page.mouse.wheel({ deltaY: tick % 2 === 0 ? 400 : -300 });
-	await page.keyboard.press("PageDown");
-	await page.keyboard.press("PageUp");
-	await page.evaluate((n) => {
-		window.dispatchEvent(new Event("resize"));
-		document.dispatchEvent(
-			new KeyboardEvent("keydown", {
-				key: n % 2 === 0 ? "ArrowRight" : "ArrowLeft",
-				bubbles: true,
-			}),
-		);
-	});
+	try {
+		await page.evaluate((n) => {
+			window.scrollBy({
+				top: n % 2 === 0 ? 400 : -300,
+				behavior: "instant",
+			});
+			window.dispatchEvent(new Event("resize"));
+			document.dispatchEvent(
+				new KeyboardEvent("keydown", {
+					key: n % 2 === 0 ? "ArrowRight" : "ArrowLeft",
+					bubbles: true,
+				}),
+			);
+			document.dispatchEvent(
+				new KeyboardEvent("keydown", {
+					key: n % 2 === 0 ? "PageDown" : "PageUp",
+					bubbles: true,
+				}),
+			);
+		}, tick);
+	} catch (err) {
+		console.warn("[stress] interaction tick failed, continuing:", err);
+	}
 }
 
 function summarize(samples) {
@@ -152,7 +198,11 @@ async function main() {
 		{
 			cwd: ROOT,
 			stdio: "ignore",
-			env: { ...process.env, NODE_ENV: "production" },
+			env: {
+				...process.env,
+				NODE_ENV: "production",
+				TABST_FORCE_PRODUCTION_WINDOW: "1",
+			},
 		},
 	);
 
@@ -164,9 +214,13 @@ async function main() {
 		browser = await puppeteer.connect({
 			browserURL: `http://127.0.0.1:${DEBUG_PORT}`,
 			defaultViewport: null,
+			protocolTimeout: 30_000,
 		});
 
 		const page = await selectRendererPage(browser);
+		page.setDefaultTimeout(30_000);
+		page.setDefaultNavigationTimeout(30_000);
+		await sleep(Math.min(5_000, intervalMs));
 		const start = Date.now();
 		const samples = [];
 		let tick = 0;
@@ -203,12 +257,7 @@ async function main() {
 		try {
 			if (browser) await browser.disconnect();
 		} catch {}
-
-		if (!child.killed) {
-			child.kill("SIGTERM");
-			await sleep(1500);
-			if (!child.killed) child.kill("SIGKILL");
-		}
+		await terminateChild(child);
 	}
 }
 
