@@ -78,7 +78,7 @@ jobs:
           fi
 
       - name: Create Release and upload macOS assets
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
           name: ${{ steps.package-version.outputs.version }} (macOS)
