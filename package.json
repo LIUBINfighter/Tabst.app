@@ -181,6 +181,9 @@
 		"package.json"
 	],
 	"pnpm": {
+		"overrides": {
+			"@lezer/highlight>@lezer/common": "1.5.1"
+		},
 		"onlyBuiltDependencies": [
 			"electron",
 			"esbuild"
