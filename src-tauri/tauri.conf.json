@@ -1,0 +1,30 @@
+{
+	"$schema": "https://schema.tauri.app/config/2",
+	"productName": "Tabst",
+	"version": "0.6.0",
+	"identifier": "com.liubin.tabst",
+	"build": {
+		"beforeDevCommand": "pnpm dev:react",
+		"beforeBuildCommand": "pnpm build:web",
+		"devUrl": "http://127.0.0.1:7777",
+		"frontendDist": "../dist"
+	},
+	"app": {
+		"windows": [
+			{
+				"title": "Tabst",
+				"width": 1400,
+				"height": 900,
+				"resizable": true
+			}
+		],
+		"security": {
+			"csp": null
+		},
+		"withGlobalTauri": false
+	},
+	"bundle": {
+		"active": false,
+		"icon": []
+	}
+}

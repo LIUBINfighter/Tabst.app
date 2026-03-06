@@ -6,6 +6,7 @@ import type {
 } from "../types/electron";
 import type { GitChangeGroup } from "../types/git";
 import type { FileNode, Repo, RepoMetadata } from "../types/repo";
+import { createTauriElectronAPI } from "./tauri-electron-api";
 
 interface BrowserStoredFile {
 	path: string;
@@ -509,9 +510,27 @@ export function createWebElectronAPI(): ElectronAPI {
 export function ensureElectronApiInWebRuntime() {
 	const maybeWindow = window as Window & {
 		electronAPI?: ElectronAPI;
+		__TAURI_INTERNALS__?: unknown;
+		__TAURI__?: unknown;
+		__TAURI_IPC__?: unknown;
 	};
 
 	if (maybeWindow.electronAPI) return;
+
+	const runtimeEnv = import.meta.env as Record<string, unknown>;
+	const tauriEnvPlatform = runtimeEnv.TAURI_ENV_PLATFORM;
+	const isTauriRuntime =
+		(typeof tauriEnvPlatform === "string" && tauriEnvPlatform.length > 0) ||
+		Boolean(maybeWindow.__TAURI_INTERNALS__) ||
+		Boolean(maybeWindow.__TAURI__) ||
+		Boolean(maybeWindow.__TAURI_IPC__) ||
+		window.location.protocol === "tauri:" ||
+		window.location.hostname === "tauri.localhost";
+
+	if (isTauriRuntime) {
+		maybeWindow.electronAPI = createTauriElectronAPI();
+		return;
+	}
 
 	maybeWindow.electronAPI = createWebElectronAPI();
 }
