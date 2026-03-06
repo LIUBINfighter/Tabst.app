@@ -57,12 +57,15 @@ pnpm install
 
 ```powershell
 pnpm run dev  # 运行 React 开发服务器 + Electron 开发进程
+pnpm run dev:tauri # 运行 React 开发服务器 + Tauri 壳层
 ```
 
 ## 构建
 
 ```powershell
 pnpm run build  # 构建渲染器 + 主进程 (Vite + esbuild)
+pnpm run build:web  # 构建 website 静态站点
+pnpm run build:tauri  # 构建 Tauri 壳层 + 渲染器
 ```
 
 ## 打包 (Electron Forge)
