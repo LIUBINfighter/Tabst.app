@@ -2,13 +2,17 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use dirs::{document_dir, home_dir};
+use notify::event::{EventKind, ModifyKind};
+use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 use rfd::FileDialog;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::Value;
-use tauri::Manager;
+use tauri::{Emitter, Manager};
+use tauri_plugin_updater::UpdaterExt;
 
 const SUPPORTED_EXTENSIONS: [&str; 7] = [".md", ".atex", ".gp", ".gp3", ".gp4", ".gp5", ".gpx"];
 const RELEASES_FEED_URL: &str = "https://github.com/LIUBINfighter/Tabst.app/releases.atom";
@@ -254,6 +258,25 @@ struct GlobalSettingsLoadResponse {
     error: Option<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+struct RepoFsChangedEvent {
+    repo_path: String,
+    event_type: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    changed_path: Option<String>,
+}
+
+struct RepoWatcherState {
+    repo_path: String,
+    _watcher: RecommendedWatcher,
+}
+
+#[derive(Default)]
+struct RepoWatchManager {
+    active: Mutex<Option<RepoWatcherState>>,
+}
+
 struct GitCommandOutput {
     stdout: String,
     stderr: String,
@@ -269,6 +292,70 @@ fn now_ms() -> u64 {
 
 fn to_error(error: impl ToString) -> String {
     error.to_string()
+}
+
+fn is_update_supported_runtime(platform: &str, is_debug_build: bool) -> bool {
+    platform == "windows" && !is_debug_build
+}
+
+fn update_check_unsupported_message() -> String {
+    "仅支持 Windows 打包版本的更新检查".to_string()
+}
+
+fn update_install_unsupported_message() -> String {
+    "仅支持 Windows 打包版本安装更新".to_string()
+}
+
+fn map_notify_event_type(kind: &EventKind) -> &'static str {
+    match kind {
+        EventKind::Create(_) => "rename",
+        EventKind::Remove(_) => "rename",
+        EventKind::Modify(ModifyKind::Name(_)) => "rename",
+        EventKind::Modify(_) => "change",
+        EventKind::Access(_) => "change",
+        EventKind::Any => "change",
+        EventKind::Other => "change",
+    }
+}
+
+fn create_repo_watcher<F>(repo_path: PathBuf, on_event: F) -> Result<RecommendedWatcher, String>
+where
+    F: Fn(RepoFsChangedEvent) + Send + Sync + 'static,
+{
+    let repo_path_string = repo_path.to_string_lossy().to_string();
+    let callback: Arc<dyn Fn(RepoFsChangedEvent) + Send + Sync> = Arc::new(on_event);
+    let callback_for_watcher = Arc::clone(&callback);
+    let repo_path_for_watcher = repo_path_string.clone();
+
+    let mut watcher =
+        notify::recommended_watcher(move |result: notify::Result<notify::Event>| match result {
+            Ok(event) => {
+                let changed_path = event
+                    .paths
+                    .first()
+                    .map(|value| value.to_string_lossy().to_string());
+
+                callback_for_watcher(RepoFsChangedEvent {
+                    repo_path: repo_path_for_watcher.clone(),
+                    event_type: map_notify_event_type(&event.kind).to_string(),
+                    changed_path,
+                });
+            }
+            Err(_error) => {
+                callback_for_watcher(RepoFsChangedEvent {
+                    repo_path: repo_path_for_watcher.clone(),
+                    event_type: "error".to_string(),
+                    changed_path: None,
+                });
+            }
+        })
+        .map_err(to_error)?;
+
+    watcher
+        .watch(&repo_path, RecursiveMode::Recursive)
+        .map_err(to_error)?;
+
+    Ok(watcher)
 }
 
 fn normalize_non_empty_path(path: &str) -> Option<PathBuf> {
@@ -1416,7 +1503,11 @@ fn delete_file(file_path: String, behavior: String, repo_path: Option<String>) -
 }
 
 #[tauri::command]
-fn start_repo_watch(repo_path: String) -> BasicResult {
+fn start_repo_watch(
+    app: tauri::AppHandle,
+    watch_manager: tauri::State<'_, RepoWatchManager>,
+    repo_path: String,
+) -> BasicResult {
     let normalized_repo_path = match normalize_non_empty_path(&repo_path) {
         Some(value) => value,
         None => {
@@ -1434,6 +1525,59 @@ fn start_repo_watch(repo_path: String) -> BasicResult {
         };
     }
 
+    let normalized_repo_path_string = normalized_repo_path.to_string_lossy().to_string();
+
+    {
+        let mut guard = match watch_manager.active.lock() {
+            Ok(value) => value,
+            Err(_) => {
+                return BasicResult {
+                    success: false,
+                    error: Some("repo-watch-lock-failed".to_string()),
+                }
+            }
+        };
+
+        if let Some(active_watch) = guard.as_ref() {
+            if active_watch.repo_path == normalized_repo_path_string {
+                return BasicResult {
+                    success: true,
+                    error: None,
+                };
+            }
+        }
+
+        *guard = None;
+    }
+
+    let app_handle = app.clone();
+    let watcher = match create_repo_watcher(normalized_repo_path.clone(), move |event| {
+        let _ = app_handle.emit("repo-fs-changed", event);
+    }) {
+        Ok(value) => value,
+        Err(error) => {
+            return BasicResult {
+                success: false,
+                error: Some(error),
+            }
+        }
+    };
+
+    let mut guard = match watch_manager.active.lock() {
+        Ok(value) => value,
+        Err(_) => {
+            return BasicResult {
+                success: false,
+                error: Some("repo-watch-lock-failed".to_string()),
+            }
+        }
+    };
+
+    *guard = Some(RepoWatcherState {
+        repo_path: normalized_repo_path_string,
+        _watcher: watcher,
+    });
+
     BasicResult {
         success: true,
         error: None,
@@ -1441,7 +1585,11 @@ fn start_repo_watch(repo_path: String) -> BasicResult {
 }
 
 #[tauri::command]
-fn stop_repo_watch() -> BasicSuccess {
+fn stop_repo_watch(watch_manager: tauri::State<'_, RepoWatchManager>) -> BasicSuccess {
+    if let Ok(mut guard) = watch_manager.active.lock() {
+        *guard = None;
+    }
+
     BasicSuccess { success: true }
 }
 
@@ -1837,18 +1985,170 @@ fn commit_git_changes(repo_path: String, message: String) -> BasicResult {
 }
 
 #[tauri::command]
-fn check_for_updates() -> CheckUpdateResponse {
-    CheckUpdateResponse {
-        supported: false,
-        message: Some("Unsupported in tauri runtime".to_string()),
+async fn check_for_updates(app: tauri::AppHandle) -> CheckUpdateResponse {
+    let platform = std::env::consts::OS;
+    let is_debug_build = cfg!(debug_assertions);
+    if !is_update_supported_runtime(platform, is_debug_build) {
+        return CheckUpdateResponse {
+            supported: false,
+            message: Some(update_check_unsupported_message()),
+        };
+    }
+
+    let _ = app.emit("update-event", serde_json::json!({ "type": "checking" }));
+
+    let updater = match app.updater() {
+        Ok(value) => value,
+        Err(error) => {
+            let message = to_error(error);
+            let _ = app.emit(
+                "update-event",
+                serde_json::json!({ "type": "error", "message": message.clone() }),
+            );
+            return CheckUpdateResponse {
+                supported: false,
+                message: Some(message),
+            };
+        }
+    };
+
+    match updater.check().await {
+        Ok(Some(update)) => {
+            let _ = app.emit(
+                "update-event",
+                serde_json::json!({ "type": "available", "version": update.version }),
+            );
+            CheckUpdateResponse {
+                supported: true,
+                message: None,
+            }
+        }
+        Ok(None) => {
+            let _ = app.emit(
+                "update-event",
+                serde_json::json!({
+                    "type": "not-available",
+                    "version": app.package_info().version.to_string()
+                }),
+            );
+            CheckUpdateResponse {
+                supported: true,
+                message: None,
+            }
+        }
+        Err(error) => {
+            let message = to_error(error);
+            let _ = app.emit(
+                "update-event",
+                serde_json::json!({ "type": "error", "message": message.clone() }),
+            );
+            CheckUpdateResponse {
+                supported: false,
+                message: Some(message),
+            }
+        }
     }
 }
 
 #[tauri::command]
-fn install_update() -> InstallUpdateResponse {
-    InstallUpdateResponse {
-        ok: false,
-        message: Some("Unsupported in tauri runtime".to_string()),
+async fn install_update(app: tauri::AppHandle) -> InstallUpdateResponse {
+    let platform = std::env::consts::OS;
+    let is_debug_build = cfg!(debug_assertions);
+    if !is_update_supported_runtime(platform, is_debug_build) {
+        return InstallUpdateResponse {
+            ok: false,
+            message: Some(update_install_unsupported_message()),
+        };
+    }
+
+    let _ = app.emit("update-event", serde_json::json!({ "type": "checking" }));
+
+    let updater = match app.updater() {
+        Ok(value) => value,
+        Err(error) => {
+            let message = to_error(error);
+            let _ = app.emit(
+                "update-event",
+                serde_json::json!({ "type": "error", "message": message.clone() }),
+            );
+            return InstallUpdateResponse {
+                ok: false,
+                message: Some(message),
+            };
+        }
+    };
+
+    let update = match updater.check().await {
+        Ok(Some(value)) => value,
+        Ok(None) => {
+            return InstallUpdateResponse {
+                ok: false,
+                message: Some("当前已是最新版本".to_string()),
+            };
+        }
+        Err(error) => {
+            let message = to_error(error);
+            let _ = app.emit(
+                "update-event",
+                serde_json::json!({ "type": "error", "message": message.clone() }),
+            );
+            return InstallUpdateResponse {
+                ok: false,
+                message: Some(message),
+            };
+        }
+    };
+
+    let next_version = update.version.clone();
+    let app_for_progress = app.clone();
+    let app_for_finished = app.clone();
+    let mut downloaded_bytes: u64 = 0;
+
+    match update
+        .download_and_install(
+            move |chunk_length, content_length| {
+                downloaded_bytes = downloaded_bytes.saturating_add(chunk_length as u64);
+                let total = content_length.unwrap_or(0);
+                let percent = if total == 0 {
+                    0.0
+                } else {
+                    (downloaded_bytes as f64 / total as f64) * 100.0
+                };
+
+                let _ = app_for_progress.emit(
+                    "update-event",
+                    serde_json::json!({
+                        "type": "progress",
+                        "percent": percent,
+                        "transferred": downloaded_bytes,
+                        "total": total
+                    }),
+                );
+            },
+            move || {
+                let _ = app_for_finished.emit(
+                    "update-event",
+                    serde_json::json!({ "type": "downloaded", "version": next_version }),
+                );
+            },
+        )
+        .await
+    {
+        Ok(()) => InstallUpdateResponse {
+            ok: true,
+            message: None,
+        },
+        Err(error) => {
+            let message = to_error(error);
+            let _ = app.emit(
+                "update-event",
+                serde_json::json!({ "type": "error", "message": message.clone() }),
+            );
+            InstallUpdateResponse {
+                ok: false,
+                message: Some(message),
+            }
+        }
     }
 }
 
@@ -1951,6 +2251,8 @@ fn save_global_settings(settings: Value) -> SaveResult {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .manage(RepoWatchManager::default())
         .invoke_handler(tauri::generate_handler![
             open_file,
             select_folder,
@@ -1989,4 +2291,95 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use notify::event::{CreateKind, DataChange, EventKind, ModifyKind, RemoveKind};
+    use std::fs;
+    use std::path::PathBuf;
+    use std::sync::mpsc;
+    use std::time::{Duration, Instant};
+
+    fn temp_dir_for(test_name: &str) -> PathBuf {
+        let mut dir = std::env::temp_dir();
+        dir.push(format!(
+            "tabst-tauri-parity-{}-{}-{}",
+            test_name,
+            std::process::id(),
+            now_ms()
+        ));
+        fs::create_dir_all(&dir).expect("failed to create temp test directory");
+        dir
+    }
+
+    #[test]
+    fn update_support_matrix_matches_electron_policy() {
+        assert!(!is_update_supported_runtime("macos", false));
+        assert!(!is_update_supported_runtime("linux", false));
+        assert!(!is_update_supported_runtime("windows", true));
+        assert!(is_update_supported_runtime("windows", false));
+    }
+
+    #[test]
+    fn notify_kind_mapping_matches_electron_watch_contract() {
+        assert_eq!(
+            map_notify_event_type(&EventKind::Create(CreateKind::Any)),
+            "rename"
+        );
+        assert_eq!(
+            map_notify_event_type(&EventKind::Modify(ModifyKind::Data(DataChange::Any))),
+            "change"
+        );
+        assert_eq!(
+            map_notify_event_type(&EventKind::Remove(RemoveKind::Any)),
+            "rename"
+        );
+    }
+
+    #[test]
+    fn repo_watcher_emits_events_for_fs_changes() {
+        let repo_dir = temp_dir_for("repo-watch");
+        let watched_file = repo_dir.join("watched.atex");
+
+        let (tx, rx) = mpsc::channel::<RepoFsChangedEvent>();
+        let watcher = create_repo_watcher(repo_dir.clone(), move |event| {
+            let _ = tx.send(event);
+        })
+        .expect("failed to create watcher");
+
+        fs::write(&watched_file, "sync").expect("failed to write watched file");
+
+        let deadline = Instant::now() + Duration::from_secs(5);
+        let mut seen = false;
+
+        while Instant::now() < deadline {
+            match rx.recv_timeout(Duration::from_millis(250)) {
+                Ok(event) => {
+                    let is_expected_type =
+                        event.event_type == "rename" || event.event_type == "change";
+                    let is_expected_path = event
+                        .changed_path
+                        .as_deref()
+                        .map(|value| value.ends_with("watched.atex"))
+                        .unwrap_or(false);
+
+                    if is_expected_type && is_expected_path {
+                        seen = true;
+                        break;
+                    }
+                }
+                Err(mpsc::RecvTimeoutError::Timeout) => continue,
+                Err(mpsc::RecvTimeoutError::Disconnected) => break,
+            }
+        }
+
+        drop(watcher);
+        let _ = fs::remove_dir_all(&repo_dir);
+        assert!(
+            seen,
+            "expected repo watcher to emit at least one fs change event"
+        );
+    }
 }
