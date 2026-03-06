@@ -507,6 +507,35 @@ export function createWebElectronAPI(): ElectronAPI {
 	return api;
 }
 
+interface TauriRuntimeDetectionInput {
+	tauriEnvPlatform: unknown;
+	hasTauriInternals: boolean;
+	hasTauriGlobal: boolean;
+	hasTauriIpc: boolean;
+	protocol: string;
+	hostname: string;
+	userAgent: string;
+}
+
+export function shouldUseTauriElectronApi(
+	input: TauriRuntimeDetectionInput,
+): boolean {
+	const hasTauriEnvPlatform =
+		typeof input.tauriEnvPlatform === "string" &&
+		input.tauriEnvPlatform.length > 0;
+	const hasTauriUserAgent = /\bTauri\b/i.test(input.userAgent);
+
+	return (
+		hasTauriEnvPlatform ||
+		input.hasTauriInternals ||
+		input.hasTauriGlobal ||
+		input.hasTauriIpc ||
+		input.protocol === "tauri:" ||
+		input.hostname === "tauri.localhost" ||
+		hasTauriUserAgent
+	);
+}
+
 export function ensureElectronApiInWebRuntime() {
 	const maybeWindow = window as Window & {
 		electronAPI?: ElectronAPI;
@@ -518,14 +547,15 @@ export function ensureElectronApiInWebRuntime() {
 	if (maybeWindow.electronAPI) return;
 
 	const runtimeEnv = import.meta.env as Record<string, unknown>;
-	const tauriEnvPlatform = runtimeEnv.TAURI_ENV_PLATFORM;
-	const isTauriRuntime =
-		(typeof tauriEnvPlatform === "string" && tauriEnvPlatform.length > 0) ||
-		Boolean(maybeWindow.__TAURI_INTERNALS__) ||
-		Boolean(maybeWindow.__TAURI__) ||
-		Boolean(maybeWindow.__TAURI_IPC__) ||
-		window.location.protocol === "tauri:" ||
-		window.location.hostname === "tauri.localhost";
+	const isTauriRuntime = shouldUseTauriElectronApi({
+		tauriEnvPlatform: runtimeEnv.TAURI_ENV_PLATFORM,
+		hasTauriInternals: Boolean(maybeWindow.__TAURI_INTERNALS__),
+		hasTauriGlobal: Boolean(maybeWindow.__TAURI__),
+		hasTauriIpc: Boolean(maybeWindow.__TAURI_IPC__),
+		protocol: window.location.protocol,
+		hostname: window.location.hostname,
+		userAgent: typeof navigator === "undefined" ? "" : navigator.userAgent,
+	});
 
 	if (isTauriRuntime) {
 		maybeWindow.electronAPI = createTauriElectronAPI();

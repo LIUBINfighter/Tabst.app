@@ -85,7 +85,7 @@ export default defineConfig({
 	worker: {
 		format: "es",
 	},
-	envPrefix: ["VITE_", "TAURI_ENV_*"],
+	envPrefix: ["VITE_", "TAURI_ENV_"],
 	resolve: {
 		alias: {
 			"@": path.join(__dirname, "src"),

@@ -12,6 +12,7 @@ import type {
 	GitStatusSummary,
 } from "../types/git";
 import type { Repo, RepoMetadata } from "../types/repo";
+import { normalizeTauriInvokeArgs } from "./tauri-invoke-args";
 
 type RepoWatchEvent = {
 	repoPath: string;
@@ -54,7 +55,7 @@ async function invokeCommand<T>(
 	command: string,
 	args?: Record<string, unknown>,
 ): Promise<T> {
-	return invoke<T>(command, args);
+	return invoke<T>(command, normalizeTauriInvokeArgs(args));
 }
 
 export function createTauriElectronAPI(): ElectronAPI {

@@ -2250,8 +2250,7 @@ fn save_global_settings(settings: Value) -> SaveResult {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
-        .plugin(tauri_plugin_updater::Builder::new().build())
+    with_optional_updater_plugin(tauri::Builder::default())
         .manage(RepoWatchManager::default())
         .invoke_handler(tauri::generate_handler![
             open_file,
@@ -2291,6 +2290,16 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[cfg(all(target_os = "windows", not(debug_assertions)))]
+fn with_optional_updater_plugin(builder: tauri::Builder<tauri::Wry>) -> tauri::Builder<tauri::Wry> {
+    builder.plugin(tauri_plugin_updater::Builder::new().build())
+}
+
+#[cfg(not(all(target_os = "windows", not(debug_assertions))))]
+fn with_optional_updater_plugin(builder: tauri::Builder<tauri::Wry>) -> tauri::Builder<tauri::Wry> {
+    builder
 }
 
 #[cfg(test)]
