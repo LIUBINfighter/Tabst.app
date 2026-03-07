@@ -150,7 +150,6 @@ export interface ElectronAPI {
 		}) => void,
 	) => () => void;
 
-	// Global settings (.tabst/settings.json)
 	loadGlobalSettings: () => Promise<{
 		success: boolean;
 		data?: unknown;

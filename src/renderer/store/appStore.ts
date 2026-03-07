@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { DEFAULT_SANDBOX_ATEX_CONTENT } from "../data/default-sandbox-content";
 import i18n, { type Locale } from "../i18n";
+import { setActiveRepoContext } from "../lib/active-repo-context";
 import { extractAtDocFileMeta } from "../lib/atdoc";
 import { loadGlobalSettings, saveGlobalSettings } from "../lib/global-settings";
 import { sanitizeShortcutList } from "../lib/shortcut-utils";
@@ -10,6 +11,10 @@ import {
 	sanitizeTemplatePathList,
 } from "../lib/template-utils";
 import type { TutorialAudience } from "../lib/tutorial-loader";
+import {
+	loadWorkspaceMetadata,
+	updateWorkspaceMetadata,
+} from "../lib/workspace-metadata-store";
 import type {
 	GitDiffResult,
 	GitSelectedChange,
@@ -19,9 +24,9 @@ import type {
 	DeleteBehavior,
 	FileNode,
 	Repo,
-	RepoMetadata,
 	RepoPreferences,
 } from "../types/repo";
+import { useThemeStore } from "./themeStore";
 
 /**
  * 获取初始语言设置
@@ -29,7 +34,6 @@ import type {
  * 这确保 appStore.locale 与 i18n.language 保持同步
  */
 function getInitialLocale(): Locale {
-	// Prefer i18n language; fallback to global settings; default zh-cn
 	const lng = i18n.language;
 	if (lng === "en" || lng === "zh-cn") return lng;
 	return "zh-cn";
@@ -550,16 +554,19 @@ async function mergeAndSaveWorkspacePreferences(partial: RepoPreferences) {
 	const repo = state.repos.find((r) => r.id === state.activeRepoId);
 	if (!repo) return;
 	try {
-		const existing = await window.electronAPI.loadWorkspaceMetadata(repo.path);
-		const next: RepoMetadata = {
+		await updateWorkspaceMetadata(repo, (existing) => ({
 			id: repo.id,
 			name: repo.name,
 			openedAt: Date.now(),
 			expandedFolders:
 				existing?.expandedFolders ?? collectExpandedFolders(state.fileTree),
 			preferences: { ...(existing?.preferences ?? {}), ...partial },
-		};
-		await window.electronAPI.saveWorkspaceMetadata(repo.path, next);
+			activeFilePath: existing?.activeFilePath ?? null,
+			workspaceMode: existing?.workspaceMode,
+			activeSettingsPageId: existing?.activeSettingsPageId ?? null,
+			activeTutorialId: existing?.activeTutorialId ?? null,
+			tutorialAudience: existing?.tutorialAudience,
+		}));
 	} catch (e) {
 		console.error("saveWorkspacePreferences failed", e);
 	}
@@ -568,49 +575,91 @@ async function mergeAndSaveWorkspacePreferences(partial: RepoPreferences) {
 const EXPANDED_FOLDERS_SAVE_DEBOUNCE_MS = 250;
 const expandedFoldersSaveTimers = new Map<string, number>();
 const APP_STATE_SAVE_DEBOUNCE_MS = 180;
-let appStateSaveTimer: number | null = null;
+const appStateSaveTimers = new Map<string, number>();
 let isRestoringAppState = false;
+
+interface WorkspaceSessionSnapshot {
+	activeFilePath: string | null;
+	workspaceMode: AppState["workspaceMode"];
+	activeSettingsPageId: string | null;
+	activeTutorialId: string | null;
+	tutorialAudience: AppState["tutorialAudience"];
+}
 
 function scheduleSaveAppState() {
 	if (isRestoringAppState) return;
-	if (appStateSaveTimer) {
-		window.clearTimeout(appStateSaveTimer);
+
+	const state = useAppStore.getState();
+	const repo = state.repos.find(
+		(candidate) => candidate.id === state.activeRepoId,
+	);
+	if (!repo) return;
+
+	const key = repo.path;
+	const previousTimer = appStateSaveTimers.get(key);
+	if (typeof previousTimer === "number") {
+		window.clearTimeout(previousTimer);
 	}
 
-	appStateSaveTimer = window.setTimeout(() => {
-		appStateSaveTimer = null;
-		const state = useAppStore.getState();
-		void window.electronAPI
-			.saveAppState({
-				files: state.files.map((f) => ({
-					id: f.id,
-					name: f.name,
-					path: f.path,
-				})),
-				activeRepoId: state.activeRepoId,
-				activeFileId: state.activeFileId,
-			})
-			.catch((err) => {
-				console.error("saveAppState failed:", err);
-			});
+	const activeFilePath =
+		state.files.find((file) => file.id === state.activeFileId)?.path ?? null;
+	const snapshot: WorkspaceSessionSnapshot = {
+		activeFilePath,
+		workspaceMode: state.workspaceMode,
+		activeSettingsPageId: state.activeSettingsPageId,
+		activeTutorialId: state.activeTutorialId,
+		tutorialAudience: state.tutorialAudience,
+	};
+	const expandedFallback = collectExpandedFolders(state.fileTree);
+
+	const timer = window.setTimeout(() => {
+		appStateSaveTimers.delete(key);
+		void saveWorkspaceSessionForRepo(repo, snapshot, expandedFallback);
 	}, APP_STATE_SAVE_DEBOUNCE_MS);
+
+	appStateSaveTimers.set(key, timer);
 }
 
-async function saveExpandedFoldersForActiveRepo() {
-	const s = useAppStore.getState();
-	const repo = s.repos.find((r) => r.id === s.activeRepoId);
-	if (!repo) return;
+async function saveWorkspaceSessionForRepo(
+	repo: Repo,
+	snapshot: WorkspaceSessionSnapshot,
+	expandedFallback: string[],
+) {
 	try {
-		const expanded = collectExpandedFolders(s.fileTree);
-		const existing = await window.electronAPI.loadWorkspaceMetadata(repo.path);
-		const next: RepoMetadata = {
+		await updateWorkspaceMetadata(repo, (existing) => ({
+			id: existing?.id ?? repo.id,
+			name: existing?.name ?? repo.name,
+			openedAt: Date.now(),
+			expandedFolders: existing?.expandedFolders ?? expandedFallback,
+			preferences: existing?.preferences,
+			activeFilePath: snapshot.activeFilePath,
+			workspaceMode: snapshot.workspaceMode,
+			activeSettingsPageId: snapshot.activeSettingsPageId,
+			activeTutorialId: snapshot.activeTutorialId,
+			tutorialAudience: snapshot.tutorialAudience,
+		}));
+	} catch (error) {
+		console.error("saveWorkspaceSession failed:", error);
+	}
+}
+
+async function saveExpandedFoldersForRepo(
+	repo: Repo,
+	expandedFolders: string[],
+) {
+	try {
+		await updateWorkspaceMetadata(repo, (existing) => ({
 			id: repo.id,
 			name: repo.name,
 			openedAt: Date.now(),
-			expandedFolders: expanded,
+			expandedFolders,
 			preferences: existing?.preferences,
-		};
-		await window.electronAPI.saveWorkspaceMetadata(repo.path, next);
+			activeFilePath: existing?.activeFilePath ?? null,
+			workspaceMode: existing?.workspaceMode,
+			activeSettingsPageId: existing?.activeSettingsPageId ?? null,
+			activeTutorialId: existing?.activeTutorialId ?? null,
+			tutorialAudience: existing?.tutorialAudience,
+		}));
 	} catch (e) {
 		console.error("saveExpandedFolders failed", e);
 	}
@@ -622,6 +671,7 @@ function scheduleSaveExpandedFolders() {
 	if (!repo) return;
 
 	const key = repo.path;
+	const expandedAtSchedule = collectExpandedFolders(s.fileTree);
 	const prevTimer = expandedFoldersSaveTimers.get(key);
 	if (typeof prevTimer === "number") {
 		window.clearTimeout(prevTimer);
@@ -629,7 +679,7 @@ function scheduleSaveExpandedFolders() {
 
 	const timer = window.setTimeout(() => {
 		expandedFoldersSaveTimers.delete(key);
-		void saveExpandedFoldersForActiveRepo();
+		void saveExpandedFoldersForRepo(repo, expandedAtSchedule);
 	}, EXPANDED_FOLDERS_SAVE_DEBOUNCE_MS);
 
 	expandedFoldersSaveTimers.set(key, timer);
@@ -685,34 +735,46 @@ export const useAppStore = create<AppState>((set, get) => ({
 	},
 
 	removeRepo: (id: string) => {
-		set((state) => {
-			const newRepos = state.repos.filter((r) => r.id !== id);
-			const newActiveId =
-				state.activeRepoId === id
-					? newRepos.length > 0
-						? newRepos[0].id
-						: null
-					: state.activeRepoId;
-			try {
-				window.electronAPI?.saveRepos?.(newRepos);
-			} catch {}
-			return {
-				repos: newRepos,
-				activeRepoId: newActiveId,
-				fileTree: newActiveId ? state.fileTree : [],
-				files: newActiveId ? state.files : [],
-				gitStatus: newActiveId ? state.gitStatus : null,
-				gitStatusError: newActiveId ? state.gitStatusError : null,
-				gitStatusLoading: false,
-				gitSelectedChange: newActiveId ? state.gitSelectedChange : null,
-				gitDiff: newActiveId ? state.gitDiff : null,
-				gitDiffLoading: false,
-				gitDiffError: newActiveId ? state.gitDiffError : null,
-				gitCommitMessage: newActiveId ? state.gitCommitMessage : "",
-				gitActionLoading: false,
-				gitActionError: newActiveId ? state.gitActionError : null,
-			};
+		const state = get();
+		const newRepos = state.repos.filter((repo) => repo.id !== id);
+		const newActiveId =
+			state.activeRepoId === id
+				? newRepos.length > 0
+					? newRepos[0].id
+					: null
+				: state.activeRepoId;
+		const nextActiveRepoContext =
+			newRepos.find((repo) => repo.id === newActiveId) ?? null;
+
+		try {
+			window.electronAPI?.saveRepos?.(newRepos);
+		} catch {}
+
+		set({
+			repos: newRepos,
+			activeRepoId: newActiveId,
+			fileTree: newActiveId ? state.fileTree : [],
+			files: newActiveId ? state.files : [],
+			gitStatus: newActiveId ? state.gitStatus : null,
+			gitStatusError: newActiveId ? state.gitStatusError : null,
+			gitStatusLoading: false,
+			gitSelectedChange: newActiveId ? state.gitSelectedChange : null,
+			gitDiff: newActiveId ? state.gitDiff : null,
+			gitDiffLoading: false,
+			gitDiffError: newActiveId ? state.gitDiffError : null,
+			gitCommitMessage: newActiveId ? state.gitCommitMessage : "",
+			gitActionLoading: false,
+			gitActionError: newActiveId ? state.gitActionError : null,
 		});
+		setActiveRepoContext(
+			nextActiveRepoContext
+				? {
+						id: nextActiveRepoContext.id,
+						name: nextActiveRepoContext.name,
+						path: nextActiveRepoContext.path,
+					}
+				: null,
+		);
 		scheduleSaveAppState();
 	},
 
@@ -723,6 +785,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 		try {
 			const result = await window.electronAPI?.scanDirectory?.(repo.path);
 			if (result) {
+				setActiveRepoContext({ id: repo.id, name: repo.name, path: repo.path });
 				set((state) => {
 					const newRepos = state.repos.map((r) =>
 						r.id === id ? { ...r, lastOpenedAt: Date.now() } : r,
@@ -738,6 +801,10 @@ export const useAppStore = create<AppState>((set, get) => ({
 						templateFilePaths: [],
 						commandShortcuts: {},
 						activeFileId: null,
+						workspaceMode: "editor" as const,
+						activeSettingsPageId: null,
+						activeTutorialId: "user-readme",
+						tutorialAudience: "user" as const,
 						scoreSelection: null,
 						playbackBeat: null,
 						playerCursorPosition: null,
@@ -758,9 +825,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
 				// hydrate workspace preferences and expanded folders
 				try {
-					const meta = await window.electronAPI.loadWorkspaceMetadata(
-						repo.path,
-					);
+					const meta = await loadWorkspaceMetadata(repo.path);
 					if (meta) {
 						// apply expanded folders
 						if (meta.expandedFolders?.length) {
@@ -868,13 +933,122 @@ export const useAppStore = create<AppState>((set, get) => ({
 								customPlayerConfig: prefs.customPlayerConfig,
 							});
 						}
+						if (prefs.locale === "en" || prefs.locale === "zh-cn") {
+							set({ locale: prefs.locale });
+							void i18n.changeLanguage(prefs.locale).catch((error) => {
+								console.error(
+									"Failed to hydrate locale from workspace:",
+									error,
+								);
+							});
+						}
+						if (
+							prefs.deleteBehavior === "system-trash" ||
+							prefs.deleteBehavior === "repo-trash" ||
+							prefs.deleteBehavior === "ask-every-time"
+						) {
+							set({ deleteBehavior: prefs.deleteBehavior });
+						}
+						if (
+							prefs.theme?.uiThemeId &&
+							prefs.theme.editorThemeId &&
+							(prefs.theme.mode === "light" ||
+								prefs.theme.mode === "dark" ||
+								prefs.theme.mode === "system")
+						) {
+							const themeStore = useThemeStore.getState();
+							themeStore.setCombinedTheme({
+								uiThemeId: prefs.theme.uiThemeId,
+								editorThemeId: prefs.theme.editorThemeId,
+							});
+							themeStore.setThemeMode(prefs.theme.mode);
+						}
+
+						if (
+							typeof prefs.locale !== "string" ||
+							typeof prefs.deleteBehavior !== "string" ||
+							!prefs.theme
+						) {
+							const migratedSettings = await loadGlobalSettings();
+							void mergeAndSaveWorkspacePreferences({
+								locale: migratedSettings.locale,
+								deleteBehavior: migratedSettings.deleteBehavior,
+								theme: migratedSettings.theme,
+							});
+						}
+
+						set({
+							workspaceMode: meta.workspaceMode ?? "editor",
+							activeSettingsPageId: meta.activeSettingsPageId ?? null,
+							activeTutorialId: meta.activeTutorialId ?? "user-readme",
+							tutorialAudience: meta.tutorialAudience ?? "user",
+						});
+
+						if (meta.activeFilePath) {
+							const normalizedPath = normalizePathForCompare(
+								meta.activeFilePath,
+							);
+							const targetFile = get().files.find(
+								(file) => normalizePathForCompare(file.path) === normalizedPath,
+							);
+
+							if (targetFile) {
+								if (!targetFile.contentLoaded) {
+									try {
+										const readResult = await window.electronAPI.readFile(
+											targetFile.path,
+										);
+										if (!readResult.error) {
+											set((current) => ({
+												files: current.files.map((file) =>
+													file.id === targetFile.id
+														? {
+																...file,
+																content: readResult.content,
+																contentLoaded: true,
+															}
+														: file,
+												),
+											}));
+										}
+									} catch (error) {
+										console.error(
+											"Failed to hydrate active file content from workspace:",
+											error,
+										);
+									}
+								}
+
+								set({ activeFileId: targetFile.id });
+							}
+						}
 					} else {
 						// initialize workspace metadata
-						await window.electronAPI.saveWorkspaceMetadata(repo.path, {
-							id: repo.id,
-							name: repo.name,
-							openedAt: Date.now(),
-							expandedFolders: [],
+						const themeStore = useThemeStore.getState();
+						const currentState = get();
+						await updateWorkspaceMetadata(repo, (existing) => {
+							if (existing) return existing;
+
+							return {
+								id: repo.id,
+								name: repo.name,
+								openedAt: Date.now(),
+								expandedFolders: [],
+								preferences: {
+									locale: currentState.locale,
+									deleteBehavior: currentState.deleteBehavior,
+									theme: {
+										uiThemeId: themeStore.currentUITheme,
+										editorThemeId: themeStore.currentEditorTheme,
+										mode: themeStore.themeMode,
+									},
+								},
+								activeFilePath: null,
+								workspaceMode: "editor",
+								activeSettingsPageId: null,
+								activeTutorialId: "user-readme",
+								tutorialAudience: "user",
+							};
 						});
 					}
 				} catch (e) {
@@ -887,15 +1061,23 @@ export const useAppStore = create<AppState>((set, get) => ({
 	},
 
 	updateRepoName: (id: string, name: string) => {
-		set((state) => {
-			const newRepos = state.repos.map((r) =>
-				r.id === id ? { ...r, name } : r,
-			);
-			try {
-				window.electronAPI?.saveRepos?.(newRepos);
-			} catch {}
-			return { repos: newRepos };
-		});
+		const state = get();
+		const newRepos = state.repos.map((repo) =>
+			repo.id === id ? { ...repo, name } : repo,
+		);
+		try {
+			window.electronAPI?.saveRepos?.(newRepos);
+		} catch {}
+
+		set({ repos: newRepos });
+		const activeRepo = newRepos.find((repo) => repo.id === state.activeRepoId);
+		if (activeRepo) {
+			setActiveRepoContext({
+				id: activeRepo.id,
+				name: activeRepo.name,
+				path: activeRepo.path,
+			});
+		}
 	},
 
 	loadRepos: async () => {
@@ -1132,7 +1314,10 @@ export const useAppStore = create<AppState>((set, get) => ({
 	workspaceMode: "editor",
 	setWorkspaceMode: (
 		mode: "editor" | "enjoy" | "tutorial" | "settings" | "git",
-	) => set({ workspaceMode: mode }),
+	) => {
+		set({ workspaceMode: mode });
+		scheduleSaveAppState();
+	},
 	gitStatus: null,
 	gitStatusLoading: false,
 	gitStatusError: null,
@@ -1469,12 +1654,21 @@ export const useAppStore = create<AppState>((set, get) => ({
 	firstStaffOptions: null,
 	pendingStaffToggle: null,
 	activeTutorialId: "user-readme",
-	setActiveTutorialId: (id) => set({ activeTutorialId: id }),
+	setActiveTutorialId: (id) => {
+		set({ activeTutorialId: id });
+		scheduleSaveAppState();
+	},
 	tutorialAudience: "user",
-	setTutorialAudience: (audience) => set({ tutorialAudience: audience }),
+	setTutorialAudience: (audience) => {
+		set({ tutorialAudience: audience });
+		scheduleSaveAppState();
+	},
 
 	activeSettingsPageId: null,
-	setActiveSettingsPageId: (id) => set({ activeSettingsPageId: id }),
+	setActiveSettingsPageId: (id) => {
+		set({ activeSettingsPageId: id });
+		scheduleSaveAppState();
+	},
 
 	// 使用 getInitialLocale() 确保与 i18n.language 同步
 	locale: getInitialLocale(),
@@ -1489,7 +1683,6 @@ export const useAppStore = create<AppState>((set, get) => ({
 		i18n.changeLanguage(locale).catch((err) => {
 			console.error("Failed to change language:", err);
 		});
-		// Persist to ~/.tabst/settings.json
 		void saveGlobalSettings({ locale });
 	},
 
@@ -2086,7 +2279,8 @@ export const useAppStore = create<AppState>((set, get) => ({
 	initialize: async () => {
 		try {
 			isRestoringAppState = true;
-			const [loadedRepos, appState] = await Promise.all([
+			setActiveRepoContext(null);
+			const [loadedRepos, legacyAppState] = await Promise.all([
 				window.electronAPI?.loadRepos?.(),
 				window.electronAPI?.loadAppState?.(),
 			]);
@@ -2108,13 +2302,13 @@ export const useAppStore = create<AppState>((set, get) => ({
 
 			set({ repos });
 
-			const persistedRepoId = appState?.activeRepoId ?? null;
+			const persistedRepoId = legacyAppState?.activeRepoId ?? null;
 			const fallbackRepoId =
 				repos.length > 0
 					? [...repos].sort((a, b) => b.lastOpenedAt - a.lastOpenedAt)[0]?.id
 					: null;
 			const targetRepoId =
-				persistedRepoId && repos.some((r) => r.id === persistedRepoId)
+				persistedRepoId && repos.some((repo) => repo.id === persistedRepoId)
 					? persistedRepoId
 					: fallbackRepoId;
 
@@ -2122,36 +2316,52 @@ export const useAppStore = create<AppState>((set, get) => ({
 
 			await get().switchRepo(targetRepoId);
 
-			const restoredActiveFileId = appState?.activeFileId;
-			if (restoredActiveFileId) {
-				const state = get();
-				const targetFile = state.files.find(
-					(f) => f.id === restoredActiveFileId,
-				);
-				if (targetFile) {
-					if (!targetFile.contentLoaded) {
-						try {
-							const readResult = await window.electronAPI.readFile(
-								targetFile.path,
-							);
-							if (!readResult.error) {
-								set((current) => ({
-									files: current.files.map((f) =>
-										f.id === targetFile.id
-											? {
-													...f,
-													content: readResult.content,
-													contentLoaded: true,
-												}
-											: f,
-									),
-								}));
+			const targetRepo = get().repos.find((repo) => repo.id === targetRepoId);
+			const legacyActiveFilePath = legacyAppState?.activeFileId
+				? (legacyAppState.files.find(
+						(file) => file.id === legacyAppState.activeFileId,
+					)?.path ?? null)
+				: null;
+
+			if (
+				targetRepo &&
+				legacyActiveFilePath &&
+				legacyAppState?.activeRepoId === targetRepoId
+			) {
+				const existingWorkspace = await loadWorkspaceMetadata(targetRepo.path);
+				if (!existingWorkspace?.activeFilePath) {
+					const normalizedPath = normalizePathForCompare(legacyActiveFilePath);
+					const targetFile = get().files.find(
+						(file) => normalizePathForCompare(file.path) === normalizedPath,
+					);
+
+					if (targetFile) {
+						if (!targetFile.contentLoaded) {
+							try {
+								const readResult = await window.electronAPI.readFile(
+									targetFile.path,
+								);
+								if (!readResult.error) {
+									set((current) => ({
+										files: current.files.map((file) =>
+											file.id === targetFile.id
+												? {
+														...file,
+														content: readResult.content,
+														contentLoaded: true,
+													}
+												: file,
+										),
+									}));
+								}
+							} catch (error) {
+								console.error("legacy active file migration failed:", error);
 							}
-						} catch (e) {
-							console.error("restore active file content failed", e);
 						}
+
+						set({ activeFileId: targetFile.id });
+						scheduleSaveAppState();
 					}
-					set({ activeFileId: restoredActiveFileId, workspaceMode: "editor" });
 				}
 			}
 		} catch (err) {
@@ -2163,7 +2373,6 @@ export const useAppStore = create<AppState>((set, get) => ({
 	},
 }));
 
-// Hydrate locale and delete behavior from global settings at startup
 void (async () => {
 	try {
 		const settings = await loadGlobalSettings();
@@ -2177,7 +2386,9 @@ void (async () => {
 		) {
 			store.setDeleteBehavior(settings.deleteBehavior);
 		}
-	} catch {}
+	} catch (error) {
+		console.error("Failed to hydrate initial settings:", error);
+	}
 })();
 
 // 辅助函数：将 FileNode 树扁平化为 FileItem 数组

@@ -192,7 +192,16 @@ export const writeJsonFile = <T>(
 ): Effect.Effect<void, FileSystemError> =>
 	Effect.gen(function* () {
 		const content = JSON.stringify(data, null, 2);
-		yield* writeFile(filePath, content);
+		const parentDir = path.dirname(filePath);
+		yield* mkdir(parentDir);
+
+		const tempFilePath = path.join(
+			parentDir,
+			`${path.basename(filePath)}.tmp-${process.pid}-${Date.now()}`,
+		);
+
+		yield* writeFile(tempFilePath, content);
+		yield* renamePath(tempFilePath, filePath);
 	});
 
 const SUPPORTED_EXTENSIONS = [

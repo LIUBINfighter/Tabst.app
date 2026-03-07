@@ -5,6 +5,7 @@
  */
 
 import type { StaffDisplayOptions } from "../lib/staff-config";
+import type { ThemePreference } from "./settings";
 
 export interface Repo {
 	id: string;
@@ -14,6 +15,9 @@ export interface Repo {
 }
 
 export interface RepoPreferences {
+	locale?: "en" | "zh-cn";
+	deleteBehavior?: DeleteBehavior;
+	theme?: ThemePreference;
 	disabledCommandIds?: string[];
 	pinnedCommandIds?: string[];
 	commandMruIds?: string[];
@@ -52,6 +56,11 @@ export interface RepoMetadata {
 	openedAt: number;
 	expandedFolders: string[];
 	preferences?: RepoPreferences;
+	activeFilePath?: string | null;
+	workspaceMode?: "editor" | "enjoy" | "tutorial" | "settings" | "git";
+	activeSettingsPageId?: string | null;
+	activeTutorialId?: string | null;
+	tutorialAudience?: "user" | "power-user" | "developer";
 }
 
 /**

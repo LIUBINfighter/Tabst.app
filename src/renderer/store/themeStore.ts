@@ -1,6 +1,5 @@
 import { create } from "zustand";
 import { loadGlobalSettings, saveGlobalSettings } from "../lib/global-settings";
-// Persist to ~/.tabst/settings.json via helper, not localStorage
 import {
 	getDefaultEditorThemeForUI,
 	getUITheme,
@@ -10,8 +9,6 @@ import type {
 	ThemeMode,
 	ThemeState,
 } from "../lib/theme-system/types";
-
-// Removed localStorage storage key; using global settings file instead
 
 interface ThemeStore extends ThemeState {
 	setUITheme: (themeId: string) => void;
@@ -108,7 +105,6 @@ export const useThemeStore = create<ThemeStore>()((set, get) => ({
 	},
 }));
 
-// Hydrate initial theme preference from global settings file
 void (async () => {
 	try {
 		const settings = await loadGlobalSettings();

@@ -100,6 +100,16 @@ struct RepoMetadata {
     expanded_folders: Vec<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     preferences: Option<Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    active_file_path: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    workspace_mode: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    active_settings_page_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    active_tutorial_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    tutorial_audience: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -392,7 +402,42 @@ fn ensure_parent(path: &Path) -> Result<(), String> {
 fn write_json_file<T: Serialize>(path: &Path, value: &T) -> Result<(), String> {
     ensure_parent(path)?;
     let data = serde_json::to_string_pretty(value).map_err(to_error)?;
-    fs::write(path, data).map_err(to_error)
+
+    let parent = path
+        .parent()
+        .ok_or_else(|| "missing-parent-directory".to_string())?;
+    let file_name = path
+        .file_name()
+        .and_then(|value| value.to_str())
+        .ok_or_else(|| "invalid-target-file-name".to_string())?;
+
+    let temp_path = parent.join(format!(
+        ".{}.tmp-{}-{}",
+        file_name,
+        std::process::id(),
+        now_ms()
+    ));
+
+    fs::write(&temp_path, data).map_err(to_error)?;
+
+    match fs::rename(&temp_path, path) {
+        Ok(()) => Ok(()),
+        Err(rename_error) => {
+            if path.exists() {
+                fs::remove_file(path).map_err(to_error)?;
+                return match fs::rename(&temp_path, path) {
+                    Ok(()) => Ok(()),
+                    Err(error) => {
+                        let _ = fs::remove_file(&temp_path);
+                        Err(to_error(error))
+                    }
+                };
+            }
+
+            let _ = fs::remove_file(&temp_path);
+            Err(to_error(rename_error))
+        }
+    }
 }
 
 fn read_json_file<T: DeserializeOwned>(path: &Path) -> Result<Option<T>, String> {
@@ -2306,6 +2351,7 @@ fn with_optional_updater_plugin(builder: tauri::Builder<tauri::Wry>) -> tauri::B
 mod tests {
     use super::*;
     use notify::event::{CreateKind, DataChange, EventKind, ModifyKind, RemoveKind};
+    use serde_json::json;
     use std::fs;
     use std::path::PathBuf;
     use std::sync::mpsc;
@@ -2345,6 +2391,42 @@ mod tests {
             map_notify_event_type(&EventKind::Remove(RemoveKind::Any)),
             "rename"
         );
+    }
+
+    #[test]
+    fn repo_metadata_roundtrip_preserves_workspace_session_fields() {
+        let original = RepoMetadata {
+            id: "repo-1".to_string(),
+            name: "Workspace".to_string(),
+            opened_at: 100,
+            expanded_folders: vec!["/tmp/workspace/docs".to_string()],
+            preferences: Some(json!({
+                "locale": "en",
+                "deleteBehavior": "repo-trash",
+                "theme": {
+                    "uiThemeId": "github",
+                    "editorThemeId": "github",
+                    "mode": "dark"
+                }
+            })),
+            active_file_path: Some("/tmp/workspace/song.atex".to_string()),
+            workspace_mode: Some("editor".to_string()),
+            active_settings_page_id: Some("playback".to_string()),
+            active_tutorial_id: Some("user-readme".to_string()),
+            tutorial_audience: Some("user".to_string()),
+        };
+
+        let encoded = serde_json::to_string(&original).expect("encode repo metadata");
+        let decoded: RepoMetadata = serde_json::from_str(&encoded).expect("decode repo metadata");
+
+        assert_eq!(decoded.active_file_path, original.active_file_path);
+        assert_eq!(decoded.workspace_mode, original.workspace_mode);
+        assert_eq!(
+            decoded.active_settings_page_id,
+            original.active_settings_page_id
+        );
+        assert_eq!(decoded.active_tutorial_id, original.active_tutorial_id);
+        assert_eq!(decoded.tutorial_audience, original.tutorial_audience);
     }
 
     #[test]
