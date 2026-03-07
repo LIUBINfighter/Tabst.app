@@ -305,15 +305,15 @@ fn to_error(error: impl ToString) -> String {
 }
 
 fn is_update_supported_runtime(platform: &str, is_debug_build: bool) -> bool {
-    platform == "windows" && !is_debug_build
+    !is_debug_build && matches!(platform, "windows" | "macos" | "linux")
 }
 
 fn update_check_unsupported_message() -> String {
-    "仅支持 Windows 打包版本的更新检查".to_string()
+    "仅支持正式打包版本的更新检查（开发调试构建不可用）".to_string()
 }
 
 fn update_install_unsupported_message() -> String {
-    "仅支持 Windows 打包版本安装更新".to_string()
+    "仅支持正式打包版本安装更新（开发调试构建不可用）".to_string()
 }
 
 fn map_notify_event_type(kind: &EventKind) -> &'static str {
@@ -2337,12 +2337,12 @@ pub fn run() {
         .expect("error while running tauri application");
 }
 
-#[cfg(all(target_os = "windows", not(debug_assertions)))]
+#[cfg(not(debug_assertions))]
 fn with_optional_updater_plugin(builder: tauri::Builder<tauri::Wry>) -> tauri::Builder<tauri::Wry> {
     builder.plugin(tauri_plugin_updater::Builder::new().build())
 }
 
-#[cfg(not(all(target_os = "windows", not(debug_assertions))))]
+#[cfg(debug_assertions)]
 fn with_optional_updater_plugin(builder: tauri::Builder<tauri::Wry>) -> tauri::Builder<tauri::Wry> {
     builder
 }
@@ -2370,11 +2370,13 @@ mod tests {
     }
 
     #[test]
-    fn update_support_matrix_matches_electron_policy() {
-        assert!(!is_update_supported_runtime("macos", false));
-        assert!(!is_update_supported_runtime("linux", false));
-        assert!(!is_update_supported_runtime("windows", true));
+    fn update_support_matrix_matches_tauri_release_policy() {
+        assert!(is_update_supported_runtime("macos", false));
+        assert!(is_update_supported_runtime("linux", false));
         assert!(is_update_supported_runtime("windows", false));
+        assert!(!is_update_supported_runtime("windows", true));
+        assert!(!is_update_supported_runtime("linux", true));
+        assert!(!is_update_supported_runtime("macos", true));
     }
 
     #[test]

@@ -231,6 +231,43 @@ function App() {
 	}, []);
 
 	useEffect(() => {
+		if (isWebRuntime) return;
+
+		const storageKey = "tabst:auto-update:last-check-at";
+		const minIntervalMs = 1000 * 60 * 60 * 6;
+		const now = Date.now();
+
+		try {
+			const raw = window.localStorage.getItem(storageKey);
+			const last = raw ? Number.parseInt(raw, 10) : 0;
+			if (Number.isFinite(last) && last > 0 && now - last < minIntervalMs) {
+				return;
+			}
+		} catch {
+			// ignore localStorage failures
+		}
+
+		const timer = window.setTimeout(() => {
+			void window.electronAPI
+				.checkForUpdates()
+				.catch((error) => {
+					console.error("Auto update check failed:", error);
+				})
+				.finally(() => {
+					try {
+						window.localStorage.setItem(storageKey, String(Date.now()));
+					} catch {
+						// ignore localStorage failures
+					}
+				});
+		}, 4000);
+
+		return () => {
+			window.clearTimeout(timer);
+		};
+	}, [isWebRuntime]);
+
+	useEffect(() => {
 		const handler = (event: Event) => {
 			const custom = event as CustomEvent<UiShellCommandId>;
 			const commandId = custom.detail;

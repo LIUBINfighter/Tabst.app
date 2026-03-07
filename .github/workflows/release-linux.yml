@@ -50,8 +50,24 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Inject updater public key
+        env:
+          TAURI_SIGNING_PUBLIC_KEY: ${{ secrets.TAURI_SIGNING_PUBLIC_KEY }}
+        run: |
+          if [ -z "${TAURI_SIGNING_PUBLIC_KEY}" ]; then
+            echo "Missing required secret: TAURI_SIGNING_PUBLIC_KEY" >&2
+            exit 1
+          fi
+          node -e 'const fs=require("node:fs");const p="src-tauri/tauri.conf.json";const j=JSON.parse(fs.readFileSync(p,"utf8"));j.plugins??={};j.plugins.updater??={};j.plugins.updater.pubkey=process.env.TAURI_SIGNING_PUBLIC_KEY;fs.writeFileSync(p,JSON.stringify(j,null,"\t"));'
+
       - name: Build Tauri Linux bundle
         run: pnpm build:tauri
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+
+      - name: Generate updater manifests
+        run: node scripts/generate-tauri-updater-manifests.mjs
 
       - name: Get version from package.json
         id: package-version
@@ -67,6 +83,7 @@ jobs:
           files: |
             src-tauri/target/release/bundle/deb/*.deb
             src-tauri/target/release/bundle/appimage/*.AppImage
+            src-tauri/target/release/bundle/updater-manifests/*.json
             src-tauri/target/release/bundle/**/*.sig
           body: "Automated Tauri release created by workflow"
           draft: true
