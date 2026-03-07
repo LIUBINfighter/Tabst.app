@@ -1,4 +1,4 @@
-name: Release Tauri macOS
+name: Release Tauri Linux
 
 on:
   push:
@@ -6,9 +6,9 @@ on:
       - "*-tauri-next"
 
 jobs:
-  build-and-release-macos:
-    name: Build and release Tauri macOS artifacts
-    runs-on: macos-latest
+  build-and-release-linux:
+    name: Build and release Tauri Linux artifacts
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -31,24 +31,26 @@ jobs:
         with:
           workspaces: src-tauri -> target
 
+      - name: Install Tauri Linux system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libgtk-3-dev \
+            libwebkit2gtk-4.1-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            patchelf
+
       - name: Check pnpm version
         run: pnpm -v
 
       - name: Ensure pnpm uses hoisted node linker
         run: pnpm config set node-linker hoisted
 
-      - name: Check node-linker config
-        run: pnpm config get node-linker
-
-      - name: Force git to use HTTPS for GitHub
-        run: |
-          git config --global url."https://github.com/".insteadOf "git@github.com:"
-          git config --global url."https://github.com/".insteadOf "ssh://git@github.com/"
-
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build Tauri macOS bundle
+      - name: Build Tauri Linux bundle
         run: pnpm build:tauri
 
       - name: Get version from package.json
@@ -57,15 +59,14 @@ jobs:
           VERSION=$(node -p "require('./package.json').version")
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
-      - name: Create or update draft release with macOS assets
+      - name: Create or update draft release with Linux assets
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
           name: ${{ steps.package-version.outputs.version }}
           files: |
-            src-tauri/target/release/bundle/dmg/*.dmg
-            src-tauri/target/release/bundle/macos/*.app.tar.gz
-            src-tauri/target/release/bundle/macos/*.app.tar.gz.sig
+            src-tauri/target/release/bundle/deb/*.deb
+            src-tauri/target/release/bundle/appimage/*.AppImage
             src-tauri/target/release/bundle/**/*.sig
           body: "Automated Tauri release created by workflow"
           draft: true
