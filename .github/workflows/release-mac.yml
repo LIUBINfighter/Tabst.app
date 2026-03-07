@@ -25,6 +25,14 @@ jobs:
           cache: "pnpm"
           cache-dependency-path: pnpm-lock.yaml
 
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+
       - name: Install build tools
         run: |
           brew install python-setuptools
@@ -58,6 +66,9 @@ jobs:
       - name: Make macOS DMG
         run: pnpm make --platform=darwin
 
+      - name: Build Tauri macOS binary
+        run: pnpm build:tauri
+
       - name: Get version from package.json
         id: package-version
         run: |
@@ -68,6 +79,7 @@ jobs:
         run: |
           cd out/make
           VERSION=${{ steps.package-version.outputs.version }}
+          ARCH=$(uname -m)
           # Rename DMG: Tabst-{version}-arm64.dmg -> Tabst-{version}-macos-arm64.dmg
           if [ -f "Tabst-${VERSION}-arm64.dmg" ]; then
             mv "Tabst-${VERSION}-arm64.dmg" "Tabst-${VERSION}-macos-arm64.dmg"
@@ -75,6 +87,11 @@ jobs:
           # Rename ZIP: Tabst-darwin-arm64-{version}.zip -> Tabst-{version}-macos-arm64-portable.zip
           if [ -f "zip/darwin/arm64/Tabst-darwin-arm64-${VERSION}.zip" ]; then
             mv "zip/darwin/arm64/Tabst-darwin-arm64-${VERSION}.zip" "Tabst-${VERSION}-macos-arm64-portable.zip"
+          fi
+          # Copy Tauri binary: src-tauri/target/release/tabst-tauri -> out/make/Tabst-{version}-macos-{arch}-tauri
+          if [ -f "../../src-tauri/target/release/tabst-tauri" ]; then
+            cp "../../src-tauri/target/release/tabst-tauri" "Tabst-${VERSION}-macos-${ARCH}-tauri"
+            chmod +x "Tabst-${VERSION}-macos-${ARCH}-tauri"
           fi
 
       - name: Create Release and upload macOS assets
@@ -85,6 +102,7 @@ jobs:
           files: |
             out/make/Tabst-*-macos-*.dmg
             out/make/Tabst-*-macos-*-portable.zip
+            out/make/Tabst-*-macos-*-tauri
           body: "Automated macOS release created by workflow"
           draft: true
         env:
