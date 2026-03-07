@@ -48,6 +48,45 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Normalize Tauri version for MSI
+        shell: pwsh
+        run: |
+          $original = node -p "require('./package.json').version"
+          $match = [regex]::Match($original, '^(?<base>\d+\.\d+\.\d+)(?:-(?<pre>[0-9A-Za-z.-]+))?$')
+          if (-not $match.Success) {
+            throw "Unsupported semver format in package.json version: $original"
+          }
+
+          $base = $match.Groups["base"].Value
+          $pre = $match.Groups["pre"].Value
+          $normalized = $base
+
+          if ($pre) {
+            $numericPre = 0
+            if ([int]::TryParse($pre, [ref]$numericPre) -and $numericPre -ge 0 -and $numericPre -le 65535) {
+              $normalized = "$base-$numericPre"
+            } else {
+              $hash = [System.Security.Cryptography.SHA256]::HashData([System.Text.Encoding]::UTF8.GetBytes($pre))
+              $value = [BitConverter]::ToUInt16($hash, 0)
+              if ($value -eq 0) {
+                $value = 1
+              }
+              $normalized = "$base-$value"
+            }
+          }
+
+          Write-Host "Tauri Windows bundle version: $normalized (from $original)"
+
+          $tauriConfig = "src-tauri/tauri.conf.json"
+          $tauriJson = Get-Content $tauriConfig -Raw | ConvertFrom-Json
+          $tauriJson.version = $normalized
+          $tauriJson | ConvertTo-Json -Depth 100 | Set-Content $tauriConfig
+
+          $cargoToml = "src-tauri/Cargo.toml"
+          $cargoText = Get-Content $cargoToml -Raw
+          $cargoText = [regex]::Replace($cargoText, '(?m)^version\s*=\s*".*"$', "version = ""$normalized""")
+          Set-Content $cargoToml $cargoText
+
       - name: Build Tauri Windows bundle
         run: pnpm build:tauri
 
