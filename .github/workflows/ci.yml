@@ -96,7 +96,7 @@ jobs:
           retention-days: 30
 
   tauri-build:
-    name: Tauri Build (pnpm build:tauri)
+    name: Tauri Bundle (pnpm build:tauri)
     runs-on: ubuntu-latest
     needs: lint
     timeout-minutes: 30
@@ -141,14 +141,14 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build Tauri target
+      - name: Build Tauri bundle target
         run: pnpm build:tauri
 
-      - name: Upload Tauri binary artifact
+      - name: Upload Tauri bundle artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: tauri-linux-${{ github.run_id }}
-          path: src-tauri/target/release/tabst-tauri
+          name: tauri-linux-bundle-${{ github.run_id }}
+          path: src-tauri/target/release/bundle/**/*
           if-no-files-found: error
           retention-days: 30
 

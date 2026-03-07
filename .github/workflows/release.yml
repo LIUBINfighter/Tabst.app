@@ -64,12 +64,6 @@ jobs:
           echo "version=$version" >> $env:GITHUB_OUTPUT
         shell: pwsh
 
-      - name: Prepare Tauri artifact name
-        run: |
-          $version = "${{ steps.package-version.outputs.version }}"
-          Copy-Item "src-tauri/target/release/tabst-tauri.exe" "dist/Tabst-$version-win-x64-tauri.exe"
-        shell: pwsh
-
       - name: Create Draft Release and upload Windows artifacts
         uses: softprops/action-gh-release@v2
         with:
@@ -80,7 +74,10 @@ jobs:
             dist/*.zip
             dist/*.blockmap
             dist/latest.yml
-            dist/Tabst-*-win-x64-tauri.exe
+            src-tauri/target/release/bundle/nsis/*.exe
+            src-tauri/target/release/bundle/nsis/*.zip
+            src-tauri/target/release/bundle/msi/*.msi
+            src-tauri/target/release/bundle/**/*.sig
           body: "Automated release created by workflow"
           draft: true
         env:
