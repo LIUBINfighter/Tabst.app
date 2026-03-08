@@ -60,6 +60,21 @@ jobs:
           fi
           node -e 'const fs=require("node:fs");const p="src-tauri/tauri.conf.json";const j=JSON.parse(fs.readFileSync(p,"utf8"));j.plugins??={};j.plugins.updater??={};j.plugins.updater.pubkey=process.env.TAURI_SIGNING_PUBLIC_KEY;fs.writeFileSync(p,JSON.stringify(j,null,"\t"));'
 
+      - name: Validate updater signing secrets
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          if [ -z "${TAURI_SIGNING_PRIVATE_KEY}" ]; then
+            echo "Missing required secret: TAURI_SIGNING_PRIVATE_KEY" >&2
+            exit 1
+          fi
+          if [ -z "${TAURI_SIGNING_PRIVATE_KEY_PASSWORD+x}" ]; then
+            echo "Missing required secret binding: TAURI_SIGNING_PRIVATE_KEY_PASSWORD" >&2
+            exit 1
+          fi
+          echo "Updater private key secret detected."
+
       - name: Build Tauri Linux bundle
         run: pnpm build:tauri
         env:

@@ -107,6 +107,20 @@ jobs:
           $tauriJson.plugins.updater.pubkey = $env:TAURI_SIGNING_PUBLIC_KEY
           $tauriJson | ConvertTo-Json -Depth 100 | Set-Content $tauriConfig
 
+      - name: Validate updater signing secrets
+        shell: pwsh
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          if (-not $env:TAURI_SIGNING_PRIVATE_KEY) {
+            throw "Missing required secret: TAURI_SIGNING_PRIVATE_KEY"
+          }
+          if (-not (Test-Path env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD)) {
+            throw "Missing required secret binding: TAURI_SIGNING_PRIVATE_KEY_PASSWORD"
+          }
+          Write-Host "Updater private key secret detected."
+
       - name: Build Tauri Windows bundle
         run: pnpm build:tauri
         env:
