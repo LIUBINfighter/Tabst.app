@@ -304,6 +304,19 @@ fn to_error(error: impl ToString) -> String {
     error.to_string()
 }
 
+fn asset_virtual_path_candidates(rel_path: &str) -> Vec<String> {
+    let normalized = rel_path.trim_start_matches('/').to_string();
+    let mut candidates = vec![normalized.clone()];
+
+    match normalized.as_str() {
+        "docs/README.md" => candidates.push("README.md".to_string()),
+        "docs/ROADMAP.md" => candidates.push("ROADMAP.md".to_string()),
+        _ => {}
+    }
+
+    candidates
+}
+
 fn is_update_supported_runtime(platform: &str, is_debug_build: bool) -> bool {
     !is_debug_build && matches!(platform, "windows" | "macos" | "linux")
 }
@@ -1341,15 +1354,21 @@ fn read_asset(app: tauri::AppHandle, rel_path: String) -> Result<Vec<u8>, String
     }
 
     let mut candidates: Vec<PathBuf> = Vec::new();
+    let virtual_paths = asset_virtual_path_candidates(&normalized);
 
     if let Ok(resource_dir) = app.path().resource_dir() {
-        candidates.push(resource_dir.join(&normalized));
-        candidates.push(resource_dir.join("dist").join(&normalized));
+        for virtual_path in &virtual_paths {
+            candidates.push(resource_dir.join(virtual_path));
+            candidates.push(resource_dir.join("dist").join(virtual_path));
+        }
     }
 
     if let Ok(current_dir) = std::env::current_dir() {
-        candidates.push(current_dir.join("public").join(&normalized));
-        candidates.push(current_dir.join("dist").join(&normalized));
+        for virtual_path in &virtual_paths {
+            candidates.push(current_dir.join(virtual_path));
+            candidates.push(current_dir.join("public").join(virtual_path));
+            candidates.push(current_dir.join("dist").join(virtual_path));
+        }
     }
 
     for candidate in candidates {
@@ -2392,6 +2411,22 @@ mod tests {
         assert_eq!(
             map_notify_event_type(&EventKind::Remove(RemoveKind::Any)),
             "rename"
+        );
+    }
+
+    #[test]
+    fn asset_path_aliases_include_root_docs_files() {
+        assert_eq!(
+            asset_virtual_path_candidates("docs/README.md"),
+            vec!["docs/README.md".to_string(), "README.md".to_string()]
+        );
+        assert_eq!(
+            asset_virtual_path_candidates("docs/ROADMAP.md"),
+            vec!["docs/ROADMAP.md".to_string(), "ROADMAP.md".to_string()]
+        );
+        assert_eq!(
+            asset_virtual_path_candidates("docs/dev/README.md"),
+            vec!["docs/dev/README.md".to_string()]
         );
     }
 

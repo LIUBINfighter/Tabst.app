@@ -331,11 +331,22 @@ export function createWebElectronAPI(): ElectronAPI {
 
 		readAsset: async (relPath: string) => {
 			const normalized = relPath.replace(/^\/+/, "");
-			const response = await fetch(`./${normalized}`);
-			if (!response.ok) {
-				throw new Error(`Failed to fetch asset: ${relPath}`);
+			const candidatePaths = [normalized];
+			if (normalized === "docs/README.md") {
+				candidatePaths.push("README.md");
 			}
-			return new Uint8Array(await response.arrayBuffer());
+			if (normalized === "docs/ROADMAP.md") {
+				candidatePaths.push("ROADMAP.md");
+			}
+
+			for (const candidatePath of candidatePaths) {
+				const response = await fetch(`./${candidatePath}`);
+				if (response.ok) {
+					return new Uint8Array(await response.arrayBuffer());
+				}
+			}
+
+			throw new Error(`Failed to fetch asset: ${relPath}`);
 		},
 
 		selectFolder: async (): Promise<string | null> => {
