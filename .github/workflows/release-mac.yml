@@ -1,16 +1,14 @@
-name: Release macOS app
+name: Release Tauri macOS
 
 on:
   push:
     tags:
-      - "*"
+      - "*-tauri-next"
 
 jobs:
   build-and-release-macos:
-    name: Build and package macOS app
+    name: Build and release Tauri macOS artifacts
     runs-on: macos-latest
-    env:
-      NPM_CONFIG_PYTHON: python3
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -25,9 +23,13 @@ jobs:
           cache: "pnpm"
           cache-dependency-path: pnpm-lock.yaml
 
-      - name: Install build tools
-        run: |
-          brew install python-setuptools
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
 
       - name: Check pnpm version
         run: pnpm -v
@@ -46,17 +48,39 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Rebuild native modules
-        run: npm rebuild
+      - name: Inject updater public key
+        env:
+          TAURI_SIGNING_PUBLIC_KEY: ${{ secrets.TAURI_SIGNING_PUBLIC_KEY }}
+        run: |
+          if [ -z "${TAURI_SIGNING_PUBLIC_KEY}" ]; then
+            echo "Missing required secret: TAURI_SIGNING_PUBLIC_KEY" >&2
+            exit 1
+          fi
+          node -e 'const fs=require("node:fs");const p="src-tauri/tauri.conf.json";const j=JSON.parse(fs.readFileSync(p,"utf8"));j.plugins??={};j.plugins.updater??={};j.plugins.updater.pubkey=process.env.TAURI_SIGNING_PUBLIC_KEY;fs.writeFileSync(p,JSON.stringify(j,null,"\t"));'
 
-      - name: Build (frontend & main)
-        run: pnpm build
+      - name: Validate updater signing secrets
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          if [ -z "${TAURI_SIGNING_PRIVATE_KEY}" ]; then
+            echo "Missing required secret: TAURI_SIGNING_PRIVATE_KEY" >&2
+            exit 1
+          fi
+          if [ -z "${TAURI_SIGNING_PRIVATE_KEY_PASSWORD+x}" ]; then
+            echo "Missing required secret binding: TAURI_SIGNING_PRIVATE_KEY_PASSWORD" >&2
+            exit 1
+          fi
+          echo "Updater private key secret detected."
 
-      - name: Package application
-        run: pnpm package
+      - name: Build Tauri macOS bundle
+        run: pnpm build:tauri
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
 
-      - name: Make macOS DMG
-        run: pnpm make --platform=darwin
+      - name: Generate updater manifests
+        run: node scripts/generate-tauri-updater-manifests.mjs
 
       - name: Get version from package.json
         id: package-version
@@ -64,28 +88,17 @@ jobs:
           VERSION=$(node -p "require('./package.json').version")
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
-      - name: Rename macOS artifacts to match naming convention
-        run: |
-          cd out/make
-          VERSION=${{ steps.package-version.outputs.version }}
-          # Rename DMG: Tabst-{version}-arm64.dmg -> Tabst-{version}-macos-arm64.dmg
-          if [ -f "Tabst-${VERSION}-arm64.dmg" ]; then
-            mv "Tabst-${VERSION}-arm64.dmg" "Tabst-${VERSION}-macos-arm64.dmg"
-          fi
-          # Rename ZIP: Tabst-darwin-arm64-{version}.zip -> Tabst-{version}-macos-arm64-portable.zip
-          if [ -f "zip/darwin/arm64/Tabst-darwin-arm64-${VERSION}.zip" ]; then
-            mv "zip/darwin/arm64/Tabst-darwin-arm64-${VERSION}.zip" "Tabst-${VERSION}-macos-arm64-portable.zip"
-          fi
-
-      - name: Create Release and upload macOS assets
+      - name: Create or update draft release with macOS assets
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
-          name: ${{ steps.package-version.outputs.version }} (macOS)
+          name: ${{ steps.package-version.outputs.version }}
           files: |
-            out/make/Tabst-*-macos-*.dmg
-            out/make/Tabst-*-macos-*-portable.zip
-          body: "Automated macOS release created by workflow"
+            src-tauri/target/release/bundle/dmg/*.dmg
+            src-tauri/target/release/bundle/macos/*.app.tar.gz
+            src-tauri/target/release/bundle/updater-manifests/*.json
+            src-tauri/target/release/bundle/**/*.sig
+          body: "Automated Tauri release created by workflow"
           draft: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -6,6 +6,7 @@ import type {
 } from "../types/electron";
 import type { GitChangeGroup } from "../types/git";
 import type { FileNode, Repo, RepoMetadata } from "../types/repo";
+import { createTauriElectronAPI } from "./tauri-electron-api";
 
 interface BrowserStoredFile {
 	path: string;
@@ -330,11 +331,22 @@ export function createWebElectronAPI(): ElectronAPI {
 
 		readAsset: async (relPath: string) => {
 			const normalized = relPath.replace(/^\/+/, "");
-			const response = await fetch(`./${normalized}`);
-			if (!response.ok) {
-				throw new Error(`Failed to fetch asset: ${relPath}`);
+			const candidatePaths = [normalized];
+			if (normalized === "docs/README.md") {
+				candidatePaths.push("README.md");
 			}
-			return new Uint8Array(await response.arrayBuffer());
+			if (normalized === "docs/ROADMAP.md") {
+				candidatePaths.push("ROADMAP.md");
+			}
+
+			for (const candidatePath of candidatePaths) {
+				const response = await fetch(`./${candidatePath}`);
+				if (response.ok) {
+					return new Uint8Array(await response.arrayBuffer());
+				}
+			}
+
+			throw new Error(`Failed to fetch asset: ${relPath}`);
 		},
 
 		selectFolder: async (): Promise<string | null> => {
@@ -506,12 +518,60 @@ export function createWebElectronAPI(): ElectronAPI {
 	return api;
 }
 
+interface TauriRuntimeDetectionInput {
+	tauriEnvPlatform: unknown;
+	hasTauriInternals: boolean;
+	hasTauriGlobal: boolean;
+	hasTauriIpc: boolean;
+	protocol: string;
+	hostname: string;
+	userAgent: string;
+}
+
+export function shouldUseTauriElectronApi(
+	input: TauriRuntimeDetectionInput,
+): boolean {
+	const hasTauriEnvPlatform =
+		typeof input.tauriEnvPlatform === "string" &&
+		input.tauriEnvPlatform.length > 0;
+	const hasTauriUserAgent = /\bTauri\b/i.test(input.userAgent);
+
+	return (
+		hasTauriEnvPlatform ||
+		input.hasTauriInternals ||
+		input.hasTauriGlobal ||
+		input.hasTauriIpc ||
+		input.protocol === "tauri:" ||
+		input.hostname === "tauri.localhost" ||
+		hasTauriUserAgent
+	);
+}
+
 export function ensureElectronApiInWebRuntime() {
 	const maybeWindow = window as Window & {
 		electronAPI?: ElectronAPI;
+		__TAURI_INTERNALS__?: unknown;
+		__TAURI__?: unknown;
+		__TAURI_IPC__?: unknown;
 	};
 
 	if (maybeWindow.electronAPI) return;
+
+	const runtimeEnv = import.meta.env as Record<string, unknown>;
+	const isTauriRuntime = shouldUseTauriElectronApi({
+		tauriEnvPlatform: runtimeEnv.TAURI_ENV_PLATFORM,
+		hasTauriInternals: Boolean(maybeWindow.__TAURI_INTERNALS__),
+		hasTauriGlobal: Boolean(maybeWindow.__TAURI__),
+		hasTauriIpc: Boolean(maybeWindow.__TAURI_IPC__),
+		protocol: window.location.protocol,
+		hostname: window.location.hostname,
+		userAgent: typeof navigator === "undefined" ? "" : navigator.userAgent,
+	});
+
+	if (isTauriRuntime) {
+		maybeWindow.electronAPI = createTauriElectronAPI();
+		return;
+	}
 
 	maybeWindow.electronAPI = createWebElectronAPI();
 }

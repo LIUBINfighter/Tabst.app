@@ -1,0 +1,26 @@
+[package]
+name = "tabst-tauri"
+version = "0.6.6-tauri-next"
+description = "Tabst Tauri runtime"
+authors = ["Jay Bridge"]
+license = "ISC"
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "2.0", features = [] }
+
+[dependencies]
+dirs = "5.0"
+notify = "8.2"
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
+rfd = "0.14"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tauri = { version = "2.0", features = [] }
+tauri-plugin-updater = "2.9"
+trash = "5.2"
+walkdir = "2.5"
+
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]

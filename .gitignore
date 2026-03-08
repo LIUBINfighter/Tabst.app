@@ -6,6 +6,8 @@ dist
 dist-electron
 release
 data.json
+src-tauri/target
+src-tauri/gen
 
 # Logs
 logs

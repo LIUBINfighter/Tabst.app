@@ -65,4 +65,13 @@ pnpm install
 
 ```powershell
 pnpm run dev  # Run React development server + Electron development process
+pnpm run dev:tauri # Run React development server + Tauri shell
+```
+
+## Build Targets
+
+```powershell
+pnpm run build       # Electron target (renderer + electron main)
+pnpm run build:web   # Website target (static dist)
+pnpm run build:tauri # Tauri target (Rust shell + renderer dist)
 ```

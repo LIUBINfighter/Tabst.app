@@ -1,13 +1,13 @@
-name: Release Win app
+name: Release Tauri Windows
 
 on:
   push:
     tags:
-      - "*"
+      - "*-tauri-next"
 
 jobs:
   build-and-release:
-    name: Build, package Win app
+    name: Build and release Tauri Windows artifacts
     runs-on: windows-latest
     steps:
       - name: Checkout
@@ -22,6 +22,14 @@ jobs:
           node-version: "20.x"
           cache: "pnpm"
           cache-dependency-path: pnpm-lock.yaml
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
 
       - name: Check pnpm version
         run: pnpm -v
@@ -40,11 +48,87 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build (frontend & main)
-        run: pnpm build
+      - name: Normalize Tauri version for MSI
+        shell: pwsh
+        run: |
+          $original = node -p "require('./package.json').version"
+          $match = [regex]::Match($original, '^(?<base>\d+\.\d+\.\d+)(?:-(?<pre>[0-9A-Za-z.-]+))?$')
+          if (-not $match.Success) {
+            throw "Unsupported semver format in package.json version: $original"
+          }
 
-      - name: Run electron-builder for Windows (NSIS)
-        run: pnpm dist:win
+          $base = $match.Groups["base"].Value
+          $pre = $match.Groups["pre"].Value
+          $normalized = $base
+
+          if ($pre) {
+            $numericPre = 0
+            if ([int]::TryParse($pre, [ref]$numericPre) -and $numericPre -ge 0 -and $numericPre -le 65535) {
+              $normalized = "$base-$numericPre"
+            } else {
+              $hash = [System.Security.Cryptography.SHA256]::HashData([System.Text.Encoding]::UTF8.GetBytes($pre))
+              $value = [BitConverter]::ToUInt16($hash, 0)
+              if ($value -eq 0) {
+                $value = 1
+              }
+              $normalized = "$base-$value"
+            }
+          }
+
+          Write-Host "Tauri Windows bundle version: $normalized (from $original)"
+
+          $tauriConfig = "src-tauri/tauri.conf.json"
+          $tauriJson = Get-Content $tauriConfig -Raw | ConvertFrom-Json
+          $tauriJson.version = $normalized
+          $tauriJson | ConvertTo-Json -Depth 100 | Set-Content $tauriConfig
+
+          $cargoToml = "src-tauri/Cargo.toml"
+          $cargoText = Get-Content $cargoToml -Raw
+          $cargoText = [regex]::Replace($cargoText, '(?m)^version\s*=\s*".*"$', "version = ""$normalized""")
+          Set-Content $cargoToml $cargoText
+
+      - name: Inject updater public key
+        shell: pwsh
+        env:
+          TAURI_SIGNING_PUBLIC_KEY: ${{ secrets.TAURI_SIGNING_PUBLIC_KEY }}
+        run: |
+          if (-not $env:TAURI_SIGNING_PUBLIC_KEY) {
+            throw "Missing required secret: TAURI_SIGNING_PUBLIC_KEY"
+          }
+
+          $tauriConfig = "src-tauri/tauri.conf.json"
+          $tauriJson = Get-Content $tauriConfig -Raw | ConvertFrom-Json
+          if (-not $tauriJson.plugins) {
+            $tauriJson | Add-Member -MemberType NoteProperty -Name "plugins" -Value ([pscustomobject]@{})
+          }
+          if (-not $tauriJson.plugins.updater) {
+            $tauriJson.plugins | Add-Member -MemberType NoteProperty -Name "updater" -Value ([pscustomobject]@{})
+          }
+          $tauriJson.plugins.updater.pubkey = $env:TAURI_SIGNING_PUBLIC_KEY
+          $tauriJson | ConvertTo-Json -Depth 100 | Set-Content $tauriConfig
+
+      - name: Validate updater signing secrets
+        shell: pwsh
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          if (-not $env:TAURI_SIGNING_PRIVATE_KEY) {
+            throw "Missing required secret: TAURI_SIGNING_PRIVATE_KEY"
+          }
+          if (-not (Test-Path env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD)) {
+            throw "Missing required secret binding: TAURI_SIGNING_PRIVATE_KEY_PASSWORD"
+          }
+          Write-Host "Updater private key secret detected."
+
+      - name: Build Tauri Windows bundle
+        run: pnpm build:tauri
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+
+      - name: Generate updater manifests
+        run: node scripts/generate-tauri-updater-manifests.mjs
 
       - name: Get version from package.json
         id: package-version
@@ -53,17 +137,18 @@ jobs:
           echo "version=$version" >> $env:GITHUB_OUTPUT
         shell: pwsh
 
-      - name: Create Draft Release and upload Windows artifacts
+      - name: Create or update draft release with Windows assets
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
           name: ${{ steps.package-version.outputs.version }}
           files: |
-            dist/*.exe
-            dist/*.zip
-            dist/*.blockmap
-            dist/latest.yml
-          body: "Automated release created by workflow"
+            src-tauri/target/release/bundle/nsis/*.exe
+            src-tauri/target/release/bundle/nsis/*.zip
+            src-tauri/target/release/bundle/msi/*.msi
+            src-tauri/target/release/bundle/updater-manifests/*.json
+            src-tauri/target/release/bundle/**/*.sig
+          body: "Automated Tauri release created by workflow"
           draft: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

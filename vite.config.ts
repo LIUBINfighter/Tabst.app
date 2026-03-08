@@ -11,6 +11,10 @@ import { defineConfig } from "vite";
 // ESM-friendly __dirname shim
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const tauriDevHost = process.env.TAURI_DEV_HOST;
+const isTauriBuild = Boolean(process.env.TAURI_ENV_PLATFORM);
+const tauriBuildTarget =
+	process.env.TAURI_ENV_PLATFORM === "windows" ? "chrome105" : "safari13";
 
 // Plugin to copy docs (README.md, ROADMAP.md) from root to public/docs
 const copyDocsPlugin = () => {
@@ -50,6 +54,7 @@ const copyDocsPlugin = () => {
 };
 
 export default defineConfig({
+	clearScreen: false,
 	plugins: [
 		copyDocsPlugin(),
 		react(),
@@ -80,12 +85,20 @@ export default defineConfig({
 	worker: {
 		format: "es",
 	},
+	envPrefix: ["VITE_", "TAURI_ENV_"],
 	resolve: {
 		alias: {
 			"@": path.join(__dirname, "src"),
 		},
 	},
 	build: {
+		...(isTauriBuild
+			? {
+					target: tauriBuildTarget,
+					minify: process.env.TAURI_ENV_DEBUG ? false : "esbuild",
+					sourcemap: Boolean(process.env.TAURI_ENV_DEBUG),
+				}
+			: {}),
 		outDir: path.join(__dirname, "dist"),
 		emptyOutDir: true,
 		// Build from workspace root index.html so dist always contains index.html for preview/static hosting
@@ -121,8 +134,19 @@ export default defineConfig({
 		},
 	},
 	server: {
-		host: "127.0.0.1",
+		host: tauriDevHost || "127.0.0.1",
 		port: 7777,
+		strictPort: true,
+		hmr: tauriDevHost
+			? {
+					protocol: "ws",
+					host: tauriDevHost,
+					port: 1421,
+				}
+			: undefined,
+		watch: {
+			ignored: ["**/src-tauri/**"],
+		},
 	},
 	optimizeDeps: {
 		exclude: ["@coderline/alphatab"],

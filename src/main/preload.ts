@@ -226,7 +226,6 @@ contextBridge.exposeInMainWorld("electronAPI", {
 		return () => ipcRenderer.removeListener("update-event", listener);
 	},
 
-	// ===== Global Settings (.tabst/settings.json) =====
 	loadGlobalSettings: (): Promise<{
 		success: boolean;
 		data?: unknown;

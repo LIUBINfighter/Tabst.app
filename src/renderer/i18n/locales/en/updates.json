@@ -18,13 +18,15 @@
 		"version": "Version: {{version}}",
 		"close": "Close",
 		"checking": "Checking for updates…",
-		"availableMessage": "New version found, preparing to download…",
+		"availableMessage": "New version found.",
 		"downloadingMessage": "Downloading update…",
-		"downloaded": "Update downloaded",
+		"downloaded": "Update downloaded, installer is launching…",
 		"latest": "Already up to date",
 		"error": "Update failed, please try again later",
 		"preparing": "Preparing download, please wait…",
-		"installRestart": "Install and restart",
+		"downloadInstall": "Download and install",
+		"installing": "Installing…",
+		"installRestart": "Installing and restarting…",
 		"later": "Later",
 		"waitHint": "If a new version was just released, please check again later."
 	}

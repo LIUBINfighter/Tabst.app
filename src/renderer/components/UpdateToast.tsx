@@ -34,6 +34,7 @@ export default function UpdateToast() {
 	const [progress, setProgress] = useState(0);
 	const [message, setMessage] = useState<string | null>(null);
 	const [visible, setVisible] = useState(false);
+	const [installing, setInstalling] = useState(false);
 
 	useEffect(() => {
 		const unsubscribe = window.electronAPI?.onUpdateEvent(
@@ -46,6 +47,7 @@ export default function UpdateToast() {
 						break;
 					case "available":
 						setStatus("available");
+						setInstalling(false);
 						setVersion(event.version ?? null);
 						setMessage(t("toast.availableMessage"));
 						setVisible(true);
@@ -58,6 +60,7 @@ export default function UpdateToast() {
 						break;
 					case "downloaded":
 						setStatus("downloaded");
+						setInstalling(false);
 						setVersion(event.version ?? null);
 						setMessage(t("toast.downloaded"));
 						setVisible(true);
@@ -69,6 +72,7 @@ export default function UpdateToast() {
 						break;
 					case "error":
 						setStatus("error");
+						setInstalling(false);
 						setMessage(event.message ?? t("toast.error"));
 						setVisible(true);
 						break;
@@ -89,6 +93,17 @@ export default function UpdateToast() {
 		() => status !== "downloading" && status !== "checking",
 		[status],
 	);
+
+	const handleInstall = async () => {
+		if (installing) return;
+		setInstalling(true);
+		const result = await window.electronAPI.installUpdate();
+		if (!result.ok) {
+			setStatus("error");
+			setMessage(result.message ?? t("toast.error"));
+			setInstalling(false);
+		}
+	};
 
 	if (!visible) return null;
 
@@ -125,23 +140,23 @@ export default function UpdateToast() {
 			)}
 
 			{status === "available" && (
-				<div className="mt-3 text-xs text-muted-foreground">
-					{t("toast.preparing")}
+				<div className="mt-4 flex items-center gap-2">
+					<Button onClick={() => void handleInstall()} disabled={installing}>
+						{installing ? t("toast.installing") : t("toast.downloadInstall")}
+					</Button>
+					<Button
+						variant="secondary"
+						onClick={() => setVisible(false)}
+						disabled={installing}
+					>
+						{t("toast.later")}
+					</Button>
 				</div>
 			)}
 
 			{status === "downloaded" && (
-				<div className="mt-4 flex items-center gap-2">
-					<Button
-						onClick={() => {
-							window.electronAPI.installUpdate();
-						}}
-					>
-						{t("toast.installRestart")}
-					</Button>
-					<Button variant="secondary" onClick={() => setVisible(false)}>
-						{t("toast.later")}
-					</Button>
+				<div className="mt-3 text-xs text-muted-foreground">
+					{t("toast.installRestart")}
 				</div>
 			)}
 
