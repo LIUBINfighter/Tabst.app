@@ -56,7 +56,7 @@ export function createCMThemeFromEditorTheme(
 			height: "100%",
 			display: "flex",
 			flexDirection: "column",
-			fontSize: "14px",
+			fontSize: "0.875rem",
 		},
 		".cm-scroller": {
 			overflowX: "hidden",

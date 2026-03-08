@@ -1,4 +1,5 @@
 export type AppZoomAction = "in" | "out" | "reset";
+export const APP_UI_SCALE_CHANGED_EVENT = "tabst:ui-scale-changed";
 
 const APP_ZOOM_STORAGE_KEY = "tabst:appZoomFactor";
 const DEFAULT_APP_ZOOM = 1;
@@ -68,15 +69,43 @@ function persistZoomFactor(value: number) {
 	}
 }
 
+function emitUiScaleChanged(value: number) {
+	if (typeof window === "undefined") return;
+	window.dispatchEvent(
+		new CustomEvent<number>(APP_UI_SCALE_CHANGED_EVENT, { detail: value }),
+	);
+}
+
 function applyZoomFactor(value: number): void {
 	const next = clampAppZoomFactor(value);
 	document.documentElement.style.setProperty(UI_SCALE_CSS_VAR, String(next));
 	currentAppZoomFactor = next;
 	persistZoomFactor(next);
+	emitUiScaleChanged(next);
 }
 
 export async function restoreAppZoomFactor(): Promise<void> {
 	applyZoomFactor(readPersistedZoomFactor());
+}
+
+export function getCurrentAppZoomFactor(): number {
+	const cssScale = Number.parseFloat(
+		document.documentElement.style.getPropertyValue(UI_SCALE_CSS_VAR),
+	);
+	if (Number.isFinite(cssScale)) return clampAppZoomFactor(cssScale);
+	return readPersistedZoomFactor();
+}
+
+export function subscribeAppZoomFactor(
+	listener: (value: number) => void,
+): () => void {
+	const handle = (event: Event) => {
+		const custom = event as CustomEvent<number>;
+		listener(clampAppZoomFactor(custom.detail));
+	};
+
+	window.addEventListener(APP_UI_SCALE_CHANGED_EVENT, handle);
+	return () => window.removeEventListener(APP_UI_SCALE_CHANGED_EVENT, handle);
 }
 
 export function handleAppZoomShortcut(event: KeyboardEvent): boolean {

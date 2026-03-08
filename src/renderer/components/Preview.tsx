@@ -37,6 +37,10 @@ import {
 	getDefaultExportFilename,
 } from "../lib/alphatab-export";
 import { mapSelectionToCodeRange } from "../lib/alphatex-selection-sync";
+import {
+	getCurrentAppZoomFactor,
+	subscribeAppZoomFactor,
+} from "../lib/app-zoom";
 import { loadBravuraFont, loadSoundFontFromUrl } from "../lib/assets";
 import { type AtDocConfig, parseAtDoc } from "../lib/atdoc";
 import { applyAtDocColoring } from "../lib/atdoc-coloring";
@@ -114,6 +118,7 @@ export default function Preview({
 	// Zoom state (percentage)
 
 	const zoomRef = useRef<number>(60);
+	const uiScaleRef = useRef<number>(getCurrentAppZoomFactor());
 	// Store tracks configuration for restoration during theme switching
 	const trackConfigRef = useRef<{
 		showNumbered?: boolean;
@@ -492,24 +497,36 @@ export default function Preview({
 		return () => ro.disconnect();
 	}, []);
 
+	const getEffectivePreviewScale = useCallback(
+		(zoomPercent: number): number => {
+			return (zoomPercent / 100) * uiScaleRef.current;
+		},
+		[],
+	);
+
 	// Apply zoom to alphaTab API
-	const applyZoom = useCallback((newPercent: number) => {
-		const pct = Math.max(10, Math.min(400, Math.round(newPercent)));
-		// Keep store in sync
-		useAppStore.getState().setZoomPercent(pct);
-		zoomRef.current = pct;
-		const api = apiRef.current;
-		if (!api || !api.settings) return;
-		try {
-			const disp = api.settings.display as unknown as { scale?: number };
-			disp.scale = pct / 100;
-			api.updateSettings?.();
-			// Prefer partial re-render if available
-			if (api.render) api.render();
-		} catch (e) {
-			console.error("[Preview] Failed to apply zoom:", e);
-		}
-	}, []);
+	const applyZoom = useCallback(
+		(newPercent: number, options?: { syncStore?: boolean }) => {
+			const pct = Math.max(10, Math.min(400, Math.round(newPercent)));
+			if (options?.syncStore !== false) {
+				// Keep store in sync
+				useAppStore.getState().setZoomPercent(pct);
+			}
+			zoomRef.current = pct;
+			const api = apiRef.current;
+			if (!api || !api.settings) return;
+			try {
+				const disp = api.settings.display as unknown as { scale?: number };
+				disp.scale = getEffectivePreviewScale(pct);
+				api.updateSettings?.();
+				// Prefer partial re-render if available
+				if (api.render) api.render();
+			} catch (e) {
+				console.error("[Preview] Failed to apply zoom:", e);
+			}
+		},
+		[getEffectivePreviewScale],
+	);
 
 	const applyScoreTracksMuted = useCallback(
 		(api: alphaTab.AlphaTabApi, muted: boolean): boolean => {
@@ -539,6 +556,13 @@ export default function Preview({
 	useEffect(() => {
 		metronomeOnlyModeRef.current = metronomeOnlyMode;
 	}, [metronomeOnlyMode]);
+
+	useEffect(() => {
+		return subscribeAppZoomFactor((nextScale) => {
+			uiScaleRef.current = nextScale;
+			applyZoom(zoomRef.current, { syncStore: false });
+		});
+	}, [applyZoom]);
 
 	// Bar highlight: use lib and keep lastColoredBars in ref for callbacks
 	const sanitizeAllBarStyles = useCallback(
@@ -683,7 +707,7 @@ export default function Preview({
 
 		if (atCfg.display && settings.display) {
 			if (typeof atCfg.display.scale === "number") {
-				settings.display.scale = atCfg.display.scale;
+				settings.display.scale = atCfg.display.scale * uiScaleRef.current;
 				changed = true;
 			}
 			if (typeof atCfg.display.layoutMode === "number") {
@@ -1574,7 +1598,7 @@ export default function Preview({
 
 					// 使用工具函数创建预览配置
 					const settings = createPreviewSettings(urls as ResourceUrls, {
-						scale: zoomRef.current / 100,
+						scale: getEffectivePreviewScale(zoomRef.current),
 						scrollElement: scrollEl,
 						enablePlayer: !editorHasFocusRef.current,
 						colors,
@@ -1642,7 +1666,7 @@ export default function Preview({
 									const newSettings = createPreviewSettings(
 										urls as ResourceUrls,
 										{
-											scale: zoomRef.current / 100,
+											scale: getEffectivePreviewScale(zoomRef.current),
 											scrollElement:
 												(scrollHostRef.current as HTMLElement | null) ??
 												scrollEl,
@@ -1799,6 +1823,7 @@ export default function Preview({
 		setParseError,
 		setFirstStaffOptions,
 		getBeatStartTick,
+		getEffectivePreviewScale,
 		increment,
 		dumpCounters,
 		transitionLifecycle,
