@@ -1,4 +1,5 @@
 import { useAppStore } from "../store/appStore";
+import { handleAppZoomShortcut } from "./app-zoom";
 import {
 	findCommandByShortcut,
 	getEffectiveCommandShortcuts,
@@ -9,6 +10,7 @@ import { runUiCommand } from "./ui-command-registry";
 
 export function runShortcutEvent(event: KeyboardEvent): boolean {
 	if (event.defaultPrevented || event.isComposing || event.repeat) return false;
+	if (handleAppZoomShortcut(event)) return true;
 	if (isEditableTarget(event.target)) return false;
 
 	const shortcut = getShortcutFromKeyboardEvent(event);

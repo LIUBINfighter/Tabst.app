@@ -18,6 +18,7 @@ import UpdateToast from "./components/UpdateToast";
 import { useFileOperations } from "./hooks/useFileOperations";
 import { getAlphaTexHighlight } from "./lib/alphatex-highlight";
 import { createAlphaTexLSPClient } from "./lib/alphatex-lsp";
+import { restoreAppZoomFactor } from "./lib/app-zoom";
 import { bindGlobalShortcutListener } from "./lib/shortcut-manager";
 import { isTemplateCandidateName } from "./lib/template-utils";
 import { runUiCommand } from "./lib/ui-command-registry";
@@ -266,6 +267,12 @@ function App() {
 			window.clearTimeout(timer);
 		};
 	}, [isWebRuntime]);
+
+	useEffect(() => {
+		void restoreAppZoomFactor().catch((error) => {
+			console.error("Failed to restore app zoom:", error);
+		});
+	}, []);
 
 	useEffect(() => {
 		const handler = (event: Event) => {
