@@ -96,7 +96,6 @@ jobs:
           files: |
             src-tauri/target/release/bundle/dmg/*.dmg
             src-tauri/target/release/bundle/macos/*.app.tar.gz
-            src-tauri/target/release/bundle/macos/*.app.tar.gz.sig
             src-tauri/target/release/bundle/updater-manifests/*.json
             src-tauri/target/release/bundle/**/*.sig
           body: "Automated Tauri release created by workflow"
