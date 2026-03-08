@@ -142,7 +142,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build Tauri bundle target
-        run: pnpm build:tauri
+        run: pnpm tauri build --config '{"bundle":{"createUpdaterArtifacts":false}}'
 
       - name: Upload Tauri bundle artifacts
         uses: actions/upload-artifact@v4
