@@ -1,3 +1,4 @@
+import { Printer, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { loadBravuraFont } from "../lib/assets";
@@ -71,19 +72,31 @@ export default function PrintWindow() {
 		return `
 			${buildPrintFontFaceCss(payload.printFontName, payload.printFontUrl)}
 			:root {
-				color-scheme: light;
+				color-scheme: light dark;
 			}
-			* { box-sizing: border-box; }
+			* {
+				box-sizing: border-box;
+			}
 			html, body {
 				margin: 0;
 				padding: 0;
-				background: #f4f0e8;
-				color: #171717;
-				font-family: system-ui, -apple-system, sans-serif;
+				min-height: 100%;
+				background:
+					radial-gradient(circle at top, hsl(var(--primary) / 0.14), transparent 34%),
+					linear-gradient(180deg, hsl(var(--background)) 0%, hsl(var(--muted) / 0.42) 100%);
+				color: hsl(var(--foreground));
+				font-family: inherit;
+			}
+			body {
+				min-height: 100vh;
+			}
+			button {
+				font: inherit;
 			}
 			.print-window-root {
 				min-height: 100vh;
-				background: linear-gradient(180deg, #f4f0e8 0%, #ece6db 100%);
+				display: flex;
+				flex-direction: column;
 			}
 			.print-toolbar {
 				position: sticky;
@@ -91,18 +104,63 @@ export default function PrintWindow() {
 				z-index: 10;
 				display: flex;
 				align-items: center;
-				gap: 12px;
+				justify-content: space-between;
+				gap: 16px;
 				padding: 14px 18px;
-				border-bottom: 1px solid #d7d0c2;
-				background: rgba(255, 252, 245, 0.94);
-				backdrop-filter: blur(10px);
+				border-bottom: 1px solid hsl(var(--border));
+				background: hsl(var(--background) / 0.86);
+				backdrop-filter: blur(18px) saturate(1.1);
+				box-shadow: 0 10px 30px hsl(var(--foreground) / 0.06);
+			}
+			.print-toolbar-meta {
+				min-width: 0;
+				display: flex;
+				flex-direction: column;
+				gap: 4px;
+			}
+			.print-toolbar-title {
+				font-size: 13px;
+				font-weight: 600;
+				line-height: 1.2;
+				color: hsl(var(--foreground));
+				white-space: nowrap;
+				overflow: hidden;
+				text-overflow: ellipsis;
+			}
+			.print-toolbar-subtitle {
+				font-size: 11px;
+				line-height: 1.2;
+				color: hsl(var(--muted-foreground));
+			}
+			.print-toolbar-actions {
+				display: flex;
+				align-items: center;
+				gap: 10px;
+				flex-shrink: 0;
 			}
 			.print-status {
-				font-size: 12px;
-				color: #6b655d;
+				display: inline-flex;
+				align-items: center;
+				max-width: min(32vw, 360px);
+				padding: 6px 10px;
+				border: 1px solid hsl(var(--border));
+				border-radius: 999px;
+				background: hsl(var(--card) / 0.72);
+				color: hsl(var(--muted-foreground));
+				font-size: 11px;
+				line-height: 1;
+				white-space: nowrap;
+				overflow: hidden;
+				text-overflow: ellipsis;
 			}
 			.print-shell {
-				padding: 24px;
+				flex: 1;
+				padding: 28px;
+			}
+			.print-stack {
+				width: fit-content;
+				max-width: 100%;
+				margin: 0 auto;
 			}
 			.print-page {
 				width: ${payload.contentWidthPx}px;
@@ -110,16 +168,24 @@ export default function PrintWindow() {
 				overflow: hidden;
 				position: relative;
 				background: white;
-				margin: 0 auto 20px auto;
-				box-shadow: 0 16px 40px rgba(0,0,0,0.14);
+				margin: 0 auto 24px auto;
+				border: 1px solid hsl(var(--border));
+				border-radius: calc(var(--radius) * 1.5);
+				box-shadow:
+					0 22px 44px hsl(var(--foreground) / 0.10),
+					0 2px 10px hsl(var(--foreground) / 0.05);
 			}
 			.at-surface {
 				position: relative;
 				width: 100%;
 				height: 100%;
 			}
-			.at-surface > div { position: absolute; }
-			.at-surface svg { display: block; }
+			.at-surface > div {
+				position: absolute;
+			}
+			.at-surface svg {
+				display: block;
+			}
 			.at-surface .at,
 			.at-surface-svg .at {
 				font-family: ${buildPrintFontFamilyCssValue(payload.printFontName)} !important;
@@ -134,17 +200,54 @@ export default function PrintWindow() {
 				size: ${payload.pageWidthMm}mm ${payload.pageHeightMm}mm;
 				margin: ${payload.marginMm}mm;
 			}
+			@media (max-width: 900px) {
+				.print-toolbar {
+					align-items: flex-start;
+					flex-direction: column;
+				}
+				.print-toolbar-actions {
+					width: 100%;
+					flex-wrap: wrap;
+				}
+				.print-status {
+					max-width: 100%;
+				}
+				.print-shell {
+					padding: 16px;
+				}
+			}
 			@media print {
 				html, body {
-					background: white;
+					background: white !important;
 					-webkit-print-color-adjust: exact;
 					print-color-adjust: exact;
 				}
-				.print-toolbar { display: none !important; }
-				.print-shell { padding: 0; }
+				.print-window-root,
+				.print-shell,
+				.print-stack {
+					background: transparent !important;
+					border: 0 !important;
+					border-radius: 0 !important;
+					box-shadow: none !important;
+				}
+				.print-toolbar {
+					display: none !important;
+				}
+				.print-shell {
+					padding: 0;
+				}
+				.print-stack {
+					width: auto;
+					max-width: none;
+					margin: 0;
+				}
 				.print-page {
 					margin: 0;
-					box-shadow: none;
+					background: white !important;
+					border: 0 !important;
+					border-radius: 0 !important;
+					box-shadow: none !important;
+					outline: 0 !important;
 					page-break-inside: avoid;
 				}
 			}
@@ -152,20 +255,35 @@ export default function PrintWindow() {
 	}, [payload]);
 
 	return (
-		<div className="print-window-root min-h-screen">
+		<div className="print-window-root min-h-screen bg-background text-foreground">
 			<style>{printStyles}</style>
 			<div className="print-toolbar">
-				<Button size="sm" onClick={() => window.print()}>
-					{t("print")}
-				</Button>
-				<Button size="sm" variant="outline" onClick={() => window.close()}>
-					{t("close")}
-				</Button>
-				<div className="print-status">{status}</div>
+				<div className="print-toolbar-meta">
+					<div className="print-toolbar-title">
+						{payload?.fileName ?? t("printPreview")}
+					</div>
+					<div className="print-toolbar-subtitle">
+						{payload
+							? `${t("printPreview")} · ${payload.pageWidthMm}×${payload.pageHeightMm}mm`
+							: t("printPreparing")}
+					</div>
+				</div>
+				<div className="print-toolbar-actions">
+					<div className="print-status">{status}</div>
+					<Button size="sm" onClick={() => window.print()}>
+						<Printer className="h-4 w-4" />
+						{t("print")}
+					</Button>
+					<Button size="sm" variant="outline" onClick={() => window.close()}>
+						<X className="h-4 w-4" />
+						{t("close")}
+					</Button>
+				</div>
 			</div>
 			<div className="print-shell">
 				{payload ? (
 					<div
+						className="print-stack"
 						// biome-ignore lint/security/noDangerouslySetInnerHtml: alphaTab SVG content from internal rendering
 						dangerouslySetInnerHTML={{ __html: payload.pagesHtml }}
 					/>
