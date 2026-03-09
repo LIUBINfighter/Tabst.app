@@ -75,3 +75,22 @@ pnpm run build        # Default desktop build (Tauri)
 pnpm run build:web    # Website target (static dist)
 pnpm run build:tauri  # Explicit Tauri desktop build
 ```
+
+## Release
+
+```powershell
+pnpm run release
+pnpm run release:mac
+pnpm run release:linux
+pnpm run release:win
+```
+
+## Migration Status
+
+Desktop runtime migration is in progress and the repository is now Tauri-first.
+
+- Electron runtime, preload, updater, and packaging paths have been removed from the product build.
+- Renderer desktop integration now uses a neutral `desktopAPI` bridge instead of `electronAPI`.
+- CI desktop builds now validate the Tauri path only.
+- Detailed migration status is tracked in [docs/dev/TAURI_MIGRATION_STATUS.md](./docs/dev/TAURI_MIGRATION_STATUS.md).
+```
