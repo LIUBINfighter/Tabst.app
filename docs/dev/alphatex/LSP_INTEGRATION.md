@@ -1,5 +1,5 @@
 **概览**  
-此文档总结我们从 alphaTab 相关包（@coderline/alphatab-language-server）获取语言资源并把它们转换、映射到自己的 LSP Worker 与 CodeMirror 编辑器的集成流程。目标是让 CodeMirror 6 在 Electron 中为 `.atex` 提供高亮、补全、悬停等智能编辑体验。
+此文档总结我们从 alphaTab 相关包（@coderline/alphatab-language-server）获取语言资源并把它们转换、映射到自己的 LSP Worker 与 CodeMirror 编辑器的集成流程。目标是让 CodeMirror 6 在当前桌面运行时中为 `.atex` 提供高亮、补全、悬停等智能编辑体验。
 
 **来源与导出**
 
@@ -253,7 +253,7 @@ pnpm install
 pnpm dev
 ```
 
-2. 打开 Electron 应用或在浏览器中访问渲染端，打开一个 `.atex` 文件。
+2. 打开 Tauri 桌面应用或在浏览器中访问渲染端，打开一个 `.atex` 文件。
 3. 在编辑器中测试：
    - 补全：在文本中输入 `f`、`fo` 或 `\` 并触发补全（Ctrl+Space），验证返回项；
    - Hover：将鼠标悬停在某个属性上，检查 Markdown 文档显示；

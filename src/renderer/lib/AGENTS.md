@@ -8,7 +8,7 @@
 - `theme-system/*`: theme registry/types/hooks.
 - `*-command-events.ts` + `ui-command-registry.ts`: command bus and execution.
 - `print-utils.ts` + `pagination.ts`: print sizing/pagination helpers.
-- `web-electron-api.ts`: web runtime fallback bridge.
+- `desktop-api.ts`: web runtime fallback bridge + runtime detection.
 
 ## WHERE TO LOOK
 | Task | Location | Notes |

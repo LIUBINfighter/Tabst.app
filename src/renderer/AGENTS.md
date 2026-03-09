@@ -20,7 +20,7 @@ src/renderer/
 | Task | Location | Notes |
 |------|----------|-------|
 | App-level mode switching | `App.tsx`, `store/appStore.ts` | editor/enjoy/tutorial/settings/git |
-| Renderer bootstrap | `main.tsx` | i18n + ThemeProvider + electron API shim |
+| Renderer bootstrap | `main.tsx` | i18n + ThemeProvider + desktop API shim |
 | Preview/render path | `components/Preview.tsx`, `hooks/usePreview*` | heavy alphaTab lifecycle |
 | Editor/LSP path | `components/Editor.tsx`, `hooks/useEditorLSP.ts` | CodeMirror + worker client |
 | Commands and palette | `lib/command-registry.ts`, `lib/ui-command-registry.ts` | availability + dispatch |

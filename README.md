@@ -40,7 +40,7 @@ This is just the beginning. My vision is to transform scattered PDFs and images 
 - pnpm
 - TypeScript
 - Vite
-- [Electron](https://www.electronjs.org/docs/latest/)
+- [Tauri 2](https://tauri.app/)
 - [React 19](https://react.dev/)
 - [shadcn/ui](https://ui.shadcn.com/)
 - [Tailwindcss 3](https://tailwindcss.com/docs/installation) (Ultimately decided to revert to v3 as v4 is not stable enough)
@@ -64,14 +64,33 @@ pnpm install
 ## Development
 
 ```powershell
-pnpm run dev  # Run React development server + Electron development process
-pnpm run dev:tauri # Run React development server + Tauri shell
+pnpm run dev  # Run React development server + Tauri shell
+pnpm run dev:react # Run renderer only
 ```
 
 ## Build Targets
 
 ```powershell
-pnpm run build       # Electron target (renderer + electron main)
-pnpm run build:web   # Website target (static dist)
-pnpm run build:tauri # Tauri target (Rust shell + renderer dist)
+pnpm run build        # Default desktop build (Tauri)
+pnpm run build:web    # Website target (static dist)
+pnpm run build:tauri  # Explicit Tauri desktop build
+```
+
+## Release
+
+```powershell
+pnpm run release
+pnpm run release:mac
+pnpm run release:linux
+pnpm run release:win
+```
+
+## Migration Status
+
+Desktop runtime migration is in progress and the repository is now Tauri-first.
+
+- Electron runtime, preload, updater, and packaging paths have been removed from the product build.
+- Renderer desktop integration now uses a neutral `desktopAPI` bridge instead of `electronAPI`.
+- CI desktop builds now validate the Tauri path only.
+- Detailed migration status is tracked in [docs/dev/TAURI_MIGRATION_STATUS.md](./docs/dev/TAURI_MIGRATION_STATUS.md).
 ```
