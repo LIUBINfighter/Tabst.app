@@ -145,6 +145,7 @@ export function createPrintSettings(
 		core: {
 			tex: true,
 			scriptFile: urls.workerUrl,
+			fontDirectory: urls.bravuraFontDirectory,
 			smuflFontSources: printSmuflFontSources,
 			enableLazyLoading: false, // 禁用懒加载以确保完整渲染
 		},

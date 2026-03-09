@@ -51,5 +51,12 @@
 	"printExport": "Print PDF",
 	"fontLoadFailed": "Font load failed, using fallback",
 	"shortcuts": "Esc close | ← → page | Ctrl+P print",
-	"unableToOpenPrintWindow": "Unable to open print window, please check browser settings"
+	"unableToOpenPrintWindow": "Unable to open print window, please check browser settings",
+	"printPreparing": "Preparing print window...",
+	"printWaitingForFonts": "Waiting for print fonts...",
+	"printDialogRequested": "Requested system print dialog",
+	"printPrepareFailed": "Print preparation failed. Check console logs.",
+	"printWriteFailed": "Could not write print window. Check console logs.",
+	"printCallFailed": "Calling system print failed. Check console logs.",
+	"printWindowTimeout": "Print window initialization timed out. Check console logs."
 }

@@ -1,4 +1,5 @@
 import * as alphaTab from "@coderline/alphatab";
+import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import {
 	ChevronLeft,
 	ChevronRight,
@@ -17,6 +18,10 @@ import {
 	PAGE_SIZES,
 	type PageSize,
 } from "../lib/print-utils";
+import {
+	buildPrintWindowUrl,
+	writePrintWindowPayload,
+} from "../lib/print-window";
 import type { ResourceUrls } from "../lib/resourceLoaderService";
 import { getResourceUrls } from "../lib/resourceLoaderService";
 import { PrintTracksPanel } from "./PrintTracksPanel";
@@ -61,9 +66,10 @@ export default function PrintPreview({
 	const [totalPages, setTotalPages] = useState(0);
 	const [pageSize, setPageSize] = useState<PageSize>(PAGE_SIZES[0]);
 	const [pages, setPages] = useState<string[]>([]);
-	const [bravuraFontUrl, setBravuraFontUrl] = useState<string>("");
+	const [_bravuraFontUrl, setBravuraFontUrl] = useState<string>("");
 	const [_fontLoaded, setFontLoaded] = useState(false);
 	const [fontError, setFontError] = useState(false);
+	const [printStatus, setPrintStatus] = useState<string | null>(null);
 
 	// Dedicated font name and URL for printing (dynamic, with timestamp)
 	const [printFontName, setPrintFontName] = useState<string>("");
@@ -106,6 +112,49 @@ export default function PrintPreview({
 	const pageSizeRef = useRef(pageSize);
 	pageSizeRef.current = pageSize;
 
+	// Calculate print area dimensions
+	const { contentWidthPx, contentHeightPx, marginMm } =
+		calculateContentDimensions(pageSize);
+
+	const printPagesHtml = useMemo(
+		() =>
+			pages
+				.map(
+					(pageContent, index) => `
+						<div class="print-page" ${index < pages.length - 1 ? 'style="page-break-after: always;"' : ""}>
+							${pageContent}
+						</div>
+					`,
+				)
+				.join(""),
+		[pages],
+	);
+
+	const printPayload = useMemo(
+		() => ({
+			fileName,
+			printFontName: printFontName || "Bravura-Print",
+			printFontUrl,
+			contentWidthPx,
+			contentHeightPx,
+			marginMm,
+			pageWidthMm: pageSize.width,
+			pageHeightMm: pageSize.height,
+			pagesHtml: printPagesHtml,
+		}),
+		[
+			contentHeightPx,
+			contentWidthPx,
+			fileName,
+			marginMm,
+			pageSize.height,
+			pageSize.width,
+			printFontName,
+			printFontUrl,
+			printPagesHtml,
+		],
+	);
+
 	useEffect(() => {
 		for (const warning of parsedAtDoc.warnings) {
 			console.warn(`[ATDOC:${warning.line}] ${warning.message}`);
@@ -114,8 +163,9 @@ export default function PrintPreview({
 
 	useEffect(() => {
 		if (typeof atDocPrint?.zoom === "number") setZoom(atDocPrint.zoom);
-		if (typeof atDocPrint?.barsPerRow === "number")
+		if (typeof atDocPrint?.barsPerRow === "number") {
 			setBarsPerRow(atDocPrint.barsPerRow);
+		}
 		if (typeof atDocPrint?.stretchForce === "number") {
 			setStretchForce(atDocPrint.stretchForce);
 		}
@@ -132,14 +182,6 @@ export default function PrintPreview({
 	useEffect(() => {
 		stretchForceRef.current = stretchForce;
 	}, [stretchForce]);
-
-	// Calculate print area dimensions
-	const marginMm = 15;
-	const { contentWidthPx, contentHeightPx } = calculateContentDimensions(
-		pageSize,
-		marginMm,
-	);
-
 	/**
 	 * Split SVG content into multiple pages
 	 */
@@ -272,190 +314,74 @@ export default function PrintPreview({
 	/**
 	 * Handle print/export PDF
 	 */
-	const handlePrint = useCallback(() => {
-		if (pages.length === 0) return;
+	const handlePrint = useCallback(async () => {
+		console.info("[PrintPreview] Print button clicked", {
+			pages: pages.length,
+			hasPrintPagesHtml: Boolean(printPagesHtml),
+			hasPrintFontUrl: Boolean(printPayload.printFontUrl),
+			printFontName: printPayload.printFontName,
+		});
 
-		// Create print-specific window
-		const printWindow = window.open("", "_blank");
-		if (!printWindow) {
-			alert(t("unableToOpenPrintWindow"));
+		if (!printPagesHtml || !printPayload.printFontUrl) {
+			const message = t("printPrepareFailed");
+			console.error("[PrintPreview] Print aborted: missing print payload");
+			setPrintStatus(message);
+			alert(message);
 			return;
 		}
 
-		// Ensure font URL is absolute path (important for new window)
-		const fontUrl = printFontUrl || bravuraFontUrl;
-		const absoluteFontUrl =
-			fontUrl.startsWith("http") || fontUrl.startsWith("file:")
-				? fontUrl
-				: new URL(fontUrl, window.location.href).toString();
+		setPrintStatus(t("printPreparing"));
+		writePrintWindowPayload(printPayload);
 
-		// Generate HTML for all pages - pages already contain complete outerHTML
-		const pagesHtml = pages
-			.map(
-				(pageContent, index) => `
-				<div class="print-page" ${index < pages.length - 1 ? 'style="page-break-after: always;"' : ""}>
-					${pageContent}
-				</div>
-			`,
-			)
-			.join("");
-
-		// Write print document
-		printWindow.document.write(`
-			<!DOCTYPE html>
-			<html>
-			<head>
-				<meta charset="utf-8">
-				<title>${fileName} - ${t("print")}</title>
-				<style>
-					/* 加载打印专用 Bravura 音乐字体 */
-					@font-face {
-						font-family: '${printFontName || "Bravura"}';
-						src: url('${absoluteFontUrl}') format('woff2');
-						font-weight: normal;
-						font-style: normal;
-						font-display: block;
-					}
-					
-					@page {
-						size: ${pageSize.width}mm ${pageSize.height}mm;
-						margin: ${marginMm}mm;
-					}
-					
-					* {
-						margin: 0;
-						padding: 0;
-						box-sizing: border-box;
-					}
-					
-					body {
-						font-family: '${printFontName || "Bravura"}', system-ui, -apple-system, sans-serif;
-						background: white;
-						color: black;
-					}
-					
-					.print-page {
-						width: ${contentWidthPx}px;
-						height: ${contentHeightPx}px;
-						overflow: hidden;
-						position: relative;
-					}
-					
-					.at-surface {
-						position: relative;
-						width: 100%;
-						height: 100%;
-					}
-					
-					.at-surface > div {
-						position: absolute;
-					}
-					
-					.at-surface svg {
-						display: block;
-					}
-					
-					/* Music symbol font style - alphaTab needs this to correctly render Bravura font */
-					.at-surface .at,
-					.at-surface-svg .at {
-						font-family: '${printFontName || "Bravura"}', 'Bravura', 'alphaTab', sans-serif !important;
-						font-size: 34px; /* Fc.MusicFontSize = 34 */
-						font-style: normal;
-						font-weight: normal;
-						speak: none;
-						-webkit-font-smoothing: antialiased;
-						-moz-osx-font-smoothing: grayscale;
-					}
-					
-					@media print {
-						body {
-							-webkit-print-color-adjust: exact;
-							print-color-adjust: exact;
-						}
-						
-						.print-page {
-							page-break-inside: avoid;
-						}
-					}
-				</style>
-			</head>
-			<body>
-				${pagesHtml}
-			</body>
-			</html>
-		`);
-		printWindow.document.close();
-
-		// Wait for font and content to load before printing
-		printWindow.onload = () => {
-			// Check if font is loaded
-			const fontName = printFontName || "Bravura";
-
-			// Use document.fonts API to check font loading status
-			if (printWindow.document.fonts?.check) {
-				const checkFontAndPrint = () => {
-					const fontLoaded = printWindow.document.fonts.check(
-						`34px "${fontName}"`,
-					);
-
-					if (fontLoaded) {
-						// Font loaded, delay slightly to ensure rendering completes
-						setTimeout(() => {
-							printWindow.focus();
-							printWindow.print();
-							printWindow.onafterprint = () => {
-								printWindow.close();
-							};
-						}, 100);
-					} else {
-						// Wait for font to load
-						printWindow.document.fonts.ready
-							.then(() => {
-								setTimeout(() => {
-									printWindow.focus();
-									printWindow.print();
-									printWindow.onafterprint = () => {
-										printWindow.close();
-									};
-								}, 100);
-							})
-							.catch((err: unknown) => {
-								console.warn("[PrintPreview] Font loading failed:", err);
-								// Try printing even if font loading fails
-								printWindow.focus();
-								printWindow.print();
-								printWindow.onafterprint = () => {
-									printWindow.close();
-								};
-							});
-					}
-				};
-
-				// Check immediately, wait if not loaded
-				checkFontAndPrint();
-			} else {
-				// document.fonts API not supported, use simple delay
+		const label = "print";
+		const existing = await WebviewWindow.getByLabel(label);
+		if (existing) {
+			try {
+				await existing.close();
+			} catch (err) {
 				console.warn(
-					"[PrintPreview] document.fonts API not available, using delay",
+					"[PrintPreview] Failed to close existing print window",
+					err,
 				);
-				setTimeout(() => {
-					printWindow.focus();
-					printWindow.print();
-					printWindow.onafterprint = () => {
-						printWindow.close();
-					};
-				}, 500);
 			}
-		};
+		}
+
+		const printUrl = buildPrintWindowUrl(window.location.href);
+		console.info("[PrintPreview] Creating WebviewWindow", { label, printUrl });
+
+		const printWindow = new WebviewWindow(label, {
+			title: `${fileName} - ${t("print")}`,
+			url: printUrl,
+			width: Math.max(900, Math.round(contentWidthPx + 120)),
+			height: Math.max(1200, Math.round(contentHeightPx + 160)),
+			resizable: true,
+			center: true,
+			focus: true,
+			visible: true,
+			decorations: true,
+		});
+
+		printWindow.once("tauri://created", () => {
+			console.info("[PrintPreview] Print WebviewWindow created");
+			setPrintStatus(t("printDialogRequested"));
+		});
+
+		printWindow.once("tauri://error", (event) => {
+			const message = t("printWindowTimeout");
+			console.error(
+				"[PrintPreview] Failed to create print WebviewWindow",
+				event.payload,
+			);
+			setPrintStatus(message);
+			alert(message);
+		});
 	}, [
-		pages,
-		fileName,
-		pageSize,
-		contentWidthPx,
 		contentHeightPx,
-		bravuraFontUrl,
-		printFontName,
-		printFontUrl,
+		contentWidthPx,
+		fileName,
+		pages.length,
+		printPagesHtml,
+		printPayload,
 		t,
 	]);
 
@@ -673,7 +599,7 @@ export default function PrintPreview({
 	return (
 		<div
 			ref={containerRef}
-			className="fixed inset-0 z-50 flex flex-col bg-background/95 backdrop-blur-sm"
+			className="print-preview-root fixed inset-0 z-50 flex flex-col bg-background/95 backdrop-blur-sm"
 		>
 			{/* 注入打印专用字体样式（备份） */}
 			{printFontUrl && printFontName && (
@@ -697,12 +623,11 @@ export default function PrintPreview({
 			{/* Print button specific styling */}
 			<style>{`
 				.print-btn {
-					/* smaller to fit top bar */
 					padding-left: 0.5rem;
 					padding-right: 0.5rem;
-					height: 2rem; /* 32px to match icon buttons */
+					height: 2rem;
 					font-weight: 600;
-					font-size: 0.75rem; /* smaller text */
+					font-size: 0.75rem;
 					line-height: 1;
 				}
 				.print-btn svg {
@@ -710,8 +635,11 @@ export default function PrintPreview({
 					height: 0.75rem;
 					margin-right: 0.25rem;
 				}
-				.print-btn:disabled { opacity: 0.6; }
+				.print-btn:disabled {
+					opacity: 0.6;
+				}
 			`}</style>
+
 			<TooltipProvider delayDuration={200}>
 				<TopBar
 					className="px-4"
@@ -784,6 +712,14 @@ export default function PrintPreview({
 									⚠️ 字体
 								</span>
 							)}
+							{printStatus && (
+								<span
+									className="max-w-[20rem] truncate text-xs text-amber-700"
+									title={printStatus}
+								>
+									{printStatus}
+								</span>
+							)}
 							{/* 音轨选择按钮（使用 IconButton 与主预览一致） */}
 							<Tooltip>
 								<TooltipTrigger asChild>
@@ -823,7 +759,7 @@ export default function PrintPreview({
 			</TooltipProvider>
 
 			{/* 主内容区域（包含侧边栏和预览） */}
-			<div className="flex-1 flex overflow-hidden">
+			<div className="print-preview-shell flex-1 flex overflow-hidden">
 				<div className="flex-1 min-w-0 flex flex-col overflow-hidden">
 					{/* 内容区域 */}
 					<div
@@ -852,7 +788,6 @@ export default function PrintPreview({
 							</div>
 						)}
 
-						{/* 隐藏的 alphaTab 渲染容器 - 保持在可视区域内以获取正确的字体度量 */}
 						<div
 							ref={alphaTabContainerRef}
 							className="fixed bg-white"
@@ -861,14 +796,13 @@ export default function PrintPreview({
 								top: 0,
 								left: 0,
 								width: `${contentWidthPx}px`,
-								zIndex: -100, // Place at bottom layer
-								opacity: 0, // Fully transparent
-								pointerEvents: "none", // Don't respond to mouse events
-								fontSize: "16px", // Force set base font size
-								lineHeight: "normal", // Prevent inheriting abnormal line height
+								zIndex: -100,
+								opacity: 0,
+								pointerEvents: "none",
+								fontSize: "16px",
+								lineHeight: "normal",
 							}}
 						/>
-
 						{/* 页面预览 */}
 						{!isLoading && !error && pages.length > 0 && (
 							<div className="flex justify-center">

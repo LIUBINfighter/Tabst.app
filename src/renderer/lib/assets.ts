@@ -35,11 +35,11 @@ let loadedBravuraFontUrl: string | null = null;
  * 适用于已经通过 ResourceLoaderService 生成的字体 URL
  */
 export async function loadBravuraFont(fontUrl: string): Promise<boolean> {
-	const fontName = "Bravura";
+	const fontNames = ["Bravura", "alphaTab"];
 	if (
 		typeof document !== "undefined" &&
 		typeof document.fonts?.check === "function" &&
-		document.fonts.check(`1em "${fontName}"`)
+		fontNames.every((fontName) => document.fonts.check(`1em "${fontName}"`))
 	) {
 		return true;
 	}
@@ -51,10 +51,16 @@ export async function loadBravuraFont(fontUrl: string): Promise<boolean> {
 	loadedBravuraFontUrl = fontUrl;
 	bravuraFontLoadPromise = (async () => {
 		try {
-			const fontFace = new FontFace(fontName, `url(${fontUrl})`);
-			await fontFace.load();
-			document.fonts.add(fontFace);
-			console.info(`[AssetLoader] Loaded Bravura font from: ${fontUrl}`);
+			const fontFaces = fontNames.map(
+				(fontName) => new FontFace(fontName, `url(${fontUrl})`),
+			);
+			await Promise.all(fontFaces.map((fontFace) => fontFace.load()));
+			for (const fontFace of fontFaces) {
+				document.fonts.add(fontFace);
+			}
+			console.info(
+				`[AssetLoader] Loaded Bravura/alphaTab fonts from: ${fontUrl}`,
+			);
 			return true;
 		} catch (err) {
 			console.warn("[AssetLoader] Failed to load Bravura font:", err);

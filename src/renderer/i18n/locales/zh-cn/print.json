@@ -51,5 +51,12 @@
 	"printExport": "打印 / 导出 PDF",
 	"fontLoadFailed": "字体加载失败，使用回退字体",
 	"shortcuts": "Esc 关闭 | ← → 翻页 | Ctrl+P 打印",
-	"unableToOpenPrintWindow": "无法打开打印窗口，请检查浏览器设置"
+	"unableToOpenPrintWindow": "无法打开打印窗口，请检查浏览器设置",
+	"printPreparing": "正在准备打印窗口...",
+	"printWaitingForFonts": "正在等待打印字体加载...",
+	"printDialogRequested": "已请求系统打印对话框",
+	"printPrepareFailed": "打印准备失败，请查看控制台日志",
+	"printWriteFailed": "无法写入打印窗口，请查看控制台日志",
+	"printCallFailed": "调用系统打印失败，请查看控制台日志",
+	"printWindowTimeout": "打印窗口初始化超时，请查看控制台日志"
 }
