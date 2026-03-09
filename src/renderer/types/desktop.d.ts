@@ -24,7 +24,7 @@ export interface RepoFsChangedEvent {
 	changedPath?: string;
 }
 
-export interface ElectronAPI {
+export interface DesktopAPI {
 	openFile: (extensions: string[]) => Promise<FileResult | null>;
 	createFile: (
 		ext?: string,
@@ -163,6 +163,6 @@ export interface ElectronAPI {
 
 declare global {
 	interface Window {
-		electronAPI: ElectronAPI;
+		desktopAPI: DesktopAPI;
 	}
 }

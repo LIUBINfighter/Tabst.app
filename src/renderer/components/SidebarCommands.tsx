@@ -169,7 +169,7 @@ export function SidebarBottomBar() {
 
 	const handleAddRepo = async () => {
 		try {
-			const folderPath = await window.electronAPI.selectFolder();
+			const folderPath = await window.desktopAPI.selectFolder();
 			if (folderPath) {
 				await addRepo(folderPath);
 			}
@@ -189,8 +189,8 @@ export function SidebarBottomBar() {
 			const newMode = workspaceMode === "settings" ? "editor" : "settings";
 			setWorkspaceMode(newMode);
 			const api = (
-				window as unknown as { electronAPI?: { openSettings?: () => void } }
-			).electronAPI;
+				window as unknown as { desktopAPI?: { openSettings?: () => void } }
+			).desktopAPI;
 			if (newMode === "settings" && api?.openSettings) {
 				api.openSettings();
 			}

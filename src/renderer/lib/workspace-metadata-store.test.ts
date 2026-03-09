@@ -6,7 +6,7 @@ describe("workspace metadata store queue", () => {
 	beforeEach(() => {
 		Object.defineProperty(globalThis, "window", {
 			value: {
-				electronAPI: {
+				desktopAPI: {
 					loadWorkspaceMetadata: vi.fn(),
 					saveWorkspaceMetadata: vi.fn(),
 				},
@@ -30,10 +30,10 @@ describe("workspace metadata store queue", () => {
 		};
 		let persisted: RepoMetadata | null = baseMetadata;
 
-		window.electronAPI.loadWorkspaceMetadata = vi
+		window.desktopAPI.loadWorkspaceMetadata = vi
 			.fn()
 			.mockImplementation(async () => persisted);
-		window.electronAPI.saveWorkspaceMetadata = vi
+		window.desktopAPI.saveWorkspaceMetadata = vi
 			.fn()
 			.mockImplementation(async (_repoPath: string, next: RepoMetadata) => {
 				persisted = next;

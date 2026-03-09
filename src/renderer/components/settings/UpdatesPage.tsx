@@ -24,7 +24,7 @@ export function UpdatesPage() {
 		setLoading(true);
 		setError(null);
 		try {
-			const result = await window.electronAPI.fetchReleasesFeed();
+			const result = await window.desktopAPI.fetchReleasesFeed();
 			if (!result.success || !result.data) {
 				throw new Error(result.error || t("fetchReleasesFailed"));
 			}
@@ -108,7 +108,7 @@ export function UpdatesPage() {
 		setCheckingUpdate(true);
 		setUpdateStatus(t("checkingUpdate"));
 		try {
-			const result = await window.electronAPI.checkForUpdates();
+			const result = await window.desktopAPI.checkForUpdates();
 			if (!result?.supported) {
 				setUpdateStatus(result?.message ?? t("unsupported"));
 			} else {

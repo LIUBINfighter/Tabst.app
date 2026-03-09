@@ -164,7 +164,7 @@ export default function QuickFileSwitcher({
 			) {
 				let content = opened?.content;
 				if (typeof content !== "string" || content.length === 0) {
-					const readResult = await window.electronAPI.readFile(node.path);
+					const readResult = await window.desktopAPI.readFile(node.path);
 					if (!readResult.error) {
 						content = readResult.content;
 					}
@@ -326,7 +326,7 @@ export default function QuickFileSwitcher({
 
 			if (existing) {
 				if (!existing.contentLoaded) {
-					const readResult = await window.electronAPI.readFile(candidate.path);
+					const readResult = await window.desktopAPI.readFile(candidate.path);
 					if (!readResult.error) {
 						addFile({
 							id: existing.id,
@@ -354,7 +354,7 @@ export default function QuickFileSwitcher({
 				return;
 			}
 
-			const readResult = await window.electronAPI.readFile(candidate.path);
+			const readResult = await window.desktopAPI.readFile(candidate.path);
 			if (readResult.error) return;
 
 			addFile({

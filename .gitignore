@@ -3,7 +3,6 @@
 .sisyphus
 # dist
 dist
-dist-electron
 release
 data.json
 src-tauri/target

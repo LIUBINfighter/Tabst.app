@@ -1,12 +1,12 @@
 import type {
-	ElectronAPI,
+	DesktopAPI,
 	FileResult,
 	SaveResult,
 	ScanDirectoryResult,
-} from "../types/electron";
+} from "../types/desktop";
 import type { GitChangeGroup } from "../types/git";
 import type { FileNode, Repo, RepoMetadata } from "../types/repo";
-import { createTauriElectronAPI } from "./tauri-electron-api";
+import { createTauriDesktopAPI } from "./tauri-desktop-api";
 
 interface BrowserStoredFile {
 	path: string;
@@ -38,7 +38,7 @@ function safeWriteJson<T>(key: string, value: T): void {
 	try {
 		window.localStorage.setItem(key, JSON.stringify(value));
 	} catch (error) {
-		console.error("[web-electron-api] persist failed", error);
+		console.error("[desktop-api] persist failed", error);
 	}
 }
 
@@ -157,8 +157,8 @@ function fileNameFromPath(path: string): string {
 	return segments[segments.length - 1] || path;
 }
 
-export function createWebElectronAPI(): ElectronAPI {
-	const api: ElectronAPI = {
+export function createWebDesktopAPI(): DesktopAPI {
+	const api: DesktopAPI = {
 		openFile: async (extensions: string[]): Promise<FileResult | null> => {
 			const accept = extensions.join(",");
 			const files = await pickTextFiles({ accept, multiple: false });
@@ -528,7 +528,7 @@ interface TauriRuntimeDetectionInput {
 	userAgent: string;
 }
 
-export function shouldUseTauriElectronApi(
+export function shouldUseTauriDesktopApi(
 	input: TauriRuntimeDetectionInput,
 ): boolean {
 	const hasTauriEnvPlatform =
@@ -547,18 +547,18 @@ export function shouldUseTauriElectronApi(
 	);
 }
 
-export function ensureElectronApiInWebRuntime() {
+export function ensureDesktopApiInRuntime() {
 	const maybeWindow = window as Window & {
-		electronAPI?: ElectronAPI;
+		desktopAPI?: DesktopAPI;
 		__TAURI_INTERNALS__?: unknown;
 		__TAURI__?: unknown;
 		__TAURI_IPC__?: unknown;
 	};
 
-	if (maybeWindow.electronAPI) return;
+	if (maybeWindow.desktopAPI) return;
 
 	const runtimeEnv = import.meta.env as Record<string, unknown>;
-	const isTauriRuntime = shouldUseTauriElectronApi({
+	const isTauriRuntime = shouldUseTauriDesktopApi({
 		tauriEnvPlatform: runtimeEnv.TAURI_ENV_PLATFORM,
 		hasTauriInternals: Boolean(maybeWindow.__TAURI_INTERNALS__),
 		hasTauriGlobal: Boolean(maybeWindow.__TAURI__),
@@ -569,9 +569,9 @@ export function ensureElectronApiInWebRuntime() {
 	});
 
 	if (isTauriRuntime) {
-		maybeWindow.electronAPI = createTauriElectronAPI();
+		maybeWindow.desktopAPI = createTauriDesktopAPI();
 		return;
 	}
 
-	maybeWindow.electronAPI = createWebElectronAPI();
+	maybeWindow.desktopAPI = createWebDesktopAPI();
 }

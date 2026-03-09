@@ -413,7 +413,7 @@ export default function Preview({
 			latestContentRef.current = nextContent;
 			useAppStore.getState().updateFileContent(activeFile.id, nextContent);
 			useAppStore.getState().clearScoreSelection();
-			void window.electronAPI.saveFile(activeFile.path, nextContent);
+			void window.desktopAPI.saveFile(activeFile.path, nextContent);
 		};
 
 		window.addEventListener("keydown", handleDeleteKey);

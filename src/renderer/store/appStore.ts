@@ -83,15 +83,12 @@ async function seedSandboxFile(
 	directoryPath: string,
 	seed: SandboxSeedFile,
 ): Promise<void> {
-	const created = await window.electronAPI.createFile(seed.ext, directoryPath);
+	const created = await window.desktopAPI.createFile(seed.ext, directoryPath);
 	if (!created) return;
 
 	let targetPath = created.path;
 	try {
-		const renamed = await window.electronAPI.renameFile(
-			created.path,
-			seed.name,
-		);
+		const renamed = await window.desktopAPI.renameFile(created.path, seed.name);
 		if (renamed?.success && renamed.newPath) {
 			targetPath = renamed.newPath;
 		}
@@ -99,10 +96,7 @@ async function seedSandboxFile(
 		console.error("Failed to rename sandbox file:", error);
 	}
 
-	const saveResult = await window.electronAPI.saveFile(
-		targetPath,
-		seed.content,
-	);
+	const saveResult = await window.desktopAPI.saveFile(targetPath, seed.content);
 	if (!saveResult.success) {
 		console.error("Failed to seed sandbox file:", saveResult.error);
 	}
@@ -110,7 +104,7 @@ async function seedSandboxFile(
 
 async function createDefaultSandboxRepo(): Promise<Repo | null> {
 	try {
-		const folder = await window.electronAPI.createFolder(
+		const folder = await window.desktopAPI.createFolder(
 			DEFAULT_SANDBOX_REPO_NAME,
 		);
 		if (!folder) return null;
@@ -726,7 +720,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 		set((state) => {
 			const newRepos = [...state.repos, newRepo];
 			try {
-				window.electronAPI?.saveRepos?.(newRepos);
+				window.desktopAPI?.saveRepos?.(newRepos);
 			} catch {}
 			return { repos: newRepos, activeRepoId: newRepo.id };
 		});
@@ -747,7 +741,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 			newRepos.find((repo) => repo.id === newActiveId) ?? null;
 
 		try {
-			window.electronAPI?.saveRepos?.(newRepos);
+			window.desktopAPI?.saveRepos?.(newRepos);
 		} catch {}
 
 		set({
@@ -783,7 +777,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 		if (!repo) return;
 
 		try {
-			const result = await window.electronAPI?.scanDirectory?.(repo.path);
+			const result = await window.desktopAPI?.scanDirectory?.(repo.path);
 			if (result) {
 				setActiveRepoContext({ id: repo.id, name: repo.name, path: repo.path });
 				set((state) => {
@@ -791,7 +785,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 						r.id === id ? { ...r, lastOpenedAt: Date.now() } : r,
 					);
 					try {
-						window.electronAPI?.saveRepos?.(newRepos);
+						window.desktopAPI?.saveRepos?.(newRepos);
 					} catch {}
 					const baseState = {
 						repos: newRepos,
@@ -995,7 +989,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 							if (targetFile) {
 								if (!targetFile.contentLoaded) {
 									try {
-										const readResult = await window.electronAPI.readFile(
+										const readResult = await window.desktopAPI.readFile(
 											targetFile.path,
 										);
 										if (!readResult.error) {
@@ -1066,7 +1060,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 			repo.id === id ? { ...repo, name } : repo,
 		);
 		try {
-			window.electronAPI?.saveRepos?.(newRepos);
+			window.desktopAPI?.saveRepos?.(newRepos);
 		} catch {}
 
 		set({ repos: newRepos });
@@ -1082,7 +1076,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
 	loadRepos: async () => {
 		try {
-			const repos = await window.electronAPI?.loadRepos?.();
+			const repos = await window.desktopAPI?.loadRepos?.();
 			if (repos) {
 				set({ repos });
 			}
@@ -1115,7 +1109,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 		if (!repo) return;
 
 		try {
-			const result = await window.electronAPI?.scanDirectory?.(repo.path);
+			const result = await window.desktopAPI?.scanDirectory?.(repo.path);
 			if (result) {
 				const nextTree = result.nodes;
 				const nextFiles = reconcileFilesWithTree(nextTree, files);
@@ -1350,7 +1344,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
 		set({ gitStatusLoading: true, gitStatusError: null });
 		try {
-			const result = await window.electronAPI.getGitStatus(activeRepo.path);
+			const result = await window.desktopAPI.getGitStatus(activeRepo.path);
 			if (!result.success || !result.data) {
 				set({
 					gitStatusLoading: false,
@@ -1443,7 +1437,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 		});
 
 		try {
-			const diffResult = await window.electronAPI.getGitDiff(
+			const diffResult = await window.desktopAPI.getGitDiff(
 				activeRepo.path,
 				change.path,
 				change.group,
@@ -1487,8 +1481,8 @@ export const useAppStore = create<AppState>((set, get) => ({
 		set({ gitActionLoading: true, gitActionError: null });
 		try {
 			const result = nextStaged
-				? await window.electronAPI.stageGitFile(activeRepo.path, change.path)
-				: await window.electronAPI.unstageGitFile(activeRepo.path, change.path);
+				? await window.desktopAPI.stageGitFile(activeRepo.path, change.path)
+				: await window.desktopAPI.unstageGitFile(activeRepo.path, change.path);
 
 			if (!result.success) {
 				set({
@@ -1529,7 +1523,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
 		set({ gitActionLoading: true, gitActionError: null });
 		try {
-			const result = await window.electronAPI.stageAllGitChanges(
+			const result = await window.desktopAPI.stageAllGitChanges(
 				activeRepo.path,
 			);
 			if (!result.success) {
@@ -1566,7 +1560,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
 		set({ gitActionLoading: true, gitActionError: null });
 		try {
-			const result = await window.electronAPI.syncGitPull(activeRepo.path);
+			const result = await window.desktopAPI.syncGitPull(activeRepo.path);
 			if (!result.success) {
 				set({
 					gitActionLoading: false,
@@ -1606,7 +1600,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
 		set({ gitActionLoading: true, gitActionError: null });
 		try {
-			const result = await window.electronAPI.commitGitChanges(
+			const result = await window.desktopAPI.commitGitChanges(
 				activeRepo.path,
 				message,
 			);
@@ -1940,7 +1934,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 		const finalName = `${newBase}${oldExt}`;
 
 		try {
-			const result = await window.electronAPI?.renameFile?.(
+			const result = await window.desktopAPI?.renameFile?.(
 				file.path,
 				finalName,
 			);
@@ -2281,8 +2275,8 @@ export const useAppStore = create<AppState>((set, get) => ({
 			isRestoringAppState = true;
 			setActiveRepoContext(null);
 			const [loadedRepos, legacyAppState] = await Promise.all([
-				window.electronAPI?.loadRepos?.(),
-				window.electronAPI?.loadAppState?.(),
+				window.desktopAPI?.loadRepos?.(),
+				window.desktopAPI?.loadAppState?.(),
 			]);
 
 			if (!loadedRepos) return;
@@ -2293,7 +2287,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 				if (sandboxRepo) {
 					repos = [sandboxRepo];
 					try {
-						await window.electronAPI.saveRepos(repos);
+						await window.desktopAPI.saveRepos(repos);
 					} catch (error) {
 						console.error("Failed to persist default sandbox repo:", error);
 					}
@@ -2338,7 +2332,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 					if (targetFile) {
 						if (!targetFile.contentLoaded) {
 							try {
-								const readResult = await window.electronAPI.readFile(
+								const readResult = await window.desktopAPI.readFile(
 									targetFile.path,
 								);
 								if (!readResult.error) {

@@ -13,7 +13,7 @@ export function RoadmapPage() {
 			try {
 				setLoading(true);
 				setError(null);
-				const data = await window.electronAPI.readAsset("docs/ROADMAP.md");
+				const data = await window.desktopAPI.readAsset("docs/ROADMAP.md");
 				const decoder = new TextDecoder("utf-8");
 				const content = decoder.decode(data);
 				setRoadmapContent(content);

@@ -1,11 +1,11 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import type {
-	ElectronAPI,
+	DesktopAPI,
 	FileResult,
 	SaveResult,
 	ScanDirectoryResult,
-} from "../types/electron";
+} from "../types/desktop";
 import type {
 	GitChangeGroup,
 	GitDiffResult,
@@ -58,8 +58,8 @@ async function invokeCommand<T>(
 	return invoke<T>(command, normalizeTauriInvokeArgs(args));
 }
 
-export function createTauriElectronAPI(): ElectronAPI {
-	const api: ElectronAPI = {
+export function createTauriDesktopAPI(): DesktopAPI {
+	const api: DesktopAPI = {
 		openFile: async (extensions: string[]): Promise<FileResult | null> => {
 			try {
 				return await invokeCommand<FileResult | null>("open_file", {
@@ -251,7 +251,7 @@ export function createTauriElectronAPI(): ElectronAPI {
 			try {
 				await invokeCommand<void>("save_repos", { repos });
 			} catch (error) {
-				console.error("[tauri-electron-api] saveRepos failed", error);
+				console.error("[tauri-desktop-api] saveRepos failed", error);
 			}
 		},
 
@@ -279,7 +279,7 @@ export function createTauriElectronAPI(): ElectronAPI {
 				});
 			} catch (error) {
 				console.error(
-					"[tauri-electron-api] saveWorkspaceMetadata failed",
+					"[tauri-desktop-api] saveWorkspaceMetadata failed",
 					error,
 				);
 			}
@@ -342,7 +342,7 @@ export function createTauriElectronAPI(): ElectronAPI {
 					})
 					.catch((error) => {
 						console.error(
-							"[tauri-electron-api] repo watch unlisten failed",
+							"[tauri-desktop-api] repo watch unlisten failed",
 							error,
 						);
 					});
@@ -516,7 +516,7 @@ export function createTauriElectronAPI(): ElectronAPI {
 						unlisten();
 					})
 					.catch((error) => {
-						console.error("[tauri-electron-api] update unlisten failed", error);
+						console.error("[tauri-desktop-api] update unlisten failed", error);
 					});
 			};
 		},

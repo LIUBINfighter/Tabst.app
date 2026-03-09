@@ -52,10 +52,10 @@ function mergeSettingsIntoPreferences(
 }
 
 async function loadLegacyGlobalSettings(): Promise<GlobalSettings | null> {
-	if (!window.electronAPI?.loadGlobalSettings) return null;
+	if (!window.desktopAPI?.loadGlobalSettings) return null;
 
 	try {
-		const response = await window.electronAPI.loadGlobalSettings();
+		const response = await window.desktopAPI.loadGlobalSettings();
 		if (
 			!response?.success ||
 			!response.data ||
@@ -84,7 +84,7 @@ export async function loadGlobalSettings(): Promise<GlobalSettings> {
 		return (await loadLegacyGlobalSettings()) ?? DEFAULT_SETTINGS;
 	}
 
-	if (!window.electronAPI?.loadWorkspaceMetadata) {
+	if (!window.desktopAPI?.loadWorkspaceMetadata) {
 		return DEFAULT_SETTINGS;
 	}
 
@@ -123,8 +123,8 @@ export async function saveGlobalSettings(
 	}
 
 	if (
-		!window.electronAPI?.loadWorkspaceMetadata ||
-		!window.electronAPI?.saveWorkspaceMetadata
+		!window.desktopAPI?.loadWorkspaceMetadata ||
+		!window.desktopAPI?.saveWorkspaceMetadata
 	) {
 		return false;
 	}

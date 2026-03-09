@@ -450,7 +450,7 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 			for (const path of pendingPaths) {
 				if (cancelled) return;
 				try {
-					const readResult = await window.electronAPI.readFile(path);
+					const readResult = await window.desktopAPI.readFile(path);
 					if (readResult.error) continue;
 					const parsedMeta = extractAtDocFileMeta(readResult.content);
 					setFileMetaByPath(
@@ -516,7 +516,7 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 		const repoPath = behavior === "repo-trash" ? activeRepo?.path : undefined;
 
 		try {
-			const result = await window.electronAPI.deleteFile(
+			const result = await window.desktopAPI.deleteFile(
 				node.path,
 				behavior,
 				repoPath,
@@ -561,7 +561,7 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 					let contentLoaded = existingFile?.contentLoaded ?? false;
 
 					if (shouldHydrate) {
-						const result = await window.electronAPI.readFile(node.path);
+						const result = await window.desktopAPI.readFile(node.path);
 						if (result.error) {
 							console.error("[Sidebar] readFile error:", result.error);
 							return;
@@ -599,7 +599,7 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 
 	const handleReveal = async (node: FileNode) => {
 		try {
-			await window.electronAPI.revealInFolder(node.path);
+			await window.desktopAPI.revealInFolder(node.path);
 		} catch (err) {
 			console.error("revealInFolder failed:", err);
 		}
@@ -650,7 +650,7 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 			}
 
 			// Folder rename is not represented in `files`, so do it via IPC then rescan.
-			const result = await window.electronAPI?.renameFile?.(
+			const result = await window.desktopAPI?.renameFile?.(
 				node.path,
 				newName.trim(),
 			);
@@ -673,7 +673,7 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 		if (targetFolder.type !== "folder") return;
 
 		try {
-			const result = await window.electronAPI.movePath(
+			const result = await window.desktopAPI.movePath(
 				sourceNode.path,
 				targetFolder.path,
 			);

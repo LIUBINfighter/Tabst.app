@@ -26,11 +26,11 @@ function enqueueWorkspaceWrite(
 export async function loadWorkspaceMetadata(
 	repoPath: string,
 ): Promise<RepoMetadata | null> {
-	if (!window.electronAPI?.loadWorkspaceMetadata) {
+	if (!window.desktopAPI?.loadWorkspaceMetadata) {
 		return null;
 	}
 
-	return window.electronAPI.loadWorkspaceMetadata(repoPath);
+	return window.desktopAPI.loadWorkspaceMetadata(repoPath);
 }
 
 export async function updateWorkspaceMetadata(
@@ -38,16 +38,16 @@ export async function updateWorkspaceMetadata(
 	updater: WorkspaceUpdater,
 ): Promise<void> {
 	if (
-		!window.electronAPI?.loadWorkspaceMetadata ||
-		!window.electronAPI?.saveWorkspaceMetadata
+		!window.desktopAPI?.loadWorkspaceMetadata ||
+		!window.desktopAPI?.saveWorkspaceMetadata
 	) {
 		throw new Error("workspace-metadata-api-unavailable");
 	}
 
 	await enqueueWorkspaceWrite(repo.path, async () => {
 		const existing =
-			(await window.electronAPI.loadWorkspaceMetadata(repo.path)) ?? null;
+			(await window.desktopAPI.loadWorkspaceMetadata(repo.path)) ?? null;
 		const next = await updater(existing);
-		await window.electronAPI.saveWorkspaceMetadata(repo.path, next);
+		await window.desktopAPI.saveWorkspaceMetadata(repo.path, next);
 	});
 }

@@ -62,7 +62,7 @@ export function useFileOperations() {
 			for (let i = 0; i < 200; i += 1) {
 				const suffix = i === 0 ? "" : `_${i}`;
 				const nextName = `${baseName}${suffix}.atex`;
-				const result = await window.electronAPI.renameFile(
+				const result = await window.desktopAPI.renameFile(
 					createdPath,
 					nextName,
 				);
@@ -100,11 +100,11 @@ export function useFileOperations() {
 		) => {
 			const alphaTex = convertGpBytesToAlphaTex(gpBytes);
 			const targetDir = resolveTargetDir(targetDirectory);
-			const created = await window.electronAPI.createFile(".atex", targetDir);
+			const created = await window.desktopAPI.createFile(".atex", targetDir);
 			if (!created) return null;
 			const renamed = await tryRenameImportedAtex(created.path, sourceName);
 
-			const saveResult = await window.electronAPI.saveFile(
+			const saveResult = await window.desktopAPI.saveFile(
 				renamed.path,
 				alphaTex,
 			);
@@ -139,7 +139,7 @@ export function useFileOperations() {
 	const handleImportGpFile = useCallback(
 		async (gpFilePath: string, targetDirectory?: string) => {
 			if (!isGpFilePath(gpFilePath)) return null;
-			const readResult = await window.electronAPI.readFileBytes(gpFilePath);
+			const readResult = await window.desktopAPI.readFileBytes(gpFilePath);
 			if (!readResult.data) {
 				console.error("读取 GP 文件二进制失败:", readResult.error);
 				return null;
@@ -167,7 +167,7 @@ export function useFileOperations() {
 	const handleOpenFile = useCallback(
 		async (targetDirectory?: string) => {
 			try {
-				const result = await window.electronAPI.openFile(ALLOWED_EXTENSIONS);
+				const result = await window.desktopAPI.openFile(ALLOWED_EXTENSIONS);
 				if (!result) return;
 				if (isGpFilePath(result.path)) {
 					await handleImportGpFile(result.path, targetDirectory);
@@ -192,7 +192,7 @@ export function useFileOperations() {
 		async (ext: string, targetDirectory?: string) => {
 			try {
 				const targetDir = resolveTargetDir(targetDirectory);
-				const result = await window.electronAPI.createFile(ext, targetDir);
+				const result = await window.desktopAPI.createFile(ext, targetDir);
 				if (!result) return null;
 
 				addFile({
@@ -215,7 +215,7 @@ export function useFileOperations() {
 		async (targetDirectory?: string, folderName?: string) => {
 			try {
 				const targetDir = resolveTargetDir(targetDirectory);
-				const result = await window.electronAPI.createFolder(
+				const result = await window.desktopAPI.createFolder(
 					folderName,
 					targetDir,
 				);

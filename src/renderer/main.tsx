@@ -5,10 +5,10 @@ import PrintWindow from "./components/PrintWindow";
 import i18n from "./i18n";
 import "./styles/index.css";
 import { ThemeProvider } from "./components/theme";
+import { ensureDesktopApiInRuntime } from "./lib/desktop-api";
 import { isPrintWindowLocation } from "./lib/print-window";
-import { ensureElectronApiInWebRuntime } from "./lib/web-electron-api";
 
-ensureElectronApiInWebRuntime();
+ensureDesktopApiInRuntime();
 
 const rootElement = document.getElementById("root");
 if (!rootElement) throw new Error("Failed to find the root element");

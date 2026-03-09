@@ -111,7 +111,7 @@ function App() {
 	const resolveFileContent = async (file: FileItem): Promise<string | null> => {
 		if (file.contentLoaded) return file.content;
 		try {
-			const result = await window.electronAPI.readFile(file.path);
+			const result = await window.desktopAPI.readFile(file.path);
 			if (result.error) {
 				console.error("Failed to read template file:", result.error);
 				return null;
@@ -150,7 +150,7 @@ function App() {
 
 		updateFileContent(activeFile.id, nextContent);
 		try {
-			await window.electronAPI.saveFile(activeFile.path, nextContent);
+			await window.desktopAPI.saveFile(activeFile.path, nextContent);
 		} catch (error) {
 			console.error("Failed to save file after template insertion:", error);
 		}
@@ -199,7 +199,7 @@ function App() {
 
 		updateFileContent(createdFile.id, templateContent);
 		try {
-			await window.electronAPI.saveFile(createdFile.path, templateContent);
+			await window.desktopAPI.saveFile(createdFile.path, templateContent);
 		} catch (error) {
 			console.error("Failed to save file created from template:", error);
 		}
@@ -212,7 +212,7 @@ function App() {
 
 	useEffect(() => {
 		let mounted = true;
-		void window.electronAPI
+		void window.desktopAPI
 			.getAppVersion()
 			.then((version) => {
 				if (!mounted) return;
@@ -249,7 +249,7 @@ function App() {
 		}
 
 		const timer = window.setTimeout(() => {
-			void window.electronAPI
+			void window.desktopAPI
 				.checkForUpdates()
 				.catch((error) => {
 					console.error("Auto update check failed:", error);
@@ -504,9 +504,9 @@ function App() {
 			}, 180);
 		};
 
-		void window.electronAPI.startRepoWatch(activeRepo.path);
+		void window.desktopAPI.startRepoWatch(activeRepo.path);
 
-		const unsubscribe = window.electronAPI.onRepoFsChanged((event) => {
+		const unsubscribe = window.desktopAPI.onRepoFsChanged((event) => {
 			if (event.repoPath !== activeRepo.path) return;
 			scheduleRefresh(event.eventType, event.changedPath);
 		});
@@ -518,7 +518,7 @@ function App() {
 			}
 			fsRecentEventRef.current.clear();
 			unsubscribe();
-			void window.electronAPI.stopRepoWatch();
+			void window.desktopAPI.stopRepoWatch();
 		};
 	}, [activeRepoId, repos, refreshFileTree]);
 

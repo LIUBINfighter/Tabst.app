@@ -37,7 +37,7 @@ export default function UpdateToast() {
 	const [installing, setInstalling] = useState(false);
 
 	useEffect(() => {
-		const unsubscribe = window.electronAPI?.onUpdateEvent(
+		const unsubscribe = window.desktopAPI?.onUpdateEvent(
 			(event: UpdateEvent) => {
 				switch (event.type) {
 					case "checking":
@@ -97,7 +97,7 @@ export default function UpdateToast() {
 	const handleInstall = async () => {
 		if (installing) return;
 		setInstalling(true);
-		const result = await window.electronAPI.installUpdate();
+		const result = await window.desktopAPI.installUpdate();
 		if (!result.ok) {
 			setStatus("error");
 			setMessage(result.message ?? t("toast.error"));

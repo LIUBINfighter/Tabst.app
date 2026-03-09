@@ -103,7 +103,7 @@ export function Editor({
 
 	useEffect(() => {
 		let mounted = true;
-		void window.electronAPI
+		void window.desktopAPI
 			.getAppVersion()
 			.then((version) => {
 				if (!mounted) return;
@@ -167,7 +167,7 @@ export function Editor({
 						const file = state.files.find((f) => f.id === state.activeFileId);
 						if (file) {
 							try {
-								await window.electronAPI.saveFile(file.path, newContent);
+								await window.desktopAPI.saveFile(file.path, newContent);
 							} catch (err) {
 								console.error("Failed to save file:", err);
 							}

@@ -3,31 +3,31 @@ import type { RepoMetadata } from "../types/repo";
 import { setActiveRepoContext } from "./active-repo-context";
 import { loadGlobalSettings, saveGlobalSettings } from "./global-settings";
 
-interface TestElectronApi {
+interface TestDesktopApi {
 	loadWorkspaceMetadata: ReturnType<typeof vi.fn>;
 	saveWorkspaceMetadata: ReturnType<typeof vi.fn>;
 	loadGlobalSettings: ReturnType<typeof vi.fn>;
 }
 
-function installElectronApi(api: TestElectronApi) {
+function installDesktopApi(api: TestDesktopApi) {
 	Object.defineProperty(globalThis, "window", {
 		value: {
-			electronAPI: api,
+			desktopAPI: api,
 		},
 		configurable: true,
 	});
 }
 
 describe("workspace-backed global settings", () => {
-	let electronApi: TestElectronApi;
+	let desktopApi: TestDesktopApi;
 
 	beforeEach(() => {
-		electronApi = {
+		desktopApi = {
 			loadWorkspaceMetadata: vi.fn(),
 			saveWorkspaceMetadata: vi.fn(),
 			loadGlobalSettings: vi.fn(),
 		};
-		installElectronApi(electronApi);
+		installDesktopApi(desktopApi);
 		setActiveRepoContext(null);
 	});
 
@@ -38,7 +38,7 @@ describe("workspace-backed global settings", () => {
 			path: "/tmp/demo",
 		});
 
-		electronApi.loadWorkspaceMetadata.mockResolvedValue({
+		desktopApi.loadWorkspaceMetadata.mockResolvedValue({
 			id: "repo-1",
 			name: "Demo",
 			openedAt: 1,
@@ -65,11 +65,11 @@ describe("workspace-backed global settings", () => {
 				mode: "dark",
 			},
 		});
-		expect(electronApi.loadGlobalSettings).toHaveBeenCalledTimes(1);
+		expect(desktopApi.loadGlobalSettings).toHaveBeenCalledTimes(1);
 	});
 
 	it("falls back to legacy settings when no active repo exists", async () => {
-		electronApi.loadGlobalSettings.mockResolvedValue({
+		desktopApi.loadGlobalSettings.mockResolvedValue({
 			success: true,
 			data: {
 				locale: "en",
@@ -86,7 +86,7 @@ describe("workspace-backed global settings", () => {
 
 		expect(result.locale).toBe("en");
 		expect(result.deleteBehavior).toBe("system-trash");
-		expect(electronApi.loadGlobalSettings).toHaveBeenCalledTimes(1);
+		expect(desktopApi.loadGlobalSettings).toHaveBeenCalledTimes(1);
 	});
 
 	it("saves merged settings into workspace metadata", async () => {
@@ -96,7 +96,7 @@ describe("workspace-backed global settings", () => {
 			path: "/tmp/workspace",
 		});
 
-		electronApi.loadWorkspaceMetadata.mockResolvedValue({
+		desktopApi.loadWorkspaceMetadata.mockResolvedValue({
 			id: "repo-2",
 			name: "Workspace",
 			openedAt: 1,
@@ -118,13 +118,13 @@ describe("workspace-backed global settings", () => {
 			activeTutorialId: "user-readme",
 			tutorialAudience: "user",
 		} satisfies RepoMetadata);
-		electronApi.saveWorkspaceMetadata.mockResolvedValue(undefined);
+		desktopApi.saveWorkspaceMetadata.mockResolvedValue(undefined);
 
 		const ok = await saveGlobalSettings({ locale: "en" });
 
 		expect(ok).toBe(true);
-		expect(electronApi.saveWorkspaceMetadata).toHaveBeenCalledTimes(1);
-		const [, savedMetadata] = electronApi.saveWorkspaceMetadata.mock.calls[0];
+		expect(desktopApi.saveWorkspaceMetadata).toHaveBeenCalledTimes(1);
+		const [, savedMetadata] = desktopApi.saveWorkspaceMetadata.mock.calls[0];
 		expect(savedMetadata.preferences.locale).toBe("en");
 		expect(savedMetadata.preferences.commandShortcuts).toEqual({
 			"file.save": ["mod+s"],

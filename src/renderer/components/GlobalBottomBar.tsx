@@ -729,7 +729,7 @@ export default function GlobalBottomBar() {
 
 	useEffect(() => {
 		let mounted = true;
-		void window.electronAPI
+		void window.desktopAPI
 			.getAppVersion()
 			.then((version) => {
 				if (!mounted) return;

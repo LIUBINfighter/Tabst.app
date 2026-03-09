@@ -4,34 +4,26 @@
 	"version": "0.6.6-tauri-next",
 	"description": "A minimal Guitar Tabs typewriter.",
 	"type": "module",
-	"main": "dist-electron/main.cjs",
 	"scripts": {
-		"dev": "concurrently -k \"pnpm dev:react\" \"pnpm dev:electron\"",
+		"dev": "pnpm dev:tauri",
 		"dev:react": "vite",
-		"dev:electron": "concurrently -k \"pnpm watch:main\" \"nodemon --watch dist-electron --exec cross-env NODE_ENV=development electron .\"",
 		"dev:tauri": "pnpm tauri dev",
 		"lint": "biome ci --linter-enabled=true --formatter-enabled=false --error-on-warnings src",
 		"format": "biome check --write --formatter-enabled=true --linter-enabled=false --assist-enabled=true src",
 		"format:check": "biome ci --formatter-enabled=true --linter-enabled=false --assist-enabled=true --enforce-assist=true --error-on-warnings src",
-		"watch:main": "esbuild src/main/main.ts src/main/preload.ts --bundle --platform=node --outdir=dist-electron --out-extension:.js=.cjs --external:electron --format=cjs --watch",
-		"build:main": "esbuild src/main/main.ts src/main/preload.ts --bundle --platform=node --outdir=dist-electron --out-extension:.js=.cjs --external:electron --format=cjs",
-		"build": "pnpm type-check && pnpm build:react && pnpm build:main",
+		"build": "pnpm build:tauri",
 		"build:react": "vite build",
 		"build:web": "pnpm type-check && pnpm build:react",
 		"build:tauri": "pnpm tauri build",
-		"baseline:week1": "pnpm build:react && pnpm build:main && node scripts/collect-week1-baseline.mjs",
-		"baseline:multi": "node scripts/run-multi-baseline.mjs",
-		"stress:long": "node scripts/run-long-session-stress.mjs",
-		"stress:summary": "node scripts/summarize-long-session.mjs",
-		"perf:assert": "node scripts/assert-performance-thresholds.mjs",
 		"bundle:assert": "node scripts/check-bundle-thresholds.mjs",
-		"perf:ci": "pnpm build:react && pnpm build:main && pnpm bundle:assert && pnpm baseline:multi -- --runs 3 --prefix ci-baseline --compare week2-baseline.json && pnpm stress:long -- --duration-min 3 --interval-sec 20 --out ci-long-stress.json && pnpm stress:summary -- --input ci-long-stress.json --output ci-long-stress-summary.json && pnpm perf:assert -- --baseline ci-baseline-summary.json --stress ci-long-stress-summary.json",
 		"serve:web": "vite preview --host 127.0.0.1 --port 4173 --strictPort",
 		"type-check": "tsc --noEmit",
 		"lint:fix": "biome check --write --linter-enabled=true --formatter-enabled=false --assist-enabled=true src",
 		"check": "pnpm format:check && pnpm lint && pnpm type-check",
-		"package": "pnpm build && electron-forge package",
-		"make": "pnpm build && electron-forge make",
+		"release": "pnpm build:tauri",
+		"release:mac": "pnpm build:tauri",
+		"release:linux": "pnpm build:tauri",
+		"release:win": "pnpm build:tauri",
 		"tauri": "tauri",
 		"mix": "node scripts/codemix.js",
 		"generate:commands": "node scripts/generate-alphatex-commands.js --output src/renderer/data/alphatex-commands.generated.json",
@@ -39,9 +31,7 @@
 		"mix:main": "node scripts/codemix.js main",
 		"mix:render": "node scripts/codemix.js render",
 		"mix:doc": "node scripts/codemix.js doc",
-		"mix:config": "node scripts/codemix.js config",
-		"dist": "electron-builder --publish never",
-		"dist:win": "electron-builder --win --x64 --publish never"
+		"mix:config": "node scripts/codemix.js config"
 	},
 	"keywords": [],
 	"author": "Jay Bridge huajie8848@foxmail.com",
@@ -81,9 +71,6 @@
 		"color-convert": "^3.1.3",
 		"dompurify": "^3.3.1",
 		"effect": "^3.19.15",
-		"electron-log": "^5.4.3",
-		"electron-squirrel-startup": "^1.0.1",
-		"electron-updater": "^6.8.3",
 		"i18next": "^25.8.10",
 		"lucide-react": "^0.576.0",
 		"moment": "^2.30.1",
@@ -101,15 +88,6 @@
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.4.2",
-		"@electron-forge/cli": "^7.10.2",
-		"@electron-forge/maker-deb": "^7.10.2",
-		"@electron-forge/maker-dmg": "^7.11.1",
-		"@electron-forge/maker-rpm": "^7.10.2",
-		"@electron-forge/maker-squirrel": "^7.11.1",
-		"@electron-forge/maker-zip": "^7.10.2",
-		"@electron-forge/plugin-auto-unpack-natives": "^7.10.2",
-		"@electron-forge/plugin-fuses": "^7.10.2",
-		"@electron/fuses": "^1.8.0",
 		"@eslint/js": "^9.39.3",
 		"@tailwindcss/typography": "^0.5.19",
 		"@tauri-apps/cli": "^2.10.1",
@@ -121,9 +99,6 @@
 		"@vitejs/plugin-react": "^5.1.3",
 		"autoprefixer": "^10.4.27",
 		"concurrently": "^9.2.1",
-		"cross-env": "^10.1.0",
-		"electron": "^40.5.0",
-		"electron-builder": "^26.7.0",
 		"esbuild": "^0.27.3",
 		"eslint": "^9.39.1",
 		"eslint-plugin-react": "^7.37.5",
@@ -139,62 +114,14 @@
 		"vite": "^7.3.1",
 		"vitest": "^4.0.18"
 	},
-	"build": {
-		"appId": "com.liubin.tabst",
-		"productName": "Tabst",
-		"directories": {
-			"output": "dist"
-		},
-		"files": [
-			"dist-electron/**/*",
-			"dist/**/*",
-			"package.json"
-		],
-		"win": {
-			"target": [
-				{
-					"target": "nsis",
-					"arch": [
-						"x64"
-					]
-				},
-				{
-					"target": "zip",
-					"arch": [
-						"x64"
-					]
-				}
-			],
-			"artifactName": "Tabst-${version}-win-${arch}-${name}.${ext}"
-		},
-		"nsis": {
-			"oneClick": false,
-			"perMachine": false,
-			"allowToChangeInstallationDirectory": true
-		},
-		"publish": [
-			{
-				"provider": "github",
-				"owner": "LIUBINfighter",
-				"repo": "Tabst.app"
-			}
-		]
-	},
-	"files": [
-		"dist-electron/**/*",
-		"dist/**/*",
-		"package.json"
-	],
 	"pnpm": {
 		"overrides": {
 			"@lezer/highlight>@lezer/common": "1.5.1"
 		},
 		"onlyBuiltDependencies": [
-			"electron",
 			"esbuild"
 		],
 		"ignoredBuiltDependencies": [
-			"electron-winstaller",
 			"esbuild",
 			"fs-xattr",
 			"macos-alias",

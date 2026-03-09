@@ -6,7 +6,7 @@ import fs from "fs";
 import path from "path";
 
 const groups = {
-	main: ["./src/main"],
+	main: ["./src-tauri"],
 	render: ["./src/renderer"],
 	doc: ["./docs"],
 	config: ["./AGENTS.md", "./biome.json", "./package.json"],
@@ -27,7 +27,7 @@ async function walk(dir) {
 		for (const e of entries) {
 			const full = path.join(dir, e.name);
 			if (e.isDirectory()) {
-				if (["node_modules", "dist", "dist-electron", ".git"].includes(e.name))
+				if (["node_modules", "dist", ".git"].includes(e.name))
 					continue;
 				files.push(...(await walk(full)));
 			} else if (e.isFile()) {

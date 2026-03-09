@@ -11,7 +11,7 @@ export function AboutPage() {
 
 	useEffect(() => {
 		let mounted = true;
-		void window.electronAPI
+		void window.desktopAPI
 			.getAppVersion()
 			.then((v) => {
 				if (mounted) setVersion(v);
@@ -27,7 +27,7 @@ export function AboutPage() {
 			try {
 				setLoading(true);
 				setError(null);
-				const data = await window.electronAPI.readAsset("docs/README.md");
+				const data = await window.desktopAPI.readAsset("docs/README.md");
 				const decoder = new TextDecoder("utf-8");
 				const content = decoder.decode(data);
 				setReadmeContent(content);
