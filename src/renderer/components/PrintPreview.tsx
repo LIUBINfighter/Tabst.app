@@ -11,8 +11,13 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { createPrintSettings } from "../lib/alphatab-config";
+import { loadBravuraFont } from "../lib/assets";
 import { parseAtDoc } from "../lib/atdoc";
 import { paginateContent } from "../lib/pagination";
+import {
+	buildPrintFontFaceCss,
+	buildPrintFontFamilyCssValue,
+} from "../lib/print-fonts";
 import {
 	calculateContentDimensions,
 	PAGE_SIZES,
@@ -130,6 +135,11 @@ export default function PrintPreview({
 		[pages],
 	);
 
+	const printFontFamilyCssValue = useMemo(
+		() => buildPrintFontFamilyCssValue(printFontName || "Bravura-Print"),
+		[printFontName],
+	);
+
 	const printPayload = useMemo(
 		() => ({
 			fileName,
@@ -224,6 +234,17 @@ export default function PrintPreview({
 			setPrintFontName(fontName);
 			setPrintFontUrl(fontUrl);
 
+			// Ensure the shared Bravura/alphaTab aliases are available before alphaTab measures layout.
+			try {
+				await loadBravuraFont(fontUrl);
+				await document.fonts.ready;
+			} catch (err) {
+				console.warn(
+					"[PrintPreview] Failed to fully prepare Bravura aliases:",
+					err,
+				);
+			}
+
 			// Set container width
 			alphaTabContainerRef.current.style.width = `${contentWidthPx}px`;
 
@@ -238,18 +259,9 @@ export default function PrintPreview({
 				const styleEl = document.createElement("style");
 				// Must set .at font-size: 34px, this is alphaTab's MusicFontSize constant
 				styleEl.textContent = `
-					@font-face {
-						font-family: '${fontName}';
-						src: url('${fontUrl}') format('woff2');
-						font-weight: normal;
-						font-style: normal;
-						font-display: block;
-					}
-					.at-surface, .at-surface text, .at-surface tspan {
-						font-family: '${fontName}', 'Bravura', sans-serif !important;
-					}
+					${buildPrintFontFaceCss(fontName, fontUrl)}
 					.at-surface .at, .at-surface-svg .at {
-						font-family: '${fontName}', 'Bravura', sans-serif !important;
+						font-family: ${buildPrintFontFamilyCssValue(fontName)} !important;
 						font-size: 34px; /* alphaTab MusicFontSize */
 						font-style: normal;
 						font-weight: normal;
@@ -605,15 +617,12 @@ export default function PrintPreview({
 			{printFontUrl && printFontName && (
 				<style>
 					{`
-						@font-face {
-							font-family: '${printFontName}';
-							src: url('${printFontUrl}') format('woff2');
-							font-weight: normal;
+						${buildPrintFontFaceCss(printFontName, printFontUrl)}
+						.at-surface .at, .at-surface-svg .at {
+							font-family: ${printFontFamilyCssValue} !important;
+							font-size: 34px;
 							font-style: normal;
-							font-display: block;
-						}
-						.at-surface, .at-surface text, .at-surface tspan {
-							font-family: '${printFontName}', 'Bravura', sans-serif !important;
+							font-weight: normal;
 						}
 					`}
 				</style>

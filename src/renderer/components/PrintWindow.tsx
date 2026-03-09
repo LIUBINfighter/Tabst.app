@@ -1,5 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { loadBravuraFont } from "../lib/assets";
+import {
+	buildPrintFontFaceCss,
+	buildPrintFontFamilyCssValue,
+} from "../lib/print-fonts";
 import {
 	type PrintWindowPayload,
 	readPrintWindowPayload,
@@ -37,18 +42,24 @@ export default function PrintWindow() {
 
 		window.addEventListener("afterprint", onAfterPrint, { once: true });
 
-		if (document.fonts?.ready) {
-			document.fonts.ready
-				.then(() => {
-					setStatus(t("printDialogRequested"));
+		void loadBravuraFont(payload.printFontUrl)
+			.catch((err) => {
+				console.warn("[PrintWindow] Failed to load Bravura aliases:", err);
+			})
+			.finally(() => {
+				if (document.fonts?.ready) {
+					document.fonts.ready
+						.then(() => {
+							setStatus(t("printDialogRequested"));
+							window.setTimeout(tryPrint, 250);
+						})
+						.catch(() => {
+							window.setTimeout(tryPrint, 250);
+						});
+				} else {
 					window.setTimeout(tryPrint, 250);
-				})
-				.catch(() => {
-					window.setTimeout(tryPrint, 250);
-				});
-		} else {
-			window.setTimeout(tryPrint, 250);
-		}
+				}
+			});
 
 		return () => {
 			window.removeEventListener("afterprint", onAfterPrint);
@@ -58,13 +69,7 @@ export default function PrintWindow() {
 	const printStyles = useMemo(() => {
 		if (!payload) return "";
 		return `
-			@font-face {
-				font-family: '${payload.printFontName}';
-				src: url('${payload.printFontUrl}') format('woff2');
-				font-weight: normal;
-				font-style: normal;
-				font-display: block;
-			}
+			${buildPrintFontFaceCss(payload.printFontName, payload.printFontUrl)}
 			:root {
 				color-scheme: light;
 			}
@@ -115,14 +120,9 @@ export default function PrintWindow() {
 			}
 			.at-surface > div { position: absolute; }
 			.at-surface svg { display: block; }
-			.at-surface,
-			.at-surface text,
-			.at-surface tspan {
-				font-family: '${payload.printFontName}', 'alphaTab', 'Bravura', sans-serif !important;
-			}
 			.at-surface .at,
 			.at-surface-svg .at {
-				font-family: '${payload.printFontName}', 'alphaTab', 'Bravura', sans-serif !important;
+				font-family: ${buildPrintFontFamilyCssValue(payload.printFontName)} !important;
 				font-size: 34px;
 				font-style: normal;
 				font-weight: normal;
