@@ -82,7 +82,7 @@
 		"moment": "^2.30.1",
 		"react": "^19.2.4",
 		"react-dom": "^19.2.4",
-		"react-i18next": "^16.5.3",
+		"react-i18next": "^16.5.6",
 		"react-markdown": "^10.1.0",
 		"react-syntax-highlighter": "^16.1.0",
 		"rehype-raw": "^7.0.0",
