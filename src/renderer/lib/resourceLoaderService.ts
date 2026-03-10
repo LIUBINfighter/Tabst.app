@@ -1,13 +1,3 @@
-/**
- * ResourceLoaderService
- *
- * 统一管理 AlphaTab 资源（Worker、字体、音频）的 URL 生成
- * 自动适配开发环境（HTTP）和打包环境（file://）
- *
- * 思路：在打包的 Electron 应用中，使用相对路径而不是绝对路径，
- * 让浏览器自动解析资源相对于当前页面 URL 的位置
- */
-
 export interface ResourceUrls {
 	workerUrl: string;
 	bravuraFontUrl: string;
@@ -88,7 +78,6 @@ export async function getResourceUrls(): Promise<ResourceUrls> {
 				: "/";
 
 		try {
-			// 打包环境：Electron 使用 file:// 协议加载 HTML
 			// 例如：file:///C:/Users/.../resources/app.asar/dist/src/renderer/index.html
 			// 此时需要向上遍历到 dist/ 目录，然后再访问 assets/
 			// 所以相对路径应该是：../../assets/alphaTab.min.js

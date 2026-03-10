@@ -2140,7 +2140,7 @@ mod tests {
     }
 
     #[test]
-    fn notify_kind_mapping_matches_electron_watch_contract() {
+    fn notify_kind_mapping_matches_legacy_watch_contract() {
         assert_eq!(
             map_notify_event_type(&EventKind::Create(CreateKind::Any)),
             "rename"

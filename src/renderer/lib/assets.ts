@@ -11,9 +11,27 @@ function isLikelySoundFont(bytes: Uint8Array): boolean {
 	return riff === "RIFF" && sfbk === "sfbk";
 }
 
-function isElectronRuntime(): boolean {
-	if (typeof navigator === "undefined") return false;
-	return /\bElectron\//.test(navigator.userAgent);
+function isDesktopShellRuntime(): boolean {
+	if (typeof window === "undefined") return false;
+
+	const maybeWindow = window as Window & {
+		__TAURI_INTERNALS__?: unknown;
+		__TAURI__?: unknown;
+		__TAURI_IPC__?: unknown;
+	};
+	const runtimeEnv = import.meta.env as Record<string, unknown>;
+	const tauriEnvPlatform = runtimeEnv.TAURI_ENV_PLATFORM;
+	const userAgent = typeof navigator === "undefined" ? "" : navigator.userAgent;
+
+	return (
+		(typeof tauriEnvPlatform === "string" && tauriEnvPlatform.length > 0) ||
+		Boolean(maybeWindow.__TAURI_INTERNALS__) ||
+		Boolean(maybeWindow.__TAURI__) ||
+		Boolean(maybeWindow.__TAURI_IPC__) ||
+		window.location.protocol === "tauri:" ||
+		window.location.hostname === "tauri.localhost" ||
+		/\bTauri\b/i.test(userAgent)
+	);
 }
 
 function hasUserActivatedAudio(): boolean {
@@ -94,7 +112,7 @@ export async function loadSoundFontFromUrl(
 	}
 
 	try {
-		if (!isElectronRuntime() && !hasUserActivatedAudio()) {
+		if (!isDesktopShellRuntime() && !hasUserActivatedAudio()) {
 			console.info(
 				"[AssetLoader] Skip soundfont preload before user activation in web runtime",
 			);
