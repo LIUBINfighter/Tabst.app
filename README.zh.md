@@ -77,14 +77,13 @@ pnpm run release:linux
 pnpm run release:win
 ```
 
-## 迁移状态
+## 桌面运行时
 
-当前仓库已经切换为 Tauri-first 的桌面应用工程。
+当前仓库已经完成桌面运行时切换，并以 Tauri 作为唯一桌面壳层。
 
-- Electron runtime、preload、updater 和打包链路已从产品构建路径中移除。
-- 渲染层统一通过中性的 `desktopAPI` bridge 接入桌面能力。
-- CI 的桌面构建校验现在只验证 Tauri 路径。
-- 详细迁移进度见 [docs/dev/TAURI_MIGRATION_STATUS.md](./docs/dev/TAURI_MIGRATION_STATUS.md)。
+- 产品构建、发布命令与 CI 桌面校验均以 Tauri 为准。
+- 渲染层统一通过 `desktopAPI` bridge 接入桌面能力。
+- 后续的规范化收尾工作见 [docs/dev/TAURI_MIGRATION_STATUS.md](./docs/dev/TAURI_MIGRATION_STATUS.md)。
 
 ## CI
 

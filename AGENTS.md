@@ -40,14 +40,14 @@ Tabst.app/
 - Shared playback/file/selection/UI state belongs in Zustand (`useAppStore`), not scattered component state.
 - Deep alphaTab config changes (theme/colors) require API destroy + recreate; `render()` alone is insufficient.
 - Completion/hover source precedence: `src/renderer/data/alphatex-commands.json` first, upstream docs second.
-- Desktop bridge surface in the renderer is `window.desktopAPI`, not `window.electronAPI`.
+- Desktop bridge surface in the renderer is `window.desktopAPI`.
 
 ## ANTI-PATTERNS (THIS PROJECT)
 - Parsing AlphaTex structure with regex when AST parser is available.
 - Storing `AlphaTabApi` in React state.
 - Theme switching without track-config save/restore around API rebuild.
 - Changing print rendering without preserving `.at` font-size `34px` and absolute Bravura URL loading.
-- Reintroducing Electron-specific runtime assumptions into renderer code or scripts.
+- Reintroducing legacy desktop-runtime assumptions into renderer code or scripts.
 - Treating `.tmp/notebook-navigator` as part of Tabst runtime.
 
 ## UNIQUE STYLES
