@@ -2,10 +2,9 @@
 	"$schema": "../gen/schemas/desktop-schema.json",
 	"identifier": "main-capability",
 	"description": "Default capability for the main window",
-	"windows": ["main", "print"],
+	"windows": ["main"],
 	"permissions": [
 		"core:default",
-		"core:webview:allow-print",
 		"core:webview:allow-create-webview-window",
 		"core:window:allow-create"
 	]
