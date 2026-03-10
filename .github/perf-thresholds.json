@@ -5,6 +5,12 @@
 		"heapDeltaMeanBytesMax": 3500000,
 		"idleListenersP95Max": 3000
 	},
+	"tauriBuild": {
+		"webBuildMsMax": 30000,
+		"rustReleaseBuildMsMax": 120000,
+		"totalMeasuredMsMax": 150000,
+		"tauriBinaryMaxBytes": 25000000
+	},
 	"stress": {
 		"minDurationMin": 2,
 		"heapDeltaPerMinBytesMax": 650000,

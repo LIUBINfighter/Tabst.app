@@ -93,6 +93,9 @@ jobs:
       - name: Verify Tauri baseline
         run: pnpm verify:tauri
 
+      - name: Measure and assert Tauri performance baseline
+        run: pnpm perf:tauri:ci
+
       - name: Build desktop bundle target
         run: pnpm build
 
