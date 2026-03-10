@@ -6,19 +6,13 @@ const OPS_DIR = path.join(ROOT, "docs", "dev", "ops");
 
 function parseArgs() {
 	const args = process.argv.slice(2);
-	let baselineFile = "week4-multi-summary.json";
-	let stressFile = "week4-long-stress-summary.json";
+	let baselineFile = "tauri-performance-baseline-summary.json";
 	let thresholdFile = ".github/perf-thresholds.json";
 
 	for (let i = 0; i < args.length; i += 1) {
 		const arg = args[i];
 		if (arg === "--baseline" && args[i + 1]) {
 			baselineFile = args[i + 1];
-			i += 1;
-			continue;
-		}
-		if (arg === "--stress" && args[i + 1]) {
-			stressFile = args[i + 1];
 			i += 1;
 			continue;
 		}
@@ -30,7 +24,6 @@ function parseArgs() {
 
 	return {
 		baselinePath: path.join(OPS_DIR, baselineFile),
-		stressPath: path.join(OPS_DIR, stressFile),
 		thresholdPath: path.join(ROOT, thresholdFile),
 	};
 }
@@ -45,81 +38,76 @@ function readJson(filePath) {
 function evaluateBaseline(summary, thresholds) {
 	const violations = [];
 
-	if (summary.summary.cold_load.mean > thresholds.coldLoadMeanMsMax) {
+	if (summary.commands.webBuildMs > thresholds.webBuildMsMax) {
 		violations.push({
 			scope: "baseline",
-			metric: "cold_load.mean",
-			actual: summary.summary.cold_load.mean,
-			threshold: thresholds.coldLoadMeanMsMax,
+			metric: "commands.webBuildMs",
+			actual: summary.commands.webBuildMs,
+			threshold: thresholds.webBuildMsMax,
 		});
 	}
 
-	if (summary.summary.cold_load.p95 > thresholds.coldLoadP95MsMax) {
+	if (summary.commands.rustReleaseBuildMs > thresholds.rustReleaseBuildMsMax) {
 		violations.push({
 			scope: "baseline",
-			metric: "cold_load.p95",
-			actual: summary.summary.cold_load.p95,
-			threshold: thresholds.coldLoadP95MsMax,
+			metric: "commands.rustReleaseBuildMs",
+			actual: summary.commands.rustReleaseBuildMs,
+			threshold: thresholds.rustReleaseBuildMsMax,
 		});
 	}
 
-	if (summary.summary.heap_delta.mean > thresholds.heapDeltaMeanBytesMax) {
+	if (summary.commands.totalMeasuredMs > thresholds.totalMeasuredMsMax) {
 		violations.push({
 			scope: "baseline",
-			metric: "heap_delta.mean",
-			actual: summary.summary.heap_delta.mean,
-			threshold: thresholds.heapDeltaMeanBytesMax,
+			metric: "commands.totalMeasuredMs",
+			actual: summary.commands.totalMeasuredMs,
+			threshold: thresholds.totalMeasuredMsMax,
 		});
 	}
 
-	if (summary.summary.idle_listeners.p95 > thresholds.idleListenersP95Max) {
+	if (summary.artifacts.tauriBinary.bytes > thresholds.tauriBinaryMaxBytes) {
 		violations.push({
 			scope: "baseline",
-			metric: "idle_listeners.p95",
-			actual: summary.summary.idle_listeners.p95,
-			threshold: thresholds.idleListenersP95Max,
+			metric: "artifacts.tauriBinary.bytes",
+			actual: summary.artifacts.tauriBinary.bytes,
+			threshold: thresholds.tauriBinaryMaxBytes,
 		});
 	}
 
 	return violations;
 }
 
-function evaluateStress(summary, thresholds) {
+function evaluateBuild(summary, thresholds) {
 	const violations = [];
 
-	if (summary.durationMin < thresholds.minDurationMin) {
+	if (summary.artifacts.mainChunk.bytes > thresholds.mainChunkMaxBytes) {
 		violations.push({
-			scope: "stress",
-			metric: "durationMin",
-			actual: summary.durationMin,
-			threshold: thresholds.minDurationMin,
+			scope: "build",
+			metric: "artifacts.mainChunk.bytes",
+			actual: summary.artifacts.mainChunk.bytes,
+			threshold: thresholds.mainChunkMaxBytes,
 		});
 	}
 
-	if (summary.heap.deltaPerMin > thresholds.heapDeltaPerMinBytesMax) {
+	if (
+		summary.artifacts.vendorAlphaTabChunk.bytes > thresholds.vendorAlphaTabMaxBytes
+	) {
 		violations.push({
-			scope: "stress",
-			metric: "heap.deltaPerMin",
-			actual: summary.heap.deltaPerMin,
-			threshold: thresholds.heapDeltaPerMinBytesMax,
+			scope: "build",
+			metric: "artifacts.vendorAlphaTabChunk.bytes",
+			actual: summary.artifacts.vendorAlphaTabChunk.bytes,
+			threshold: thresholds.vendorAlphaTabMaxBytes,
 		});
 	}
 
-	if (summary.listeners.stats.p95 > thresholds.listenersP95Max) {
+	if (
+		summary.artifacts.vendorCodeMirrorChunk.bytes > thresholds.vendorCodeMirrorMaxBytes
+	) {
 		violations.push({
-			scope: "stress",
-			metric: "listeners.stats.p95",
-			actual: summary.listeners.stats.p95,
-			threshold: thresholds.listenersP95Max,
-		});
-	}
-
-	if (summary.listeners.deltaPerMin > thresholds.listenersDeltaPerMinMax) {
-		violations.push({
-			scope: "stress",
-			metric: "listeners.deltaPerMin",
-			actual: summary.listeners.deltaPerMin,
-			threshold: thresholds.listenersDeltaPerMinMax,
+			scope: "build",
+			metric: "artifacts.vendorCodeMirrorChunk.bytes",
+			actual: summary.artifacts.vendorCodeMirrorChunk.bytes,
+			threshold: thresholds.vendorCodeMirrorMaxBytes,
 		});
 	}
 
@@ -127,14 +115,13 @@ function evaluateStress(summary, thresholds) {
 }
 
 function main() {
-	const { baselinePath, stressPath, thresholdPath } = parseArgs();
+	const { baselinePath, thresholdPath } = parseArgs();
 	const thresholds = readJson(thresholdPath);
 	const baselineSummary = readJson(baselinePath);
-	const stressSummary = readJson(stressPath);
 
 	const violations = [
-		...evaluateBaseline(baselineSummary, thresholds.baseline),
-		...evaluateStress(stressSummary, thresholds.stress),
+		...evaluateBaseline(baselineSummary, thresholds.tauriBuild),
+		...evaluateBuild(baselineSummary, thresholds.build),
 	];
 
 	if (violations.length > 0) {
@@ -149,7 +136,7 @@ function main() {
 
 	console.log("Performance threshold check passed.");
 	console.log(
-		`baseline=${path.basename(baselinePath)} stress=${path.basename(stressPath)} thresholds=${path.basename(thresholdPath)}`,
+		`baseline=${path.basename(baselinePath)} thresholds=${path.basename(thresholdPath)}`,
 	);
 }
 
