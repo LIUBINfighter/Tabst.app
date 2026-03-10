@@ -23,12 +23,13 @@ The product build, desktop release entrypoints, renderer desktop bridge naming, 
   - `src/renderer/lib/desktop-api.ts`
   - `src/renderer/lib/tauri-desktop-api.ts`
 - CI desktop build validation now runs the Tauri build path only.
+- Tauri security and runtime verification now has a shared baseline command:
+  - `pnpm verify:tauri`
+- CI now runs the shared Tauri verification baseline before bundling.
 
 ## Intentionally Deferred
 
 - Documentation cleanup outside the highest-signal files
-- Tauri capability tightening and CSP hardening
-- Rust command-layer modularization inside `src-tauri/src/lib.rs`
 - Tauri-first performance instrumentation and CI gates
 
 ## Verification Performed
@@ -49,11 +50,8 @@ Both passed after the Phase 1 cutover.
 ## Open Risks
 
 - Some historical engineering docs still describe pre-cutover architecture and need systematic review.
-- Tauri security posture is not tightened yet:
-  - capabilities are still broad
-  - CSP is still permissive
 - Performance automation was removed with the pre-cutover scripts and has not yet been replaced with Tauri-native measurement.
-- `src-tauri/src/lib.rs` still carries a large, centralized command surface and should be split by domain.
+- Security drift is easier to catch now, but we still lack repeatable Tauri-native performance sampling.
 
 ## Recommended Next Phase
 
@@ -61,10 +59,8 @@ Phase 2 should focus on Tauri normalization rather than more feature work.
 
 Suggested order:
 
-1. Split `src-tauri/src/lib.rs` into domain modules such as `fs`, `git`, `repo`, `settings`, `updater`, and `print`.
-2. Review `src-tauri/capabilities/default.json` and reduce permissions to the minimum required by each window.
-3. Audit `src-tauri/tauri.conf.json` and move away from permissive CSP settings.
-4. Rebuild performance scripts as Tauri-first desktop benchmarks, then reconnect them to CI.
+1. Rebuild performance scripts as Tauri-first desktop benchmarks, then reconnect them to CI with thresholds.
+2. Extend `pnpm verify:tauri` with additional desktop-safety assertions if the command surface grows.
 
 ## Collaboration Notes
 

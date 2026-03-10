@@ -16,6 +16,8 @@
 		"build:web": "pnpm type-check && pnpm build:react",
 		"build:tauri": "pnpm tauri build",
 		"bundle:assert": "node scripts/check-bundle-thresholds.mjs",
+		"check:tauri:config": "node scripts/verify-tauri-config.mjs",
+		"verify:tauri": "cargo check --manifest-path src-tauri/Cargo.toml && pnpm build:web && pnpm bundle:assert && cargo test --manifest-path src-tauri/Cargo.toml && pnpm check:tauri:config",
 		"serve:web": "vite preview --host 127.0.0.1 --port 4173 --strictPort",
 		"type-check": "tsc --noEmit",
 		"lint:fix": "biome check --write --linter-enabled=true --formatter-enabled=false --assist-enabled=true src",

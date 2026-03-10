@@ -90,6 +90,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Verify Tauri baseline
+        run: pnpm verify:tauri
+
       - name: Build desktop bundle target
         run: pnpm build
 
