@@ -20,7 +20,32 @@
 			}
 		],
 		"security": {
-			"csp": null
+			"csp": {
+				"default-src": "'self' customprotocol: asset:",
+				"base-uri": "'self'",
+				"object-src": "'none'",
+				"frame-ancestors": "'none'",
+				"script-src": "'self' 'wasm-unsafe-eval'",
+				"style-src": "'self' 'unsafe-inline'",
+				"connect-src": "'self' ipc: http://ipc.localhost",
+				"img-src": "'self' asset: http://asset.localhost data: blob:",
+				"font-src": "'self' asset: http://asset.localhost data: blob:",
+				"media-src": "'self' asset: http://asset.localhost data: blob:",
+				"worker-src": "'self' blob:"
+			},
+			"devCsp": {
+				"default-src": "'self' customprotocol: asset: http://127.0.0.1:7777 ws://127.0.0.1:7777",
+				"base-uri": "'self'",
+				"object-src": "'none'",
+				"frame-ancestors": "'none'",
+				"script-src": "'self' 'unsafe-eval' 'wasm-unsafe-eval' http://127.0.0.1:7777",
+				"style-src": "'self' 'unsafe-inline' http://127.0.0.1:7777",
+				"connect-src": "'self' ipc: http://ipc.localhost http://127.0.0.1:7777 ws://127.0.0.1:7777",
+				"img-src": "'self' asset: http://asset.localhost data: blob: http://127.0.0.1:7777",
+				"font-src": "'self' asset: http://asset.localhost data: blob: http://127.0.0.1:7777",
+				"media-src": "'self' asset: http://asset.localhost data: blob: http://127.0.0.1:7777",
+				"worker-src": "'self' blob: http://127.0.0.1:7777"
+			}
 		},
 		"withGlobalTauri": false
 	},
