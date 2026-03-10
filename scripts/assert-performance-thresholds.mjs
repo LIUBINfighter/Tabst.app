@@ -35,6 +35,28 @@ function readJson(filePath) {
 	return JSON.parse(fs.readFileSync(filePath, "utf8"));
 }
 
+function resolveTauriBuildThresholds(allThresholds, platform) {
+	const tauriBuild = allThresholds.tauriBuild;
+	if (!tauriBuild || typeof tauriBuild !== "object") {
+		throw new Error("Missing tauriBuild thresholds");
+	}
+
+	if (typeof tauriBuild.webBuildMsMax === "number") {
+		return tauriBuild;
+	}
+
+	const platformThresholds = tauriBuild[platform];
+	if (platformThresholds) {
+		return platformThresholds;
+	}
+
+	if (tauriBuild.default) {
+		return tauriBuild.default;
+	}
+
+	throw new Error(`Missing tauriBuild thresholds for platform '${platform}' and no default fallback`);
+}
+
 function evaluateBaseline(summary, thresholds) {
 	const violations = [];
 
@@ -118,9 +140,13 @@ function main() {
 	const { baselinePath, thresholdPath } = parseArgs();
 	const thresholds = readJson(thresholdPath);
 	const baselineSummary = readJson(baselinePath);
+	const tauriBuildThresholds = resolveTauriBuildThresholds(
+		thresholds,
+		baselineSummary.platform,
+	);
 
 	const violations = [
-		...evaluateBaseline(baselineSummary, thresholds.tauriBuild),
+		...evaluateBaseline(baselineSummary, tauriBuildThresholds),
 		...evaluateBuild(baselineSummary, thresholds.build),
 	];
 
