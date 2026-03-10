@@ -45,7 +45,7 @@ jobs:
         run: pnpm lint
 
   tauri-build:
-    name: Desktop Build (pnpm build)
+    name: Desktop Build (unsigned CI bundle)
     runs-on: ubuntu-latest
     needs: lint
     timeout-minutes: 30
@@ -97,7 +97,7 @@ jobs:
         run: pnpm perf:tauri:ci
 
       - name: Build desktop bundle target
-        run: pnpm build
+        run: pnpm build:tauri:ci
 
       - name: Upload Tauri bundle artifacts
         uses: actions/upload-artifact@v4
