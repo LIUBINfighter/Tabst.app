@@ -108,7 +108,10 @@ pnpm mix --out ./dist/share.md   # 指定输出文件
 
 ## 性能脚本状态
 
-旧的迁移前 baseline / stress 脚本已从主线移除。
+当前仓库默认桌面栈为 Tauri，性能门禁已切换到 Tauri-first 路径。
 
-- 当前仓库默认桌面栈为 Tauri。
-- 后续如果要恢复性能门禁，需要新增一套 Tauri-first 的性能采样脚本，再接回 CI。
+- `pnpm perf:tauri:baseline`：执行 `build:web` + Rust `release` 构建，并生成 `docs/dev/ops/tauri-performance-baseline-summary.json`
+- `pnpm perf:tauri:assert`：根据 `.github/perf-thresholds.json` 校验 Tauri 构建时长与关键产物体积
+- `pnpm perf:tauri:ci`：CI 使用的组合命令
+
+迁移前的 multi-baseline / long-stress 数据仍保留在 `docs/dev/ops/` 作为历史记录，但当前主线 CI 不再依赖它们。

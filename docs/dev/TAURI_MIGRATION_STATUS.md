@@ -30,7 +30,6 @@ The product build, desktop release entrypoints, renderer desktop bridge naming, 
 ## Intentionally Deferred
 
 - Documentation cleanup outside the highest-signal files
-- Tauri-first performance instrumentation and CI gates
 
 ## Verification Performed
 
@@ -50,8 +49,7 @@ Both passed after the Phase 1 cutover.
 ## Open Risks
 
 - Some historical engineering docs still describe pre-cutover architecture and need systematic review.
-- Performance automation was removed with the pre-cutover scripts and has not yet been replaced with Tauri-native measurement.
-- Security drift is easier to catch now, but we still lack repeatable Tauri-native performance sampling.
+- CI now has a Tauri-first build-performance baseline, but we still do not sample interactive runtime metrics such as preview lifecycle churn or long-session listener growth.
 
 ## Recommended Next Phase
 
@@ -59,7 +57,7 @@ Phase 2 should focus on Tauri normalization rather than more feature work.
 
 Suggested order:
 
-1. Rebuild performance scripts as Tauri-first desktop benchmarks, then reconnect them to CI with thresholds.
+1. Extend the Tauri performance baseline beyond build metrics if we need runtime-interaction sampling again.
 2. Extend `pnpm verify:tauri` with additional desktop-safety assertions if the command surface grows.
 
 ## Collaboration Notes
