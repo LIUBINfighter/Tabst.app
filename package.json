@@ -20,7 +20,7 @@
 		"perf:tauri:baseline": "node scripts/collect-tauri-performance-baseline.mjs",
 		"perf:tauri:assert": "node scripts/assert-performance-thresholds.mjs",
 		"perf:tauri:ci": "pnpm perf:tauri:baseline && pnpm perf:tauri:assert",
-		"verify:tauri": "cargo check --manifest-path src-tauri/Cargo.toml && pnpm build:web && pnpm bundle:assert && cargo test --manifest-path src-tauri/Cargo.toml && pnpm check:tauri:config",
+		"verify:tauri": "pnpm build:web && cargo check --manifest-path src-tauri/Cargo.toml && pnpm bundle:assert && cargo test --manifest-path src-tauri/Cargo.toml && pnpm check:tauri:config",
 		"serve:web": "vite preview --host 127.0.0.1 --port 4173 --strictPort",
 		"type-check": "tsc --noEmit",
 		"lint:fix": "biome check --write --linter-enabled=true --formatter-enabled=false --assist-enabled=true src",
