@@ -19,12 +19,9 @@ function isDesktopShellRuntime(): boolean {
 		__TAURI__?: unknown;
 		__TAURI_IPC__?: unknown;
 	};
-	const runtimeEnv = import.meta.env as Record<string, unknown>;
-	const tauriEnvPlatform = runtimeEnv.TAURI_ENV_PLATFORM;
 	const userAgent = typeof navigator === "undefined" ? "" : navigator.userAgent;
 
 	return (
-		(typeof tauriEnvPlatform === "string" && tauriEnvPlatform.length > 0) ||
 		Boolean(maybeWindow.__TAURI_INTERNALS__) ||
 		Boolean(maybeWindow.__TAURI__) ||
 		Boolean(maybeWindow.__TAURI_IPC__) ||

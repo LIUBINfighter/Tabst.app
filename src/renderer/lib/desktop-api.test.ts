@@ -2,10 +2,9 @@ import { describe, expect, it } from "vitest";
 import { shouldUseTauriDesktopApi } from "./desktop-api";
 
 describe("tauri runtime detection", () => {
-	it("detects tauri when TAURI_ENV_PLATFORM is present", () => {
+	it("does not treat TAURI_ENV_PLATFORM alone as a runtime signal", () => {
 		expect(
 			shouldUseTauriDesktopApi({
-				tauriEnvPlatform: "darwin",
 				hasTauriInternals: false,
 				hasTauriGlobal: false,
 				hasTauriIpc: false,
@@ -13,13 +12,12 @@ describe("tauri runtime detection", () => {
 				hostname: "127.0.0.1",
 				userAgent: "Mozilla/5.0",
 			}),
-		).toBe(true);
+		).toBe(false);
 	});
 
 	it("detects tauri when bridge globals exist", () => {
 		expect(
 			shouldUseTauriDesktopApi({
-				tauriEnvPlatform: undefined,
 				hasTauriInternals: true,
 				hasTauriGlobal: false,
 				hasTauriIpc: false,
@@ -33,7 +31,6 @@ describe("tauri runtime detection", () => {
 	it("detects tauri by user agent fallback", () => {
 		expect(
 			shouldUseTauriDesktopApi({
-				tauriEnvPlatform: undefined,
 				hasTauriInternals: false,
 				hasTauriGlobal: false,
 				hasTauriIpc: false,
@@ -47,7 +44,6 @@ describe("tauri runtime detection", () => {
 	it("keeps web fallback for plain browser runtime", () => {
 		expect(
 			shouldUseTauriDesktopApi({
-				tauriEnvPlatform: undefined,
 				hasTauriInternals: false,
 				hasTauriGlobal: false,
 				hasTauriIpc: false,

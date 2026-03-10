@@ -519,7 +519,6 @@ export function createWebDesktopAPI(): DesktopAPI {
 }
 
 interface TauriRuntimeDetectionInput {
-	tauriEnvPlatform: unknown;
 	hasTauriInternals: boolean;
 	hasTauriGlobal: boolean;
 	hasTauriIpc: boolean;
@@ -531,13 +530,9 @@ interface TauriRuntimeDetectionInput {
 export function shouldUseTauriDesktopApi(
 	input: TauriRuntimeDetectionInput,
 ): boolean {
-	const hasTauriEnvPlatform =
-		typeof input.tauriEnvPlatform === "string" &&
-		input.tauriEnvPlatform.length > 0;
 	const hasTauriUserAgent = /\bTauri\b/i.test(input.userAgent);
 
 	return (
-		hasTauriEnvPlatform ||
 		input.hasTauriInternals ||
 		input.hasTauriGlobal ||
 		input.hasTauriIpc ||
@@ -557,9 +552,7 @@ export function ensureDesktopApiInRuntime() {
 
 	if (maybeWindow.desktopAPI) return;
 
-	const runtimeEnv = import.meta.env as Record<string, unknown>;
 	const isTauriRuntime = shouldUseTauriDesktopApi({
-		tauriEnvPlatform: runtimeEnv.TAURI_ENV_PLATFORM,
 		hasTauriInternals: Boolean(maybeWindow.__TAURI_INTERNALS__),
 		hasTauriGlobal: Boolean(maybeWindow.__TAURI__),
 		hasTauriIpc: Boolean(maybeWindow.__TAURI_IPC__),
