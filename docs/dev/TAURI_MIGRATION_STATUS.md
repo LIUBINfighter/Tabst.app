@@ -6,7 +6,7 @@ Reference commit: `6892d6d`
 
 ## Summary
 
-The repository has completed the Phase 1 platform cutover from Electron to Tauri-first desktop runtime.
+The repository has completed the Phase 1 platform cutover to a Tauri-first desktop runtime.
 
 The product build, desktop release entrypoints, renderer desktop bridge naming, and CI desktop build path now assume Tauri as the only supported desktop shell.
 
@@ -16,9 +16,9 @@ The product build, desktop release entrypoints, renderer desktop bridge naming, 
   - `pnpm dev`
   - `pnpm build`
   - `pnpm release`
-- Electron runtime code has been removed from `src/main`.
-- Electron dependencies and packaging config have been removed from `package.json`.
-- Renderer desktop integration has been renamed from `window.electronAPI` to `window.desktopAPI`.
+- Legacy desktop runtime code has been removed from `src/main`.
+- Legacy desktop dependencies and packaging config have been removed from `package.json`.
+- Renderer desktop integration is now standardized on `window.desktopAPI`.
 - Runtime adapters now live in:
   - `src/renderer/lib/desktop-api.ts`
   - `src/renderer/lib/tauri-desktop-api.ts`
@@ -48,11 +48,11 @@ Both passed after the Phase 1 cutover.
 
 ## Open Risks
 
-- Some historical engineering docs still describe Electron-era architecture and need systematic review.
+- Some historical engineering docs still describe pre-cutover architecture and need systematic review.
 - Tauri security posture is not tightened yet:
   - capabilities are still broad
   - CSP is still permissive
-- Performance automation was removed with the Electron scripts and has not yet been replaced with Tauri-native measurement.
+- Performance automation was removed with the pre-cutover scripts and has not yet been replaced with Tauri-native measurement.
 - `src-tauri/src/lib.rs` still carries a large, centralized command surface and should be split by domain.
 
 ## Recommended Next Phase
@@ -74,4 +74,4 @@ If another agent or session continues this migration, start by checking:
 - `pnpm check`
 - this file
 
-Do not reintroduce compatibility shims for Electron unless there is a narrowly scoped rollback requirement.
+Do not reintroduce compatibility shims for the pre-cutover desktop runtime unless there is a narrowly scoped rollback requirement.

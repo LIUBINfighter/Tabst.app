@@ -1,10 +1,10 @@
-# Workspace Persistence Unification Plan (Electron + Tauri)
+# Workspace Persistence Unification Plan (Legacy Cutover + Tauri)
 
 ## 1. 目标与约束
 
 ### 目标
 - 除了 **Repo 列表索引**（机器级）外，所有状态持久化统一到 `repo/.tabst/`。
-- Electron 与 Tauri 采用一致的状态语义与数据结构。
+- 迁移前后的桌面壳层采用一致的状态语义与数据结构。
 - 保留向后兼容读取能力，避免升级后用户状态丢失。
 
 ### 约束
@@ -13,7 +13,7 @@
 
 ---
 
-## 2. Electron 现状（已完成功能清单）
+## 2. 迁移前现状（已完成功能清单）
 
 ### 2.1 机器级持久化
 - `~/.tabst/repos.json`
@@ -41,7 +41,7 @@
 ### 2.3 已识别问题
 - 状态分散在三处：`settings.json` + `app-state.json` + `workspace.json`。
 - 语义上“工作区状态”与“机器偏好”耦合不清，迁移/备份不直观。
-- Electron/Tauri 虽有接口对齐，但历史上存在桥接参数/运行时识别分叉风险。
+- 迁移前后虽已对齐接口，但历史上存在桥接参数/运行时识别分叉风险。
 
 ---
 
@@ -95,7 +95,7 @@
    - `scheduleSaveAppState` 改为保存 workspace session
    - `initialize/switchRepo` 从 workspace metadata 恢复会话
 
-3. **Electron/Tauri 同步语义**
+3. **迁移前后同步语义**
    - 两端都以 `workspace.json` 为非 repo-list 状态源
    - 保持 `repos.json` 机器级唯一索引
 
@@ -120,7 +120,7 @@
 
 - [x] `repos.json` 仍在机器级，且仅用于 repo 索引
 - [x] 其余状态通过 renderer 统一落 `repo/.tabst/workspace.json`
-- [x] Electron 与 Tauri 共享同一 `workspace.json` 语义（通过统一 bridge + metadata schema）
+- [x] 迁移前后的桌面壳层共享同一 `workspace.json` 语义（通过统一 bridge + metadata schema）
 - [x] 保留 legacy 读取兜底（旧全局 settings 作为读取 fallback）
 - [x] lint/typecheck/tests/build 全部通过
 

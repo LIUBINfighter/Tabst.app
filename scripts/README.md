@@ -108,7 +108,7 @@ pnpm mix --out ./dist/share.md   # 指定输出文件
 
 ## 性能脚本状态
 
-旧的 Electron baseline / stress 脚本已从主线移除。
+旧的迁移前 baseline / stress 脚本已从主线移除。
 
 - 当前仓库默认桌面栈为 Tauri。
 - 后续如果要恢复性能门禁，需要新增一套 Tauri-first 的性能采样脚本，再接回 CI。
