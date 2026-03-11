@@ -3959,7 +3959,7 @@ dependencies = [
 
 [[package]]
 name = "tabst-tauri"
-version = "0.6.6-tauri-next"
+version = "0.6.7"
 dependencies = [
  "dirs 5.0.1",
  "notify",
