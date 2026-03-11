@@ -3,7 +3,9 @@ name: Release Tauri Windows
 on:
   push:
     tags:
-      - "*-tauri-next"
+      - "*.*.*"
+      - "*.*.*-beta.*"
+      - "*.*.*-rc.*"
 
 jobs:
   build-and-release:
