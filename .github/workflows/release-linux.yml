@@ -3,7 +3,7 @@ name: Release Tauri Linux
 on:
   push:
     tags:
-      - "*-tauri-next"
+      - "v*"
 
 jobs:
   build-and-release-linux:
