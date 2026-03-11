@@ -1,7 +1,7 @@
 {
 	"name": "tabst",
 	"productName": "Tabst",
-	"version": "0.6.6-tauri-next",
+	"version": "0.6.7",
 	"description": "A minimal Guitar Tabs typewriter.",
 	"type": "module",
 	"scripts": {
