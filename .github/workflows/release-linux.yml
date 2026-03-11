@@ -92,7 +92,7 @@ jobs:
           VERSION=$(node -p "require('./package.json').version")
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
-      - name: Create or update published release with Linux assets
+      - name: Create or update draft release with Linux assets
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
@@ -102,7 +102,7 @@ jobs:
             src-tauri/target/release/bundle/appimage/*.AppImage
             src-tauri/target/release/bundle/updater-manifests/*.json
             src-tauri/target/release/bundle/**/*.sig
-          body: "Automated Tauri release created by workflow"
-          draft: false
+          body: "Automated Tauri draft release created by workflow. Publish manually after all platform assets are uploaded."
+          draft: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

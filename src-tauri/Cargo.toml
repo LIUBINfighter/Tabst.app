@@ -1,6 +1,6 @@
 [package]
 name = "tabst-tauri"
-version = "0.6.7"
+version = "0.6.8"
 description = "Tabst Tauri runtime"
 authors = ["Jay Bridge"]
 license = "ISC"
