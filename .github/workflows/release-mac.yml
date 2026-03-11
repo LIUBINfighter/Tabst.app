@@ -3,7 +3,9 @@ name: Release Tauri macOS
 on:
   push:
     tags:
-      - "v*"
+      - "*.*.*"
+      - "*.*.*-beta.*"
+      - "*.*.*-rc.*"
 
 jobs:
   build-and-release-macos:
