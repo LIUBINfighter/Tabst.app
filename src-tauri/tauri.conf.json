@@ -67,8 +67,8 @@
 	"plugins": {
 		"updater": {
 			"endpoints": [
-				"https://github.com/LIUBINfighter/Tabst.app/releases/latest/download/latest-{{target}}-{{bundle_type}}.json",
-				"https://github.com/LIUBINfighter/Tabst.app/releases/latest/download/latest-{{target}}.json"
+				"https://github.com/LIUBINfighter/Tabst.app/releases/latest/download/latest-{{target}}-{{arch}}-{{bundle_type}}.json",
+				"https://github.com/LIUBINfighter/Tabst.app/releases/latest/download/latest-{{target}}-{{arch}}.json"
 			],
 			"pubkey": "__UPDATER_PUBLIC_KEY__",
 			"windows": {

@@ -49,6 +49,7 @@ AlphaTex 编辑器实现文档。
 | 文档 | 内容 |
 |------|------|
 | [AUTO_UPDATE.md](./ops/AUTO_UPDATE.md) | 自动更新实现（需与当前 Tauri updater 流程对照审阅） |
+| [TAURI_AUTO_UPDATE.md](./ops/TAURI_AUTO_UPDATE.md) | 当前 Tauri 自动更新发布/草稿/发布后校验流程 |
 | [REFACTORING.md](./ops/REFACTORING.md) | Effect-TS 重构总结 |
 | [SECURITY.md](./ops/SECURITY.md) | 安全审计记录 |
 | [TAURI_MIGRATION_STATUS.md](./TAURI_MIGRATION_STATUS.md) | Tauri 迁移当前进度、已完成项、待办与协作说明 |
