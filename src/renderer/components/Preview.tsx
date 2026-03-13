@@ -52,6 +52,7 @@ import {
 	createPlaybackFrameGate,
 	type PlaybackFrameGate,
 } from "../lib/playback-frame-gate";
+import { prepareAlphaTabAudioForPlayback } from "../lib/player-audio-recovery";
 import {
 	PREVIEW_COMMAND_EVENT,
 	type PreviewCommandId,
@@ -424,6 +425,39 @@ export default function Preview({
 	useEffect(() => {
 		editorHasFocusRef.current = editorHasFocus;
 	}, [editorHasFocus]);
+
+	const recoverPlaybackAudio = useCallback(async () => {
+		const api = apiRef.current;
+		if (!api) {
+			return;
+		}
+
+		const recovery = await prepareAlphaTabAudioForPlayback(api);
+		if (recovery.didAttemptActivation) {
+			console.info(
+				`[Preview] playback audio recovery ${JSON.stringify(recovery)}`,
+			);
+		}
+	}, []);
+
+	useEffect(() => {
+		const handleWindowFocus = () => {
+			void recoverPlaybackAudio();
+		};
+		const handleVisibilityChange = () => {
+			if (!document.hidden) {
+				void recoverPlaybackAudio();
+			}
+		};
+
+		window.addEventListener("focus", handleWindowFocus);
+		document.addEventListener("visibilitychange", handleVisibilityChange);
+
+		return () => {
+			window.removeEventListener("focus", handleWindowFocus);
+			document.removeEventListener("visibilitychange", handleVisibilityChange);
+		};
+	}, [recoverPlaybackAudio]);
 
 	useEffect(() => {
 		latestContentRef.current = content ?? "";
@@ -1148,6 +1182,7 @@ export default function Preview({
 							};
 
 							const playNow = async (delayMs = 0) => {
+								await recoverPlaybackAudio();
 								const ready = await ensurePlaybackReady();
 								if (!ready) {
 									console.error(
@@ -1164,7 +1199,15 @@ export default function Preview({
 										window.setTimeout(resolve, delayMs),
 									);
 								}
-								const didPlay = api.play?.();
+								let didPlay = api.play?.();
+								if (!didPlay && currentSoundFontUrlRef.current) {
+									await loadSoundFontFromUrl(
+										api,
+										currentSoundFontUrlRef.current,
+									);
+									await recoverPlaybackAudio();
+									didPlay = api.play?.();
+								}
 								console.info(
 									`[Preview] api.play() invoked ${JSON.stringify({ didPlay, isReadyForPlayback: api.isReadyForPlayback, tickPosition: api.tickPosition })}`,
 								);
@@ -1862,6 +1905,7 @@ export default function Preview({
 		setPlaybackProgressIfChanged,
 		setPlayerCursorIfChanged,
 		setPlayerIsPlayingIfChanged,
+		recoverPlaybackAudio,
 	]);
 
 	// 内容更新：仅调用 tex，不销毁 API，避免闪烁
