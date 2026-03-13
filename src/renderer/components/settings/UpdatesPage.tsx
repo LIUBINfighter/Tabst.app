@@ -1,7 +1,8 @@
 import DOMPurify from "dompurify";
 import moment from "moment";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { AppLink } from "../ui/app-link";
 import { Button } from "../ui/button";
 
 interface ReleaseEntry {
@@ -19,6 +20,7 @@ export function UpdatesPage() {
 	const [releases, setReleases] = useState<ReleaseEntry[]>([]);
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+	const releasesContainerRef = useRef<HTMLDivElement | null>(null);
 
 	const fetchReleases = useCallback(async () => {
 		setLoading(true);
@@ -130,6 +132,41 @@ export function UpdatesPage() {
 		}
 	};
 
+	useEffect(() => {
+		const container = releasesContainerRef.current;
+		if (!container) {
+			return;
+		}
+
+		const handleReleaseContentClick = (event: MouseEvent) => {
+			const target = event.target;
+			if (!(target instanceof HTMLElement)) {
+				return;
+			}
+
+			const anchor = target.closest("a");
+			if (!(anchor instanceof HTMLAnchorElement) || !anchor.href) {
+				return;
+			}
+
+			event.preventDefault();
+			void window.desktopAPI.openExternal(anchor.href).then((result) => {
+				if (!result?.success) {
+					console.error(
+						"[UpdatesPage] failed to open release link",
+						result?.error,
+						anchor.href,
+					);
+				}
+			});
+		};
+
+		container.addEventListener("click", handleReleaseContentClick);
+		return () => {
+			container.removeEventListener("click", handleReleaseContentClick);
+		};
+	});
+
 	return (
 		<div className="space-y-4">
 			<section className="bg-card border border-border rounded p-4">
@@ -174,7 +211,7 @@ export function UpdatesPage() {
 					</div>
 				)}
 
-				<div className="space-y-4">
+				<div className="space-y-4" ref={releasesContainerRef}>
 					{releases.map((release) => (
 						<div
 							key={release.id}
@@ -183,14 +220,12 @@ export function UpdatesPage() {
 							<div className="flex items-start justify-between gap-2">
 								<h4 className="text-sm font-medium flex-1">{release.title}</h4>
 								{release.link && (
-									<a
+									<AppLink
 										href={release.link}
-										target="_blank"
-										rel="noopener noreferrer"
 										className="text-xs text-primary hover:underline shrink-0"
 									>
 										{t("viewRelease")}
-									</a>
+									</AppLink>
 								)}
 							</div>
 							{release.updated && (

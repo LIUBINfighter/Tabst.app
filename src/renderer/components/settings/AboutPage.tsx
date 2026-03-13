@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { TutorialRenderer } from "../tutorial/TutorialRenderer";
+import { AppLink } from "../ui/app-link";
 
 export function AboutPage() {
 	const { t } = useTranslation(["settings", "common"]);
@@ -60,14 +61,12 @@ export function AboutPage() {
 					<p className="text-xs text-muted-foreground">
 						{t("settings:aboutTagline2")}
 					</p>
-					<a
+					<AppLink
 						href="https://github.com/LIUBINfighter/Tabst.app"
-						target="_blank"
-						rel="noopener noreferrer"
 						className="text-xs text-primary hover:underline inline-block"
 					>
 						{t("settings:githubLink")}
-					</a>
+					</AppLink>
 				</div>
 			</section>
 
@@ -85,32 +84,26 @@ export function AboutPage() {
 						{t("settings:alphatabCaptionLine1")}
 					</p>
 					<p className="text-xs text-muted-foreground text-center">
-						<a
+						<AppLink
 							href="https://github.com/CoderLine/alphaTab"
-							target="_blank"
-							rel="noopener noreferrer"
 							className="text-xs text-primary hover:underline"
 						>
 							{t("settings:alphatabLinkGithub")}
-						</a>
+						</AppLink>
 						<span className="mx-2 text-muted-foreground">|</span>
-						<a
+						<AppLink
 							href="https://alphatab.net/"
-							target="_blank"
-							rel="noopener noreferrer"
 							className="text-xs text-primary hover:underline"
 						>
 							{t("settings:alphatabLinkWebsite")}
-						</a>
+						</AppLink>
 						<span className="mx-2 text-muted-foreground">|</span>
-						<a
+						<AppLink
 							href="https://alphatab.net/docs/alphatex/introduction"
-							target="_blank"
-							rel="noopener noreferrer"
 							className="text-xs text-primary hover:underline"
 						>
 							{t("settings:alphatabLinkAlphaTex")}
-						</a>
+						</AppLink>
 					</p>
 				</div>
 			</section>
@@ -132,7 +125,11 @@ export function AboutPage() {
 					</div>
 				)}
 				{!loading && !error && readmeContent && (
-					<TutorialRenderer content={readmeContent} allowHtml={true} />
+					<TutorialRenderer
+						content={readmeContent}
+						allowHtml={true}
+						sourcePath="README.md"
+					/>
 				)}
 			</section>
 		</div>

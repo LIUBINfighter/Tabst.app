@@ -67,6 +67,9 @@ export interface DesktopAPI {
 	revealInFolder: (
 		filePath: string,
 	) => Promise<{ success: boolean; error?: string } | null>;
+	openExternal: (
+		target: string,
+	) => Promise<{ success: boolean; error?: string } | null>;
 	readAsset: (relPath: string) => Promise<Uint8Array>;
 	selectFolder: () => Promise<string | null>;
 	readFile: (filePath: string) => Promise<{ content: string; error?: string }>;

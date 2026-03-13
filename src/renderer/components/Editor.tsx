@@ -39,6 +39,7 @@ import Preview from "./Preview";
 import QuoteCard from "./QuoteCard";
 import TopBar from "./TopBar";
 import { TracksPanel, type TracksPanelProps } from "./TracksPanel";
+import { AppLink } from "./ui/app-link";
 import { Button } from "./ui/button";
 import IconButton from "./ui/icon-button";
 import {
@@ -670,10 +671,8 @@ export function Editor({
 			<div className="flex-1 flex items-center justify-center">
 				<div className="flex flex-col items-center gap-5 px-4 py-6 sm:gap-6">
 					{isWebRuntime ? (
-						<a
+						<AppLink
 							href="https://github.com/LIUBINfighter/Tabst.app"
-							target="_blank"
-							rel="noopener noreferrer"
 							className="w-[min(44rem,94vw)] rounded-2xl border border-primary/30 bg-gradient-to-br from-primary/10 via-card to-card p-4 shadow-sm transition-colors hover:border-primary/60 hover:bg-primary/5 sm:p-6"
 						>
 							<div className="mb-4 flex items-start justify-between gap-3">
@@ -694,7 +693,7 @@ export function Editor({
 							<span className="text-sm font-medium text-primary">
 								{t("common:webSandboxCardOpenRepo")}
 							</span>
-						</a>
+						</AppLink>
 					) : null}
 					<p className="text-sm text-muted-foreground">
 						{t("common:selectOrCreateFile")}

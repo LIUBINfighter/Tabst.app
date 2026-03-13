@@ -45,7 +45,7 @@ export function RoadmapPage() {
 				</div>
 			)}
 			{!loading && !error && roadmapContent && (
-				<TutorialRenderer content={roadmapContent} />
+				<TutorialRenderer content={roadmapContent} sourcePath="ROADMAP.md" />
 			)}
 		</section>
 	);

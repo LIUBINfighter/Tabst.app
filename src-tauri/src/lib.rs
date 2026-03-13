@@ -7,8 +7,9 @@ mod support;
 mod updater_commands;
 
 use fs_commands::{
-	create_file, create_folder, load_app_state, move_path, open_file, read_asset, read_file,
-	read_file_bytes, rename_file, reveal_in_folder, save_app_state, save_file, select_folder,
+	create_file, create_folder, load_app_state, move_path, open_external, open_file,
+	read_asset, read_file, read_file_bytes, rename_file, reveal_in_folder, save_app_state,
+	save_file, select_folder,
 };
 use git_commands::{
 	commit_git_changes, get_git_diff, get_git_status, stage_all_git_changes, stage_git_file,
@@ -40,6 +41,7 @@ pub fn run() {
 			rename_file,
 			move_path,
 			reveal_in_folder,
+			open_external,
 			read_asset,
 			read_file,
 			read_file_bytes,
