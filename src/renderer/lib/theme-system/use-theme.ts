@@ -1,6 +1,7 @@
 import { useEffect, useMemo } from "react";
 import { useAppStore } from "../../store/appStore";
 import { useThemeStore } from "../../store/themeStore";
+import { getEditorThemeForUi } from "./editor-theme-adapter";
 import { getEditorTheme, getUITheme } from "./theme-registry";
 import type { EditorTheme, ThemeMode, UITheme, UIThemeColors } from "./types";
 
@@ -47,8 +48,8 @@ export function useTheme(): UseThemeReturn {
 				`Editor theme "${currentEditorTheme}" not found and fallback "github" also not found`,
 			);
 		}
-		return theme;
-	}, [currentEditorTheme]);
+		return getEditorThemeForUi(theme, isDark);
+	}, [currentEditorTheme, isDark]);
 
 	const effectiveColors = useMemo(() => {
 		return uiTheme[effectiveVariant];
