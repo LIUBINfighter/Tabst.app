@@ -288,12 +288,12 @@ const obsidian: UITheme = {
 			foreground: "rgb(167, 139, 250)",
 		},
 		score: {
-			mainGlyph: "#f0ebff",
-			secondaryGlyph: "rgba(240, 235, 255, 0.6)",
+			mainGlyph: "#d8cfee",
+			secondaryGlyph: "rgba(216, 207, 238, 0.58)",
 			staffLine: "#4a4458",
 			barSeparator: "#4a4458",
 			barNumber: "#9ca3af",
-			scoreInfo: "#d1d5db",
+			scoreInfo: "#b8add4",
 		},
 		playerCursor: {
 			background: "rgba(167, 139, 250, 0.4)",
