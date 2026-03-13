@@ -893,7 +893,7 @@ const vscodeEditorTheme: EditorTheme = {
 		keyword: "#569cd6",
 		operator: "#d4d4d4",
 		string: "#ce9178",
-		number: "#b5cea8",
+		number: "#7fa06a",
 		atom: "#dcdcaa",
 		function: "#dcdcaa",
 		tag: "#569cd6",
