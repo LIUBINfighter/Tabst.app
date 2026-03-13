@@ -329,6 +329,16 @@ export function createWebDesktopAPI(): DesktopAPI {
 			error: "Unsupported in web runtime",
 		}),
 
+		openExternal: async (target: string) => {
+			const opener = window.open;
+			if (typeof opener !== "function") {
+				return { success: false, error: "window-open-unavailable" };
+			}
+
+			opener(target, "_blank", "noopener,noreferrer");
+			return { success: true };
+		},
+
 		readAsset: async (relPath: string) => {
 			const normalized = relPath.replace(/^\/+/, "");
 			const candidatePaths = [normalized];

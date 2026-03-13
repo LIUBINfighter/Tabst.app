@@ -189,6 +189,17 @@ export function createTauriDesktopAPI(): DesktopAPI {
 			}
 		},
 
+		openExternal: async (target: string) => {
+			try {
+				return await invokeCommand<{ success: boolean; error?: string } | null>(
+					"open_external",
+					{ target },
+				);
+			} catch (error) {
+				return { success: false, error: toErrorMessage(error) };
+			}
+		},
+
 		readAsset: async (relPath: string): Promise<Uint8Array> => {
 			const data = await invokeCommand<number[] | Uint8Array>("read_asset", {
 				rel_path: relPath,

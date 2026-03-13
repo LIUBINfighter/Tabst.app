@@ -1,5 +1,14 @@
-import { describe, expect, it } from "vitest";
-import { shouldUseTauriDesktopApi } from "./desktop-api";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createWebDesktopAPI, shouldUseTauriDesktopApi } from "./desktop-api";
+
+beforeEach(() => {
+	Object.defineProperty(globalThis, "window", {
+		value: {
+			open: vi.fn(),
+		},
+		configurable: true,
+	});
+});
 
 describe("tauri runtime detection", () => {
 	it("does not treat TAURI_ENV_PLATFORM alone as a runtime signal", () => {
@@ -52,5 +61,17 @@ describe("tauri runtime detection", () => {
 				userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X)",
 			}),
 		).toBe(false);
+	});
+
+	it("opens external links through the web runtime bridge", async () => {
+		const api = createWebDesktopAPI();
+		const result = await api.openExternal("https://example.com/docs");
+
+		expect(result).toEqual({ success: true });
+		expect(window.open).toHaveBeenCalledWith(
+			"https://example.com/docs",
+			"_blank",
+			"noopener,noreferrer",
+		);
 	});
 });
