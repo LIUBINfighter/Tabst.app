@@ -2,6 +2,7 @@ import { EditorState } from "@codemirror/state";
 import { EditorView, keymap, lineNumbers } from "@codemirror/view";
 import { useEffect, useRef } from "react";
 import { createAlphaTexHighlightForTheme } from "../../lib/alphatex-highlight";
+import { createCMThemeFromEditorTheme } from "../../lib/codemirror-themes/create-cm-theme";
 import { useTheme } from "../../lib/theme-system/use-theme";
 
 const SAMPLE_ALPHATEX_CODE = `// Welcome to Tabst - Guitar Tab Editor
@@ -31,7 +32,7 @@ const SAMPLE_ALPHATEX_CODE = `// Welcome to Tabst - Guitar Tab Editor
 `;
 
 export function EditorPreview() {
-	const { editorTheme } = useTheme();
+	const { editorTheme, isDark } = useTheme();
 	const editorRef = useRef<HTMLDivElement>(null);
 	const viewRef = useRef<EditorView | null>(null);
 
@@ -44,53 +45,13 @@ export function EditorPreview() {
 		}
 
 		const alphaTexHighlight = createAlphaTexHighlightForTheme(editorTheme);
-
-		const baseTheme = EditorView.theme({
-			"&": {
-				backgroundColor: "hsl(var(--card))",
-				color: "hsl(var(--foreground))",
-				fontSize: "14px",
-				fontFamily:
-					'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace',
-				borderRadius: "6px",
-				height: "100%",
-				display: "flex",
-				flexDirection: "column",
-			},
-			".cm-scroller": {
-				overflowX: "hidden",
-				overflowY: "auto",
-				height: "100%",
-				minHeight: "0",
-				fontFamily:
-					'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace',
-				scrollbarWidth: "thin",
-			},
+		const baseTheme = createCMThemeFromEditorTheme(editorTheme, isDark);
+		const previewSpacingTheme = EditorView.theme({
 			".cm-content": {
 				padding: "8px 0",
 			},
 			".cm-line": {
 				padding: "0 8px",
-			},
-			".cm-gutters": {
-				backgroundColor: "hsl(var(--card))",
-				border: "none",
-				color: "hsl(var(--muted-foreground))",
-			},
-			".cm-activeLineGutter": {
-				backgroundColor: "transparent",
-			},
-			".cm-activeLine": {
-				backgroundColor: "hsl(var(--muted) / 0.06)",
-			},
-			".cm-cursor": {
-				borderLeftColor: "hsl(var(--primary))",
-			},
-			".cm-selectionBackground": {
-				backgroundColor: "var(--selection-overlay)",
-				color: "inherit",
-				opacity: "1",
-				mixBlendMode: "normal",
 			},
 		});
 
@@ -99,7 +60,8 @@ export function EditorPreview() {
 		const state = EditorState.create({
 			doc: SAMPLE_ALPHATEX_CODE,
 			extensions: [
-				baseTheme,
+				...baseTheme,
+				previewSpacingTheme,
 				...alphaTexHighlight,
 				lineNumbers(),
 				readOnlyExtension,
@@ -119,7 +81,7 @@ export function EditorPreview() {
 				viewRef.current = null;
 			}
 		};
-	}, [editorTheme]);
+	}, [editorTheme, isDark]);
 
 	return (
 		<div className="mt-4">

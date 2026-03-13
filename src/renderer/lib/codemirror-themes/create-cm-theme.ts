@@ -2,32 +2,16 @@ import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import type { Extension } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { tags } from "@lezer/highlight";
+import { getEditorThemeForUi } from "../theme-system/editor-theme-adapter";
 import type { EditorTheme } from "../theme-system/types";
 
 export function createCMThemeFromEditorTheme(
 	editorTheme: EditorTheme,
 	isDarkUI: boolean,
 ): Extension[] {
-	const useLightSafeDracula = editorTheme.id === "dracula" && !isDarkUI;
-	const colors = useLightSafeDracula
-		? {
-				...editorTheme.colors,
-				keyword: "#c2185b",
-				operator: "#c2185b",
-				string: "#8b5e00",
-				number: "#7e57c2",
-				atom: "#b45309",
-				function: "#0f766e",
-				tag: "#c2185b",
-				attribute: "#0f766e",
-				variable: "hsl(var(--foreground))",
-				bracket: "hsl(var(--foreground))",
-				atomBackground: "hsl(var(--primary) / 0.16)",
-				matchBackground: "hsl(var(--muted) / 0.24)",
-				selectionMatch: "hsl(var(--primary) / 0.28)",
-			}
-		: editorTheme.colors;
-	const cm = editorTheme.cmConfig;
+	const effectiveTheme = getEditorThemeForUi(editorTheme, isDarkUI);
+	const colors = effectiveTheme.colors;
+	const cm = effectiveTheme.cmConfig;
 
 	const highlightStyle = HighlightStyle.define([
 		{ tag: tags.comment, color: colors.comment },
@@ -104,27 +88,19 @@ export function createCMThemeFromEditorTheme(
 
 	if (cm) {
 		themeStyles["&"].backgroundColor = cm.background;
-		themeStyles["&"].color = useLightSafeDracula
-			? "hsl(var(--foreground))"
-			: cm.foreground;
-		themeStyles[".cm-gutters"].color = useLightSafeDracula
-			? "hsl(var(--muted-foreground))"
-			: cm.gutterForeground;
+		themeStyles["&"].color = cm.foreground;
+		themeStyles[".cm-gutters"].color = cm.gutterForeground;
 		themeStyles[".cm-selectionBackground, .cm-selection"] = {
-			backgroundColor: useLightSafeDracula
-				? "hsl(var(--primary) / 0.18)"
-				: cm.selection,
+			backgroundColor: cm.selection,
 			color: "inherit",
 			opacity: "1",
 			mixBlendMode: "normal",
 		};
 		themeStyles[".cm-activeLine"] = {
-			backgroundColor: useLightSafeDracula
-				? "hsl(var(--muted) / 0.14)"
-				: cm.lineHighlight,
+			backgroundColor: cm.lineHighlight,
 		};
 		themeStyles[".cm-cursor"] = {
-			borderLeftColor: useLightSafeDracula ? "hsl(var(--primary))" : cm.cursor,
+			borderLeftColor: cm.cursor,
 		};
 	} else {
 		themeStyles["&"].backgroundColor = "hsl(var(--card))";
@@ -137,8 +113,8 @@ export function createCMThemeFromEditorTheme(
 	}
 
 	const isDark =
-		editorTheme.variant === "dark" ||
-		(editorTheme.variant === "universal" && isDarkUI);
+		effectiveTheme.variant === "dark" ||
+		(effectiveTheme.variant === "universal" && isDarkUI);
 	const baseTheme = EditorView.theme(themeStyles, { dark: isDark });
 
 	return [baseTheme, syntaxHighlighting(highlightStyle)];
