@@ -12,6 +12,14 @@ use crate::{
     ReadFileBytesResponse, ReadFileResponse, SaveResult,
 };
 
+fn is_allowed_external_target(target: &str) -> bool {
+    let normalized = target.trim().to_ascii_lowercase();
+    normalized.starts_with("http://")
+        || normalized.starts_with("https://")
+        || normalized.starts_with("mailto:")
+        || normalized.starts_with("tel:")
+}
+
 #[tauri::command]
 pub(crate) fn open_file(extensions: Vec<String>) -> Option<FileResult> {
     let mut dialog = FileDialog::new();
@@ -451,6 +459,50 @@ pub(crate) fn reveal_in_folder(file_path: String) -> BasicResult {
             .unwrap_or_else(|| normalized_path.clone());
         Command::new("xdg-open")
             .arg(target)
+            .status()
+            .map_err(to_error)
+    };
+
+    match result {
+        Ok(status) if status.success() => BasicResult {
+            success: true,
+            error: None,
+        },
+        Ok(status) => BasicResult {
+            success: false,
+            error: Some(format!("command-exit-{}", status.code().unwrap_or(-1))),
+        },
+        Err(error) => BasicResult {
+            success: false,
+            error: Some(error),
+        },
+    }
+}
+
+#[tauri::command]
+pub(crate) fn open_external(target: String) -> BasicResult {
+    let normalized_target = target.trim().to_string();
+    if normalized_target.is_empty() || !is_allowed_external_target(&normalized_target) {
+        return BasicResult {
+            success: false,
+            error: Some("unsupported-external-target".to_string()),
+        };
+    }
+
+    let result = if cfg!(target_os = "macos") {
+        Command::new("open")
+            .arg(&normalized_target)
+            .status()
+            .map_err(to_error)
+    } else if cfg!(target_os = "windows") {
+        Command::new("rundll32")
+            .arg("url.dll,FileProtocolHandler")
+            .arg(&normalized_target)
+            .status()
+            .map_err(to_error)
+    } else {
+        Command::new("xdg-open")
+            .arg(&normalized_target)
             .status()
             .map_err(to_error)
     };
