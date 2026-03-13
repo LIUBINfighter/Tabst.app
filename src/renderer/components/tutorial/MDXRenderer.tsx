@@ -1,9 +1,11 @@
 import { MDXProvider } from "@mdx-js/react";
 import type { MDXModule } from "mdx/types";
+import { AppLink } from "../ui/app-link";
 import { components as mdxComponents } from "./mdx-components";
 
 interface MDXRendererProps {
 	module: MDXModule;
+	sourcePath?: string;
 }
 
 // 合并自定义组件和 Markdown 元素样式
@@ -44,14 +46,12 @@ const allComponents = {
 		</blockquote>
 	),
 	a: ({ href, children }: { href?: string; children?: React.ReactNode }) => (
-		<a
+		<AppLink
 			href={href}
 			className="text-primary hover:underline break-words whitespace-normal"
-			target={href?.startsWith("http") ? "_blank" : undefined}
-			rel={href?.startsWith("http") ? "noopener noreferrer" : undefined}
 		>
 			{children}
-		</a>
+		</AppLink>
 	),
 	hr: () => <hr className="my-6 border-border" />,
 	strong: ({ children }: { children?: React.ReactNode }) => (
@@ -117,11 +117,23 @@ const allComponents = {
 	),
 };
 
-export function MDXRenderer({ module }: MDXRendererProps) {
+export function MDXRenderer({ module, sourcePath }: MDXRendererProps) {
 	const Content = module.default as React.ComponentType;
+	const componentsWithContext = {
+		...allComponents,
+		a: ({ href, children }: { href?: string; children?: React.ReactNode }) => (
+			<AppLink
+				href={href}
+				sourcePath={sourcePath}
+				className="text-primary hover:underline break-words whitespace-normal"
+			>
+				{children}
+			</AppLink>
+		),
+	};
 
 	return (
-		<MDXProvider components={allComponents}>
+		<MDXProvider components={componentsWithContext}>
 			<div className="prose prose-sm max-w-none dark:prose-invert">
 				<Content />
 			</div>

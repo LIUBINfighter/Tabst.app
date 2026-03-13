@@ -3,17 +3,20 @@ import type { Components } from "react-markdown";
 import ReactMarkdown from "react-markdown";
 import rehypeRaw from "rehype-raw";
 import remarkGfm from "remark-gfm";
+import { AppLink } from "../ui/app-link";
 import { CodeBlock } from "./CodeBlock";
 import { TutorialImage } from "./TutorialImage";
 
 interface TutorialRendererProps {
 	content: string;
 	allowHtml?: boolean;
+	sourcePath?: string;
 }
 
 export function TutorialRenderer({
 	content,
 	allowHtml = true,
+	sourcePath,
 }: TutorialRendererProps) {
 	const components = {
 		pre: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
@@ -154,22 +157,13 @@ export function TutorialRenderer({
 		),
 
 		a: ({ href, children }: { href?: string; children?: React.ReactNode }) => (
-			<a
+			<AppLink
 				href={href}
+				sourcePath={sourcePath}
 				className="text-primary hover:underline break-words whitespace-normal"
-				target={
-					typeof href === "string" && href.startsWith("http")
-						? "_blank"
-						: undefined
-				}
-				rel={
-					typeof href === "string" && href.startsWith("http")
-						? "noopener noreferrer"
-						: undefined
-				}
 			>
 				{children}
-			</a>
+			</AppLink>
 		),
 
 		hr: () => <hr className="my-6 border-border" />,
