@@ -179,7 +179,6 @@ function EditorBottomBar({
 	setMetronomeVolume,
 	countInEnabled,
 	setCountInEnabled,
-	enablePlaybackProgressBar,
 	enablePlaybackProgressSeek,
 	playbackPositionTick,
 	playbackEndTick,
@@ -215,7 +214,6 @@ function EditorBottomBar({
 	setMetronomeVolume: (v: number) => void;
 	countInEnabled: boolean;
 	setCountInEnabled: (v: boolean) => void;
-	enablePlaybackProgressBar: boolean;
 	enablePlaybackProgressSeek: boolean;
 	playbackPositionTick: number;
 	playbackEndTick: number;
@@ -438,8 +436,28 @@ function EditorBottomBar({
 
 	const playbackSpeedControls = (
 		<div className="flex items-center gap-1 text-xs">
-			{playbackSpeedControl}
+			<div className="flex items-center gap-1 text-xs">
+				{playbackSpeedControl}
+			</div>
 			{masterVolumeControls}
+			<div className="flex items-center gap-1 text-xs">
+				{metronomeControls}
+				{countInControls}
+				{metronomeOnlyControls}
+			</div>
+		</div>
+	);
+
+	const bpmControls = (
+		<div className="flex items-center gap-1 text-xs">
+			{playbackSpeedControl}
+		</div>
+	);
+
+	const volumeControls = masterVolumeControls;
+
+	const metronomeGroupControls = (
+		<div className="flex items-center gap-1 text-xs">
 			{metronomeControls}
 			{countInControls}
 			{metronomeOnlyControls}
@@ -458,7 +476,7 @@ function EditorBottomBar({
 	const progressDisabled =
 		!enablePlaybackProgressSeek || progressMaxTick <= 0 || !playerControls;
 
-	const playbackProgressControls = enablePlaybackProgressBar ? (
+	const playbackProgressControls = (
 		<div className="flex items-center gap-2 min-w-0 w-full max-w-[460px] flex-[1.25]">
 			<div className="hidden md:block text-[10px] tabular-nums text-muted-foreground/80 w-10 text-right shrink-0">
 				{progressCurrentTime}
@@ -495,7 +513,7 @@ function EditorBottomBar({
 				</Tooltip>
 			)}
 		</div>
-	) : null;
+	);
 
 	const transportControls = (
 		<>
@@ -603,6 +621,7 @@ function EditorBottomBar({
 				toggleFirstStaffOpt={requestStaffToggle}
 			/>
 		),
+		playbackProgress: playbackProgressControls,
 		tracksControls: (
 			<div className="flex items-center">
 				<Tooltip>
@@ -622,8 +641,10 @@ function EditorBottomBar({
 			</div>
 		),
 		zoomControls,
+		bpmControls,
+		volumeControls,
+		metronomeGroupControls,
 		playbackSpeedControls,
-		playbackProgress: playbackProgressControls,
 		playbackTransport: transportControls,
 	};
 
@@ -644,10 +665,16 @@ function EditorBottomBar({
 			let className = "";
 			if (component.type === "zoomControls") {
 				className = "ml-2";
+			} else if (component.type === "bpmControls") {
+				className = "ml-2";
+			} else if (component.type === "volumeControls") {
+				className = "ml-2";
+			} else if (component.type === "metronomeGroupControls") {
+				className = "ml-1";
 			} else if (component.type === "playbackSpeedControls") {
 				className = "ml-3";
 			} else if (component.type === "playbackProgress") {
-				className = "ml-2 min-w-0 flex-1";
+				className = "min-w-0 flex-1";
 			} else if (component.type === "playbackTransport") {
 				className = "ml-2";
 			}
@@ -689,9 +716,6 @@ export default function GlobalBottomBar() {
 	const setMetronomeVolume = useAppStore((s) => s.setMetronomeVolume);
 	const countInEnabled = useAppStore((s) => s.countInEnabled);
 	const setCountInEnabled = useAppStore((s) => s.setCountInEnabled);
-	const enablePlaybackProgressBar = useAppStore(
-		(s) => s.enablePlaybackProgressBar,
-	);
 	const enablePlaybackProgressSeek = useAppStore(
 		(s) => s.enablePlaybackProgressSeek,
 	);
@@ -777,7 +801,6 @@ export default function GlobalBottomBar() {
 				setMetronomeVolume={setMetronomeVolume}
 				countInEnabled={countInEnabled}
 				setCountInEnabled={setCountInEnabled}
-				enablePlaybackProgressBar={enablePlaybackProgressBar}
 				enablePlaybackProgressSeek={enablePlaybackProgressSeek}
 				playbackPositionTick={playbackPositionTick}
 				playbackEndTick={playbackEndTick}
@@ -813,7 +836,6 @@ export default function GlobalBottomBar() {
 				setMetronomeVolume={setMetronomeVolume}
 				countInEnabled={countInEnabled}
 				setCountInEnabled={setCountInEnabled}
-				enablePlaybackProgressBar={enablePlaybackProgressBar}
 				enablePlaybackProgressSeek={enablePlaybackProgressSeek}
 				playbackPositionTick={playbackPositionTick}
 				playbackEndTick={playbackEndTick}

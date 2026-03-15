@@ -100,6 +100,8 @@ type PlaybackCursorSnapshot = {
 	beatIndex: number;
 };
 
+const AUDIO_IDLE_REFRESH_THRESHOLD_MS = 2 * 60 * 1000;
+
 const PrintPreview = lazy(() => import("./PrintPreview"));
 
 export default function Preview({
@@ -225,6 +227,7 @@ export default function Preview({
 		useRef<PlaybackFrameGate<PlaybackProgressSnapshot> | null>(null);
 	const playbackCursorGateRef =
 		useRef<PlaybackFrameGate<PlaybackCursorSnapshot> | null>(null);
+	const lastPlaybackActivityAtRef = useRef<number>(Date.now());
 
 	useEffect(() => {
 		playbackProgressGateRef.current = createPlaybackFrameGate(
@@ -464,7 +467,7 @@ export default function Preview({
 	const recoverPlaybackAudio = useCallback(async () => {
 		const api = apiRef.current;
 		if (!api) {
-			return;
+			return null;
 		}
 
 		const recovery = await prepareAlphaTabAudioForPlayback(api);
@@ -473,26 +476,8 @@ export default function Preview({
 				`[Preview] playback audio recovery ${JSON.stringify(recovery)}`,
 			);
 		}
+		return recovery;
 	}, []);
-
-	useEffect(() => {
-		const handleWindowFocus = () => {
-			void recoverPlaybackAudio();
-		};
-		const handleVisibilityChange = () => {
-			if (!document.hidden) {
-				void recoverPlaybackAudio();
-			}
-		};
-
-		window.addEventListener("focus", handleWindowFocus);
-		document.addEventListener("visibilitychange", handleVisibilityChange);
-
-		return () => {
-			window.removeEventListener("focus", handleWindowFocus);
-			document.removeEventListener("visibilitychange", handleVisibilityChange);
-		};
-	}, [recoverPlaybackAudio]);
 
 	useEffect(() => {
 		latestContentRef.current = content ?? "";
@@ -622,6 +607,78 @@ export default function Preview({
 		},
 		[],
 	);
+
+	const reapplyPlaybackAudioState = useCallback(
+		(api: alphaTab.AlphaTabApi) => {
+			try {
+				api.playbackSpeed = playbackSpeedRef.current;
+				api.masterVolume = masterVolumeRef.current;
+				api.metronomeVolume = metronomeVolumeRef.current;
+				api.countInVolume = countInEnabledRef.current ? 1 : 0;
+				if (metronomeOnlyModeRef.current) {
+					applyScoreTracksMuted(api, true);
+				}
+			} catch (error) {
+				console.warn(
+					"[Preview] Failed to reapply playback audio state:",
+					error,
+				);
+			}
+		},
+		[applyScoreTracksMuted],
+	);
+
+	const refreshPlaybackAudioPipeline = useCallback(
+		async (reason: string) => {
+			const api = apiRef.current;
+			if (!api) return;
+
+			const recovery = await recoverPlaybackAudio();
+			if (apiRef.current !== api) return;
+			const idleTooLong =
+				Date.now() - lastPlaybackActivityAtRef.current >=
+				AUDIO_IDLE_REFRESH_THRESHOLD_MS;
+			const shouldReloadSoundFont =
+				idleTooLong ||
+				recovery?.initialState === "suspended" ||
+				recovery?.initialState === "interrupted" ||
+				(recovery?.didAttemptActivation === true &&
+					recovery.finalState !== "running");
+
+			if (shouldReloadSoundFont && currentSoundFontUrlRef.current) {
+				await loadSoundFontFromUrl(api, currentSoundFontUrlRef.current);
+				if (apiRef.current !== api) return;
+				await recoverPlaybackAudio();
+				if (apiRef.current !== api) return;
+				console.info(
+					`[Preview] Reloaded soundfont for audio recovery (${reason})`,
+				);
+			}
+
+			reapplyPlaybackAudioState(api);
+			lastPlaybackActivityAtRef.current = Date.now();
+		},
+		[recoverPlaybackAudio, reapplyPlaybackAudioState],
+	);
+
+	useEffect(() => {
+		const handleWindowFocus = () => {
+			void refreshPlaybackAudioPipeline("window-focus");
+		};
+		const handleVisibilityChange = () => {
+			if (!document.hidden) {
+				void refreshPlaybackAudioPipeline("visibility-return");
+			}
+		};
+
+		window.addEventListener("focus", handleWindowFocus);
+		document.addEventListener("visibilitychange", handleVisibilityChange);
+
+		return () => {
+			window.removeEventListener("focus", handleWindowFocus);
+			document.removeEventListener("visibilitychange", handleVisibilityChange);
+		};
+	}, [refreshPlaybackAudioPipeline]);
 
 	useEffect(() => {
 		metronomeOnlyModeRef.current = metronomeOnlyMode;
@@ -1217,7 +1274,7 @@ export default function Preview({
 							};
 
 							const playNow = async (delayMs = 0) => {
-								await recoverPlaybackAudio();
+								await refreshPlaybackAudioPipeline("play-request");
 								const ready = await ensurePlaybackReady();
 								if (!ready) {
 									console.error(
@@ -1240,7 +1297,7 @@ export default function Preview({
 										api,
 										currentSoundFontUrlRef.current,
 									);
-									await recoverPlaybackAudio();
+									await refreshPlaybackAudioPipeline("play-retry");
 									didPlay = api.play?.();
 								}
 								console.info(
@@ -1303,6 +1360,7 @@ export default function Preview({
 					},
 					pause: () => api.pause?.(),
 					stop: () => {
+						lastPlaybackActivityAtRef.current = Date.now();
 						// 1. 停止播放器
 						api.stop?.();
 
@@ -1345,6 +1403,7 @@ export default function Preview({
 						}
 					},
 					refresh: () => {
+						lastPlaybackActivityAtRef.current = Date.now();
 						bumpEditorRefreshVersion();
 						bumpBottomBarRefreshVersion();
 						// 1. 先停止播放并清除所有状态
@@ -1940,7 +1999,7 @@ export default function Preview({
 		setPlaybackProgressIfChanged,
 		setPlayerCursorIfChanged,
 		setPlayerIsPlayingIfChanged,
-		recoverPlaybackAudio,
+		refreshPlaybackAudioPipeline,
 	]);
 
 	// 内容更新：仅调用 tex，不销毁 API，避免闪烁

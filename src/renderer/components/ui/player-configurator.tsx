@@ -80,6 +80,12 @@ export function PlayerConfigurator({ className }: PlayerConfiguratorProps) {
 		setCustomPlayerConfig({
 			components: [
 				{
+					type: "playbackProgress",
+					enabled: true,
+					label: t("playerConfigurator.playbackProgress"),
+					description: t("playerConfigurator.playbackProgressDesc"),
+				},
+				{
 					type: "staffControls",
 					enabled: true,
 					label: t("playerConfigurator.staffControls"),
@@ -98,16 +104,22 @@ export function PlayerConfigurator({ className }: PlayerConfiguratorProps) {
 					description: t("playerConfigurator.zoomControlsDesc"),
 				},
 				{
-					type: "playbackSpeedControls",
+					type: "bpmControls",
 					enabled: true,
-					label: t("playerConfigurator.playbackSpeedControls"),
-					description: t("playerConfigurator.playbackSpeedControlsDesc"),
+					label: t("playerConfigurator.bpmControls"),
+					description: t("playerConfigurator.bpmControlsDesc"),
 				},
 				{
-					type: "playbackProgress",
+					type: "volumeControls",
 					enabled: true,
-					label: t("playerConfigurator.playbackProgress"),
-					description: t("playerConfigurator.playbackProgressDesc"),
+					label: t("playerConfigurator.volumeControls"),
+					description: t("playerConfigurator.volumeControlsDesc"),
+				},
+				{
+					type: "metronomeGroupControls",
+					enabled: true,
+					label: t("playerConfigurator.metronomeGroupControls"),
+					description: t("playerConfigurator.metronomeGroupControlsDesc"),
 				},
 				{
 					type: "playbackTransport",

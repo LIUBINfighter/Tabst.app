@@ -38,8 +38,11 @@ export interface RepoPreferences {
 	customPlayerConfig?: {
 		components: Array<{
 			type:
+				| "bpmControls"
+				| "metronomeGroupControls"
 				| "staffControls"
 				| "tracksControls"
+				| "volumeControls"
 				| "zoomControls"
 				| "playbackSpeedControls"
 				| "playbackProgress"
