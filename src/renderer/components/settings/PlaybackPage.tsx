@@ -11,12 +11,6 @@ export function PlaybackPage() {
 	const setEnableCursorBroadcast = useAppStore(
 		(s) => s.setEnableCursorBroadcast,
 	);
-	const enablePlaybackProgressBar = useAppStore(
-		(s) => s.enablePlaybackProgressBar,
-	);
-	const setEnablePlaybackProgressBar = useAppStore(
-		(s) => s.setEnablePlaybackProgressBar,
-	);
 	const enablePlaybackProgressSeek = useAppStore(
 		(s) => s.enablePlaybackProgressSeek,
 	);
@@ -32,38 +26,6 @@ export function PlaybackPage() {
 					<p className="text-xs text-muted-foreground">
 						{t("playbackPlaceholder")}
 					</p>
-				</div>
-			</div>
-
-			<div
-				className="bg-card border border-border rounded-lg p-3 hover:bg-accent/50 transition-colors cursor-pointer"
-				onClick={() => setEnablePlaybackProgressBar(!enablePlaybackProgressBar)}
-				onKeyDown={(event) => {
-					if (event.key === " " || event.key === "Enter") {
-						event.preventDefault();
-						setEnablePlaybackProgressBar(!enablePlaybackProgressBar);
-					}
-				}}
-				role="button"
-				tabIndex={0}
-			>
-				<div className="flex items-center gap-3">
-					<CheckboxToggle
-						checked={enablePlaybackProgressBar}
-						onCheckedChange={setEnablePlaybackProgressBar}
-						aria-label={t("playbackSection.enablePlaybackProgressBar")}
-					/>
-					<div className="flex-1 min-w-0">
-						<h4 className="text-sm font-medium flex items-center gap-2">
-							<span>{t("playbackSection.enablePlaybackProgressBar")}</span>
-							<span className="text-[10px] uppercase tracking-wide rounded border border-amber-500/40 text-amber-600 px-1.5 py-0.5">
-								{t("playbackSection.experimental")}
-							</span>
-						</h4>
-						<p className="text-xs text-muted-foreground mt-1">
-							{t("playbackSection.playbackProgressBarHint")}
-						</p>
-					</div>
 				</div>
 			</div>
 
