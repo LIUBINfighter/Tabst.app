@@ -26,57 +26,89 @@ function isRecoverableAudioState(state: string | undefined): boolean {
 	return state === "suspended" || state === "interrupted";
 }
 
+async function tryActivateOutput(
+	output: RecoverableAudioOutputLike,
+): Promise<boolean> {
+	if (!output.activate) {
+		return false;
+	}
+
+	await new Promise<void>((resolve) => {
+		let settled = false;
+		const finish = () => {
+			if (settled) {
+				return;
+			}
+			settled = true;
+			resolve();
+		};
+
+		try {
+			output.activate?.(finish);
+		} catch {
+			finish();
+			return;
+		}
+
+		globalThis.setTimeout(finish, 150);
+	});
+
+	return true;
+}
+
+async function tryResumeContext(
+	context: RecoverableAudioContextLike | null | undefined,
+): Promise<boolean> {
+	if (!context?.resume) {
+		return false;
+	}
+
+	try {
+		await context.resume();
+		return true;
+	} catch {
+		return false;
+	}
+}
+
 export async function prepareAlphaTabAudioForPlayback(
 	api: RecoverableAlphaTabApiLike,
 ): Promise<AudioRecoveryResult> {
 	const output = api.player?.output;
-	if (!output?.activate) {
+	if (!output) {
 		return {
 			didAttemptActivation: false,
-			initialState: output?.context?.state ?? null,
-			finalState: output?.context?.state ?? null,
+			initialState: null,
+			finalState: null,
 		};
 	}
 
 	const initialState = output.context?.state ?? null;
+	let didAttemptActivation = false;
 
 	if (isRecoverableAudioState(output.context?.state)) {
-		await new Promise<void>((resolve) => {
-			let settled = false;
-			const finish = () => {
-				if (settled) {
-					return;
-				}
-				settled = true;
-				resolve();
-			};
+		didAttemptActivation =
+			(await tryActivateOutput(output)) || didAttemptActivation;
+		didAttemptActivation =
+			(await tryResumeContext(output.context)) || didAttemptActivation;
 
-			try {
-				output.activate?.(finish);
-			} catch {
-				finish();
-				return;
-			}
-
-			window.setTimeout(finish, 150);
-		});
-
-		if (
-			isRecoverableAudioState(output.context?.state) &&
-			output.context?.resume
-		) {
-			try {
-				await output.context.resume();
-			} catch {}
+		if (isRecoverableAudioState(output.context?.state)) {
+			didAttemptActivation =
+				(await tryActivateOutput(output)) || didAttemptActivation;
+			didAttemptActivation =
+				(await tryResumeContext(output.context)) || didAttemptActivation;
 		}
 	} else {
-		try {
-			output.activate();
-		} catch {}
+		didAttemptActivation =
+			(await tryActivateOutput(output)) || didAttemptActivation;
+		if (output.context?.state !== "running") {
+			didAttemptActivation =
+				(await tryResumeContext(output.context)) || didAttemptActivation;
+		}
 	}
 
 	return {
-		didAttemptActivation: true,
+		didAttemptActivation,
 		initialState,
 		finalState: output.context?.state ?? null,
 	};

@@ -49,4 +49,26 @@ describe("prepareAlphaTabAudioForPlayback", () => {
 		expect(result.didAttemptActivation).toBe(false);
 		expect(result.finalState).toBeNull();
 	});
+
+	it("resumes suspended audio context even without activate support", async () => {
+		const resume = vi.fn(async () => {
+			context.state = "running";
+		});
+		const context = {
+			state: "suspended",
+			resume,
+		};
+
+		const result = await prepareAlphaTabAudioForPlayback({
+			player: {
+				output: {
+					context,
+				},
+			},
+		});
+
+		expect(resume).toHaveBeenCalledTimes(1);
+		expect(result.didAttemptActivation).toBe(true);
+		expect(result.finalState).toBe("running");
+	});
 });
