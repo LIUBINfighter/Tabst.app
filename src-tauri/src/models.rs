@@ -1,5 +1,8 @@
 use std::sync::Mutex;
 
+#[cfg(target_os = "macos")]
+use std::process::Child;
+
 use notify::RecommendedWatcher;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -272,6 +275,26 @@ pub(crate) struct RepoWatcherState {
 #[derive(Default)]
 pub(crate) struct RepoWatchManager {
     pub(crate) active: Mutex<Option<RepoWatcherState>>,
+}
+
+#[derive(Default)]
+pub(crate) struct KeepAwakeManager {
+    #[cfg(target_os = "macos")]
+    pub(crate) active_process: Mutex<Option<Child>>,
+}
+
+impl Drop for KeepAwakeManager {
+    fn drop(&mut self) {
+        #[cfg(target_os = "macos")]
+        {
+            if let Ok(mut guard) = self.active_process.lock() {
+                if let Some(mut process) = guard.take() {
+                    let _ = process.kill();
+                    let _ = process.wait();
+                }
+            }
+        }
+    }
 }
 
 pub(crate) struct GitCommandOutput {

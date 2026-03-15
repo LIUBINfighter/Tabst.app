@@ -162,6 +162,10 @@ export interface DesktopAPI {
 		success: boolean;
 		error?: string;
 	}>;
+	setKeepAwake: (enabled: boolean) => Promise<{
+		success: boolean;
+		error?: string;
+	}>;
 }
 
 declare global {

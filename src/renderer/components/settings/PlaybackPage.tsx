@@ -17,6 +17,12 @@ export function PlaybackPage() {
 	const setEnablePlaybackProgressSeek = useAppStore(
 		(s) => s.setEnablePlaybackProgressSeek,
 	);
+	const enableKeepAwakeDuringPlayback = useAppStore(
+		(s) => s.enableKeepAwakeDuringPlayback,
+	);
+	const setEnableKeepAwakeDuringPlayback = useAppStore(
+		(s) => s.setEnableKeepAwakeDuringPlayback,
+	);
 
 	return (
 		<section className="bg-card border border-border rounded p-4 space-y-4">
@@ -26,6 +32,40 @@ export function PlaybackPage() {
 					<p className="text-xs text-muted-foreground">
 						{t("playbackPlaceholder")}
 					</p>
+				</div>
+			</div>
+
+			<div
+				className="bg-card border border-border rounded-lg p-3 hover:bg-accent/50 transition-colors cursor-pointer"
+				onClick={() =>
+					setEnableKeepAwakeDuringPlayback(!enableKeepAwakeDuringPlayback)
+				}
+				onKeyDown={(event) => {
+					if (event.key === " " || event.key === "Enter") {
+						event.preventDefault();
+						setEnableKeepAwakeDuringPlayback(!enableKeepAwakeDuringPlayback);
+					}
+				}}
+				role="button"
+				tabIndex={0}
+			>
+				<div className="flex items-center gap-3">
+					<CheckboxToggle
+						checked={enableKeepAwakeDuringPlayback}
+						onCheckedChange={setEnableKeepAwakeDuringPlayback}
+						aria-label={t("playbackSection.enableKeepAwakeDuringPlayback")}
+					/>
+					<div className="flex-1 min-w-0">
+						<h4 className="text-sm font-medium flex items-center gap-2">
+							<span>{t("playbackSection.enableKeepAwakeDuringPlayback")}</span>
+							<span className="text-[10px] uppercase tracking-wide rounded border border-muted-foreground/40 text-muted-foreground px-1.5 py-0.5">
+								{t("playbackSection.macosOnly")}
+							</span>
+						</h4>
+						<p className="text-xs text-muted-foreground mt-1">
+							{t("playbackSection.keepAwakeDuringPlaybackHint")}
+						</p>
+					</div>
 				</div>
 			</div>
 

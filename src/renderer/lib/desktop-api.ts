@@ -523,6 +523,8 @@ export function createWebDesktopAPI(): DesktopAPI {
 			safeWriteJson(STORAGE_KEYS.globalSettings, settings);
 			return { success: true };
 		},
+
+		setKeepAwake: async (_enabled: boolean) => ({ success: true }),
 	};
 
 	return api;
