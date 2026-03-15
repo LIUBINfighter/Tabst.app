@@ -321,6 +321,8 @@ interface AppState {
 
 	countInEnabled: boolean;
 	setCountInEnabled: (v: boolean) => void;
+	enableKeepAwakeDuringPlayback: boolean;
+	setEnableKeepAwakeDuringPlayback: (v: boolean) => void;
 	enablePlaybackProgressBar: boolean;
 	setEnablePlaybackProgressBar: (v: boolean) => void;
 	enablePlaybackProgressSeek: boolean;
@@ -854,6 +856,12 @@ export const useAppStore = create<AppState>((set, get) => ({
 							set({ countInEnabled: prefs.countInEnabled });
 							get().playerControls?.setCountInEnabled?.(prefs.countInEnabled);
 						}
+						if (typeof prefs.enableKeepAwakeDuringPlayback === "boolean") {
+							set({
+								enableKeepAwakeDuringPlayback:
+									prefs.enableKeepAwakeDuringPlayback,
+							});
+						}
 						if (typeof prefs.enablePlaybackProgressBar === "boolean") {
 							set({
 								enablePlaybackProgressBar: prefs.enablePlaybackProgressBar,
@@ -1202,6 +1210,11 @@ export const useAppStore = create<AppState>((set, get) => ({
 	setCountInEnabled: (v) => {
 		set({ countInEnabled: v });
 		void mergeAndSaveWorkspacePreferences({ countInEnabled: v });
+	},
+	enableKeepAwakeDuringPlayback: true,
+	setEnableKeepAwakeDuringPlayback: (v) => {
+		set({ enableKeepAwakeDuringPlayback: v });
+		void mergeAndSaveWorkspacePreferences({ enableKeepAwakeDuringPlayback: v });
 	},
 	enablePlaybackProgressBar: true,
 	setEnablePlaybackProgressBar: (v) => {

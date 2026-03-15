@@ -171,6 +171,10 @@ export default function Preview({
 	const metronomeOnlyMode = useAppStore((s) => s.metronomeOnlyMode);
 	const metronomeVolume = useAppStore((s) => s.metronomeVolume);
 	const countInEnabled = useAppStore((s) => s.countInEnabled);
+	const playerIsPlaying = useAppStore((s) => s.playerIsPlaying);
+	const enableKeepAwakeDuringPlayback = useAppStore(
+		(s) => s.enableKeepAwakeDuringPlayback,
+	);
 	const editorHasFocus = useAppStore((s) => s.editorHasFocus);
 	const _scoreVersion = useAppStore((s) => s.scoreVersion);
 	const bumpApiInstanceId = useAppStore((s) => s.bumpApiInstanceId);
@@ -425,6 +429,37 @@ export default function Preview({
 	useEffect(() => {
 		editorHasFocusRef.current = editorHasFocus;
 	}, [editorHasFocus]);
+
+	useEffect(() => {
+		let isCancelled = false;
+		const shouldKeepAwake = playerIsPlaying && enableKeepAwakeDuringPlayback;
+
+		void window.desktopAPI
+			.setKeepAwake(shouldKeepAwake)
+			.then((result) => {
+				if (isCancelled) return;
+				if (result.success) return;
+				if (result.error === "Unsupported in web runtime") return;
+				console.warn(
+					"[Preview] Failed to update keep-awake state:",
+					result.error ?? "unknown-error",
+				);
+			})
+			.catch((error) => {
+				if (isCancelled) return;
+				console.warn("[Preview] Failed to update keep-awake state:", error);
+			});
+
+		return () => {
+			isCancelled = true;
+		};
+	}, [playerIsPlaying, enableKeepAwakeDuringPlayback]);
+
+	useEffect(() => {
+		return () => {
+			void window.desktopAPI.setKeepAwake(false);
+		};
+	}, []);
 
 	const recoverPlaybackAudio = useCallback(async () => {
 		const api = apiRef.current;

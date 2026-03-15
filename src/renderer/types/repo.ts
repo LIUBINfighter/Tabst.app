@@ -30,6 +30,7 @@ export interface RepoPreferences {
 	playbackBpmMode?: boolean;
 	metronomeVolume?: number;
 	countInEnabled?: boolean;
+	enableKeepAwakeDuringPlayback?: boolean;
 	enablePlaybackProgressBar?: boolean;
 	enablePlaybackProgressSeek?: boolean;
 	enableSyncScroll?: boolean;

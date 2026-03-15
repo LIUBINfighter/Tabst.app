@@ -1,6 +1,7 @@
 mod fs_commands;
 mod git_commands;
 mod models;
+mod power_commands;
 mod repo_commands;
 mod settings_commands;
 mod support;
@@ -16,6 +17,7 @@ use git_commands::{
 	sync_git_pull, unstage_git_file,
 };
 pub(crate) use models::*;
+use power_commands::set_keep_awake;
 use repo_commands::{
 	delete_file, load_repos, load_workspace_metadata, save_repos, save_workspace_metadata,
 	scan_directory, start_repo_watch, stop_repo_watch,
@@ -30,6 +32,7 @@ use updater_commands::{check_for_updates, fetch_releases_feed, get_app_version, 
 pub fn run() {
 	with_optional_updater_plugin(tauri::Builder::default())
 		.manage(RepoWatchManager::default())
+		.manage(KeepAwakeManager::default())
 		.invoke_handler(tauri::generate_handler![
 			open_file,
 			select_folder,
@@ -65,7 +68,8 @@ pub fn run() {
 			get_app_version,
 			fetch_releases_feed,
 			load_global_settings,
-			save_global_settings
+			save_global_settings,
+			set_keep_awake
 		])
 		.run(tauri::generate_context!())
 		.expect("error while running tauri application");

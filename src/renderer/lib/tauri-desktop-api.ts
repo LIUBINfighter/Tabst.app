@@ -560,6 +560,19 @@ export function createTauriDesktopAPI(): DesktopAPI {
 				return { success: false, error: toErrorMessage(error) };
 			}
 		},
+
+		setKeepAwake: async (
+			enabled: boolean,
+		): Promise<{ success: boolean; error?: string }> => {
+			try {
+				return await invokeCommand<{ success: boolean; error?: string }>(
+					"set_keep_awake",
+					{ enabled },
+				);
+			} catch (error) {
+				return { success: false, error: toErrorMessage(error) };
+			}
+		},
 	};
 
 	return api;

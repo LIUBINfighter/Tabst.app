@@ -239,6 +239,9 @@
 	"playbackPlaceholder": "Custom player coming soon",
 	"playbackSection": {
 		"experimental": "Experimental",
+		"macosOnly": "macOS",
+		"enableKeepAwakeDuringPlayback": "Keep screen awake during playback",
+		"keepAwakeDuringPlaybackHint": "Prevent display sleep while practicing playback (currently available on macOS)",
 		"enablePlaybackProgressBar": "Enable bottom playback progress bar",
 		"playbackProgressBarHint": "Show playback timeline and current progress in the bottom toolbar",
 		"enablePlaybackProgressSeek": "Enable draggable seek",
