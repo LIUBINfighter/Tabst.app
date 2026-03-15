@@ -179,7 +179,6 @@ function EditorBottomBar({
 	setMetronomeVolume,
 	countInEnabled,
 	setCountInEnabled,
-	enablePlaybackProgressBar,
 	enablePlaybackProgressSeek,
 	playbackPositionTick,
 	playbackEndTick,
@@ -215,7 +214,6 @@ function EditorBottomBar({
 	setMetronomeVolume: (v: number) => void;
 	countInEnabled: boolean;
 	setCountInEnabled: (v: boolean) => void;
-	enablePlaybackProgressBar: boolean;
 	enablePlaybackProgressSeek: boolean;
 	playbackPositionTick: number;
 	playbackEndTick: number;
@@ -478,7 +476,7 @@ function EditorBottomBar({
 	const progressDisabled =
 		!enablePlaybackProgressSeek || progressMaxTick <= 0 || !playerControls;
 
-	const playbackProgressControls = enablePlaybackProgressBar ? (
+	const playbackProgressControls = (
 		<div className="flex items-center gap-2 min-w-0 w-full max-w-[460px] flex-[1.25]">
 			<div className="hidden md:block text-[10px] tabular-nums text-muted-foreground/80 w-10 text-right shrink-0">
 				{progressCurrentTime}
@@ -515,7 +513,7 @@ function EditorBottomBar({
 				</Tooltip>
 			)}
 		</div>
-	) : null;
+	);
 
 	const transportControls = (
 		<>
@@ -718,9 +716,6 @@ export default function GlobalBottomBar() {
 	const setMetronomeVolume = useAppStore((s) => s.setMetronomeVolume);
 	const countInEnabled = useAppStore((s) => s.countInEnabled);
 	const setCountInEnabled = useAppStore((s) => s.setCountInEnabled);
-	const enablePlaybackProgressBar = useAppStore(
-		(s) => s.enablePlaybackProgressBar,
-	);
 	const enablePlaybackProgressSeek = useAppStore(
 		(s) => s.enablePlaybackProgressSeek,
 	);
@@ -806,7 +801,6 @@ export default function GlobalBottomBar() {
 				setMetronomeVolume={setMetronomeVolume}
 				countInEnabled={countInEnabled}
 				setCountInEnabled={setCountInEnabled}
-				enablePlaybackProgressBar={enablePlaybackProgressBar}
 				enablePlaybackProgressSeek={enablePlaybackProgressSeek}
 				playbackPositionTick={playbackPositionTick}
 				playbackEndTick={playbackEndTick}
@@ -842,7 +836,6 @@ export default function GlobalBottomBar() {
 				setMetronomeVolume={setMetronomeVolume}
 				countInEnabled={countInEnabled}
 				setCountInEnabled={setCountInEnabled}
-				enablePlaybackProgressBar={enablePlaybackProgressBar}
 				enablePlaybackProgressSeek={enablePlaybackProgressSeek}
 				playbackPositionTick={playbackPositionTick}
 				playbackEndTick={playbackEndTick}
