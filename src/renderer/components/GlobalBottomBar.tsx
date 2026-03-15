@@ -438,8 +438,28 @@ function EditorBottomBar({
 
 	const playbackSpeedControls = (
 		<div className="flex items-center gap-1 text-xs">
-			{playbackSpeedControl}
+			<div className="flex items-center gap-1 text-xs">
+				{playbackSpeedControl}
+			</div>
 			{masterVolumeControls}
+			<div className="flex items-center gap-1 text-xs">
+				{metronomeControls}
+				{countInControls}
+				{metronomeOnlyControls}
+			</div>
+		</div>
+	);
+
+	const bpmControls = (
+		<div className="flex items-center gap-1 text-xs">
+			{playbackSpeedControl}
+		</div>
+	);
+
+	const volumeControls = masterVolumeControls;
+
+	const metronomeGroupControls = (
+		<div className="flex items-center gap-1 text-xs">
 			{metronomeControls}
 			{countInControls}
 			{metronomeOnlyControls}
@@ -603,6 +623,7 @@ function EditorBottomBar({
 				toggleFirstStaffOpt={requestStaffToggle}
 			/>
 		),
+		playbackProgress: playbackProgressControls,
 		tracksControls: (
 			<div className="flex items-center">
 				<Tooltip>
@@ -622,8 +643,10 @@ function EditorBottomBar({
 			</div>
 		),
 		zoomControls,
+		bpmControls,
+		volumeControls,
+		metronomeGroupControls,
 		playbackSpeedControls,
-		playbackProgress: playbackProgressControls,
 		playbackTransport: transportControls,
 	};
 
@@ -644,10 +667,16 @@ function EditorBottomBar({
 			let className = "";
 			if (component.type === "zoomControls") {
 				className = "ml-2";
+			} else if (component.type === "bpmControls") {
+				className = "ml-2";
+			} else if (component.type === "volumeControls") {
+				className = "ml-2";
+			} else if (component.type === "metronomeGroupControls") {
+				className = "ml-1";
 			} else if (component.type === "playbackSpeedControls") {
 				className = "ml-3";
 			} else if (component.type === "playbackProgress") {
-				className = "ml-2 min-w-0 flex-1";
+				className = "min-w-0 flex-1";
 			} else if (component.type === "playbackTransport") {
 				className = "ml-2";
 			}

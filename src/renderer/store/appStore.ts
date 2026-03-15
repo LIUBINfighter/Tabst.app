@@ -200,12 +200,15 @@ export interface PlaybackBeatInfo {
  * 播放器组件类型定义
  */
 export type PlayerComponentType =
-	| "staffControls" // TAB/Staff切换控件
-	| "tracksControls" // 轨道选择控件
-	| "zoomControls" // 缩放控件 (zoom out/input/zoom in)
-	| "playbackSpeedControls" // 播放速度和节拍器控件
 	| "playbackProgress"
-	| "playbackTransport"; // 播放控制 (play/pause/stop/refresh)
+	| "staffControls"
+	| "tracksControls"
+	| "zoomControls"
+	| "bpmControls"
+	| "volumeControls"
+	| "metronomeGroupControls"
+	| "playbackTransport"
+	| "playbackSpeedControls";
 
 /**
  * 播放器组件配置项
@@ -227,6 +230,161 @@ export interface PlayerComponentConfig {
 export interface CustomPlayerConfig {
 	/** 组件顺序列表 */
 	components: PlayerComponentConfig[];
+}
+
+const DEFAULT_PLAYER_COMPONENTS: PlayerComponentConfig[] = [
+	{
+		type: "playbackProgress",
+		enabled: true,
+		label: "Playback Progress",
+		description: "Draggable playback timeline",
+	},
+	{
+		type: "staffControls",
+		enabled: true,
+		label: "Staff Controls",
+		description: "TAB/Staff display toggle",
+	},
+	{
+		type: "tracksControls",
+		enabled: false,
+		label: "Track Controls",
+		description: "Track selection panel toggle",
+	},
+	{
+		type: "zoomControls",
+		enabled: true,
+		label: "Zoom Controls",
+		description: "Zoom in/out and percentage input",
+	},
+	{
+		type: "bpmControls",
+		enabled: true,
+		label: "BPM Controls",
+		description: "BPM/Playback speed selector",
+	},
+	{
+		type: "volumeControls",
+		enabled: true,
+		label: "Volume Controls",
+		description: "Master volume slider",
+	},
+	{
+		type: "metronomeGroupControls",
+		enabled: true,
+		label: "Metronome Group",
+		description: "Metronome, count-in, and metronome-only controls",
+	},
+	{
+		type: "playbackTransport",
+		enabled: true,
+		label: "Transport Controls",
+		description: "Play, pause, stop, refresh, and playback settings",
+	},
+];
+
+function clonePlayerComponents(
+	components: readonly PlayerComponentConfig[],
+): PlayerComponentConfig[] {
+	return components.map((component) => ({ ...component }));
+}
+
+function createDefaultCustomPlayerConfig(): CustomPlayerConfig {
+	return {
+		components: clonePlayerComponents(DEFAULT_PLAYER_COMPONENTS),
+	};
+}
+
+function isSupportedPlayerComponentType(
+	type: unknown,
+): type is PlayerComponentType {
+	return (
+		type === "playbackProgress" ||
+		type === "staffControls" ||
+		type === "tracksControls" ||
+		type === "zoomControls" ||
+		type === "bpmControls" ||
+		type === "volumeControls" ||
+		type === "metronomeGroupControls" ||
+		type === "playbackTransport" ||
+		type === "playbackSpeedControls"
+	);
+}
+
+function normalizeCustomPlayerConfig(input: unknown): CustomPlayerConfig {
+	if (!input || typeof input !== "object") {
+		return createDefaultCustomPlayerConfig();
+	}
+
+	const rawComponents = (input as { components?: unknown }).components;
+	if (!Array.isArray(rawComponents)) {
+		return createDefaultCustomPlayerConfig();
+	}
+
+	const templateByType = new Map(
+		DEFAULT_PLAYER_COMPONENTS.map((component) => [component.type, component]),
+	);
+	const normalized: PlayerComponentConfig[] = [];
+	const seen = new Set<PlayerComponentType>();
+
+	const pushFromTemplate = (
+		type: Exclude<PlayerComponentType, "playbackSpeedControls">,
+		enabledOverride?: boolean,
+		labelOverride?: string,
+		descriptionOverride?: string,
+	) => {
+		if (seen.has(type)) return;
+		const template = templateByType.get(type);
+		if (!template) return;
+		normalized.push({
+			type,
+			enabled:
+				typeof enabledOverride === "boolean"
+					? enabledOverride
+					: template.enabled,
+			label: labelOverride || template.label,
+			description: descriptionOverride || template.description,
+		});
+		seen.add(type);
+	};
+
+	for (const rawComponent of rawComponents) {
+		if (!rawComponent || typeof rawComponent !== "object") continue;
+		const candidate = rawComponent as {
+			type?: unknown;
+			enabled?: unknown;
+			label?: unknown;
+			description?: unknown;
+		};
+		const type = candidate.type;
+		if (!isSupportedPlayerComponentType(type)) continue;
+
+		const enabled =
+			typeof candidate.enabled === "boolean" ? candidate.enabled : undefined;
+		const label =
+			typeof candidate.label === "string" ? candidate.label : undefined;
+		const description =
+			typeof candidate.description === "string"
+				? candidate.description
+				: undefined;
+
+		if (type === "playbackSpeedControls") {
+			pushFromTemplate("bpmControls", enabled);
+			pushFromTemplate("volumeControls", enabled);
+			pushFromTemplate("metronomeGroupControls", enabled);
+			continue;
+		}
+
+		pushFromTemplate(type, enabled, label, description);
+	}
+
+	for (const component of DEFAULT_PLAYER_COMPONENTS) {
+		if (seen.has(component.type)) continue;
+		normalized.push({ ...component });
+		seen.add(component.type);
+	}
+
+	return { components: normalized };
 }
 
 export interface PlayerControls {
@@ -919,14 +1077,11 @@ export const useAppStore = create<AppState>((set, get) => ({
 							}
 							set({ commandShortcuts: nextShortcuts });
 						}
-						if (
-							prefs.customPlayerConfig?.components &&
-							Array.isArray(prefs.customPlayerConfig.components)
-						) {
-							set({
-								customPlayerConfig: prefs.customPlayerConfig,
-							});
-						}
+						set({
+							customPlayerConfig: normalizeCustomPlayerConfig(
+								prefs.customPlayerConfig,
+							),
+						});
 						if (prefs.locale === "en" || prefs.locale === "zh-cn") {
 							set({ locale: prefs.locale });
 							void i18n.changeLanguage(prefs.locale).catch((error) => {
@@ -1226,66 +1381,51 @@ export const useAppStore = create<AppState>((set, get) => ({
 		void mergeAndSaveWorkspacePreferences({ enableCursorBroadcast: v });
 	},
 
-	// 🆕 自定义播放器配置 - 默认按照当前底部栏顺序
-	customPlayerConfig: {
-		components: [
-			{
-				type: "staffControls",
-				enabled: true,
-				label: "Staff Controls",
-				description: "TAB/Staff display toggle",
-			},
-			{
-				type: "tracksControls",
-				enabled: false,
-				label: "Track Controls",
-				description: "Track selection panel toggle",
-			},
-			{
-				type: "zoomControls",
-				enabled: true,
-				label: "Zoom Controls",
-				description: "Zoom in/out and percentage input",
-			},
-			{
-				type: "playbackSpeedControls",
-				enabled: true,
-				label: "Playback Speed",
-				description: "Speed selector and metronome toggle",
-			},
-			{
-				type: "playbackProgress",
-				enabled: true,
-				label: "Playback Progress",
-				description: "Draggable playback timeline",
-			},
-			{
-				type: "playbackTransport",
-				enabled: true,
-				label: "Transport Controls",
-				description: "Play, pause, stop, and refresh buttons",
-			},
-		],
-	},
+	customPlayerConfig: createDefaultCustomPlayerConfig(),
 	setCustomPlayerConfig: (config) => {
-		set({ customPlayerConfig: config });
-		void mergeAndSaveWorkspacePreferences({ customPlayerConfig: config });
+		const normalized = normalizeCustomPlayerConfig(config);
+		set({ customPlayerConfig: normalized });
+		void mergeAndSaveWorkspacePreferences({ customPlayerConfig: normalized });
 	},
 	updatePlayerComponentOrder: (components) => {
-		set((state) => ({
-			customPlayerConfig: { ...state.customPlayerConfig, components },
-		}));
-		const next = { ...get().customPlayerConfig, components };
-		void mergeAndSaveWorkspacePreferences({ customPlayerConfig: next });
-	},
-	togglePlayerComponent: (type) => {
+		const normalized = normalizeCustomPlayerConfig({ components });
 		set((state) => ({
 			customPlayerConfig: {
 				...state.customPlayerConfig,
-				components: state.customPlayerConfig.components.map((comp) =>
-					comp.type === type ? { ...comp, enabled: !comp.enabled } : comp,
-				),
+				components: normalized.components,
 			},
+		}));
+		const next = {
+			...get().customPlayerConfig,
+			components: normalized.components,
+		};
+		void mergeAndSaveWorkspacePreferences({ customPlayerConfig: next });
+	},
+	togglePlayerComponent: (type) => {
+		const linkedTypes =
+			type === "playbackSpeedControls"
+				? (["bpmControls", "volumeControls", "metronomeGroupControls"] as const)
+				: ([type] as const);
+
+		set((state) => ({
+			customPlayerConfig: (() => {
+				const targetSet = new Set<PlayerComponentType>(linkedTypes);
+				const targetComponents = state.customPlayerConfig.components.filter(
+					(comp) => targetSet.has(comp.type),
+				);
+				const shouldEnable = !targetComponents.every((comp) => comp.enabled);
+				const nextComponents = state.customPlayerConfig.components.map(
+					(comp) =>
+						targetSet.has(comp.type)
+							? { ...comp, enabled: shouldEnable }
+							: comp,
+				);
+
+				return {
+					...state.customPlayerConfig,
+					components: nextComponents,
+				};
+			})(),
 		}));
 		void mergeAndSaveWorkspacePreferences({
 			customPlayerConfig: get().customPlayerConfig,
