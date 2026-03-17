@@ -75,7 +75,7 @@
 		"codemirror": "^6.0.2",
 		"codemirror-languageserver": "^1.18.1",
 		"color-convert": "^3.1.3",
-		"dompurify": "^3.3.1",
+		"dompurify": "^3.3.3",
 		"effect": "^3.19.19",
 		"i18next": "^25.8.17",
 		"lucide-react": "^0.576.0",
