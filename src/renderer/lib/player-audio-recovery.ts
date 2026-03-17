@@ -22,6 +22,51 @@ export interface AudioRecoveryResult {
 	finalState: string | null;
 }
 
+function triggerOutputActivation(output: RecoverableAudioOutputLike): boolean {
+	if (!output.activate) {
+		return false;
+	}
+
+	try {
+		output.activate(() => {});
+		return true;
+	} catch {
+		return false;
+	}
+}
+
+function triggerContextResumeWithoutAwait(
+	context: RecoverableAudioContextLike | null | undefined,
+): boolean {
+	if (!context?.resume) {
+		return false;
+	}
+
+	try {
+		void context.resume().catch(() => {});
+		return true;
+	} catch {
+		return false;
+	}
+}
+
+export function primeAlphaTabAudioOnUserGesture(
+	api: RecoverableAlphaTabApiLike,
+): boolean {
+	const output = api.player?.output;
+	if (!output) {
+		return false;
+	}
+
+	let didAttemptActivation = false;
+	didAttemptActivation =
+		triggerOutputActivation(output) || didAttemptActivation;
+	didAttemptActivation =
+		triggerContextResumeWithoutAwait(output.context) || didAttemptActivation;
+
+	return didAttemptActivation;
+}
+
 function isRecoverableAudioState(state: string | undefined): boolean {
 	return state === "suspended" || state === "interrupted";
 }
