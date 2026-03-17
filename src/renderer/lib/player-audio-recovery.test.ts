@@ -1,5 +1,67 @@
 import { describe, expect, it, vi } from "vitest";
-import { prepareAlphaTabAudioForPlayback } from "./player-audio-recovery";
+import {
+	prepareAlphaTabAudioForPlayback,
+	primeAlphaTabAudioOnUserGesture,
+} from "./player-audio-recovery";
+
+describe("primeAlphaTabAudioOnUserGesture", () => {
+	it("attempts immediate activation and context resume", async () => {
+		const activate = vi.fn();
+		const resume = vi.fn(async () => {});
+
+		const didAttempt = primeAlphaTabAudioOnUserGesture({
+			player: {
+				output: {
+					context: {
+						state: "suspended",
+						resume,
+					},
+					activate,
+				},
+			},
+		});
+
+		expect(didAttempt).toBe(true);
+		expect(activate).toHaveBeenCalledTimes(1);
+		expect(activate).toHaveBeenCalledWith(expect.any(Function));
+		expect(resume).toHaveBeenCalledTimes(1);
+	});
+
+	it("safely handles activation throw and resume rejection", async () => {
+		const activate = vi.fn(() => {
+			throw new Error("activation-failed");
+		});
+		const resume = vi.fn(async () => {
+			throw new Error("resume-rejected");
+		});
+
+		expect(() =>
+			primeAlphaTabAudioOnUserGesture({
+				player: {
+					output: {
+						context: {
+							state: "suspended",
+							resume,
+						},
+						activate,
+					},
+				},
+			}),
+		).not.toThrow();
+
+		expect(activate).toHaveBeenCalledTimes(1);
+		expect(activate).toHaveBeenCalledWith(expect.any(Function));
+		expect(resume).toHaveBeenCalledTimes(1);
+
+		await Promise.resolve();
+	});
+
+	it("no-ops when no output exists", () => {
+		const didAttempt = primeAlphaTabAudioOnUserGesture({});
+
+		expect(didAttempt).toBe(false);
+	});
+});
 
 describe("prepareAlphaTabAudioForPlayback", () => {
 	it("resumes suspended audio output before playback", async () => {

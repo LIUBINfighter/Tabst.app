@@ -52,7 +52,10 @@ import {
 	createPlaybackFrameGate,
 	type PlaybackFrameGate,
 } from "../lib/playback-frame-gate";
-import { prepareAlphaTabAudioForPlayback } from "../lib/player-audio-recovery";
+import {
+	prepareAlphaTabAudioForPlayback,
+	primeAlphaTabAudioOnUserGesture,
+} from "../lib/player-audio-recovery";
 import {
 	PREVIEW_COMMAND_EVENT,
 	type PreviewCommandId,
@@ -1252,6 +1255,10 @@ export default function Preview({
 			try {
 				useAppStore.getState().registerPlayerControls({
 					play: () => {
+						const didPrimeAudio = primeAlphaTabAudioOnUserGesture(api);
+						if (didPrimeAudio) {
+							console.info("[Preview] Attempted audio priming on play gesture");
+						}
 						void (async () => {
 							const waitForPlaybackReady = async () => {
 								const startedAt = Date.now();
