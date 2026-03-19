@@ -6,8 +6,11 @@ use rfd::FileDialog;
 use tauri::Manager;
 
 use crate::{
-    app_state_path, asset_virtual_path_candidates, default_save_dir, normalize_non_empty_path,
-    now_ms, rename_path, sanitize_name, to_error, AppState, AppStateWithContent,
+    app_state_path, asset_virtual_path_candidates, authorize_existing_path_in_scope,
+    authorize_existing_workspace_path, authorize_target_path_in_scope, canonicalize_existing_path,
+    default_save_dir, normalize_non_empty_path, now_ms, register_allowed_file,
+    register_allowed_root, register_persisted_repos, rename_path, replace_registered_exact_file,
+    sanitize_name, to_error, validate_child_name, AppState, AppStateWithContent,
     AppStateWithContentFile, BasicResult, FileResult, FolderResult, OperationResult,
     ReadFileBytesResponse, ReadFileResponse, SaveResult,
 };
@@ -42,8 +45,10 @@ pub(crate) fn open_file(extensions: Vec<String>) -> Option<FileResult> {
     let content = fs::read_to_string(&selected).ok()?;
     let name = selected.file_name()?.to_string_lossy().to_string();
 
+    let registered_path = register_allowed_file(&selected).ok()?;
+
     Some(FileResult {
-        path: selected.to_string_lossy().to_string(),
+        path: registered_path.to_string_lossy().to_string(),
         name,
         content,
     })
@@ -53,6 +58,7 @@ pub(crate) fn open_file(extensions: Vec<String>) -> Option<FileResult> {
 pub(crate) fn select_folder() -> Option<String> {
     FileDialog::new()
         .pick_folder()
+        .and_then(|path| register_allowed_root(&path).ok())
         .map(|path| path.to_string_lossy().to_string())
 }
 
@@ -62,10 +68,20 @@ pub(crate) fn create_file(
     preferred_dir: Option<String>,
 ) -> Option<FileResult> {
     let save_dir = preferred_dir
-        .and_then(|value| normalize_non_empty_path(&value))
+        .and_then(|value| {
+            normalize_non_empty_path(&value).and_then(|path| {
+                authorize_existing_workspace_path(&path)
+                    .ok()
+                    .map(|(canonical_path, _)| canonical_path)
+            })
+        })
         .unwrap_or_else(default_save_dir);
 
     if fs::create_dir_all(&save_dir).is_err() {
+        return None;
+    }
+    let save_dir = canonicalize_existing_path(&save_dir).ok()?;
+    if !save_dir.is_dir() {
         return None;
     }
 
@@ -102,10 +118,20 @@ pub(crate) fn create_folder(
     preferred_dir: Option<String>,
 ) -> Option<FolderResult> {
     let target_dir = preferred_dir
-        .and_then(|value| normalize_non_empty_path(&value))
+        .and_then(|value| {
+            normalize_non_empty_path(&value).and_then(|path| {
+                authorize_existing_workspace_path(&path)
+                    .ok()
+                    .map(|(canonical_path, _)| canonical_path)
+            })
+        })
         .unwrap_or_else(default_save_dir);
 
     if fs::create_dir_all(&target_dir).is_err() {
+        return None;
+    }
+    let target_dir = canonicalize_existing_path(&target_dir).ok()?;
+    if !target_dir.is_dir() {
         return None;
     }
 
@@ -153,7 +179,49 @@ pub(crate) fn save_file(file_path: String, content: String) -> SaveResult {
         }
     };
 
-    match fs::write(normalized_path, content) {
+    let authorized_path = if normalized_path.exists() {
+        match authorize_existing_workspace_path(&normalized_path) {
+            Ok((value, _)) => value,
+            Err(error) => {
+                return SaveResult {
+                    success: false,
+                    error: Some(error),
+                };
+            }
+        }
+    } else {
+        let parent = match normalized_path.parent() {
+            Some(value) => value,
+            None => {
+                return SaveResult {
+                    success: false,
+                    error: Some("invalid-file-path".to_string()),
+                };
+            }
+        };
+
+        let scope = match authorize_existing_workspace_path(parent) {
+            Ok((_, scope)) => scope,
+            Err(error) => {
+                return SaveResult {
+                    success: false,
+                    error: Some(error),
+                };
+            }
+        };
+
+        match authorize_target_path_in_scope(&scope, &normalized_path) {
+            Ok(value) => value,
+            Err(error) => {
+                return SaveResult {
+                    success: false,
+                    error: Some(error),
+                };
+            }
+        }
+    };
+
+    match fs::write(&authorized_path, content) {
         Ok(()) => SaveResult {
             success: true,
             error: None,
@@ -167,7 +235,15 @@ pub(crate) fn save_file(file_path: String, content: String) -> SaveResult {
 
 #[tauri::command]
 pub(crate) fn load_app_state(app: tauri::AppHandle) -> AppStateWithContent {
-    let state_file = match app_state_path(&app) {
+    load_app_state_with_handle(&app)
+}
+
+pub(crate) fn load_app_state_with_handle<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+) -> AppStateWithContent {
+    register_persisted_repos(&crate::repo_commands::load_repos());
+
+    let state_file = match app_state_path(app) {
         Ok(path) => path,
         Err(_) => {
             return AppStateWithContent {
@@ -190,11 +266,16 @@ pub(crate) fn load_app_state(app: tauri::AppHandle) -> AppStateWithContent {
     let mut files: Vec<AppStateWithContentFile> = Vec::new();
     for file in state.files {
         let path = PathBuf::from(&file.path);
-        if !path.exists() || !path.is_file() {
+        let _ = register_allowed_file(&path);
+        let (authorized_path, _) = match authorize_existing_workspace_path(&path) {
+            Ok(value) => value,
+            Err(_) => continue,
+        };
+        if !authorized_path.exists() || !authorized_path.is_file() {
             continue;
         }
 
-        let content = match fs::read_to_string(&path) {
+        let content = match fs::read_to_string(&authorized_path) {
             Ok(value) => value,
             Err(_) => continue,
         };
@@ -202,7 +283,7 @@ pub(crate) fn load_app_state(app: tauri::AppHandle) -> AppStateWithContent {
         files.push(AppStateWithContentFile {
             id: file.id,
             name: file.name,
-            path: file.path,
+            path: authorized_path.to_string_lossy().to_string(),
             content,
         });
     }
@@ -231,7 +312,21 @@ pub(crate) fn save_app_state(app: tauri::AppHandle, state: AppState) -> SaveResu
         }
     };
 
-    match crate::write_json_file(&state_file, &state) {
+    let sanitized_state = AppState {
+        files: state
+            .files
+            .into_iter()
+            .filter(|file| {
+                normalize_non_empty_path(&file.path)
+                    .and_then(|path| authorize_existing_workspace_path(&path).ok())
+                    .is_some()
+            })
+            .collect(),
+        active_repo_id: state.active_repo_id,
+        active_file_id: state.active_file_id,
+    };
+
+    match crate::write_json_file(&state_file, &sanitized_state) {
         Ok(()) => SaveResult {
             success: true,
             error: None,
@@ -257,18 +352,33 @@ pub(crate) fn rename_file(old_path: String, new_name: String) -> OperationResult
         }
     };
 
-    let trimmed_name = new_name.trim();
-    if trimmed_name.is_empty() {
-        return OperationResult {
-            success: false,
-            new_path: None,
-            new_name: None,
-            error: Some("invalid-name".to_string()),
-        };
-    }
+    let (authorized_old_path, scope) = match authorize_existing_workspace_path(&normalized_old_path)
+    {
+        Ok(value) => value,
+        Err(error) => {
+            return OperationResult {
+                success: false,
+                new_path: None,
+                new_name: None,
+                error: Some(error),
+            };
+        }
+    };
 
-    let new_path = match normalized_old_path.parent() {
-        Some(parent) => parent.join(trimmed_name),
+    let trimmed_name = match validate_child_name(&new_name) {
+        Ok(value) => value,
+        Err(error) => {
+            return OperationResult {
+                success: false,
+                new_path: None,
+                new_name: None,
+                error: Some(error),
+            };
+        }
+    };
+
+    let new_path = match authorized_old_path.parent() {
+        Some(parent) => parent.join(&trimmed_name),
         None => {
             return OperationResult {
                 success: false,
@@ -279,16 +389,28 @@ pub(crate) fn rename_file(old_path: String, new_name: String) -> OperationResult
         }
     };
 
-    if new_path == normalized_old_path {
+    let authorized_new_path = match authorize_target_path_in_scope(&scope, &new_path) {
+        Ok(value) => value,
+        Err(error) => {
+            return OperationResult {
+                success: false,
+                new_path: None,
+                new_name: None,
+                error: Some(error),
+            };
+        }
+    };
+
+    if authorized_new_path == authorized_old_path {
         return OperationResult {
             success: true,
-            new_path: Some(new_path.to_string_lossy().to_string()),
-            new_name: Some(trimmed_name.to_string()),
+            new_path: Some(authorized_new_path.to_string_lossy().to_string()),
+            new_name: Some(trimmed_name.clone()),
             error: None,
         };
     }
 
-    if new_path.exists() {
+    if authorized_new_path.exists() {
         return OperationResult {
             success: false,
             new_path: None,
@@ -297,13 +419,16 @@ pub(crate) fn rename_file(old_path: String, new_name: String) -> OperationResult
         };
     }
 
-    match rename_path(&normalized_old_path, &new_path) {
-        Ok(()) => OperationResult {
-            success: true,
-            new_path: Some(new_path.to_string_lossy().to_string()),
-            new_name: Some(trimmed_name.to_string()),
-            error: None,
-        },
+    match rename_path(&authorized_old_path, &authorized_new_path) {
+        Ok(()) => {
+            let _ = replace_registered_exact_file(&authorized_old_path, &authorized_new_path);
+            OperationResult {
+                success: true,
+                new_path: Some(authorized_new_path.to_string_lossy().to_string()),
+                new_name: Some(trimmed_name),
+                error: None,
+            }
+        }
         Err(error) => OperationResult {
             success: false,
             new_path: None,
@@ -327,6 +452,18 @@ pub(crate) fn move_path(source_path: String, target_folder_path: String) -> Oper
         }
     };
 
+    let (source, scope) = match authorize_existing_workspace_path(&source) {
+        Ok(value) => value,
+        Err(error) => {
+            return OperationResult {
+                success: false,
+                new_path: None,
+                new_name: None,
+                error: Some(error),
+            };
+        }
+    };
+
     let target_folder = match normalize_non_empty_path(&target_folder_path) {
         Some(value) => value,
         None => {
@@ -339,23 +476,17 @@ pub(crate) fn move_path(source_path: String, target_folder_path: String) -> Oper
         }
     };
 
-    if !source.exists() {
-        return OperationResult {
-            success: false,
-            new_path: None,
-            new_name: None,
-            error: Some("source-not-found".to_string()),
-        };
-    }
-
-    if !target_folder.exists() {
-        return OperationResult {
-            success: false,
-            new_path: None,
-            new_name: None,
-            error: Some("target-not-found".to_string()),
-        };
-    }
+    let target_folder = match authorize_existing_path_in_scope(&scope, &target_folder) {
+        Ok(value) => value,
+        Err(error) => {
+            return OperationResult {
+                success: false,
+                new_path: None,
+                new_name: None,
+                error: Some(error),
+            };
+        }
+    };
 
     if !target_folder.is_dir() {
         return OperationResult {
@@ -387,6 +518,17 @@ pub(crate) fn move_path(source_path: String, target_folder_path: String) -> Oper
         .unwrap_or("moved")
         .to_string();
     let destination = target_folder.join(&source_name);
+    let destination = match authorize_target_path_in_scope(&scope, &destination) {
+        Ok(value) => value,
+        Err(error) => {
+            return OperationResult {
+                success: false,
+                new_path: None,
+                new_name: None,
+                error: Some(error),
+            };
+        }
+    };
 
     if destination == source {
         return OperationResult {
@@ -407,12 +549,15 @@ pub(crate) fn move_path(source_path: String, target_folder_path: String) -> Oper
     }
 
     match rename_path(&source, &destination) {
-        Ok(()) => OperationResult {
-            success: true,
-            new_path: Some(destination.to_string_lossy().to_string()),
-            new_name: Some(source_name),
-            error: None,
-        },
+        Ok(()) => {
+            let _ = replace_registered_exact_file(&source, &destination);
+            OperationResult {
+                success: true,
+                new_path: Some(destination.to_string_lossy().to_string()),
+                new_name: Some(source_name),
+                error: None,
+            }
+        }
         Err(error) => OperationResult {
             success: false,
             new_path: None,
@@ -434,12 +579,15 @@ pub(crate) fn reveal_in_folder(file_path: String) -> BasicResult {
         }
     };
 
-    if !normalized_path.exists() {
-        return BasicResult {
-            success: false,
-            error: Some("path-not-found".to_string()),
-        };
-    }
+    let normalized_path = match authorize_existing_workspace_path(&normalized_path) {
+        Ok((value, _)) => value,
+        Err(error) => {
+            return BasicResult {
+                success: false,
+                error: Some(error),
+            };
+        }
+    };
 
     let result = if cfg!(target_os = "macos") {
         Command::new("open")
@@ -569,6 +717,16 @@ pub(crate) fn read_file(file_path: String) -> ReadFileResponse {
         }
     };
 
+    let normalized_path = match authorize_existing_workspace_path(&normalized_path) {
+        Ok((value, _)) => value,
+        Err(error) => {
+            return ReadFileResponse {
+                content: String::new(),
+                error: Some(error),
+            };
+        }
+    };
+
     match fs::read_to_string(normalized_path) {
         Ok(content) => ReadFileResponse {
             content,
@@ -589,6 +747,16 @@ pub(crate) fn read_file_bytes(file_path: String) -> ReadFileBytesResponse {
             return ReadFileBytesResponse {
                 data: None,
                 error: Some("invalid-file-path".to_string()),
+            };
+        }
+    };
+
+    let normalized_path = match authorize_existing_workspace_path(&normalized_path) {
+        Ok((value, _)) => value,
+        Err(error) => {
+            return ReadFileBytesResponse {
+                data: None,
+                error: Some(error),
             };
         }
     };

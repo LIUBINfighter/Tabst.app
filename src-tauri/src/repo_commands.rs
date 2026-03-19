@@ -8,9 +8,11 @@ use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 use tauri::Emitter;
 
 use crate::{
-    global_metadata_dir, normalize_non_empty_path, now_ms, read_json_file, rename_path, to_error,
-    write_json_file, BasicResult, BasicSuccess, FileNode, Repo, RepoFsChangedEvent, RepoMetadata,
-    RepoWatchManager, RepoWatcherState, ScanDirectoryResult,
+    authorize_existing_workspace_path, authorize_workspace_root, global_metadata_dir,
+    normalize_loaded_repos, normalize_non_empty_path, now_ms, path_is_within_root,
+    prepare_repos_for_persistence, read_json_file, register_persisted_repos, rename_path, to_error,
+    unregister_allowed_path, write_json_file, BasicResult, BasicSuccess, FileNode, Repo,
+    RepoFsChangedEvent, RepoMetadata, RepoWatchManager, RepoWatcherState, ScanDirectoryResult,
 };
 
 const SUPPORTED_EXTENSIONS: [&str; 7] = [".md", ".atex", ".gp", ".gp3", ".gp4", ".gp5", ".gpx"];
@@ -155,6 +157,7 @@ fn scan_directory_recursive(dir_path: &Path) -> Result<Vec<FileNode>, String> {
 #[tauri::command]
 pub(crate) fn scan_directory(dir_path: String) -> Option<ScanDirectoryResult> {
     let normalized_path = normalize_non_empty_path(&dir_path)?;
+    let normalized_path = authorize_workspace_root(&normalized_path).ok()?;
     let nodes = scan_directory_recursive(&normalized_path).ok()?;
 
     Some(ScanDirectoryResult {
@@ -165,29 +168,40 @@ pub(crate) fn scan_directory(dir_path: String) -> Option<ScanDirectoryResult> {
 
 #[tauri::command]
 pub(crate) fn load_repos() -> Vec<Repo> {
+    load_repos_from_storage()
+}
+
+pub(crate) fn load_repos_from_storage() -> Vec<Repo> {
     let metadata_dir = match global_metadata_dir() {
         Ok(value) => value,
         Err(_) => return Vec::new(),
     };
     let repos_path = metadata_dir.join("repos.json");
 
-    read_json_file::<Vec<Repo>>(&repos_path)
-        .ok()
-        .flatten()
-        .unwrap_or_default()
+    let repos = normalize_loaded_repos(
+        read_json_file::<Vec<Repo>>(&repos_path)
+            .ok()
+            .flatten()
+            .unwrap_or_default(),
+    );
+    register_persisted_repos(&repos);
+    repos
 }
 
 #[tauri::command]
 pub(crate) fn save_repos(repos: Vec<Repo>) {
     if let Ok(metadata_dir) = global_metadata_dir() {
         let repos_path = metadata_dir.join("repos.json");
-        let _ = write_json_file(&repos_path, &repos);
+        let existing = load_repos_from_storage();
+        let prepared = prepare_repos_for_persistence(&existing, repos);
+        let _ = write_json_file(&repos_path, &prepared);
     }
 }
 
 #[tauri::command]
 pub(crate) fn load_workspace_metadata(repo_path: String) -> Option<RepoMetadata> {
     let normalized_path = normalize_non_empty_path(&repo_path)?;
+    let normalized_path = authorize_workspace_root(&normalized_path).ok()?;
     let metadata_path = normalized_path.join(".tabst").join("workspace.json");
 
     read_json_file::<RepoMetadata>(&metadata_path)
@@ -198,6 +212,10 @@ pub(crate) fn load_workspace_metadata(repo_path: String) -> Option<RepoMetadata>
 #[tauri::command]
 pub(crate) fn save_workspace_metadata(repo_path: String, metadata: RepoMetadata) {
     if let Some(normalized_path) = normalize_non_empty_path(&repo_path) {
+        let normalized_path = match authorize_workspace_root(&normalized_path) {
+            Ok(value) => value,
+            Err(_) => return,
+        };
         let workspace_dir = normalized_path.join(".tabst");
         let metadata_path = workspace_dir.join("workspace.json");
         let _ = write_json_file(&metadata_path, &metadata);
@@ -220,12 +238,25 @@ pub(crate) fn delete_file(
         }
     };
 
+    let (normalized_file_path, _) = match authorize_existing_workspace_path(&normalized_file_path) {
+        Ok(value) => value,
+        Err(error) => {
+            return BasicResult {
+                success: false,
+                error: Some(error),
+            };
+        }
+    };
+
     if behavior == "system-trash" {
         return match trash::delete(&normalized_file_path) {
-            Ok(()) => BasicResult {
-                success: true,
-                error: None,
-            },
+            Ok(()) => {
+                let _ = unregister_allowed_path(&normalized_file_path);
+                BasicResult {
+                    success: true,
+                    error: None,
+                }
+            }
             Err(error) => BasicResult {
                 success: false,
                 error: Some(to_error(error)),
@@ -244,6 +275,22 @@ pub(crate) fn delete_file(
                     };
                 }
             };
+        let normalized_repo_path = match authorize_workspace_root(&normalized_repo_path) {
+            Ok(value) => value,
+            Err(error) => {
+                return BasicResult {
+                    success: false,
+                    error: Some(error),
+                };
+            }
+        };
+
+        if !path_is_within_root(&normalized_repo_path, &normalized_file_path) {
+            return BasicResult {
+                success: false,
+                error: Some("path-outside-workspace".to_string()),
+            };
+        }
 
         let metadata_dir = match global_metadata_dir() {
             Ok(value) => value,
@@ -277,10 +324,13 @@ pub(crate) fn delete_file(
         let target_path = trash_dir.join(format!("{}_{}", now_ms(), file_name));
 
         return match rename_path(&normalized_file_path, &target_path) {
-            Ok(()) => BasicResult {
-                success: true,
-                error: None,
-            },
+            Ok(()) => {
+                let _ = unregister_allowed_path(&normalized_file_path);
+                BasicResult {
+                    success: true,
+                    error: None,
+                }
+            }
             Err(error) => BasicResult {
                 success: false,
                 error: Some(error),
@@ -306,6 +356,15 @@ pub(crate) fn start_repo_watch(
             return BasicResult {
                 success: false,
                 error: Some("invalid-repo-path".to_string()),
+            };
+        }
+    };
+    let normalized_repo_path = match authorize_workspace_root(&normalized_repo_path) {
+        Ok(value) => value,
+        Err(error) => {
+            return BasicResult {
+                success: false,
+                error: Some(error),
             };
         }
     };

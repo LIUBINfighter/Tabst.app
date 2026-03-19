@@ -4,8 +4,9 @@ use std::path::Path;
 use std::process::Command;
 
 use crate::{
-    normalize_non_empty_path, now_ms, to_error, BasicResult, GitChangeEntry, GitCommandOutput,
-    GitDiffResponse, GitDiffResult, GitStatusResponse, GitStatusSummary,
+    authorize_workspace_root, normalize_non_empty_path, now_ms, to_error,
+    validate_repo_relative_path, BasicResult, GitChangeEntry, GitCommandOutput, GitDiffResponse,
+    GitDiffResult, GitStatusResponse, GitStatusSummary,
 };
 
 pub(crate) fn format_git_error(output: &GitCommandOutput) -> String {
@@ -334,6 +335,16 @@ pub(crate) fn get_git_status(repo_path: String) -> GitStatusResponse {
             };
         }
     };
+    let normalized_repo_path = match authorize_workspace_root(&normalized_repo_path) {
+        Ok(value) => value,
+        Err(error) => {
+            return GitStatusResponse {
+                success: false,
+                data: None,
+                error: Some(error),
+            };
+        }
+    };
 
     if !normalized_repo_path.exists() {
         return GitStatusResponse {
@@ -386,8 +397,28 @@ pub(crate) fn get_git_diff(repo_path: String, file_path: String, group: String) 
             };
         }
     };
+    let normalized_repo_path = match authorize_workspace_root(&normalized_repo_path) {
+        Ok(value) => value,
+        Err(error) => {
+            return GitDiffResponse {
+                success: false,
+                data: None,
+                error: Some(error),
+            };
+        }
+    };
 
-    let normalized_file_path = file_path.trim();
+    let normalized_file_path = match validate_repo_relative_path(&file_path) {
+        Ok(value) => value,
+        Err(error) => {
+            return GitDiffResponse {
+                success: false,
+                data: None,
+                error: Some(error),
+            };
+        }
+    };
+
     if normalized_file_path.is_empty() {
         return GitDiffResponse {
             success: false,
@@ -405,7 +436,7 @@ pub(crate) fn get_git_diff(repo_path: String, file_path: String, group: String) 
     }
 
     if group == "untracked" {
-        return match build_untracked_patch(&normalized_repo_path, normalized_file_path) {
+        return match build_untracked_patch(&normalized_repo_path, &normalized_file_path) {
             Ok(result) => GitDiffResponse {
                 success: true,
                 data: Some(result),
@@ -427,7 +458,7 @@ pub(crate) fn get_git_diff(repo_path: String, file_path: String, group: String) 
             "--staged",
             "--binary",
             "--",
-            normalized_file_path,
+            normalized_file_path.as_str(),
         ]
     } else {
         vec![
@@ -436,7 +467,7 @@ pub(crate) fn get_git_diff(repo_path: String, file_path: String, group: String) 
             "diff",
             "--binary",
             "--",
-            normalized_file_path,
+            normalized_file_path.as_str(),
         ]
     };
 
@@ -450,7 +481,7 @@ pub(crate) fn get_git_diff(repo_path: String, file_path: String, group: String) 
             GitDiffResponse {
                 success: true,
                 data: Some(GitDiffResult {
-                    path: normalized_file_path.to_string(),
+                    path: normalized_file_path,
                     group,
                     mode: if binary {
                         "binary".to_string()
@@ -492,8 +523,26 @@ pub(crate) fn stage_git_file(repo_path: String, file_path: String) -> BasicResul
             };
         }
     };
+    let normalized_repo_path = match authorize_workspace_root(&normalized_repo_path) {
+        Ok(value) => value,
+        Err(error) => {
+            return BasicResult {
+                success: false,
+                error: Some(error),
+            };
+        }
+    };
 
-    let normalized_path = file_path.trim().to_string();
+    let normalized_path = match validate_repo_relative_path(&file_path) {
+        Ok(value) => value,
+        Err(error) => {
+            return BasicResult {
+                success: false,
+                error: Some(error),
+            };
+        }
+    };
+
     if normalized_path.is_empty() {
         return BasicResult {
             success: false,
@@ -534,8 +583,26 @@ pub(crate) fn unstage_git_file(repo_path: String, file_path: String) -> BasicRes
             };
         }
     };
+    let normalized_repo_path = match authorize_workspace_root(&normalized_repo_path) {
+        Ok(value) => value,
+        Err(error) => {
+            return BasicResult {
+                success: false,
+                error: Some(error),
+            };
+        }
+    };
 
-    let normalized_path = file_path.trim().to_string();
+    let normalized_path = match validate_repo_relative_path(&file_path) {
+        Ok(value) => value,
+        Err(error) => {
+            return BasicResult {
+                success: false,
+                error: Some(error),
+            };
+        }
+    };
+
     if normalized_path.is_empty() {
         return BasicResult {
             success: false,
@@ -611,6 +678,15 @@ pub(crate) fn stage_all_git_changes(repo_path: String) -> BasicResult {
             };
         }
     };
+    let normalized_repo_path = match authorize_workspace_root(&normalized_repo_path) {
+        Ok(value) => value,
+        Err(error) => {
+            return BasicResult {
+                success: false,
+                error: Some(error),
+            };
+        }
+    };
 
     if let Err(error) = assert_git_repository(&normalized_repo_path) {
         return BasicResult {
@@ -639,6 +715,15 @@ pub(crate) fn sync_git_pull(repo_path: String, remote_name: Option<String>) -> B
             return BasicResult {
                 success: false,
                 error: Some("invalid-repo-path".to_string()),
+            };
+        }
+    };
+    let normalized_repo_path = match authorize_workspace_root(&normalized_repo_path) {
+        Ok(value) => value,
+        Err(error) => {
+            return BasicResult {
+                success: false,
+                error: Some(error),
             };
         }
     };
@@ -679,6 +764,15 @@ pub(crate) fn commit_git_changes(repo_path: String, message: String) -> BasicRes
             return BasicResult {
                 success: false,
                 error: Some("invalid-repo-path".to_string()),
+            };
+        }
+    };
+    let normalized_repo_path = match authorize_workspace_root(&normalized_repo_path) {
+        Ok(value) => value,
+        Err(error) => {
+            return BasicResult {
+                success: false,
+                error: Some(error),
             };
         }
     };

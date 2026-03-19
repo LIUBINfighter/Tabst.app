@@ -1,13 +1,29 @@
+use std::collections::HashMap;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
+use std::sync::{Mutex, OnceLock};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use dirs::{document_dir, home_dir};
 use serde::{de::DeserializeOwned, Serialize};
 use tauri::Manager;
 
+use crate::Repo;
+
 pub(crate) const RELEASES_FEED_URL: &str =
     "https://github.com/LIUBINfighter/Tabst.app/releases.atom";
+
+#[derive(Debug, Clone)]
+pub(crate) enum WorkspacePathScope {
+    Root(PathBuf),
+    ExactFile(PathBuf),
+}
+
+#[derive(Debug, Default)]
+struct AllowedPathRegistry {
+    roots: Vec<PathBuf>,
+    exact_files: Vec<PathBuf>,
+}
 
 pub(crate) fn now_ms() -> u64 {
     SystemTime::now()
@@ -51,6 +67,378 @@ pub(crate) fn normalize_non_empty_path(path: &str) -> Option<PathBuf> {
         return None;
     }
     Some(PathBuf::from(trimmed))
+}
+
+fn allowed_path_registry() -> &'static Mutex<AllowedPathRegistry> {
+    static REGISTRY: OnceLock<Mutex<AllowedPathRegistry>> = OnceLock::new();
+    REGISTRY.get_or_init(|| Mutex::new(AllowedPathRegistry::default()))
+}
+
+fn push_unique_path(paths: &mut Vec<PathBuf>, candidate: PathBuf) {
+    if paths.iter().any(|existing| existing == &candidate) {
+        return;
+    }
+    paths.push(candidate);
+}
+
+fn implicit_default_workspace_root() -> Result<PathBuf, String> {
+    let default_root = default_save_dir();
+    fs::create_dir_all(&default_root).map_err(to_error)?;
+    fs::canonicalize(default_root).map_err(to_error)
+}
+
+pub(crate) fn canonicalize_existing_path(path: &Path) -> Result<PathBuf, String> {
+    fs::canonicalize(path).map_err(to_error)
+}
+
+pub(crate) fn canonicalize_target_path(path: &Path) -> Result<PathBuf, String> {
+    let file_name = path
+        .file_name()
+        .ok_or_else(|| "invalid-path".to_string())?
+        .to_os_string();
+    let parent = path.parent().ok_or_else(|| "invalid-path".to_string())?;
+    let canonical_parent = fs::canonicalize(parent).map_err(to_error)?;
+    Ok(canonical_parent.join(file_name))
+}
+
+fn longest_matching_root<'a>(roots: &'a [PathBuf], path: &Path) -> Option<&'a PathBuf> {
+    roots
+        .iter()
+        .filter(|root| path.starts_with(root))
+        .max_by_key(|root| root.components().count())
+}
+
+fn scope_for_canonical_path(
+    registry: &AllowedPathRegistry,
+    canonical_path: &Path,
+) -> Result<Option<WorkspacePathScope>, String> {
+    let default_root = implicit_default_workspace_root()?;
+    if canonical_path.starts_with(&default_root) {
+        return Ok(Some(WorkspacePathScope::Root(default_root)));
+    }
+
+    if let Some(root) = longest_matching_root(&registry.roots, canonical_path) {
+        return Ok(Some(WorkspacePathScope::Root(root.clone())));
+    }
+
+    if let Some(file) = registry
+        .exact_files
+        .iter()
+        .find(|file| file.as_path() == canonical_path)
+    {
+        return Ok(Some(WorkspacePathScope::ExactFile(file.clone())));
+    }
+
+    Ok(None)
+}
+
+fn scope_allows_existing_path(scope: &WorkspacePathScope, canonical_path: &Path) -> bool {
+    match scope {
+        WorkspacePathScope::Root(root) => canonical_path.starts_with(root),
+        WorkspacePathScope::ExactFile(file_path) => {
+            canonical_path == file_path
+                || file_path
+                    .parent()
+                    .map(|parent| canonical_path == parent)
+                    .unwrap_or(false)
+        }
+    }
+}
+
+pub(crate) fn scope_allows_target_path(scope: &WorkspacePathScope, canonical_path: &Path) -> bool {
+    match scope {
+        WorkspacePathScope::Root(root) => canonical_path.starts_with(root),
+        WorkspacePathScope::ExactFile(file_path) => file_path
+            .parent()
+            .map(|parent| canonical_path.parent() == Some(parent))
+            .unwrap_or(false),
+    }
+}
+
+pub(crate) fn register_allowed_root(path: &Path) -> Result<PathBuf, String> {
+    let canonical_path = canonicalize_existing_path(path)?;
+    if !canonical_path.is_dir() {
+        return Err("invalid-repo-path".to_string());
+    }
+
+    let mut guard = allowed_path_registry()
+        .lock()
+        .map_err(|_| "path-access-lock-failed".to_string())?;
+    push_unique_path(&mut guard.roots, canonical_path.clone());
+    Ok(canonical_path)
+}
+
+pub(crate) fn register_allowed_file(path: &Path) -> Result<PathBuf, String> {
+    let canonical_path = canonicalize_existing_path(path)?;
+    if !canonical_path.is_file() {
+        return Err("invalid-file-path".to_string());
+    }
+
+    let mut guard = allowed_path_registry()
+        .lock()
+        .map_err(|_| "path-access-lock-failed".to_string())?;
+    push_unique_path(&mut guard.exact_files, canonical_path.clone());
+    Ok(canonical_path)
+}
+
+pub(crate) fn replace_registered_exact_file(
+    old_path: &Path,
+    new_path: &Path,
+) -> Result<(), String> {
+    let mut guard = allowed_path_registry()
+        .lock()
+        .map_err(|_| "path-access-lock-failed".to_string())?;
+    if let Some(index) = guard
+        .exact_files
+        .iter()
+        .position(|existing| existing.as_path() == old_path)
+    {
+        guard.exact_files[index] = new_path.to_path_buf();
+    }
+    Ok(())
+}
+
+pub(crate) fn unregister_allowed_path(path: &Path) -> Result<(), String> {
+    let canonical_path = match canonicalize_existing_path(path) {
+        Ok(value) => value,
+        Err(_) => return Ok(()),
+    };
+
+    let mut guard = allowed_path_registry()
+        .lock()
+        .map_err(|_| "path-access-lock-failed".to_string())?;
+    guard
+        .exact_files
+        .retain(|existing| existing != &canonical_path);
+    guard.roots.retain(|existing| existing != &canonical_path);
+    Ok(())
+}
+
+pub(crate) fn authorize_existing_workspace_path(
+    path: &Path,
+) -> Result<(PathBuf, WorkspacePathScope), String> {
+    let canonical_path = canonicalize_existing_path(path)?;
+    let scope = {
+        let guard = allowed_path_registry()
+            .lock()
+            .map_err(|_| "path-access-lock-failed".to_string())?;
+        scope_for_canonical_path(&guard, &canonical_path)?
+    };
+
+    let scope = match scope {
+        Some(value) => value,
+        None => {
+            if !register_persisted_repo_scope_for_path(&canonical_path)? {
+                return Err("path-outside-workspace".to_string());
+            }
+
+            let guard = allowed_path_registry()
+                .lock()
+                .map_err(|_| "path-access-lock-failed".to_string())?;
+            scope_for_canonical_path(&guard, &canonical_path)?
+                .ok_or_else(|| "path-outside-workspace".to_string())?
+        }
+    };
+
+    if !scope_allows_existing_path(&scope, &canonical_path) {
+        return Err("path-outside-workspace".to_string());
+    }
+
+    Ok((canonical_path, scope))
+}
+
+pub(crate) fn authorize_existing_path_in_scope(
+    scope: &WorkspacePathScope,
+    path: &Path,
+) -> Result<PathBuf, String> {
+    let canonical_path = canonicalize_existing_path(path)?;
+    if scope_allows_existing_path(scope, &canonical_path) {
+        return Ok(canonical_path);
+    }
+    Err("path-outside-workspace".to_string())
+}
+
+pub(crate) fn authorize_target_path_in_scope(
+    scope: &WorkspacePathScope,
+    path: &Path,
+) -> Result<PathBuf, String> {
+    let canonical_path = canonicalize_target_path(path)?;
+    if scope_allows_target_path(scope, &canonical_path) {
+        return Ok(canonical_path);
+    }
+    Err("path-outside-workspace".to_string())
+}
+
+pub(crate) fn authorize_workspace_root(path: &Path) -> Result<PathBuf, String> {
+    let canonical_path = canonicalize_existing_path(path)?;
+    if !canonical_path.is_dir() {
+        return Err("invalid-repo-path".to_string());
+    }
+
+    let default_root = implicit_default_workspace_root()?;
+    if canonical_path.starts_with(&default_root) {
+        return Ok(canonical_path);
+    }
+
+    let guard = allowed_path_registry()
+        .lock()
+        .map_err(|_| "path-access-lock-failed".to_string())?;
+    if guard.roots.iter().any(|root| root == &canonical_path) {
+        return Ok(canonical_path);
+    }
+    drop(guard);
+
+    if register_persisted_repo_scope_for_path(&canonical_path)? {
+        let guard = allowed_path_registry()
+            .lock()
+            .map_err(|_| "path-access-lock-failed".to_string())?;
+        if guard.roots.iter().any(|root| root == &canonical_path) {
+            return Ok(canonical_path);
+        }
+    }
+
+    Err("path-outside-workspace".to_string())
+}
+
+pub(crate) fn path_is_within_root(root: &Path, path: &Path) -> bool {
+    path.starts_with(root)
+}
+
+pub(crate) fn validate_child_name(name: &str) -> Result<String, String> {
+    let trimmed = name.trim();
+    if trimmed.is_empty() {
+        return Err("invalid-name".to_string());
+    }
+
+    let path = Path::new(trimmed);
+    if path.is_absolute() {
+        return Err("invalid-name".to_string());
+    }
+
+    let mut components = path.components();
+    match (components.next(), components.next()) {
+        (Some(Component::Normal(_)), None) => Ok(trimmed.to_string()),
+        _ => Err("invalid-name".to_string()),
+    }
+}
+
+pub(crate) fn validate_repo_relative_path(path: &str) -> Result<String, String> {
+    let trimmed = path.trim();
+    if trimmed.is_empty() {
+        return Err("invalid-file-path".to_string());
+    }
+
+    let candidate = Path::new(trimmed);
+    if candidate.is_absolute() {
+        return Err("invalid-file-path".to_string());
+    }
+
+    let mut normalized = PathBuf::new();
+    for component in candidate.components() {
+        match component {
+            Component::CurDir => continue,
+            Component::Normal(part) => normalized.push(part),
+            Component::ParentDir | Component::RootDir | Component::Prefix(_) => {
+                return Err("invalid-file-path".to_string());
+            }
+        }
+    }
+
+    let value = normalized.to_string_lossy().replace('\\', "/");
+    if value.is_empty() {
+        return Err("invalid-file-path".to_string());
+    }
+
+    Ok(value)
+}
+
+pub(crate) fn normalize_loaded_repos(repos: Vec<Repo>) -> Vec<Repo> {
+    repos
+        .into_iter()
+        .map(|repo| {
+            let canonical_path = normalize_non_empty_path(&repo.path)
+                .and_then(|path| canonicalize_existing_path(&path).ok())
+                .filter(|path| path.is_dir());
+
+            match canonical_path {
+                Some(path) => Repo {
+                    path: path.to_string_lossy().to_string(),
+                    ..repo
+                },
+                None => repo,
+            }
+        })
+        .collect()
+}
+
+pub(crate) fn prepare_repos_for_persistence(
+    existing_repos: &[Repo],
+    incoming_repos: Vec<Repo>,
+) -> Vec<Repo> {
+    let existing_by_id = existing_repos
+        .iter()
+        .cloned()
+        .map(|repo| (repo.id.clone(), repo))
+        .collect::<HashMap<_, _>>();
+
+    incoming_repos
+        .into_iter()
+        .filter_map(|repo| {
+            let authorized_path = normalize_non_empty_path(&repo.path)
+                .and_then(|path| authorize_workspace_root(&path).ok());
+
+            if let Some(path) = authorized_path {
+                return Some(Repo {
+                    path: path.to_string_lossy().to_string(),
+                    ..repo
+                });
+            }
+
+            existing_by_id.get(&repo.id).map(|existing| Repo {
+                path: existing.path.clone(),
+                ..repo
+            })
+        })
+        .collect()
+}
+
+pub(crate) fn register_persisted_repos(repos: &[Repo]) {
+    for repo in repos {
+        if let Some(path) = normalize_non_empty_path(&repo.path) {
+            let _ = register_allowed_root(&path);
+        }
+    }
+}
+
+fn register_persisted_repo_scope_for_path(canonical_path: &Path) -> Result<bool, String> {
+    let metadata_dir = match global_metadata_dir() {
+        Ok(value) => value,
+        Err(_) => return Ok(false),
+    };
+    let repos_path = metadata_dir.join("repos.json");
+    let repos = read_json_file::<Vec<Repo>>(&repos_path)
+        .ok()
+        .flatten()
+        .unwrap_or_default();
+
+    for repo in repos {
+        let Some(path) = normalize_non_empty_path(&repo.path) else {
+            continue;
+        };
+        let Ok(canonical_repo_path) = canonicalize_existing_path(&path) else {
+            continue;
+        };
+        if !canonical_repo_path.is_dir() {
+            continue;
+        }
+        if canonical_path == canonical_repo_path || canonical_path.starts_with(&canonical_repo_path)
+        {
+            register_allowed_root(&canonical_repo_path)?;
+            return Ok(true);
+        }
+    }
+
+    Ok(false)
 }
 
 pub(crate) fn sanitize_name(name: &str) -> String {
@@ -138,7 +526,9 @@ pub(crate) fn global_metadata_dir() -> Result<PathBuf, String> {
     Ok(metadata_dir)
 }
 
-pub(crate) fn app_state_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+pub(crate) fn app_state_path<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+) -> Result<PathBuf, String> {
     let app_data = app.path().app_data_dir().map_err(to_error)?;
     fs::create_dir_all(&app_data).map_err(to_error)?;
     Ok(app_data.join("app-state.json"))
