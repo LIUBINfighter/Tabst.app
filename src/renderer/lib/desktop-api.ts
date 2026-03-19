@@ -6,9 +6,11 @@ import type {
 } from "../types/desktop";
 import type { GitChangeGroup } from "../types/git";
 import type { FileNode, Repo, RepoMetadata } from "../types/repo";
+import { isGpFilePath } from "./gp-import";
 import { createTauriDesktopAPI } from "./tauri-desktop-api";
 
 interface BrowserStoredFile {
+	binaryData?: number[];
 	path: string;
 	name: string;
 	content: string;
@@ -157,6 +159,25 @@ function fileNameFromPath(path: string): string {
 	return segments[segments.length - 1] || path;
 }
 
+async function createBrowserStoredFile(
+	file: File,
+	path: string,
+	repoPath: string,
+): Promise<BrowserStoredFile> {
+	const isBinaryGpFile = isGpFilePath(file.name);
+
+	return {
+		path,
+		name: file.name,
+		content: isBinaryGpFile ? "" : await file.text(),
+		binaryData: isBinaryGpFile
+			? Array.from(new Uint8Array(await file.arrayBuffer()))
+			: undefined,
+		repoPath,
+		updatedAt: Date.now(),
+	};
+}
+
 export function createWebDesktopAPI(): DesktopAPI {
 	const api: DesktopAPI = {
 		openFile: async (extensions: string[]): Promise<FileResult | null> => {
@@ -165,19 +186,16 @@ export function createWebDesktopAPI(): DesktopAPI {
 			if (!files.length) return null;
 
 			const pickedFile = files[0];
-			const content = await pickedFile.text();
 			const repoPath = "web://scratch";
 			const path = makeFilePath(
 				repoPath,
 				`${crypto.randomUUID()}-${pickedFile.name}`,
 			);
-			const nextFile: BrowserStoredFile = {
+			const nextFile = await createBrowserStoredFile(
+				pickedFile,
 				path,
-				name: pickedFile.name,
-				content,
 				repoPath,
-				updatedAt: Date.now(),
-			};
+			);
 			const allFiles = getAllFiles();
 			allFiles[path] = nextFile;
 			saveAllFiles(allFiles);
@@ -185,7 +203,7 @@ export function createWebDesktopAPI(): DesktopAPI {
 			return {
 				path,
 				name: pickedFile.name,
-				content,
+				content: nextFile.content,
 			};
 		},
 
@@ -249,6 +267,7 @@ export function createWebDesktopAPI(): DesktopAPI {
 				path: filePath,
 				name: existing?.name ?? fileNameFromPath(filePath),
 				content,
+				binaryData: undefined,
 				repoPath: existing?.repoPath ?? "web://scratch",
 				updatedAt: Date.now(),
 			};
@@ -371,16 +390,14 @@ export function createWebDesktopAPI(): DesktopAPI {
 					.slice(1)
 					.join("/");
 				if (!relativePath) continue;
-				const content = await file.text();
 				const fullPath = makeFilePath(repoPath, relativePath);
-				const allFiles = getAllFiles();
-				allFiles[fullPath] = {
-					path: fullPath,
-					name: file.name,
-					content,
+				const nextFile = await createBrowserStoredFile(
+					file,
+					fullPath,
 					repoPath,
-					updatedAt: Date.now(),
-				};
+				);
+				const allFiles = getAllFiles();
+				allFiles[fullPath] = nextFile;
 				saveAllFiles(allFiles);
 			}
 
@@ -402,8 +419,10 @@ export function createWebDesktopAPI(): DesktopAPI {
 			if (!file) {
 				return { error: "File not found" };
 			}
-			const data = new TextEncoder().encode(file.content);
-			return { data };
+			if (file.binaryData) {
+				return { data: Uint8Array.from(file.binaryData) };
+			}
+			return { data: new TextEncoder().encode(file.content) };
 		},
 
 		scanDirectory: async (

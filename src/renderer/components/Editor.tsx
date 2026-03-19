@@ -27,6 +27,11 @@ import {
 	type GlobalCommandId,
 	type InlineCommandId,
 } from "../lib/command-registry";
+import {
+	createEditorAutosaveRequest,
+	type EditorAutosaveRequest,
+	planEditorAutosaveTransition,
+} from "../lib/editor-autosave";
 import { runUiCommand } from "../lib/ui-command-registry";
 import {
 	isWebsiteMobileLayout,
@@ -75,6 +80,8 @@ export function Editor({
 	const playbackHighlightRafRef = useRef<number | null>(null);
 	const lastContentRef = useRef<string>("");
 	const focusCleanupRef = useRef<(() => void) | null>(null);
+	const activeFileRef = useRef<FileItem | null>(null);
+	const pendingAutosaveRef = useRef<EditorAutosaveRequest | null>(null);
 	const [previewApi, setPreviewApi] = useState<TracksPanelProps["api"]>(null);
 	const [inlineCommandOpen, setInlineCommandOpen] = useState(false);
 	const [inlineCommandTop, setInlineCommandTop] = useState(8);
@@ -92,6 +99,7 @@ export function Editor({
 		s.files.find((f) => f.id === s.activeFileId),
 	);
 	const activeFile = sandboxFile ?? activeFileFromStore;
+	activeFileRef.current = activeFile ?? null;
 	const setWorkspaceMode = useAppStore((s) => s.setWorkspaceMode);
 	const workspaceMode = useAppStore((s) => s.workspaceMode);
 	const isTracksPanelOpen = useAppStore((s) => s.isTracksPanelOpen);
@@ -143,14 +151,22 @@ export function Editor({
 		cleanupLSP,
 	} = useEditorLSP();
 
+	const commitAutosave = useCallback(async (request: EditorAutosaveRequest) => {
+		try {
+			await window.desktopAPI.saveFile(request.filePath, request.content);
+		} catch (err) {
+			console.error("Failed to save file:", err);
+		}
+	}, []);
+
 	// Create update listener
 	const createUpdateListener = useCallback(() => {
 		return EditorView.updateListener.of((update: ViewUpdate) => {
 			if (update.docChanged && !isUpdatingRef.current) {
 				const newContent = update.state.doc.toString();
 				lastContentRef.current = newContent;
-				const currentActiveId =
-					sandboxFile?.id ?? useAppStore.getState().activeFileId;
+				const activeFileAtEdit = sandboxFile ?? activeFileRef.current;
+				const currentActiveId = activeFileAtEdit?.id ?? null;
 
 				if (sandboxFile) {
 					onSandboxContentChange?.(newContent);
@@ -158,27 +174,50 @@ export function Editor({
 					useAppStore.getState().updateFileContent(currentActiveId, newContent);
 				}
 
-				if (saveTimerRef.current) {
+				const nextAutosave = createEditorAutosaveRequest({
+					activeFile: activeFileAtEdit
+						? {
+								id: activeFileAtEdit.id,
+								path: activeFileAtEdit.path,
+							}
+						: null,
+					newContent,
+					sandboxFile: sandboxFile
+						? {
+								id: sandboxFile.id,
+								path: sandboxFile.path,
+							}
+						: null,
+					sandboxMode,
+				});
+				const transition = planEditorAutosaveTransition(
+					pendingAutosaveRef.current,
+					nextAutosave,
+				);
+
+				if (transition.clearCurrentTimer && saveTimerRef.current) {
 					clearTimeout(saveTimerRef.current);
+					saveTimerRef.current = null;
 				}
 
-				saveTimerRef.current = window.setTimeout(async () => {
-					if (!sandboxMode && !sandboxFile) {
-						const state = useAppStore.getState();
-						const file = state.files.find((f) => f.id === state.activeFileId);
-						if (file) {
-							try {
-								await window.desktopAPI.saveFile(file.path, newContent);
-							} catch (err) {
-								console.error("Failed to save file:", err);
-							}
-						}
+				if (transition.flushImmediately) {
+					void commitAutosave(transition.flushImmediately);
+				}
+
+				pendingAutosaveRef.current = transition.nextPending;
+				if (!transition.nextPending) return;
+
+				const scheduledRequest = transition.nextPending;
+				saveTimerRef.current = window.setTimeout(() => {
+					void commitAutosave(scheduledRequest);
+					if (pendingAutosaveRef.current?.fileId === scheduledRequest.fileId) {
+						pendingAutosaveRef.current = null;
 					}
 					saveTimerRef.current = null;
 				}, 800);
 			}
 		});
-	}, [onSandboxContentChange, sandboxFile, sandboxMode]);
+	}, [commitAutosave, onSandboxContentChange, sandboxFile, sandboxMode]);
 
 	// Main effect: Create editor or update it when file changes
 	useEffect(() => {
@@ -592,6 +631,7 @@ export function Editor({
 				clearTimeout(saveTimerRef.current);
 				saveTimerRef.current = null;
 			}
+			pendingAutosaveRef.current = null;
 		};
 	}, [cleanupLSP]);
 
@@ -612,6 +652,7 @@ export function Editor({
 			clearTimeout(saveTimerRef.current);
 			saveTimerRef.current = null;
 		}
+		pendingAutosaveRef.current = null;
 	}, [cleanupLSP, enjoyMode]);
 
 	// Cleanup editor when no active file - use useLayoutEffect to ensure cleanup before render

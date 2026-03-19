@@ -1,13 +1,68 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createWebDesktopAPI, shouldUseTauriDesktopApi } from "./desktop-api";
 
+class MemoryStorage {
+	private values = new Map<string, string>();
+
+	getItem(key: string) {
+		return this.values.has(key) ? (this.values.get(key) ?? null) : null;
+	}
+
+	setItem(key: string, value: string) {
+		this.values.set(key, value);
+	}
+
+	removeItem(key: string) {
+		this.values.delete(key);
+	}
+
+	clear() {
+		this.values.clear();
+	}
+}
+
+type MockInputElement = {
+	type: string;
+	accept?: string;
+	multiple?: boolean;
+	files: File[] | null;
+	onchange: null | (() => void);
+	click: () => void;
+	webkitdirectory?: boolean;
+};
+
+let nextPickedFiles: File[] = [];
+
 beforeEach(() => {
+	const localStorage = new MemoryStorage();
+
 	Object.defineProperty(globalThis, "window", {
 		value: {
 			open: vi.fn(),
+			localStorage,
 		},
 		configurable: true,
 	});
+
+	Object.defineProperty(globalThis, "document", {
+		value: {
+			createElement: vi.fn((): MockInputElement => {
+				const input: MockInputElement = {
+					type: "file",
+					files: null,
+					onchange: null,
+					click: () => {
+						input.files = nextPickedFiles;
+						input.onchange?.();
+					},
+				};
+				return input;
+			}),
+		},
+		configurable: true,
+	});
+
+	nextPickedFiles = [];
 });
 
 describe("tauri runtime detection", () => {
@@ -72,6 +127,47 @@ describe("tauri runtime detection", () => {
 			"https://example.com/docs",
 			"_blank",
 			"noopener,noreferrer",
+		);
+	});
+
+	it("preserves binary gp bytes when importing through openFile", async () => {
+		const api = createWebDesktopAPI();
+		const originalBytes = Uint8Array.from([0, 255, 254, 65, 0, 66, 67]);
+		nextPickedFiles = [
+			new File([originalBytes], "song.gp5", {
+				type: "application/octet-stream",
+			}),
+		];
+
+		const result = await api.openFile([".gp5"]);
+		expect(result).not.toBeNull();
+
+		const readResult = await api.readFileBytes(result?.path ?? "");
+		expect(Array.from(readResult.data ?? [])).toEqual(
+			Array.from(originalBytes),
+		);
+	});
+
+	it("preserves binary gp bytes when importing a directory in web runtime", async () => {
+		const api = createWebDesktopAPI();
+		const originalBytes = Uint8Array.from([71, 80, 53, 0, 255, 10, 13]);
+		const file = new File([originalBytes], "riff.gp5", {
+			type: "application/octet-stream",
+		});
+		Object.defineProperty(file, "webkitRelativePath", {
+			value: "session/riff.gp5",
+			configurable: true,
+		});
+		nextPickedFiles = [file];
+
+		const repoPath = await api.selectFolder();
+		expect(repoPath).toBeTruthy();
+
+		const tree = await api.scanDirectory(repoPath ?? "");
+		const importedPath = tree?.nodes[0]?.path ?? "";
+		const readResult = await api.readFileBytes(importedPath);
+		expect(Array.from(readResult.data ?? [])).toEqual(
+			Array.from(originalBytes),
 		);
 	});
 });
