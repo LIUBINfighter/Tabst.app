@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fs;
 use std::path::{Component, Path, PathBuf};
 use std::sync::{Mutex, OnceLock};
@@ -184,18 +185,15 @@ pub(crate) fn replace_registered_exact_file(
     old_path: &Path,
     new_path: &Path,
 ) -> Result<(), String> {
-    let old_canonical = canonicalize_existing_path(old_path)?;
-    let new_canonical = canonicalize_existing_path(new_path)?;
-
     let mut guard = allowed_path_registry()
         .lock()
         .map_err(|_| "path-access-lock-failed".to_string())?;
     if let Some(index) = guard
         .exact_files
         .iter()
-        .position(|existing| existing == &old_canonical)
+        .position(|existing| existing.as_path() == old_path)
     {
-        guard.exact_files[index] = new_canonical;
+        guard.exact_files[index] = new_path.to_path_buf();
     }
     Ok(())
 }
@@ -328,14 +326,50 @@ pub(crate) fn validate_repo_relative_path(path: &str) -> Result<String, String> 
     Ok(value)
 }
 
-pub(crate) fn sanitize_repos_for_persistence(repos: Vec<Repo>) -> Vec<Repo> {
+pub(crate) fn normalize_loaded_repos(repos: Vec<Repo>) -> Vec<Repo> {
     repos
         .into_iter()
+        .map(|repo| {
+            let canonical_path = normalize_non_empty_path(&repo.path)
+                .and_then(|path| canonicalize_existing_path(&path).ok())
+                .filter(|path| path.is_dir());
+
+            match canonical_path {
+                Some(path) => Repo {
+                    path: path.to_string_lossy().to_string(),
+                    ..repo
+                },
+                None => repo,
+            }
+        })
+        .collect()
+}
+
+pub(crate) fn prepare_repos_for_persistence(
+    existing_repos: &[Repo],
+    incoming_repos: Vec<Repo>,
+) -> Vec<Repo> {
+    let existing_by_id = existing_repos
+        .iter()
+        .cloned()
+        .map(|repo| (repo.id.clone(), repo))
+        .collect::<HashMap<_, _>>();
+
+    incoming_repos
+        .into_iter()
         .filter_map(|repo| {
-            let path = normalize_non_empty_path(&repo.path)?;
-            let canonical_path = authorize_workspace_root(&path).ok()?;
-            Some(Repo {
-                path: canonical_path.to_string_lossy().to_string(),
+            let authorized_path = normalize_non_empty_path(&repo.path)
+                .and_then(|path| authorize_workspace_root(&path).ok());
+
+            if let Some(path) = authorized_path {
+                return Some(Repo {
+                    path: path.to_string_lossy().to_string(),
+                    ..repo
+                });
+            }
+
+            existing_by_id.get(&repo.id).map(|existing| Repo {
+                path: existing.path.clone(),
                 ..repo
             })
         })

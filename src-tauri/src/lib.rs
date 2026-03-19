@@ -90,10 +90,12 @@ mod tests {
     use super::*;
     use notify::event::{CreateKind, DataChange, EventKind, ModifyKind, RemoveKind};
     use serde_json::json;
+    use std::env;
     use std::fs;
     use std::path::PathBuf;
     use std::process::Command;
     use std::sync::mpsc;
+    use std::sync::{Mutex, OnceLock};
     use std::time::{Duration, Instant};
 
     fn temp_dir_for(test_name: &str) -> PathBuf {
@@ -115,6 +117,35 @@ mod tests {
             .status()
             .expect("failed to run git init");
         assert!(status.success(), "git init should succeed in test repo");
+    }
+
+    fn env_lock() -> &'static Mutex<()> {
+        static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+        LOCK.get_or_init(|| Mutex::new(()))
+    }
+
+    fn with_temp_home<T>(test_name: &str, run: impl FnOnce(PathBuf) -> T) -> T {
+        let _guard = env_lock().lock().expect("failed to lock env mutex");
+        let home_dir = temp_dir_for(test_name);
+        let previous_home = env::var_os("HOME");
+
+        unsafe {
+            env::set_var("HOME", &home_dir);
+        }
+
+        let result = run(home_dir.clone());
+
+        match previous_home {
+            Some(value) => unsafe {
+                env::set_var("HOME", value);
+            },
+            None => unsafe {
+                env::remove_var("HOME");
+            },
+        }
+
+        let _ = fs::remove_dir_all(&home_dir);
+        result
     }
 
     #[test]
@@ -343,5 +374,119 @@ mod tests {
 
         let _ = fs::remove_file(&outside_file);
         let _ = fs::remove_dir_all(&repo_dir);
+    }
+
+    #[test]
+    fn save_repos_preserves_temporarily_unavailable_entries() {
+        with_temp_home("save-repos-preserve-unavailable", |_home_dir| {
+            let repo_one_dir = temp_dir_for("saved-repo-one");
+            let repo_two_dir = temp_dir_for("saved-repo-two");
+            register_allowed_root(&repo_one_dir).expect("register repo one");
+            register_allowed_root(&repo_two_dir).expect("register repo two");
+
+            let repo_one = Repo {
+                id: "repo-1".to_string(),
+                name: "Repo One".to_string(),
+                path: repo_one_dir.to_string_lossy().to_string(),
+                last_opened_at: 1,
+            };
+            let repo_two = Repo {
+                id: "repo-2".to_string(),
+                name: "Repo Two".to_string(),
+                path: repo_two_dir.to_string_lossy().to_string(),
+                last_opened_at: 2,
+            };
+
+            save_repos(vec![repo_one.clone(), repo_two.clone()]);
+
+            fs::remove_dir_all(&repo_one_dir).expect("remove repo one to simulate offline repo");
+
+            save_repos(vec![
+                Repo {
+                    last_opened_at: 10,
+                    ..repo_one.clone()
+                },
+                Repo {
+                    last_opened_at: 20,
+                    ..repo_two.clone()
+                },
+            ]);
+
+            let persisted = load_repos();
+            assert_eq!(
+                persisted.len(),
+                2,
+                "saving repos should not drop previously known repos that are temporarily unavailable"
+            );
+            assert!(
+                persisted.iter().any(|repo| repo.id == repo_one.id),
+                "offline repo entry should still be present after save"
+            );
+
+            let _ = fs::remove_dir_all(&repo_two_dir);
+        });
+    }
+
+    #[test]
+    fn load_repos_returns_canonical_paths_for_accessible_entries() {
+        with_temp_home("load-repos-canonical-paths", |_home_dir| {
+            let repo_parent = temp_dir_for("canonical-repo-parent");
+            let alias_dir = repo_parent.join("alias");
+            let repo_dir = repo_parent.join("repo");
+            fs::create_dir_all(&alias_dir).expect("create alias dir");
+            fs::create_dir_all(&repo_dir).expect("create repo dir");
+
+            let alias_path = alias_dir.join("..").join("repo");
+            let metadata_dir = global_metadata_dir().expect("global metadata dir");
+            let repos_path = metadata_dir.join("repos.json");
+            write_json_file(
+                &repos_path,
+                &vec![Repo {
+                    id: "repo-1".to_string(),
+                    name: "Repo".to_string(),
+                    path: alias_path.to_string_lossy().to_string(),
+                    last_opened_at: 1,
+                }],
+            )
+            .expect("write repos");
+
+            let loaded = load_repos();
+            assert_eq!(loaded.len(), 1);
+            assert_eq!(
+                loaded[0].path,
+                fs::canonicalize(&repo_dir)
+                    .expect("canonical repo path")
+                    .to_string_lossy()
+                    .to_string()
+            );
+
+            let _ = fs::remove_dir_all(&repo_parent);
+        });
+    }
+
+    #[test]
+    fn rename_file_keeps_exact_file_registration_in_sync() {
+        let standalone_dir = temp_dir_for("exact-file-rename");
+        let source_path = standalone_dir.join("standalone.atex");
+        fs::write(&source_path, "content").expect("write standalone file");
+        register_allowed_file(&source_path).expect("register standalone file");
+
+        let result = rename_file(
+            source_path.to_string_lossy().to_string(),
+            "renamed.atex".to_string(),
+        );
+
+        assert!(result.success, "expected standalone rename to succeed");
+        let new_path = PathBuf::from(
+            result
+                .new_path
+                .clone()
+                .expect("rename should return new path for standalone file"),
+        );
+        let read_result = read_file(new_path.to_string_lossy().to_string());
+        assert_eq!(read_result.error, None);
+        assert_eq!(read_result.content, "content");
+
+        let _ = fs::remove_dir_all(&standalone_dir);
     }
 }

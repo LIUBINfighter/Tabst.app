@@ -9,8 +9,8 @@ use tauri::Emitter;
 
 use crate::{
     authorize_existing_workspace_path, authorize_workspace_root, global_metadata_dir,
-    normalize_non_empty_path, now_ms, path_is_within_root, read_json_file,
-    register_persisted_repos, rename_path, sanitize_repos_for_persistence, to_error,
+    normalize_loaded_repos, normalize_non_empty_path, now_ms, path_is_within_root,
+    prepare_repos_for_persistence, read_json_file, register_persisted_repos, rename_path, to_error,
     unregister_allowed_path, write_json_file, BasicResult, BasicSuccess, FileNode, Repo,
     RepoFsChangedEvent, RepoMetadata, RepoWatchManager, RepoWatcherState, ScanDirectoryResult,
 };
@@ -168,16 +168,22 @@ pub(crate) fn scan_directory(dir_path: String) -> Option<ScanDirectoryResult> {
 
 #[tauri::command]
 pub(crate) fn load_repos() -> Vec<Repo> {
+    load_repos_from_storage()
+}
+
+pub(crate) fn load_repos_from_storage() -> Vec<Repo> {
     let metadata_dir = match global_metadata_dir() {
         Ok(value) => value,
         Err(_) => return Vec::new(),
     };
     let repos_path = metadata_dir.join("repos.json");
 
-    let repos = read_json_file::<Vec<Repo>>(&repos_path)
-        .ok()
-        .flatten()
-        .unwrap_or_default();
+    let repos = normalize_loaded_repos(
+        read_json_file::<Vec<Repo>>(&repos_path)
+            .ok()
+            .flatten()
+            .unwrap_or_default(),
+    );
     register_persisted_repos(&repos);
     repos
 }
@@ -186,8 +192,9 @@ pub(crate) fn load_repos() -> Vec<Repo> {
 pub(crate) fn save_repos(repos: Vec<Repo>) {
     if let Ok(metadata_dir) = global_metadata_dir() {
         let repos_path = metadata_dir.join("repos.json");
-        let sanitized = sanitize_repos_for_persistence(repos);
-        let _ = write_json_file(&repos_path, &sanitized);
+        let existing = load_repos_from_storage();
+        let prepared = prepare_repos_for_persistence(&existing, repos);
+        let _ = write_json_file(&repos_path, &prepared);
     }
 }
 
