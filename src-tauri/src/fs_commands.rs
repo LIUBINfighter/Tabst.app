@@ -235,9 +235,15 @@ pub(crate) fn save_file(file_path: String, content: String) -> SaveResult {
 
 #[tauri::command]
 pub(crate) fn load_app_state(app: tauri::AppHandle) -> AppStateWithContent {
+    load_app_state_with_handle(&app)
+}
+
+pub(crate) fn load_app_state_with_handle<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+) -> AppStateWithContent {
     register_persisted_repos(&crate::repo_commands::load_repos());
 
-    let state_file = match app_state_path(&app) {
+    let state_file = match app_state_path(app) {
         Ok(path) => path,
         Err(_) => {
             return AppStateWithContent {
@@ -260,6 +266,7 @@ pub(crate) fn load_app_state(app: tauri::AppHandle) -> AppStateWithContent {
     let mut files: Vec<AppStateWithContentFile> = Vec::new();
     for file in state.files {
         let path = PathBuf::from(&file.path);
+        let _ = register_allowed_file(&path);
         let (authorized_path, _) = match authorize_existing_workspace_path(&path) {
             Ok(value) => value,
             Err(_) => continue,

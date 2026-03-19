@@ -97,6 +97,7 @@ mod tests {
     use std::sync::mpsc;
     use std::sync::{Mutex, OnceLock};
     use std::time::{Duration, Instant};
+    use tauri::test::mock_app;
 
     fn temp_dir_for(test_name: &str) -> PathBuf {
         let mut dir = std::env::temp_dir();
@@ -488,5 +489,90 @@ mod tests {
         assert_eq!(read_result.content, "content");
 
         let _ = fs::remove_dir_all(&standalone_dir);
+    }
+
+    #[test]
+    fn load_app_state_restores_standalone_files_from_previous_session() {
+        with_temp_home("load-app-state-standalone", |_home_dir| {
+            let standalone_dir = temp_dir_for("standalone-session");
+            let standalone_path = standalone_dir.join("standalone.atex");
+            fs::write(&standalone_path, "content").expect("write standalone session file");
+
+            let app = mock_app();
+            let app_handle = app.handle().clone();
+            let state_path = app_state_path(&app_handle).expect("app state path");
+            let _ = fs::remove_file(&state_path);
+
+            write_json_file(
+                &state_path,
+                &AppState {
+                    files: vec![AppStateFile {
+                        id: "file-1".to_string(),
+                        name: "standalone.atex".to_string(),
+                        path: standalone_path.to_string_lossy().to_string(),
+                    }],
+                    active_repo_id: None,
+                    active_file_id: Some("file-1".to_string()),
+                },
+            )
+            .expect("write app state");
+
+            let loaded = fs_commands::load_app_state_with_handle(&app_handle);
+
+            assert_eq!(
+                loaded.files.len(),
+                1,
+                "standalone files restored from app state should survive app restart"
+            );
+            assert_eq!(loaded.files[0].content, "content");
+            assert_eq!(
+                loaded.files[0].path,
+                fs::canonicalize(&standalone_path)
+                    .expect("canonical standalone path")
+                    .to_string_lossy()
+                    .to_string()
+            );
+            assert_eq!(loaded.active_file_id.as_deref(), Some("file-1"));
+
+            let _ = fs::remove_file(&state_path);
+            let _ = fs::remove_dir_all(&standalone_dir);
+        });
+    }
+
+    #[test]
+    fn authorize_workspace_root_re_registers_persisted_repos_after_reconnect() {
+        with_temp_home("persisted-repo-reconnect", |_home_dir| {
+            let repo_dir = temp_dir_for("reconnect-repo");
+            fs::create_dir_all(&repo_dir).expect("create repo dir");
+
+            let metadata_dir = global_metadata_dir().expect("global metadata dir");
+            let repos_path = metadata_dir.join("repos.json");
+            write_json_file(
+                &repos_path,
+                &vec![Repo {
+                    id: "repo-1".to_string(),
+                    name: "Reconnect Repo".to_string(),
+                    path: repo_dir.to_string_lossy().to_string(),
+                    last_opened_at: 1,
+                }],
+            )
+            .expect("write repos");
+
+            fs::remove_dir_all(&repo_dir).expect("remove repo to simulate disconnected drive");
+
+            let loaded = load_repos();
+            assert_eq!(loaded.len(), 1, "offline repo should still be listed");
+
+            fs::create_dir_all(&repo_dir).expect("recreate repo after reconnect");
+
+            let authorized = authorize_workspace_root(&repo_dir)
+                .expect("persisted repo should re-register once it comes back online");
+            assert_eq!(
+                authorized,
+                fs::canonicalize(&repo_dir).expect("canonical repo path after reconnect")
+            );
+
+            let _ = fs::remove_dir_all(&repo_dir);
+        });
     }
 }

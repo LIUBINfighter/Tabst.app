@@ -31,6 +31,7 @@ import {
 	createEditorAutosaveRequest,
 	type EditorAutosaveRequest,
 	planEditorAutosaveTransition,
+	rebindEditorAutosaveRequest,
 } from "../lib/editor-autosave";
 import { runUiCommand } from "../lib/ui-command-registry";
 import {
@@ -152,11 +153,48 @@ export function Editor({
 	} = useEditorLSP();
 
 	const commitAutosave = useCallback(async (request: EditorAutosaveRequest) => {
+		const latestFile = useAppStore
+			.getState()
+			.files.find((file) => file.id === request.fileId);
+		const nextRequest = rebindEditorAutosaveRequest(
+			request,
+			latestFile
+				? {
+						id: latestFile.id,
+						path: latestFile.path,
+					}
+				: null,
+		);
+		if (!nextRequest) return;
+
 		try {
-			await window.desktopAPI.saveFile(request.filePath, request.content);
+			await window.desktopAPI.saveFile(
+				nextRequest.filePath,
+				nextRequest.content,
+			);
 		} catch (err) {
 			console.error("Failed to save file:", err);
 		}
+	}, []);
+
+	useEffect(() => {
+		return useAppStore.subscribe((state, previousState) => {
+			const pendingRequest = pendingAutosaveRef.current;
+			if (!pendingRequest) return;
+
+			const nextFile = state.files.find(
+				(file) => file.id === pendingRequest.fileId,
+			);
+			const previousFile = previousState.files.find(
+				(file) => file.id === pendingRequest.fileId,
+			);
+			if (!nextFile || nextFile.path === previousFile?.path) return;
+
+			pendingAutosaveRef.current = rebindEditorAutosaveRequest(pendingRequest, {
+				id: nextFile.id,
+				path: nextFile.path,
+			});
+		});
 	}, []);
 
 	// Create update listener
@@ -209,7 +247,11 @@ export function Editor({
 
 				const scheduledRequest = transition.nextPending;
 				saveTimerRef.current = window.setTimeout(() => {
-					void commitAutosave(scheduledRequest);
+					const latestPending =
+						pendingAutosaveRef.current?.fileId === scheduledRequest.fileId
+							? pendingAutosaveRef.current
+							: scheduledRequest;
+					void commitAutosave(latestPending);
 					if (pendingAutosaveRef.current?.fileId === scheduledRequest.fileId) {
 						pendingAutosaveRef.current = null;
 					}

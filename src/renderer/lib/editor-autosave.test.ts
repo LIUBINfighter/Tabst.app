@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
 	createEditorAutosaveRequest,
 	planEditorAutosaveTransition,
+	rebindEditorAutosaveRequest,
 } from "./editor-autosave";
 
 describe("editor autosave", () => {
@@ -67,5 +68,28 @@ describe("editor autosave", () => {
 		});
 
 		expect(request).toBeNull();
+	});
+
+	it("rebinds a pending save to the latest path after a rename", () => {
+		const request = createEditorAutosaveRequest({
+			activeFile: {
+				id: "file-a",
+				path: "/workspace/file-a.atex",
+			},
+			newContent: "edited-a",
+			sandboxFile: null,
+			sandboxMode: false,
+		});
+
+		const rebound = rebindEditorAutosaveRequest(request, {
+			id: "file-a",
+			path: "/workspace/renamed.atex",
+		});
+
+		expect(rebound).toEqual({
+			fileId: "file-a",
+			filePath: "/workspace/renamed.atex",
+			content: "edited-a",
+		});
 	});
 });

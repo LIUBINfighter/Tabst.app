@@ -218,11 +218,27 @@ pub(crate) fn authorize_existing_workspace_path(
     path: &Path,
 ) -> Result<(PathBuf, WorkspacePathScope), String> {
     let canonical_path = canonicalize_existing_path(path)?;
-    let guard = allowed_path_registry()
-        .lock()
-        .map_err(|_| "path-access-lock-failed".to_string())?;
-    let scope = scope_for_canonical_path(&guard, &canonical_path)?
-        .ok_or_else(|| "path-outside-workspace".to_string())?;
+    let scope = {
+        let guard = allowed_path_registry()
+            .lock()
+            .map_err(|_| "path-access-lock-failed".to_string())?;
+        scope_for_canonical_path(&guard, &canonical_path)?
+    };
+
+    let scope = match scope {
+        Some(value) => value,
+        None => {
+            if !register_persisted_repo_scope_for_path(&canonical_path)? {
+                return Err("path-outside-workspace".to_string());
+            }
+
+            let guard = allowed_path_registry()
+                .lock()
+                .map_err(|_| "path-access-lock-failed".to_string())?;
+            scope_for_canonical_path(&guard, &canonical_path)?
+                .ok_or_else(|| "path-outside-workspace".to_string())?
+        }
+    };
 
     if !scope_allows_existing_path(&scope, &canonical_path) {
         return Err("path-outside-workspace".to_string());
@@ -269,6 +285,16 @@ pub(crate) fn authorize_workspace_root(path: &Path) -> Result<PathBuf, String> {
         .map_err(|_| "path-access-lock-failed".to_string())?;
     if guard.roots.iter().any(|root| root == &canonical_path) {
         return Ok(canonical_path);
+    }
+    drop(guard);
+
+    if register_persisted_repo_scope_for_path(&canonical_path)? {
+        let guard = allowed_path_registry()
+            .lock()
+            .map_err(|_| "path-access-lock-failed".to_string())?;
+        if guard.roots.iter().any(|root| root == &canonical_path) {
+            return Ok(canonical_path);
+        }
     }
 
     Err("path-outside-workspace".to_string())
@@ -384,6 +410,37 @@ pub(crate) fn register_persisted_repos(repos: &[Repo]) {
     }
 }
 
+fn register_persisted_repo_scope_for_path(canonical_path: &Path) -> Result<bool, String> {
+    let metadata_dir = match global_metadata_dir() {
+        Ok(value) => value,
+        Err(_) => return Ok(false),
+    };
+    let repos_path = metadata_dir.join("repos.json");
+    let repos = read_json_file::<Vec<Repo>>(&repos_path)
+        .ok()
+        .flatten()
+        .unwrap_or_default();
+
+    for repo in repos {
+        let Some(path) = normalize_non_empty_path(&repo.path) else {
+            continue;
+        };
+        let Ok(canonical_repo_path) = canonicalize_existing_path(&path) else {
+            continue;
+        };
+        if !canonical_repo_path.is_dir() {
+            continue;
+        }
+        if canonical_path == canonical_repo_path || canonical_path.starts_with(&canonical_repo_path)
+        {
+            register_allowed_root(&canonical_repo_path)?;
+            return Ok(true);
+        }
+    }
+
+    Ok(false)
+}
+
 pub(crate) fn sanitize_name(name: &str) -> String {
     name.chars()
         .map(|ch| match ch {
@@ -469,7 +526,9 @@ pub(crate) fn global_metadata_dir() -> Result<PathBuf, String> {
     Ok(metadata_dir)
 }
 
-pub(crate) fn app_state_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+pub(crate) fn app_state_path<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+) -> Result<PathBuf, String> {
     let app_data = app.path().app_data_dir().map_err(to_error)?;
     fs::create_dir_all(&app_data).map_err(to_error)?;
     Ok(app_data.join("app-state.json"))

@@ -36,6 +36,24 @@ export function createEditorAutosaveRequest(
 	};
 }
 
+export function rebindEditorAutosaveRequest(
+	request: EditorAutosaveRequest | null,
+	file: EditorAutosaveFileRef | null,
+): EditorAutosaveRequest | null {
+	if (!request || !file || file.id !== request.fileId) {
+		return request;
+	}
+
+	if (file.path === request.filePath) {
+		return request;
+	}
+
+	return {
+		...request,
+		filePath: file.path,
+	};
+}
+
 export function planEditorAutosaveTransition(
 	currentPending: EditorAutosaveRequest | null,
 	nextPending: EditorAutosaveRequest | null,
