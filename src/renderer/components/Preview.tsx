@@ -14,6 +14,7 @@ import {
 	usePrintPreviewApiLifecycle,
 } from "../hooks/usePreviewApiLifecycle";
 import {
+	attachFreshPreviewApi,
 	captureTrackConfigForRebuild,
 	shouldStartThemeRebuild,
 } from "../hooks/preview-session-controller";
@@ -345,6 +346,20 @@ export default function Preview({
 				return;
 			}
 			useAppStore.getState().setPlaybackProgress(next);
+		},
+		[],
+	);
+
+	const applyInitialPlaybackState = useCallback(
+		(api: alphaTab.AlphaTabApi) => {
+			try {
+				api.playbackSpeed = playbackSpeedRef.current;
+				api.masterVolume = masterVolumeRef.current;
+				api.metronomeVolume = metronomeVolumeRef.current;
+				api.countInVolume = countInEnabledRef.current ? 1 : 0;
+			} catch {
+				// Failed to apply initial speed/metronome
+			}
 		},
 		[],
 	);
@@ -1785,25 +1800,16 @@ export default function Preview({
 					});
 
 					apiRef.current = new alphaTab.AlphaTabApi(el, settings);
-					increment("apiCreated");
-					emitApiChange(apiRef.current);
-					bumpApiInstanceId();
-
-					// 🆕 新建 API 时清除选区高亮（避免旧 API 的选区残留）
-					useAppStore.getState().clearScoreSelection();
-
-					// 初始应用全局状态的播放速度与节拍器音量
-					try {
-						apiRef.current.playbackSpeed = playbackSpeedRef.current;
-						apiRef.current.masterVolume = masterVolumeRef.current;
-						apiRef.current.metronomeVolume = metronomeVolumeRef.current;
-						apiRef.current.countInVolume = countInEnabledRef.current ? 1 : 0;
-					} catch {
-						// Failed to apply initial speed/metronome
-					}
-
-					// 4. 附加监听器
-					bindListenersForApi(apiRef.current);
+					attachFreshPreviewApi({
+						api: apiRef.current,
+						incrementApiCreated: () => increment("apiCreated"),
+						emitApiChange,
+						bumpApiInstanceId,
+						clearScoreSelection: () =>
+							useAppStore.getState().clearScoreSelection(),
+						applyPlaybackState: applyInitialPlaybackState,
+						bindListeners: bindListenersForApi,
+					});
 
 					// 5. 设置主题监听器（监听暗色模式变化）
 					const unsubscribeTheme = setupThemeObserver(() => {
@@ -1852,27 +1858,16 @@ export default function Preview({
 
 								// 创建新的 API
 								apiRef.current = new alphaTab.AlphaTabApi(el, newSettings);
-								increment("apiCreated");
-								emitApiChange(apiRef.current);
-								bumpApiInstanceId();
-
-								// 🆕 新建 API 时清除选区高亮（避免旧 API 的选区残留）
-								useAppStore.getState().clearScoreSelection();
-
-								// 重新应用全局状态的播放速度与节拍器音量
-								try {
-									apiRef.current.playbackSpeed = playbackSpeedRef.current;
-									apiRef.current.masterVolume = masterVolumeRef.current;
-									apiRef.current.metronomeVolume = metronomeVolumeRef.current;
-									apiRef.current.countInVolume = countInEnabledRef.current
-										? 1
-										: 0;
-								} catch {
-									// Failed to reapply speed/metronome after rebuild
-								}
-
-								// 🆕 附加所有监听器（包括 scoreLoaded, error, playback 等）
-								bindListenersForApi(apiRef.current);
+								attachFreshPreviewApi({
+									api: apiRef.current,
+									incrementApiCreated: () => increment("apiCreated"),
+									emitApiChange,
+									bumpApiInstanceId,
+									clearScoreSelection: () =>
+										useAppStore.getState().clearScoreSelection(),
+									applyPlaybackState: applyInitialPlaybackState,
+									bindListeners: bindListenersForApi,
+								});
 
 								// 重新加载音频
 								await loadSoundFontFromUrl(apiRef.current, urls.soundFontUrl);

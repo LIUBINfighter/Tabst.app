@@ -32,6 +32,16 @@ type PreviewApiLike = {
 	} | null;
 } | null;
 
+type AttachFreshPreviewApiParams<TApi> = {
+	api: TApi;
+	incrementApiCreated: () => void;
+	emitApiChange: (api: TApi) => void;
+	bumpApiInstanceId: () => void;
+	clearScoreSelection: () => void;
+	applyPlaybackState: (api: TApi) => void;
+	bindListeners: (api: TApi) => void;
+};
+
 export function shouldStartThemeRebuild({
 	hasApi,
 	hasContent,
@@ -70,4 +80,21 @@ export function captureTrackConfigForRebuild(
 		showSlash: firstStaff.showSlash,
 		showNumbered: firstStaff.showNumbered,
 	};
+}
+
+export function attachFreshPreviewApi<TApi>({
+	api,
+	incrementApiCreated,
+	emitApiChange,
+	bumpApiInstanceId,
+	clearScoreSelection,
+	applyPlaybackState,
+	bindListeners,
+}: AttachFreshPreviewApiParams<TApi>): void {
+	incrementApiCreated();
+	emitApiChange(api);
+	bumpApiInstanceId();
+	clearScoreSelection();
+	applyPlaybackState(api);
+	bindListeners(api);
 }
