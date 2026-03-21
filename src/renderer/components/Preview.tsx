@@ -14,6 +14,10 @@ import {
 	usePrintPreviewApiLifecycle,
 } from "../hooks/usePreviewApiLifecycle";
 import {
+	getCountInVolume,
+	resolvePreviewPlayerState,
+} from "../hooks/preview-count-in";
+import {
 	captureTrackConfigForRebuild,
 	shouldStartThemeRebuild,
 } from "../hooks/preview-session-controller";
@@ -230,6 +234,7 @@ export default function Preview({
 		barIndex: number;
 		beatIndex: number;
 	} | null>(null);
+	const countInPendingRef = useRef(false);
 	const playbackProgressGateRef =
 		useRef<PlaybackFrameGate<PlaybackProgressSnapshot> | null>(null);
 	const playbackCursorGateRef =
@@ -534,7 +539,10 @@ export default function Preview({
 		countInEnabledRef.current = countInEnabled;
 		const api = apiRef.current;
 		if (!api) return;
-		const next = countInEnabled ? 1 : 0;
+		const next = getCountInVolume({
+			countInEnabled,
+			metronomeVolume: metronomeVolumeRef.current,
+		});
 		if (lastAppliedCountInRef.current === next) return;
 		try {
 			api.countInVolume = next;
@@ -621,7 +629,10 @@ export default function Preview({
 				api.playbackSpeed = playbackSpeedRef.current;
 				api.masterVolume = masterVolumeRef.current;
 				api.metronomeVolume = metronomeVolumeRef.current;
-				api.countInVolume = countInEnabledRef.current ? 1 : 0;
+				api.countInVolume = getCountInVolume({
+					countInEnabled: countInEnabledRef.current,
+					metronomeVolume: metronomeVolumeRef.current,
+				});
 				if (metronomeOnlyModeRef.current) {
 					applyScoreTracksMuted(api, true);
 				}
@@ -755,7 +766,13 @@ export default function Preview({
 
 		if (typeof atCfg.player.countInEnabled === "boolean") {
 			try {
-				api.countInVolume = atCfg.player.countInEnabled ? 1 : 0;
+				api.countInVolume = getCountInVolume({
+					countInEnabled: atCfg.player.countInEnabled,
+					metronomeVolume:
+						typeof atCfg.player.metronomeVolume === "number"
+							? atCfg.player.metronomeVolume
+							: metronomeVolumeRef.current,
+				});
 			} catch (err) {
 				console.warn("[ATDOC] Failed to apply countInEnabled", err);
 			}
@@ -1237,21 +1254,28 @@ export default function Preview({
 					console.info(
 						`[Preview] alphaTab player state changed ${JSON.stringify({ state: e?.state, stopped: e?.stopped ?? false })}`,
 					);
-					if (e?.stopped) {
+					const resolvedState = resolvePreviewPlayerState({
+						countInPending: countInPendingRef.current,
+						state: e?.state ?? 0,
+						stopped: e?.stopped ?? false,
+					});
+					countInPendingRef.current = resolvedState.nextCountInPending;
+
+					if (resolvedState.clearPlaybackHighlights) {
 						// stopped 明确表示停止（而不是暂停），停止时清除播放相关高亮
 						useAppStore.getState().clearPlaybackHighlights();
-						setPlayerIsPlayingIfChanged(false);
+					}
+
+					if (resolvedState.resetPlaybackProgress) {
 						setPlaybackProgressIfChanged({
 							positionTick: 0,
 							endTick: typeof api.endTick === "number" ? api.endTick : 0,
 							positionMs: 0,
 							endMs: typeof api.endTime === "number" ? api.endTime : 0,
 						});
-					} else if (e?.state === 1 /* Playing */) {
-						setPlayerIsPlayingIfChanged(true);
-					} else {
-						setPlayerIsPlayingIfChanged(false);
 					}
+
+					setPlayerIsPlayingIfChanged(resolvedState.playerIsPlaying);
 				},
 			);
 
@@ -1288,6 +1312,8 @@ export default function Preview({
 								await refreshPlaybackAudioPipeline("play-request");
 								const ready = await ensurePlaybackReady();
 								if (!ready) {
+									countInPendingRef.current = false;
+									setPlayerIsPlayingIfChanged(false);
 									console.error(
 										"[Preview] Playback requested before player was ready",
 										{
@@ -1311,12 +1337,20 @@ export default function Preview({
 									await refreshPlaybackAudioPipeline("play-retry");
 									didPlay = api.play?.();
 								}
+								if (!didPlay) {
+									countInPendingRef.current = false;
+									setPlayerIsPlayingIfChanged(false);
+								}
 								console.info(
 									`[Preview] api.play() invoked ${JSON.stringify({ didPlay, isReadyForPlayback: api.isReadyForPlayback, tickPosition: api.tickPosition })}`,
 								);
 							};
 
 							useAppStore.getState().clearScoreSelection();
+							countInPendingRef.current = countInEnabledRef.current;
+							if (countInPendingRef.current) {
+								setPlayerIsPlayingIfChanged(true);
+							}
 
 							const highlightedBar = lastColoredBarsRef.current;
 							if (
@@ -1369,9 +1403,13 @@ export default function Preview({
 							await playNow();
 						})();
 					},
-					pause: () => api.pause?.(),
+					pause: () => {
+						countInPendingRef.current = false;
+						api.pause?.();
+					},
 					stop: () => {
 						lastPlaybackActivityAtRef.current = Date.now();
+						countInPendingRef.current = false;
 						// 1. 停止播放器
 						api.stop?.();
 
@@ -1415,6 +1453,7 @@ export default function Preview({
 					},
 					refresh: () => {
 						lastPlaybackActivityAtRef.current = Date.now();
+						countInPendingRef.current = false;
 						bumpEditorRefreshVersion();
 						bumpBottomBarRefreshVersion();
 						// 1. 先停止播放并清除所有状态
@@ -1467,7 +1506,10 @@ export default function Preview({
 					},
 					setCountInEnabled: (enabled: boolean) => {
 						try {
-							api.countInVolume = enabled ? 1 : 0;
+							api.countInVolume = getCountInVolume({
+								countInEnabled: enabled,
+								metronomeVolume: metronomeVolumeRef.current,
+							});
 						} catch (err) {
 							console.error("Failed to set count-in:", err);
 						}
@@ -1797,7 +1839,10 @@ export default function Preview({
 						apiRef.current.playbackSpeed = playbackSpeedRef.current;
 						apiRef.current.masterVolume = masterVolumeRef.current;
 						apiRef.current.metronomeVolume = metronomeVolumeRef.current;
-						apiRef.current.countInVolume = countInEnabledRef.current ? 1 : 0;
+						apiRef.current.countInVolume = getCountInVolume({
+							countInEnabled: countInEnabledRef.current,
+							metronomeVolume: metronomeVolumeRef.current,
+						});
 					} catch {
 						// Failed to apply initial speed/metronome
 					}
@@ -1864,9 +1909,10 @@ export default function Preview({
 									apiRef.current.playbackSpeed = playbackSpeedRef.current;
 									apiRef.current.masterVolume = masterVolumeRef.current;
 									apiRef.current.metronomeVolume = metronomeVolumeRef.current;
-									apiRef.current.countInVolume = countInEnabledRef.current
-										? 1
-										: 0;
+										apiRef.current.countInVolume = getCountInVolume({
+											countInEnabled: countInEnabledRef.current,
+											metronomeVolume: metronomeVolumeRef.current,
+										});
 								} catch {
 									// Failed to reapply speed/metronome after rebuild
 								}
