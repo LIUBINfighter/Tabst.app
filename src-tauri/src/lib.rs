@@ -30,7 +30,7 @@ use updater_commands::{check_for_updates, fetch_releases_feed, get_app_version, 
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    with_optional_updater_plugin(tauri::Builder::default())
+    with_debug_plugins(with_optional_updater_plugin(tauri::Builder::default()))
         .manage(RepoWatchManager::default())
         .manage(KeepAwakeManager::default())
         .invoke_handler(tauri::generate_handler![
@@ -83,6 +83,16 @@ fn with_optional_updater_plugin(builder: tauri::Builder<tauri::Wry>) -> tauri::B
 #[cfg(debug_assertions)]
 fn with_optional_updater_plugin(builder: tauri::Builder<tauri::Wry>) -> tauri::Builder<tauri::Wry> {
     builder
+}
+
+#[cfg(not(debug_assertions))]
+fn with_debug_plugins(builder: tauri::Builder<tauri::Wry>) -> tauri::Builder<tauri::Wry> {
+    builder
+}
+
+#[cfg(debug_assertions)]
+fn with_debug_plugins(builder: tauri::Builder<tauri::Wry>) -> tauri::Builder<tauri::Wry> {
+    builder.plugin(tauri_plugin_mcp_bridge::init())
 }
 
 #[cfg(test)]
