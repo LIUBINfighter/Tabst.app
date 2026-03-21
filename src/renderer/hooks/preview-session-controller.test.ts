@@ -1,7 +1,6 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
 	PREVIEW_THEME_REBUILD_COOLDOWN_MS,
-	attachFreshPreviewApi,
 	captureTrackConfigForRebuild,
 	shouldStartThemeRebuild,
 } from "./preview-session-controller";
@@ -95,35 +94,5 @@ describe("captureTrackConfigForRebuild", () => {
 			showStandardNotation: true,
 			showTablature: false,
 		});
-	});
-});
-
-describe("attachFreshPreviewApi", () => {
-	it("applies the standard post-create preview setup in one place", () => {
-		const api = {};
-		const increment = vi.fn();
-		const emitApiChange = vi.fn();
-		const bumpApiInstanceId = vi.fn();
-		const clearScoreSelection = vi.fn();
-		const bindListeners = vi.fn();
-		const applyPlaybackState = vi.fn();
-
-		attachFreshPreviewApi({
-			api,
-			incrementApiCreated: increment,
-			emitApiChange,
-			bumpApiInstanceId,
-			clearScoreSelection,
-			applyPlaybackState,
-			bindListeners,
-		});
-
-		expect(increment).toHaveBeenCalledTimes(1);
-		expect(increment).toHaveBeenCalledWith();
-		expect(emitApiChange).toHaveBeenCalledWith(api);
-		expect(bumpApiInstanceId).toHaveBeenCalledTimes(1);
-		expect(clearScoreSelection).toHaveBeenCalledTimes(1);
-		expect(applyPlaybackState).toHaveBeenCalledWith(api);
-		expect(bindListeners).toHaveBeenCalledWith(api);
 	});
 });
