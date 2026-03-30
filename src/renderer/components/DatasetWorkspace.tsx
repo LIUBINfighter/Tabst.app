@@ -1,6 +1,7 @@
 import {
 	ChevronLeft,
 	ChevronRight,
+	ClipboardPaste,
 	Database,
 	Image as ImageIcon,
 	Loader2,
@@ -24,7 +25,6 @@ import {
 } from "../lib/alphatab-export";
 import { useAppStore } from "../store/appStore";
 import {
-	DEFAULT_SAMPLE_ARTIFACT_FILES,
 	getSampleArtifact,
 	KNOWN_SAMPLE_ARTIFACT_ORDER,
 	normalizeSampleArtifacts,
@@ -57,6 +57,7 @@ const REVIEW_STATUS_OPTIONS: SampleReviewStatus[] = [
 	"approved",
 	"rejected",
 ];
+const DEFAULT_IMAGE_PLACEHOLDER_FILE_NAME = "render.png";
 function parseTags(input: string): string[] {
 	return input
 		.split(",")
@@ -93,12 +94,59 @@ function getUploadOrigin(now = new Date()): string {
 	return `upload-${hhmmss}${ms3}-${yymmdd}`;
 }
 
+function buildDatasetArtifactPath(
+	repoPath: string,
+	datasetId: string,
+	sampleId: string,
+	fileName: string,
+): string {
+	const separator = repoPath.includes("\\") ? "\\" : "/";
+	const rootPath = repoPath.replace(/[\\/]+$/, "");
+	return [
+		rootPath,
+		".tabel",
+		"datasets",
+		datasetId,
+		"samples",
+		sampleId,
+		fileName,
+	].join(separator);
+}
+
 function getExtension(fileName: string): string {
 	const normalized = fileName.replace(/\\/g, "/");
 	const base = normalized.split("/").pop() ?? normalized;
 	const dot = base.lastIndexOf(".");
 	if (dot <= 0) return "";
 	return base.slice(dot + 1).toLowerCase();
+}
+
+function getExtensionFromMimeType(mimeType: string): string {
+	const normalized = mimeType.trim().toLowerCase();
+	if (!normalized.startsWith("image/")) return "";
+	const subtype = normalized.slice("image/".length);
+	if (subtype === "jpeg") return "jpg";
+	if (subtype === "svg+xml") return "svg";
+	// Drop charset suffixes like ";charset=utf-8".
+	return subtype.split(";")[0].trim();
+}
+
+function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+	return bytes.buffer.slice(
+		bytes.byteOffset,
+		bytes.byteOffset + bytes.byteLength,
+	) as ArrayBuffer;
+}
+
+function getImageMimeTypeFromExtension(ext: string): string {
+	const normalized = ext.toLowerCase();
+	if (normalized === "jpg" || normalized === "jpeg") return "image/jpeg";
+	if (normalized === "png") return "image/png";
+	if (normalized === "gif") return "image/gif";
+	if (normalized === "webp") return "image/webp";
+	if (normalized === "bmp") return "image/bmp";
+	if (normalized === "svg") return "image/svg+xml";
+	return "application/octet-stream";
 }
 
 export interface DatasetWorkspaceProps {
@@ -112,6 +160,8 @@ export default function DatasetWorkspace({
 	onExpandSidebar,
 	onCollapseSidebar,
 }: DatasetWorkspaceProps) {
+	const showMidiArtifactCard = false;
+
 	const activeRepoId = useAppStore((s) => s.activeRepoId);
 	const repos = useAppStore((s) => s.repos);
 	const setWorkspaceMode = useAppStore((s) => s.setWorkspaceMode);
@@ -148,6 +198,12 @@ export default function DatasetWorkspace({
 	const [artifactUploadInProgress, setArtifactUploadInProgress] =
 		useState(false);
 	const [audioLoadAllNonce, setAudioLoadAllNonce] = useState(0);
+	const [alphaTexArtifactText, setAlphaTexArtifactText] = useState("");
+	const [alphaTexArtifactDirty, setAlphaTexArtifactDirty] = useState(false);
+	const [alphaTexArtifactLoading, setAlphaTexArtifactLoading] = useState(false);
+	const [alphaTexArtifactError, setAlphaTexArtifactError] = useState<
+		string | null
+	>(null);
 
 	const [saveSourceFlash, setSaveSourceFlash] = useState<"idle" | "saved">(
 		"idle",
@@ -157,6 +213,16 @@ export default function DatasetWorkspace({
 	);
 	const saveSourceFlashTimerRef = useRef<number | null>(null);
 	const saveMetadataFlashTimerRef = useRef<number | null>(null);
+
+	const [imagePastePreviewUrl, setImagePastePreviewUrl] = useState<
+		string | null
+	>(null);
+	const imagePastePreviewUrlRef = useRef<string | null>(null);
+	const [imageArtifactPreviewUrl, setImageArtifactPreviewUrl] = useState<
+		string | null
+	>(null);
+	const imageArtifactPreviewUrlRef = useRef<string | null>(null);
+
 	const tagsFieldId = "dataset-sample-tags";
 	const reviewStatusFieldId = "dataset-sample-review-status";
 	const reviewNotesFieldId = "dataset-sample-review-notes";
@@ -172,11 +238,15 @@ export default function DatasetWorkspace({
 		setArtifactGenerationKind(null);
 		setArtifactGenerationProgress(null);
 		setArtifactGenerationError(null);
+		setAlphaTexArtifactError(null);
+		setAlphaTexArtifactLoading(false);
+		setAlphaTexArtifactDirty(false);
 
 		if (!datasetActiveSample) {
 			setTagsValue("");
 			setReviewStatus("pending");
 			setReviewNotes("");
+			setAlphaTexArtifactText("");
 			return;
 		}
 
@@ -184,6 +254,7 @@ export default function DatasetWorkspace({
 		setTagsValue(sampleTags.join(", "));
 		setReviewStatus(datasetActiveSample.reviewStatus ?? "pending");
 		setReviewNotes(datasetActiveSample.reviewNotes ?? "");
+		setAlphaTexArtifactText("");
 	}, [datasetActiveSample]);
 
 	const errorMessage = datasetMutationError ?? datasetError;
@@ -217,6 +288,31 @@ export default function DatasetWorkspace({
 		if (metadataDirty) setSaveMetadataFlash("idle");
 	}, [metadataDirty]);
 
+	// Revoke previous pasted image object URL to avoid memory leaks.
+	useEffect(() => {
+		return () => {
+			if (imagePastePreviewUrlRef.current) {
+				URL.revokeObjectURL(imagePastePreviewUrlRef.current);
+				imagePastePreviewUrlRef.current = null;
+			}
+			if (imageArtifactPreviewUrlRef.current) {
+				URL.revokeObjectURL(imageArtifactPreviewUrlRef.current);
+				imageArtifactPreviewUrlRef.current = null;
+			}
+		};
+	}, []);
+
+	// Pasted preview is sample-scoped. Clear it when switching sample.
+	useEffect(() => {
+		const currentSampleId = datasetActiveSample?.id;
+		void currentSampleId;
+		if (imagePastePreviewUrlRef.current) {
+			URL.revokeObjectURL(imagePastePreviewUrlRef.current);
+			imagePastePreviewUrlRef.current = null;
+		}
+		setImagePastePreviewUrl(null);
+	}, [datasetActiveSample?.id]);
+
 	const imageArtifact = useMemo(
 		() => getSampleArtifact(datasetActiveSample?.artifacts, "image"),
 		[datasetActiveSample],
@@ -236,26 +332,6 @@ export default function DatasetWorkspace({
 				!KNOWN_SAMPLE_ARTIFACT_ORDER.includes(artifactKind as never),
 		);
 	}, [datasetActiveSample]);
-
-	const sampleShortHash6 = useMemo(() => {
-		if (!datasetActiveSample) return null;
-		return shortHash6(datasetActiveSample.id);
-	}, [datasetActiveSample]);
-
-	const generatedMidiFileName = useMemo(() => {
-		if (!sampleShortHash6) return DEFAULT_SAMPLE_ARTIFACT_FILES.midi;
-		return `${sampleShortHash6}-auto.mid`;
-	}, [sampleShortHash6]);
-
-	const generatedAudioFileName = useMemo(() => {
-		if (!sampleShortHash6) return DEFAULT_SAMPLE_ARTIFACT_FILES.wav;
-		return `${sampleShortHash6}-auto.wav`;
-	}, [sampleShortHash6]);
-
-	const generatedImageFileName = useMemo(() => {
-		if (!sampleShortHash6) return DEFAULT_SAMPLE_ARTIFACT_FILES.image;
-		return `${sampleShortHash6}-auto.png`;
-	}, [sampleShortHash6]);
 
 	const uploadedMidiArtifacts = useMemo(() => {
 		const midiExts = new Set(["mid", "midi"]);
@@ -297,6 +373,201 @@ export default function DatasetWorkspace({
 			.filter((entry) => imageExts.has(getExtension(entry.artifact.fileName)));
 	}, [extraArtifacts]);
 
+	const alphaTexArtifacts = useMemo(() => {
+		return extraArtifacts
+			.map(([artifactKind, artifact]) => ({
+				artifactKind,
+				artifact: artifact as SampleArtifactManifest,
+			}))
+			.filter((entry) => getExtension(entry.artifact.fileName) === "atex")
+			.sort((left, right) => {
+				const leftTime = left.artifact.updatedAt ?? 0;
+				const rightTime = right.artifact.updatedAt ?? 0;
+				return (
+					rightTime - leftTime ||
+					left.artifactKind.localeCompare(right.artifactKind)
+				);
+			});
+	}, [extraArtifacts]);
+
+	const alphaTexArtifact = useMemo(() => {
+		const artifacts = normalizeSampleArtifacts(datasetActiveSample?.artifacts);
+		const direct = artifacts.alphatex;
+		if (direct && getExtension(direct.fileName) === "atex") return direct;
+		return (
+			alphaTexArtifacts.find((entry) => entry.artifact.state === "ready")
+				?.artifact ?? null
+		);
+	}, [alphaTexArtifacts, datasetActiveSample]);
+
+	// Choose which on-disk image artifact we should preview in the Image card.
+	// Prefer the canonical `image` artifact; if it's missing/stale, fall back to uploaded images.
+	const previewImageArtifact = useMemo(() => {
+		const isPlaceholder =
+			imageArtifact.fileName === DEFAULT_IMAGE_PLACEHOLDER_FILE_NAME &&
+			!imageArtifact.sourceHash;
+		if (!isPlaceholder && imageArtifact.state !== "missing")
+			return imageArtifact;
+
+		const uploaded = uploadedImageArtifacts.map((entry) => entry.artifact);
+		const readyUploaded = uploaded.find((a) => a.state === "ready");
+		if (readyUploaded) return readyUploaded;
+		const staleUploaded = uploaded.find((a) => a.state === "stale");
+		return staleUploaded ?? null;
+	}, [imageArtifact, uploadedImageArtifacts]);
+	const shouldShowPrimaryImageFileName =
+		imageArtifact.state !== "missing" &&
+		!(
+			imageArtifact.fileName === DEFAULT_IMAGE_PLACEHOLDER_FILE_NAME &&
+			!imageArtifact.sourceHash
+		);
+
+	// Auto-preview existing image artifacts (ready or stale).
+	useEffect(() => {
+		if (!datasetActive || !datasetActiveSample || !activeRepoPath) {
+			if (imageArtifactPreviewUrlRef.current) {
+				URL.revokeObjectURL(imageArtifactPreviewUrlRef.current);
+				imageArtifactPreviewUrlRef.current = null;
+			}
+			setImageArtifactPreviewUrl(null);
+			return;
+		}
+
+		// If user has a fresh clipboard preview, prefer that and stop disk preview work.
+		if (imagePastePreviewUrl) {
+			if (imageArtifactPreviewUrlRef.current) {
+				URL.revokeObjectURL(imageArtifactPreviewUrlRef.current);
+				imageArtifactPreviewUrlRef.current = null;
+			}
+			setImageArtifactPreviewUrl(null);
+			return;
+		}
+
+		if (!previewImageArtifact || previewImageArtifact.state === "missing") {
+			if (imageArtifactPreviewUrlRef.current) {
+				URL.revokeObjectURL(imageArtifactPreviewUrlRef.current);
+				imageArtifactPreviewUrlRef.current = null;
+			}
+			setImageArtifactPreviewUrl(null);
+			return;
+		}
+
+		const ext = getExtension(previewImageArtifact.fileName);
+		if (!["png", "jpg", "jpeg", "webp", "gif", "bmp"].includes(ext)) {
+			return;
+		}
+
+		const separator = activeRepoPath.includes("\\") ? "\\" : "/";
+		const rootPath = activeRepoPath.replace(/[\\/]+$/, "");
+		const artifactPath = [
+			rootPath,
+			".tabel",
+			"datasets",
+			datasetActive.id,
+			"samples",
+			datasetActiveSample.id,
+			previewImageArtifact.fileName,
+		].join(separator);
+
+		let cancelled = false;
+
+		void (async () => {
+			try {
+				const result = await window.desktopAPI.readFileBytes(artifactPath);
+				if (cancelled) return;
+				if (!result.data) return;
+
+				const mimeType = getImageMimeTypeFromExtension(ext);
+				const blob = new Blob([toArrayBuffer(result.data)], { type: mimeType });
+				const url = URL.createObjectURL(blob);
+
+				if (imageArtifactPreviewUrlRef.current) {
+					URL.revokeObjectURL(imageArtifactPreviewUrlRef.current);
+				}
+				imageArtifactPreviewUrlRef.current = url;
+				setImageArtifactPreviewUrl(url);
+			} catch {
+				if (imageArtifactPreviewUrlRef.current) {
+					URL.revokeObjectURL(imageArtifactPreviewUrlRef.current);
+					imageArtifactPreviewUrlRef.current = null;
+				}
+				setImageArtifactPreviewUrl(null);
+			}
+		})();
+
+		return () => {
+			cancelled = true;
+		};
+	}, [
+		activeRepoPath,
+		datasetActive,
+		datasetActiveSample,
+		imagePastePreviewUrl,
+		previewImageArtifact,
+	]);
+
+	// Load latest AlphaTex artifact text into editor when switching samples.
+	useEffect(() => {
+		if (!datasetActive || !datasetActiveSample || !activeRepoPath) {
+			setAlphaTexArtifactText("");
+			setAlphaTexArtifactDirty(false);
+			setAlphaTexArtifactLoading(false);
+			setAlphaTexArtifactError(null);
+			return;
+		}
+
+		if (!alphaTexArtifact) {
+			setAlphaTexArtifactText("");
+			setAlphaTexArtifactDirty(false);
+			setAlphaTexArtifactLoading(false);
+			setAlphaTexArtifactError(null);
+			return;
+		}
+
+		if (alphaTexArtifact.state !== "ready") return;
+
+		const filePath = buildDatasetArtifactPath(
+			activeRepoPath,
+			datasetActive.id,
+			datasetActiveSample.id,
+			alphaTexArtifact.fileName,
+		);
+
+		let cancelled = false;
+		setAlphaTexArtifactLoading(true);
+		setAlphaTexArtifactError(null);
+
+		void (async () => {
+			try {
+				const result = await window.desktopAPI.readFileBytes(filePath);
+				if (cancelled) return;
+				if (!result.data) {
+					throw new Error(result.error ?? "Failed to read AlphaTex artifact.");
+				}
+				const text = new TextDecoder().decode(result.data);
+				setAlphaTexArtifactText(text);
+				setAlphaTexArtifactDirty(false);
+			} catch (error) {
+				if (cancelled) return;
+				setAlphaTexArtifactError(
+					error instanceof Error
+						? error.message
+						: "Failed to load AlphaTex artifact.",
+				);
+				setAlphaTexArtifactText("");
+				setAlphaTexArtifactDirty(false);
+			} finally {
+				if (!cancelled) {
+					setAlphaTexArtifactLoading(false);
+				}
+			}
+		})();
+
+		return () => {
+			cancelled = true;
+		};
+	}, [activeRepoPath, datasetActive, datasetActiveSample, alphaTexArtifact]);
+
 	const otherExtraArtifacts = useMemo(() => {
 		const midiExts = new Set(["mid", "midi"]);
 		const audioExts = new Set([
@@ -311,6 +582,7 @@ export default function DatasetWorkspace({
 			"opus",
 		]);
 		const imageExts = new Set(["png", "jpg", "jpeg", "webp", "gif", "bmp"]);
+		const alphaTexExts = new Set(["atex"]);
 
 		return extraArtifacts
 			.map(([artifactKind, artifact]) => ({
@@ -319,7 +591,12 @@ export default function DatasetWorkspace({
 			}))
 			.filter((entry) => {
 				const ext = getExtension(entry.artifact.fileName);
-				return !(midiExts.has(ext) || audioExts.has(ext) || imageExts.has(ext));
+				return !(
+					midiExts.has(ext) ||
+					audioExts.has(ext) ||
+					imageExts.has(ext) ||
+					alphaTexExts.has(ext)
+				);
 			});
 	}, [extraArtifacts]);
 
@@ -544,6 +821,109 @@ export default function DatasetWorkspace({
 		}
 	};
 
+	const handleSaveAlphaTexArtifact = async () => {
+		if (!datasetActiveSample) return;
+		clearDatasetFeedback();
+		setArtifactGenerationError(null);
+		setAlphaTexArtifactError(null);
+		setArtifactUploadInProgress(true);
+
+		try {
+			const text = alphaTexArtifactText.trim();
+			if (!text) {
+				throw new Error("AlphaTex artifact text is empty.");
+			}
+
+			const hash6 = shortHash6(datasetActiveSample.id);
+			const targetFileName = `${hash6}-edit.atex`;
+			const artifactKind = "alphatex";
+
+			await saveDatasetArtifact({
+				artifactKind,
+				targetFileName,
+				bytes: new TextEncoder().encode(alphaTexArtifactText),
+			});
+			setAlphaTexArtifactDirty(false);
+		} catch (error) {
+			setAlphaTexArtifactError(
+				error instanceof Error
+					? error.message
+					: "Failed to save AlphaTex artifact.",
+			);
+		} finally {
+			setArtifactUploadInProgress(false);
+		}
+	};
+
+	const handlePasteImage = async () => {
+		if (!datasetActiveSample) return;
+		clearDatasetFeedback();
+		setArtifactGenerationError(null);
+		setArtifactUploadInProgress(true);
+
+		try {
+			if (!navigator.clipboard?.read) {
+				throw new Error("Clipboard read is not supported in this browser.");
+			}
+
+			const items = await navigator.clipboard.read();
+			let selectedBlob: Blob | null = null;
+			let selectedMime = "";
+
+			for (const item of items) {
+				for (const type of item.types) {
+					if (!type.startsWith("image/")) continue;
+					selectedMime = type;
+					selectedBlob = await item.getType(type);
+					break;
+				}
+				if (selectedBlob) break;
+			}
+
+			if (!selectedBlob || !selectedMime) {
+				throw new Error("No image found in clipboard.");
+			}
+
+			// Create a local preview immediately.
+			const nextPreviewUrl = URL.createObjectURL(selectedBlob);
+			if (imagePastePreviewUrlRef.current)
+				URL.revokeObjectURL(imagePastePreviewUrlRef.current);
+			imagePastePreviewUrlRef.current = nextPreviewUrl;
+			setImagePastePreviewUrl(nextPreviewUrl);
+
+			const ext = getExtensionFromMimeType(selectedMime);
+			if (!ext) {
+				throw new Error(
+					`Unsupported image mime type in clipboard: ${selectedMime}`,
+				);
+			}
+
+			const hash6 = shortHash6(datasetActiveSample.id);
+			const origin = getUploadOrigin();
+			const targetFileName = `${hash6}-${origin}.${ext}`;
+			const artifactKind = `image-${origin}`;
+			const bytes = new Uint8Array(await selectedBlob.arrayBuffer());
+
+			await saveDatasetArtifact({
+				artifactKind,
+				targetFileName,
+				bytes,
+			});
+		} catch (error) {
+			// Keep the previous preview if paste failed; but if we created a new one,
+			// it may be misleading. Reset to "no preview" on failure.
+			if (imagePastePreviewUrlRef.current)
+				URL.revokeObjectURL(imagePastePreviewUrlRef.current);
+			imagePastePreviewUrlRef.current = null;
+			setImagePastePreviewUrl(null);
+			setArtifactGenerationError(
+				error instanceof Error ? error.message : "Failed to paste Image.",
+			);
+		} finally {
+			setArtifactUploadInProgress(false);
+		}
+	};
+
 	useLayoutEffect(() => {
 		const host = scrollHostRef.current;
 		if (!host) return;
@@ -762,18 +1142,37 @@ export default function DatasetWorkspace({
 											<h4 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
 												Artifacts
 											</h4>
-											<div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-xs">
+											<div
+												className={`grid grid-cols-1 ${
+													showMidiArtifactCard
+														? "md:grid-cols-4"
+														: "md:grid-cols-3"
+												} gap-2 text-xs`}
+											>
 												{/* Image */}
 												<div className="rounded border border-border/60 p-2 space-y-2">
 													<div className="text-muted-foreground font-medium">
 														Image
 													</div>
-													<div className="space-y-1">
-														<div className="text-[11px] text-muted-foreground break-all">
-															{imageArtifact.state === "missing"
-																? generatedImageFileName
-																: imageArtifact.fileName}
+													{imagePastePreviewUrl || imageArtifactPreviewUrl ? (
+														<div className="rounded border border-border/60 p-2 bg-card">
+															<img
+																src={
+																	imagePastePreviewUrl ??
+																	imageArtifactPreviewUrl ??
+																	undefined
+																}
+																alt="Pasted preview"
+																className="w-full max-h-48 object-contain rounded"
+															/>
 														</div>
+													) : null}
+													<div className="space-y-1">
+														{shouldShowPrimaryImageFileName ? (
+															<div className="text-[11px] text-muted-foreground break-all">
+																{imageArtifact.fileName}
+															</div>
+														) : null}
 														{uploadedImageArtifacts.map(
 															({ artifactKind, artifact }) => (
 																<div
@@ -809,61 +1208,18 @@ export default function DatasetWorkspace({
 															<Upload className="mr-1 h-3.5 w-3.5" />
 															Upload Image
 														</Button>
-													</div>
-												</div>
-
-												{/* MIDI */}
-												<div className="rounded border border-border/60 p-2 space-y-2">
-													<div className="text-muted-foreground font-medium">
-														MIDI
-													</div>
-													<div className="space-y-1">
-														<div className="text-[11px] text-muted-foreground break-all">
-															{midiArtifact.state === "missing"
-																? generatedMidiFileName
-																: midiArtifact.fileName}
-														</div>
-														{uploadedMidiArtifacts.map(
-															({ artifactKind, artifact }) => (
-																<div
-																	key={artifactKind}
-																	className="text-[11px] text-muted-foreground break-all"
-																>
-																	{artifact.fileName}
-																</div>
-															),
-														)}
-													</div>
-													<div className="space-y-2">
 														<Button
 															type="button"
 															variant="ghost"
 															size="sm"
 															className="h-8 w-full rounded-md bg-muted text-muted-foreground border border-transparent hover:bg-[var(--hover-bg)] hover:text-[var(--hover-text)]"
 															onClick={() => {
-																void handleGenerateMidi();
+																void handlePasteImage();
 															}}
 															disabled={busy}
 														>
-															{artifactGenerationKind === "midi" ? (
-																<Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
-															) : (
-																<Music className="mr-1 h-3.5 w-3.5" />
-															)}
-															Generate MIDI
-														</Button>
-														<Button
-															type="button"
-															variant="ghost"
-															size="sm"
-															className="h-8 w-full rounded-md bg-muted text-muted-foreground border border-transparent hover:bg-[var(--hover-bg)] hover:text-[var(--hover-text)]"
-															onClick={() => {
-																void handleUploadMidi();
-															}}
-															disabled={busy}
-														>
-															<Upload className="mr-1 h-3.5 w-3.5" />
-															Upload MIDI
+															<ClipboardPaste className="mr-1 h-3.5 w-3.5" />
+															Paste Image
 														</Button>
 													</div>
 												</div>
@@ -887,21 +1243,16 @@ export default function DatasetWorkspace({
 														</Button>
 													</div>
 													<div className="space-y-2">
-														<DatasetWavPlayer
-															repoPath={activeRepoPath}
-															datasetId={datasetActive.id}
-															sampleId={datasetActiveSample.id}
-															artifact={
-																wavArtifact.state === "missing"
-																	? {
-																			...wavArtifact,
-																			fileName: generatedAudioFileName,
-																		}
-																	: wavArtifact
-															}
-															loadAllNonce={audioLoadAllNonce}
-															autoPlayOnExternalLoad={false}
-														/>
+														{wavArtifact.state !== "missing" ? (
+															<DatasetWavPlayer
+																repoPath={activeRepoPath}
+																datasetId={datasetActive.id}
+																sampleId={datasetActiveSample.id}
+																artifact={wavArtifact}
+																loadAllNonce={audioLoadAllNonce}
+																autoPlayOnExternalLoad={false}
+															/>
+														) : null}
 														{uploadedAudioArtifacts.map(
 															({ artifactKind, artifact }) => (
 																<DatasetWavPlayer
@@ -953,6 +1304,128 @@ export default function DatasetWorkspace({
 														>
 															<Upload className="mr-1 h-3.5 w-3.5" />
 															Upload Audio
+														</Button>
+													</div>
+												</div>
+
+												{showMidiArtifactCard ? (
+													/* MIDI */
+													<div className="rounded border border-border/60 p-2 space-y-2">
+														<div className="text-muted-foreground font-medium">
+															MIDI
+														</div>
+														<div className="space-y-1">
+															{midiArtifact.state !== "missing" ? (
+																<div className="text-[11px] text-muted-foreground break-all">
+																	{midiArtifact.fileName}
+																</div>
+															) : null}
+															{uploadedMidiArtifacts.map(
+																({ artifactKind, artifact }) => (
+																	<div
+																		key={artifactKind}
+																		className="text-[11px] text-muted-foreground break-all"
+																	>
+																		{artifact.fileName}
+																	</div>
+																),
+															)}
+														</div>
+														<div className="space-y-2">
+															<Button
+																type="button"
+																variant="ghost"
+																size="sm"
+																className="h-8 w-full rounded-md bg-muted text-muted-foreground border border-transparent hover:bg-[var(--hover-bg)] hover:text-[var(--hover-text)]"
+																onClick={() => {
+																	void handleGenerateMidi();
+																}}
+																disabled={busy}
+															>
+																{artifactGenerationKind === "midi" ? (
+																	<Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+																) : (
+																	<Music className="mr-1 h-3.5 w-3.5" />
+																)}
+																Generate MIDI
+															</Button>
+															<Button
+																type="button"
+																variant="ghost"
+																size="sm"
+																className="h-8 w-full rounded-md bg-muted text-muted-foreground border border-transparent hover:bg-[var(--hover-bg)] hover:text-[var(--hover-text)]"
+																onClick={() => {
+																	void handleUploadMidi();
+																}}
+																disabled={busy}
+															>
+																<Upload className="mr-1 h-3.5 w-3.5" />
+																Upload MIDI
+															</Button>
+														</div>
+													</div>
+												) : null}
+
+												{/* AlphaTex */}
+												<div className="rounded border border-border/60 p-2 space-y-2">
+													<div className="text-muted-foreground font-medium">
+														AlphaTex
+													</div>
+													<div className="space-y-1">
+														{alphaTexArtifacts.map(
+															({ artifactKind, artifact }) => (
+																<div
+																	key={artifactKind}
+																	className="text-[11px] text-muted-foreground break-all"
+																>
+																	{artifact.fileName}
+																</div>
+															),
+														)}
+													</div>
+													<textarea
+														value={alphaTexArtifactText}
+														onChange={(event) => {
+															setAlphaTexArtifactText(
+																event.currentTarget.value,
+															);
+															setAlphaTexArtifactDirty(true);
+															if (alphaTexArtifactError) {
+																setAlphaTexArtifactError(null);
+															}
+														}}
+														placeholder="Edit AlphaTex artifact..."
+														className="w-full min-h-[180px] rounded border border-border/60 bg-background px-2 py-1 text-xs font-mono leading-relaxed focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+														disabled={busy || alphaTexArtifactLoading}
+													/>
+													{alphaTexArtifactLoading ? (
+														<div className="text-[11px] text-muted-foreground">
+															Loading AlphaTex artifact...
+														</div>
+													) : null}
+													{alphaTexArtifactError ? (
+														<div className="text-[11px] text-destructive">
+															{alphaTexArtifactError}
+														</div>
+													) : null}
+													<div className="space-y-2">
+														<Button
+															type="button"
+															variant="ghost"
+															size="sm"
+															className="h-8 w-full rounded-md bg-muted text-muted-foreground border border-transparent hover:bg-[var(--hover-bg)] hover:text-[var(--hover-text)]"
+															onClick={() => {
+																void handleSaveAlphaTexArtifact();
+															}}
+															disabled={
+																busy ||
+																alphaTexArtifactLoading ||
+																!alphaTexArtifactDirty ||
+																!alphaTexArtifactText.trim()
+															}
+														>
+															<Save className="mr-1 h-3.5 w-3.5" />
+															Save AlphaTex
 														</Button>
 													</div>
 												</div>

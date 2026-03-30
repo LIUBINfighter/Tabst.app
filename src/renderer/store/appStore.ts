@@ -2567,6 +2567,9 @@ export const useAppStore = create<AppState>((set, get) => ({
 			return false;
 		}
 
+		const datasetIdAtStart = state.datasetActiveId;
+		const sampleIdAtStart = state.datasetActiveSampleId;
+
 		set({
 			datasetMutationLoading: true,
 			datasetMutationError: null,
@@ -2576,8 +2579,8 @@ export const useAppStore = create<AppState>((set, get) => ({
 		try {
 			const result = await window.desktopAPI.saveSampleArtifact(
 				activeRepo.path,
-				state.datasetActiveId,
-				state.datasetActiveSampleId,
+				datasetIdAtStart,
+				sampleIdAtStart,
 				input,
 			);
 
@@ -2595,23 +2598,54 @@ export const useAppStore = create<AppState>((set, get) => ({
 			}
 
 			const loadedSample = normalizeLoadedSample(result.data);
-			set((current) => ({
-				datasetMutationLoading: false,
-				datasetMutationError: null,
-				datasetFeedback: {
-					kind: "success",
-					message: `Saved ${String(input.artifactKind).toUpperCase()} artifact.`,
-				},
-				datasetActiveSampleId: loadedSample.sample.id,
-				datasetActiveSample: loadedSample.sample,
-				datasetSourceText: loadedSample.sourceText,
-				datasetSourceSavedText: loadedSample.sourceText,
-				datasetSourceDirty: false,
-				datasetSamples: upsertSampleSummary(
-					current.datasetSamples,
+
+			// Always refresh cache for the sample we just updated.
+			// Otherwise switching away and back can show stale artifact.state.
+			const cacheKey = makeDatasetSampleCacheKey(
+				activeRepo.path,
+				datasetIdAtStart,
+				sampleIdAtStart,
+			);
+			setCachedDatasetSample(cacheKey, loadedSample);
+
+			const current = get();
+			const isStillSelected =
+				current.datasetActiveId === datasetIdAtStart &&
+				current.datasetActiveSampleId === sampleIdAtStart;
+
+			set((currentState) => {
+				const nextDatasetSamples = upsertSampleSummary(
+					currentState.datasetSamples,
 					loadedSample.sample,
-				),
-			}));
+				);
+
+				if (!isStillSelected) {
+					return {
+						datasetMutationLoading: false,
+						datasetMutationError: null,
+						datasetFeedback: {
+							kind: "success",
+							message: `Saved ${String(input.artifactKind).toUpperCase()} artifact.`,
+						},
+						datasetSamples: nextDatasetSamples,
+					};
+				}
+
+				return {
+					datasetMutationLoading: false,
+					datasetMutationError: null,
+					datasetFeedback: {
+						kind: "success",
+						message: `Saved ${String(input.artifactKind).toUpperCase()} artifact.`,
+					},
+					datasetActiveSampleId: loadedSample.sample.id,
+					datasetActiveSample: loadedSample.sample,
+					datasetSourceText: loadedSample.sourceText,
+					datasetSourceSavedText: loadedSample.sourceText,
+					datasetSourceDirty: false,
+					datasetSamples: nextDatasetSamples,
+				};
+			});
 			return true;
 		} catch (error) {
 			set({
