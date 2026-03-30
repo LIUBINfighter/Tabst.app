@@ -1,6 +1,7 @@
 import {
 	ChevronDown,
 	Database,
+	Download,
 	Loader2,
 	Plus,
 	RefreshCw,
@@ -55,6 +56,7 @@ export function DatasetSidebar() {
 	const createDataset = useAppStore((s) => s.createDataset);
 	const loadDataset = useAppStore((s) => s.loadDataset);
 	const createSample = useAppStore((s) => s.createSample);
+	const exportDatasetJsonl = useAppStore((s) => s.exportDatasetJsonl);
 	const loadSample = useAppStore((s) => s.loadSample);
 	const clearDatasetFeedback = useAppStore((s) => s.clearDatasetFeedback);
 
@@ -493,6 +495,44 @@ export function DatasetSidebar() {
 						) : null}
 					</div>
 
+					<div className="max-h-48 overflow-auto rounded-md border border-border/60">
+						{datasetSamples.length === 0 && !datasetLoading ? (
+							<div className="p-2 text-xs text-muted-foreground text-center">
+								No samples in this dataset.
+							</div>
+						) : null}
+						{datasetSamples.map((sample) => {
+							const selected = datasetActiveSampleId === sample.id;
+							return (
+								<button
+									type="button"
+									key={sample.id}
+									onClick={() => void loadSample(sample.id)}
+									disabled={datasetSampleLoading || datasetMutationLoading}
+									className={`w-full border-b border-border/40 px-2 py-1.5 text-left text-xs transition-colors last:border-b-0 ${
+										selected
+											? "bg-[var(--highlight-bg)] text-[var(--highlight-text)]"
+											: "text-muted-foreground hover:bg-[var(--hover-bg)] hover:text-[var(--hover-text)]"
+									}`}
+								>
+									<div className="truncate font-medium">{sample.title}</div>
+									<div className="mt-1 flex flex-wrap items-center gap-1">
+										<span
+											className={`inline-flex rounded border px-1 py-0 text-[10px] ${reviewTone(sample.reviewStatus)}`}
+										>
+											{sample.reviewStatus}
+										</span>
+										<span className="inline-flex rounded border px-1 py-0 text-[10px] border-border bg-muted/70 text-muted-foreground">
+											{sample.tags.length > 0
+												? `${sample.tags.length} tag(s)`
+												: "untagged"}
+										</span>
+									</div>
+								</button>
+							);
+						})}
+					</div>
+
 					<div className="rounded-md border border-border/60 p-2 space-y-2">
 						<div className="flex items-center justify-between gap-2">
 							<div className="text-[11px] uppercase tracking-wide text-muted-foreground">
@@ -522,6 +562,20 @@ export function DatasetSidebar() {
 						>
 							<Upload className="h-3.5 w-3.5 mr-1" />
 							{importFileName ? "Replace JSONL file" : "Choose JSONL file"}
+						</Button>
+
+						<Button
+							type="button"
+							variant="ghost"
+							size="sm"
+							className="h-8 w-full text-xs rounded-md bg-muted text-muted-foreground border border-transparent hover:bg-[var(--hover-bg)] hover:text-[var(--hover-text)]"
+							onClick={() => {
+								void exportDatasetJsonl();
+							}}
+							disabled={busy || !activeRepoPath}
+						>
+							<Download className="h-3.5 w-3.5 mr-1" />
+							Export JSONL
 						</Button>
 
 						{importFileName ? (
@@ -640,44 +694,6 @@ export function DatasetSidebar() {
 								</Button>
 							</>
 						) : null}
-					</div>
-
-					<div className="max-h-48 overflow-auto rounded-md border border-border/60">
-						{datasetSamples.length === 0 && !datasetLoading ? (
-							<div className="p-2 text-xs text-muted-foreground text-center">
-								No samples in this dataset.
-							</div>
-						) : null}
-						{datasetSamples.map((sample) => {
-							const selected = datasetActiveSampleId === sample.id;
-							return (
-								<button
-									type="button"
-									key={sample.id}
-									onClick={() => void loadSample(sample.id)}
-									disabled={datasetSampleLoading || datasetMutationLoading}
-									className={`w-full border-b border-border/40 px-2 py-1.5 text-left text-xs transition-colors last:border-b-0 ${
-										selected
-											? "bg-[var(--highlight-bg)] text-[var(--highlight-text)]"
-											: "text-muted-foreground hover:bg-[var(--hover-bg)] hover:text-[var(--hover-text)]"
-									}`}
-								>
-									<div className="truncate font-medium">{sample.title}</div>
-									<div className="mt-1 flex flex-wrap items-center gap-1">
-										<span
-											className={`inline-flex rounded border px-1 py-0 text-[10px] ${reviewTone(sample.reviewStatus)}`}
-										>
-											{sample.reviewStatus}
-										</span>
-										<span className="inline-flex rounded border px-1 py-0 text-[10px] border-border bg-muted/70 text-muted-foreground">
-											{sample.tags.length > 0
-												? `${sample.tags.length} tag(s)`
-												: "untagged"}
-										</span>
-									</div>
-								</button>
-							);
-						})}
 					</div>
 				</div>
 			) : null}

@@ -2,7 +2,6 @@ import {
 	ChevronLeft,
 	ChevronRight,
 	Database,
-	Download,
 	Image as ImageIcon,
 	Loader2,
 	Music,
@@ -65,11 +64,6 @@ function parseTags(input: string): string[] {
 		.filter((tag) => tag.length > 0);
 }
 
-function formatTimestamp(timestamp?: number): string {
-	if (!timestamp || !Number.isFinite(timestamp)) return "-";
-	return new Date(timestamp).toLocaleString();
-}
-
 function shortHash6(input: string): string {
 	// Stable non-crypto hash; keep ASCII-only output for filenames.
 	// FNV-1a 64 -> hex -> first 6 chars.
@@ -123,7 +117,6 @@ export default function DatasetWorkspace({
 	const setWorkspaceMode = useAppStore((s) => s.setWorkspaceMode);
 
 	const datasetActive = useAppStore((s) => s.datasetActive);
-	const datasetSamples = useAppStore((s) => s.datasetSamples);
 	const datasetActiveSample = useAppStore((s) => s.datasetActiveSample);
 	const datasetSourceText = useAppStore((s) => s.datasetSourceText);
 	const datasetSourceSavedText = useAppStore((s) => s.datasetSourceSavedText);
@@ -132,13 +125,11 @@ export default function DatasetWorkspace({
 	const datasetMutationLoading = useAppStore((s) => s.datasetMutationLoading);
 	const datasetError = useAppStore((s) => s.datasetError);
 	const datasetMutationError = useAppStore((s) => s.datasetMutationError);
-	const datasetLastExport = useAppStore((s) => s.datasetLastExport);
 
 	const setDatasetSourceText = useAppStore((s) => s.setDatasetSourceText);
 	const saveDatasetSampleSource = useAppStore((s) => s.saveDatasetSampleSource);
 	const saveDatasetArtifact = useAppStore((s) => s.saveDatasetArtifact);
 	const updateDatasetSample = useAppStore((s) => s.updateDatasetSample);
-	const exportDatasetJsonl = useAppStore((s) => s.exportDatasetJsonl);
 	const clearDatasetFeedback = useAppStore((s) => s.clearDatasetFeedback);
 
 	const [tagsValue, setTagsValue] = useState("");
@@ -157,6 +148,15 @@ export default function DatasetWorkspace({
 	const [artifactUploadInProgress, setArtifactUploadInProgress] =
 		useState(false);
 	const [audioLoadAllNonce, setAudioLoadAllNonce] = useState(0);
+
+	const [saveSourceFlash, setSaveSourceFlash] = useState<"idle" | "saved">(
+		"idle",
+	);
+	const [saveMetadataFlash, setSaveMetadataFlash] = useState<"idle" | "saved">(
+		"idle",
+	);
+	const saveSourceFlashTimerRef = useRef<number | null>(null);
+	const saveMetadataFlashTimerRef = useRef<number | null>(null);
 	const tagsFieldId = "dataset-sample-tags";
 	const reviewStatusFieldId = "dataset-sample-review-status";
 	const reviewNotesFieldId = "dataset-sample-review-notes";
@@ -207,6 +207,15 @@ export default function DatasetWorkspace({
 			tagsChanged
 		);
 	}, [datasetActiveSample, reviewNotes, reviewStatus, tagsValue]);
+
+	// When user edits after a "saved" flash, immediately return to idle so
+	// the button matches the current dirty state (yellow).
+	useEffect(() => {
+		if (datasetSourceDirty) setSaveSourceFlash("idle");
+	}, [datasetSourceDirty]);
+	useEffect(() => {
+		if (metadataDirty) setSaveMetadataFlash("idle");
+	}, [metadataDirty]);
 
 	const imageArtifact = useMemo(
 		() => getSampleArtifact(datasetActiveSample?.artifacts, "image"),
@@ -559,22 +568,49 @@ export default function DatasetWorkspace({
 	const handleSaveMetadata = async (event: FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
 		clearDatasetFeedback();
-		await updateDatasetSample({
+		const ok = await updateDatasetSample({
 			tags: parseTags(tagsValue),
 			reviewStatus,
 			reviewNotes,
 		});
+		if (!ok) return;
+
+		setSaveMetadataFlash("saved");
+		if (saveMetadataFlashTimerRef.current) {
+			window.clearTimeout(saveMetadataFlashTimerRef.current);
+		}
+		saveMetadataFlashTimerRef.current = window.setTimeout(() => {
+			setSaveMetadataFlash("idle");
+		}, 1800);
 	};
 
 	const handleSaveSource = async () => {
 		clearDatasetFeedback();
-		await saveDatasetSampleSource();
+		const ok = await saveDatasetSampleSource();
+		if (!ok) return;
+
+		setSaveSourceFlash("saved");
+		if (saveSourceFlashTimerRef.current) {
+			window.clearTimeout(saveSourceFlashTimerRef.current);
+		}
+		saveSourceFlashTimerRef.current = window.setTimeout(() => {
+			setSaveSourceFlash("idle");
+		}, 1800);
 	};
 
-	const handleExport = async () => {
-		clearDatasetFeedback();
-		await exportDatasetJsonl();
-	};
+	const saveSourceButtonClassName =
+		saveSourceFlash === "saved"
+			? "h-8 rounded-md bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/15"
+			: datasetSourceDirty
+				? "h-8 rounded-md bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/30 hover:bg-amber-500/15"
+				: "h-8 rounded-md bg-muted text-muted-foreground border border-transparent hover:bg-[var(--hover-bg)] hover:text-[var(--hover-text)]";
+
+	const saveMetadataButtonClassName =
+		saveMetadataFlash === "saved"
+			? "h-8 rounded-md bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/15"
+			: metadataDirty
+				? "h-8 rounded-md bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/30 hover:bg-amber-500/15"
+				: "h-8 rounded-md bg-muted text-muted-foreground border border-transparent hover:bg-[var(--hover-bg)] hover:text-[var(--hover-text)]";
 
 	return (
 		<TooltipProvider delayDuration={200}>
@@ -649,53 +685,6 @@ export default function DatasetWorkspace({
 
 					{datasetActive ? (
 						<>
-							<div className="rounded border border-border bg-card p-4 space-y-3">
-								<div className="flex flex-wrap items-center gap-2">
-									<h2 className="text-sm font-semibold text-foreground">
-										{datasetActive.name}
-									</h2>
-									<span className="text-[11px] text-muted-foreground">
-										{datasetActive.id}
-									</span>
-									<div className="ml-auto">
-										<Button
-											type="button"
-											variant="ghost"
-											size="sm"
-											className="h-8 rounded-md bg-muted text-muted-foreground border border-transparent hover:bg-[var(--hover-bg)] hover:text-[var(--hover-text)]"
-											onClick={() => {
-												void handleExport();
-											}}
-											disabled={busy}
-										>
-											{datasetMutationLoading ? (
-												<Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />
-											) : (
-												<Download className="h-3.5 w-3.5 mr-1" />
-											)}
-											Export JSONL
-										</Button>
-									</div>
-								</div>
-								{datasetActive.description ? (
-									<p className="text-xs text-muted-foreground">
-										{datasetActive.description}
-									</p>
-								) : null}
-								<div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-[11px] text-muted-foreground">
-									<div>Created: {formatTimestamp(datasetActive.createdAt)}</div>
-									<div>Updated: {formatTimestamp(datasetActive.updatedAt)}</div>
-									<div>Samples: {datasetSamples.length}</div>
-								</div>
-								{datasetLastExport ? (
-									<div className="rounded border border-border/60 bg-muted/40 px-2 py-1 text-[11px] text-muted-foreground">
-										Last export: {datasetLastExport.relativePath} (
-										{datasetLastExport.exportedCount}
-										sample(s))
-									</div>
-								) : null}
-							</div>
-
 							{errorMessage ? (
 								<div className="rounded border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
 									{errorMessage}
@@ -735,7 +724,7 @@ export default function DatasetWorkspace({
 												type="button"
 												variant="ghost"
 												size="sm"
-												className="h-8 rounded-md bg-muted text-muted-foreground border border-transparent hover:bg-[var(--hover-bg)] hover:text-[var(--hover-text)]"
+												className={saveSourceButtonClassName}
 												onClick={() => {
 													void handleSaveSource();
 												}}
@@ -1008,8 +997,8 @@ export default function DatasetWorkspace({
 													type="submit"
 													variant="ghost"
 													size="sm"
-													className="h-8 rounded-md bg-muted text-muted-foreground border border-transparent hover:bg-[var(--hover-bg)] hover:text-[var(--hover-text)]"
 													disabled={!metadataDirty || busy}
+													className={saveMetadataButtonClassName}
 												>
 													<Save className="h-3.5 w-3.5 mr-1" />
 													Save metadata
