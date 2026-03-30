@@ -2450,6 +2450,9 @@ export const useAppStore = create<AppState>((set, get) => ({
 			return false;
 		}
 
+		const datasetIdAtStart = state.datasetActiveId;
+		const sampleIdAtStart = state.datasetActiveSampleId;
+
 		if (!state.datasetSourceDirty) {
 			set({
 				datasetMutationError: null,
@@ -2470,8 +2473,8 @@ export const useAppStore = create<AppState>((set, get) => ({
 		try {
 			const result = await window.desktopAPI.saveSampleSource(
 				activeRepo.path,
-				state.datasetActiveId,
-				state.datasetActiveSampleId,
+				datasetIdAtStart,
+				sampleIdAtStart,
 				state.datasetSourceText,
 			);
 
@@ -2488,24 +2491,52 @@ export const useAppStore = create<AppState>((set, get) => ({
 			}
 
 			const loadedSample = normalizeLoadedSample(result.data);
-			set((current) => ({
-				datasetMutationLoading: false,
-				datasetMutationError: null,
-				datasetFeedback: {
-					kind: "success",
-					message: "Source saved.",
-				},
-				datasetActiveSampleId: loadedSample.sample.id,
-				datasetActiveSample: loadedSample.sample,
-				datasetSourceText: loadedSample.sourceText,
-				datasetSourceSavedText: loadedSample.sourceText,
-				datasetSourceDirty: false,
-				datasetSamples: upsertSampleSummary(
-					current.datasetSamples,
+			// Always refresh cache for the sample we just saved.
+			// Otherwise switching away and back can show stale cached source text.
+			const cacheKey = makeDatasetSampleCacheKey(
+				activeRepo.path,
+				datasetIdAtStart,
+				sampleIdAtStart,
+			);
+			setCachedDatasetSample(cacheKey, loadedSample);
+
+			const current = get();
+			const isStillSelected =
+				current.datasetActiveId === datasetIdAtStart &&
+				current.datasetActiveSampleId === sampleIdAtStart;
+
+			set((prev) => {
+				const nextSamples = upsertSampleSummary(
+					prev.datasetSamples,
 					loadedSample.sample,
-				),
-			}));
-			return true;
+				);
+
+				if (!isStillSelected) {
+					return {
+						datasetMutationLoading: false,
+						datasetMutationError: null,
+						datasetFeedback: null,
+						datasetSamples: nextSamples,
+					};
+				}
+
+				return {
+					datasetMutationLoading: false,
+					datasetMutationError: null,
+					datasetFeedback: {
+						kind: "success",
+						message: "Source saved.",
+					},
+					datasetActiveSampleId: loadedSample.sample.id,
+					datasetActiveSample: loadedSample.sample,
+					datasetSourceText: loadedSample.sourceText,
+					datasetSourceSavedText: loadedSample.sourceText,
+					datasetSourceDirty: false,
+					datasetSamples: nextSamples,
+				};
+			});
+
+			return isStillSelected;
 		} catch (error) {
 			set({
 				datasetMutationLoading: false,
@@ -2616,6 +2647,9 @@ export const useAppStore = create<AppState>((set, get) => ({
 			return false;
 		}
 
+		const datasetIdAtStart = state.datasetActiveId;
+		const sampleIdAtStart = state.datasetActiveSampleId;
+
 		set({
 			datasetMutationLoading: true,
 			datasetMutationError: null,
@@ -2625,8 +2659,8 @@ export const useAppStore = create<AppState>((set, get) => ({
 		try {
 			const result = await window.desktopAPI.updateSample(
 				activeRepo.path,
-				state.datasetActiveId,
-				state.datasetActiveSampleId,
+				datasetIdAtStart,
+				sampleIdAtStart,
 				update,
 			);
 
@@ -2643,10 +2677,38 @@ export const useAppStore = create<AppState>((set, get) => ({
 			}
 
 			const loadedSample = normalizeLoadedSample(result.data);
-			set((current) => {
+			// Always refresh cache for the sample we just updated.
+			// Otherwise switching away and back can show stale cached source text.
+			const cacheKey = makeDatasetSampleCacheKey(
+				activeRepo.path,
+				datasetIdAtStart,
+				sampleIdAtStart,
+			);
+			setCachedDatasetSample(cacheKey, loadedSample);
+
+			const current = get();
+			const isStillSelected =
+				current.datasetActiveId === datasetIdAtStart &&
+				current.datasetActiveSampleId === sampleIdAtStart;
+
+			set((prev) => {
+				const nextSamples = upsertSampleSummary(
+					prev.datasetSamples,
+					loadedSample.sample,
+				);
+
+				if (!isStillSelected) {
+					return {
+						datasetMutationLoading: false,
+						datasetMutationError: null,
+						datasetFeedback: null,
+						datasetSamples: nextSamples,
+					};
+				}
+
 				const nextSavedSource = loadedSample.sourceText;
-				const nextSourceText = current.datasetSourceDirty
-					? current.datasetSourceText
+				const nextSourceText = prev.datasetSourceDirty
+					? prev.datasetSourceText
 					: loadedSample.sourceText;
 				const nextSourceDirty = nextSourceText !== nextSavedSource;
 
@@ -2662,13 +2724,11 @@ export const useAppStore = create<AppState>((set, get) => ({
 					datasetSourceText: nextSourceText,
 					datasetSourceSavedText: nextSavedSource,
 					datasetSourceDirty: nextSourceDirty,
-					datasetSamples: upsertSampleSummary(
-						current.datasetSamples,
-						loadedSample.sample,
-					),
+					datasetSamples: nextSamples,
 				};
 			});
-			return true;
+
+			return isStillSelected;
 		} catch (error) {
 			set({
 				datasetMutationLoading: false,
