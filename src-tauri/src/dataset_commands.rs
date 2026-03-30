@@ -613,12 +613,8 @@ fn list_sample_manifests(
         manifests.push(sample_manifest);
     }
 
-    manifests.sort_by(|left, right| {
-        right
-            .updated_at
-            .cmp(&left.updated_at)
-            .then_with(|| left.id.cmp(&right.id))
-    });
+    // Keep sample ordering stable and independent from timestamp changes.
+    manifests.sort_by(|left, right| left.id.cmp(&right.id));
 
     Ok(manifests)
 }

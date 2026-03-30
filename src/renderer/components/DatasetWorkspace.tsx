@@ -1133,7 +1133,7 @@ export default function DatasetWorkspace({
 					ref={scrollHostRef}
 					className="flex-1 overflow-auto bg-background p-4 space-y-4"
 				>
-					<div className="pointer-events-none sticky top-0 z-50 flex min-h-10 justify-center pb-2">
+					<div className="pointer-events-none sticky top-0 z-50 flex justify-center">
 						<DatasetTopToast />
 					</div>
 					{!activeRepoId ? (

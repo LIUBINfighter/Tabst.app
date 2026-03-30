@@ -780,22 +780,26 @@ function toSampleSummary(sample: SampleManifest): SampleSummary {
 }
 
 function sortSampleSummaries(samples: SampleSummary[]): SampleSummary[] {
-	return [...samples].sort(
-		(left, right) =>
-			right.updatedAt - left.updatedAt || left.id.localeCompare(right.id),
-	);
+	// Keep manifest/insertion order stable.
+	// Do not reorder by timestamps, so saving/updating a sample won't move it.
+	return samples.map(normalizeSampleSummary);
 }
 
 function upsertSampleSummary(
 	samples: SampleSummary[],
 	sample: SampleManifest,
 ): SampleSummary[] {
-	const summary = toSampleSummary(sample);
-	const withoutCurrent = samples.filter((entry) => entry.id !== sample.id);
-	return sortSampleSummaries([
-		normalizeSampleSummary(summary),
-		...withoutCurrent.map(normalizeSampleSummary),
-	]);
+	const nextSummary = normalizeSampleSummary(toSampleSummary(sample));
+	const normalizedSamples = samples.map(normalizeSampleSummary);
+	const currentIndex = normalizedSamples.findIndex(
+		(entry) => entry.id === nextSummary.id,
+	);
+	if (currentIndex < 0) {
+		return [...normalizedSamples, nextSummary];
+	}
+	const nextSamples = [...normalizedSamples];
+	nextSamples[currentIndex] = nextSummary;
+	return nextSamples;
 }
 
 // In-memory cache to speed up "switching between samples repeatedly".
