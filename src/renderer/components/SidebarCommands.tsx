@@ -1,6 +1,7 @@
 import {
 	ChevronDown,
 	ChevronLeft,
+	Database,
 	FileMusic,
 	FileQuestion,
 	FolderOpen,
@@ -92,6 +93,35 @@ export function SidebarCommands({
 				</TooltipTrigger>
 				<TooltipContent side="bottom">
 					<p>{workspaceMode === "git" ? t("exitGitView") : t("openGitView")}</p>
+				</TooltipContent>
+			</Tooltip>
+
+			<Tooltip>
+				<TooltipTrigger asChild>
+					<Button
+						variant="ghost"
+						size="icon"
+						className={`h-8 w-8 hover:bg-[var(--hover-bg)] hover:text-[var(--hover-text)] ${
+							workspaceMode === "dataset"
+								? "bg-[var(--highlight-bg)] text-[var(--highlight-text)]"
+								: ""
+						}`}
+						onClick={() =>
+							setWorkspaceMode(
+								workspaceMode === "dataset" ? "editor" : "dataset",
+							)
+						}
+					>
+						<span className="sr-only">Dataset workspace</span>
+						<Database className="h-4 w-4" />
+					</Button>
+				</TooltipTrigger>
+				<TooltipContent side="bottom">
+					<p>
+						{workspaceMode === "dataset"
+							? "Exit dataset workspace"
+							: "Open dataset workspace"}
+					</p>
 				</TooltipContent>
 			</Tooltip>
 

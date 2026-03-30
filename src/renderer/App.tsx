@@ -5,6 +5,7 @@ import type { GlobalCommandId } from "./lib/command-registry";
 
 const SettingsView = lazy(() => import("./components/SettingsView"));
 const GitWorkspace = lazy(() => import("./components/GitWorkspace"));
+const DatasetWorkspace = lazy(() => import("./components/DatasetWorkspace"));
 
 import { Sidebar } from "./components/Sidebar";
 import {
@@ -57,7 +58,7 @@ function App() {
 	const editorRefreshVersion = useAppStore((s) => s.editorRefreshVersion);
 	const bottomBarRefreshVersion = useAppStore((s) => s.bottomBarRefreshVersion);
 	const prevWorkspaceModeRef = useRef<
-		"editor" | "enjoy" | "tutorial" | "settings" | "git"
+		"editor" | "enjoy" | "tutorial" | "settings" | "git" | "dataset"
 	>("editor");
 
 	// 初始化 store：从主进程恢复上次打开的文件和选中项
@@ -457,6 +458,7 @@ function App() {
 			if (!changedPath) return true;
 			const normalized = changedPath.replace(/\\/g, "/");
 			if (normalized.includes("/.tabst/")) return false;
+			if (normalized.includes("/.tabel/")) return false;
 			const base = normalized.split("/").pop() ?? "";
 			if (!base) return true;
 			if (base.startsWith(".")) return false;
@@ -629,6 +631,17 @@ function App() {
 						fallback={<div className="flex-1 bg-background" aria-busy="true" />}
 					>
 						<GitWorkspace
+							showExpandSidebar={sidebarCollapsed}
+							onExpandSidebar={() => setSidebarCollapsed(false)}
+							onCollapseSidebar={() => setSidebarCollapsed(true)}
+						/>
+					</Suspense>
+				)}
+				{workspaceMode === "dataset" && (
+					<Suspense
+						fallback={<div className="flex-1 bg-background" aria-busy="true" />}
+					>
+						<DatasetWorkspace
 							showExpandSidebar={sidebarCollapsed}
 							onExpandSidebar={() => setSidebarCollapsed(false)}
 							onCollapseSidebar={() => setSidebarCollapsed(true)}

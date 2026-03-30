@@ -15,6 +15,7 @@ interface TutorialPlaygroundPreviewProps {
 	fileName?: string;
 	className?: string;
 	onApiChange?: (api: alphaTab.AlphaTabApi | null) => void;
+	disablePlayer?: boolean;
 }
 
 export function TutorialPlaygroundPreview({
@@ -22,6 +23,7 @@ export function TutorialPlaygroundPreview({
 	fileName,
 	className,
 	onApiChange,
+	disablePlayer,
 }: TutorialPlaygroundPreviewProps) {
 	const containerRef = useRef<HTMLDivElement | null>(null);
 	const apiRef = useRef<alphaTab.AlphaTabApi | null>(null);
@@ -41,7 +43,7 @@ export function TutorialPlaygroundPreview({
 			const colors = getAlphaTabColorsForTheme();
 			const settings = createPreviewSettings(urls, {
 				scale: 0.6,
-				enablePlayer: true,
+				enablePlayer: !disablePlayer,
 				colors,
 			});
 
@@ -77,7 +79,7 @@ export function TutorialPlaygroundPreview({
 			apiRef.current = null;
 			onApiChange?.(null);
 		};
-	}, [content, onApiChange]);
+	}, [content, onApiChange, disablePlayer]);
 
 	useEffect(() => {
 		const api = apiRef.current;

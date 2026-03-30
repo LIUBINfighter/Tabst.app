@@ -11,22 +11,34 @@ interface TutorialPlaygroundEditorProps {
 	fileName?: string;
 	className?: string;
 	onChange?: (content: string) => void;
+	readOnly?: boolean;
 }
 
 export function TutorialPlaygroundEditor({
 	initialContent,
 	className,
 	onChange,
+	readOnly,
 }: TutorialPlaygroundEditorProps) {
 	const hostRef = useRef<HTMLDivElement | null>(null);
 	const viewRef = useRef<EditorView | null>(null);
 	const lastDocRef = useRef<string>(initialContent);
+	const initialContentRef = useRef<string>(initialContent);
 	const { themeExtension } = useEditorTheme();
 
 	const baseExtensions = useMemo<Extension[]>(
-		() => [basicSetup, whitespaceDecoration(), themeExtension],
-		[themeExtension],
+		() => [
+			basicSetup,
+			whitespaceDecoration(),
+			themeExtension,
+			EditorState.readOnly.of(Boolean(readOnly)),
+		],
+		[themeExtension, readOnly],
 	);
+
+	useEffect(() => {
+		initialContentRef.current = initialContent;
+	}, [initialContent]);
 
 	useEffect(() => {
 		let canceled = false;
@@ -51,7 +63,7 @@ export function TutorialPlaygroundEditor({
 			];
 
 			const state = EditorState.create({
-				doc: initialContent,
+				doc: initialContentRef.current,
 				extensions,
 			});
 
@@ -73,7 +85,7 @@ export function TutorialPlaygroundEditor({
 				hostRef.current.innerHTML = "";
 			}
 		};
-	}, [initialContent, baseExtensions, onChange]);
+	}, [baseExtensions, onChange]);
 
 	useEffect(() => {
 		const view = viewRef.current;
@@ -90,14 +102,10 @@ export function TutorialPlaygroundEditor({
 		lastDocRef.current = initialContent;
 	}, [initialContent]);
 
-	useEffect(() => {
-		return () => {};
-	}, []);
-
 	return (
 		<div
 			ref={hostRef}
-			className={`h-full w-full bg-card text-foreground font-mono text-sm leading-6 ${className ?? ""}`}
+			className={`h-full w-full overflow-auto bg-card text-foreground font-mono text-sm leading-6 ${className ?? ""}`}
 		/>
 	);
 }

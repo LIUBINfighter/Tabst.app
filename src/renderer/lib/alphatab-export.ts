@@ -5,6 +5,175 @@
 
 import * as alphaTab from "@coderline/alphatab";
 
+import { createPreviewSettings } from "./alphatab-config";
+import { loadBravuraFont, loadSoundFontFromUrl } from "./assets";
+import { getResourceUrls } from "./resourceLoaderService";
+
+const TEMP_API_TIMEOUT_MS = 20000;
+
+function ensureScoreLoaded(api: alphaTab.AlphaTabApi): alphaTab.model.Score {
+	if (!api.score) {
+		throw new Error("No score loaded");
+	}
+
+	return api.score;
+}
+
+function triggerBrowserDownload(blob: Blob, filename: string): void {
+	const url = URL.createObjectURL(blob);
+	const anchor = document.createElement("a");
+	anchor.href = url;
+	anchor.download = filename;
+	document.body.appendChild(anchor);
+	anchor.click();
+	document.body.removeChild(anchor);
+	URL.revokeObjectURL(url);
+}
+
+function createMidiBytesFromScore(
+	score: alphaTab.model.Score,
+	settings?: alphaTab.Settings | null,
+): Uint8Array {
+	const midiFile = new alphaTab.midi.MidiFile();
+	const handler = new alphaTab.midi.AlphaSynthMidiFileHandler(midiFile, true);
+	const generator = new alphaTab.midi.MidiFileGenerator(
+		score,
+		settings ?? null,
+		handler,
+	);
+	generator.generate();
+	const bytes = midiFile.toBinary();
+	return bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+}
+
+function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+	return bytes.buffer.slice(
+		bytes.byteOffset,
+		bytes.byteOffset + bytes.byteLength,
+	) as ArrayBuffer;
+}
+
+function loadScoreFromAlphaTex(sourceText: string): {
+	score: alphaTab.model.Score;
+	settings: alphaTab.Settings;
+} {
+	const importer = new alphaTab.importer.AlphaTexImporter();
+	const settings = new alphaTab.Settings();
+	importer.initFromString(sourceText, settings);
+	const score = importer.readScore();
+	return { score, settings };
+}
+
+function waitForEvent(
+	emitter:
+		| {
+				on: (
+					listener: (...args: unknown[]) => void,
+				) => (() => void) | undefined;
+		  }
+		| undefined,
+	errorMessage: string,
+	timeoutMs = TEMP_API_TIMEOUT_MS,
+): Promise<void> {
+	return new Promise((resolve, reject) => {
+		if (!emitter?.on) {
+			reject(new Error(errorMessage));
+			return;
+		}
+
+		let settled = false;
+		let unsubscribe: (() => void) | undefined;
+		const timeoutId = window.setTimeout(() => {
+			if (settled) return;
+			settled = true;
+			if (typeof unsubscribe === "function") {
+				unsubscribe();
+			}
+			reject(new Error(errorMessage));
+		}, timeoutMs);
+
+		unsubscribe = emitter.on(() => {
+			if (settled) return;
+			settled = true;
+			window.clearTimeout(timeoutId);
+			if (typeof unsubscribe === "function") {
+				unsubscribe();
+			}
+			resolve();
+		});
+	});
+}
+
+async function withTemporaryAlphaTabApi<T>(
+	sourceText: string,
+	run: (api: alphaTab.AlphaTabApi) => Promise<T>,
+): Promise<T> {
+	const urls = await getResourceUrls();
+	await loadBravuraFont(urls.bravuraFontUrl);
+
+	const container = document.createElement("div");
+	container.setAttribute("aria-hidden", "true");
+	container.style.position = "fixed";
+	container.style.left = "-10000px";
+	container.style.top = "0";
+	container.style.width = "1px";
+	container.style.height = "1px";
+	container.style.opacity = "0";
+	container.style.pointerEvents = "none";
+	document.body.appendChild(container);
+
+	const settings = createPreviewSettings(urls, { enablePlayer: true });
+	const api = new alphaTab.AlphaTabApi(container, settings);
+
+	try {
+		const errorPromise = waitForEvent(
+			api.error,
+			"alphaTab export failed before completion",
+		).then(() => {
+			throw new Error("alphaTab export failed before completion");
+		});
+		const scoreLoadedPromise = waitForEvent(
+			api.scoreLoaded,
+			"Timed out waiting for alphaTab score load",
+		);
+		const soundFontLoadedPromise = waitForEvent(
+			api.soundFontLoaded,
+			"Timed out waiting for alphaTab soundfont load",
+		);
+
+		const soundFontRequested = await loadSoundFontFromUrl(
+			api,
+			urls.soundFontUrl,
+		);
+		if (!soundFontRequested) {
+			throw new Error("Failed to load alphaTab soundfont for audio export");
+		}
+
+		api.tex(sourceText);
+		await Promise.race([
+			errorPromise,
+			Promise.all([scoreLoadedPromise, soundFontLoadedPromise]),
+		]);
+
+		ensureScoreLoaded(api);
+		return await run(api);
+	} finally {
+		api.destroy();
+		container.remove();
+	}
+}
+
+export function generateMidiBytesFromApi(
+	api: alphaTab.AlphaTabApi,
+): Uint8Array {
+	return createMidiBytesFromScore(ensureScoreLoaded(api), api.settings);
+}
+
+export function generateMidiBytesFromAlphaTex(sourceText: string): Uint8Array {
+	const { score, settings } = loadScoreFromAlphaTex(sourceText);
+	return createMidiBytesFromScore(score, settings);
+}
+
 /**
  * 导出为 Guitar Pro 7 (.gp) 格式
  */
@@ -12,48 +181,38 @@ export function exportToGp7(
 	api: alphaTab.AlphaTabApi,
 	filename: string = "song.gp",
 ): void {
-	if (!api.score) {
-		throw new Error("No score loaded");
-	}
+	const score = ensureScoreLoaded(api);
 
 	const exporter = new alphaTab.exporter.Gp7Exporter();
-	const data = exporter.export(api.score, api.settings);
+	const data = exporter.export(score, api.settings);
 
 	const blob = new Blob([data.buffer as ArrayBuffer], {
 		type: "application/octet-stream",
 	});
-	const url = URL.createObjectURL(blob);
-	const a = document.createElement("a");
-	a.href = url;
-	a.download = filename.endsWith(".gp") ? filename : `${filename}.gp`;
-	document.body.appendChild(a);
-	a.click();
-	document.body.removeChild(a);
-	URL.revokeObjectURL(url);
+	triggerBrowserDownload(
+		blob,
+		filename.endsWith(".gp") ? filename : `${filename}.gp`,
+	);
 }
 
 /**
  * 导出为 MIDI (.mid) 格式
  */
 export function exportToMidi(api: alphaTab.AlphaTabApi): void {
-	if (!api.score) {
-		throw new Error("No score loaded");
-	}
-
-	api.downloadMidi();
+	const blob = new Blob([toArrayBuffer(generateMidiBytesFromApi(api))], {
+		type: "audio/midi",
+	});
+	triggerBrowserDownload(blob, "song.mid");
 }
 
 /**
  * 导出为 WAV (.wav) 格式
  */
-export async function exportToWav(
+export async function generateWavBytesFromApi(
 	api: alphaTab.AlphaTabApi,
-	filename: string = "song.wav",
 	onProgress?: (progress: number) => void,
-): Promise<void> {
-	if (!api.score) {
-		throw new Error("No score loaded");
-	}
+): Promise<Uint8Array> {
+	const score = ensureScoreLoaded(api);
 
 	const sampleRate = 44100;
 
@@ -65,7 +224,7 @@ export async function exportToWav(
 	exportOptions.trackVolume = new Map<number, number>();
 	exportOptions.trackTranspositionPitches = new Map<number, number>();
 
-	for (let i = 0; i < api.score.tracks.length; i++) {
+	for (let i = 0; i < score.tracks.length; i++) {
 		exportOptions.trackVolume.set(i, 1.0);
 		exportOptions.trackTranspositionPitches.set(i, 0);
 	}
@@ -96,19 +255,32 @@ export async function exportToWav(
 		}
 
 		const wavData = float32ArrayToWav(audioData, sampleRate);
-
-		const blob = new Blob([wavData], { type: "audio/wav" });
-		const url = URL.createObjectURL(blob);
-		const a = document.createElement("a");
-		a.href = url;
-		a.download = filename.endsWith(".wav") ? filename : `${filename}.wav`;
-		document.body.appendChild(a);
-		a.click();
-		document.body.removeChild(a);
-		URL.revokeObjectURL(url);
+		return new Uint8Array(wavData);
 	} finally {
 		exporter.destroy();
 	}
+}
+
+export async function exportToWav(
+	api: alphaTab.AlphaTabApi,
+	filename: string = "song.wav",
+	onProgress?: (progress: number) => void,
+): Promise<void> {
+	const wavData = await generateWavBytesFromApi(api, onProgress);
+	const blob = new Blob([toArrayBuffer(wavData)], { type: "audio/wav" });
+	triggerBrowserDownload(
+		blob,
+		filename.endsWith(".wav") ? filename : `${filename}.wav`,
+	);
+}
+
+export async function generateWavBytesFromAlphaTex(
+	sourceText: string,
+	onProgress?: (progress: number) => void,
+): Promise<Uint8Array> {
+	return withTemporaryAlphaTabApi(sourceText, async (api) =>
+		generateWavBytesFromApi(api, onProgress),
+	);
 }
 
 /**

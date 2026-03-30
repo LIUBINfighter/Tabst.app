@@ -154,6 +154,30 @@ function GitBottomBar({ t }: { t: (key: string) => string }) {
 	);
 }
 
+function DatasetBottomBar() {
+	const datasetActive = useAppStore((s) => s.datasetActive);
+	const datasetActiveSample = useAppStore((s) => s.datasetActiveSample);
+	const datasetSourceDirty = useAppStore((s) => s.datasetSourceDirty);
+
+	return (
+		<div className="flex items-center gap-2 text-xs text-muted-foreground">
+			<span>{datasetActive?.name ?? "Dataset workspace"}</span>
+			{datasetActiveSample ? (
+				<>
+					<span>•</span>
+					<span>{datasetActiveSample.title}</span>
+				</>
+			) : null}
+			{datasetSourceDirty ? (
+				<>
+					<span>•</span>
+					<span>Unsaved source</span>
+				</>
+			) : null}
+		</div>
+	);
+}
+
 function formatPlaybackTime(ms: number): string {
 	if (!Number.isFinite(ms) || ms <= 0) return "00:00";
 	const totalSeconds = Math.floor(ms / 1000);
@@ -223,10 +247,16 @@ function EditorBottomBar({
 	isTracksPanelOpen: boolean;
 	toggleTracksPanel: () => void;
 	setWorkspaceMode: (
-		mode: "editor" | "enjoy" | "tutorial" | "settings" | "git",
+		mode: "editor" | "enjoy" | "tutorial" | "settings" | "git" | "dataset",
 	) => void;
 	setActiveSettingsPageId: (id: string | null) => void;
-	workspaceMode: "editor" | "enjoy" | "tutorial" | "settings" | "git";
+	workspaceMode:
+		| "editor"
+		| "enjoy"
+		| "tutorial"
+		| "settings"
+		| "git"
+		| "dataset";
 	activeSettingsPageId: string | null;
 	transportOnly?: boolean;
 	t: (key: string, opts?: Record<string, string | number>) => string;
@@ -775,6 +805,8 @@ export default function GlobalBottomBar() {
 	const bottomBarContent =
 		workspaceMode === "git" ? (
 			<GitBottomBar t={t} />
+		) : workspaceMode === "dataset" ? (
+			<DatasetBottomBar />
 		) : isTutorialMode && (prevTutorial || nextTutorial) ? (
 			<TutorialBottomBar
 				prevTutorial={prevTutorial}

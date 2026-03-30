@@ -20,7 +20,13 @@ import {
 	type UiShellCommandId,
 } from "./ui-shell-events";
 
-type WorkspaceMode = "editor" | "enjoy" | "tutorial" | "settings" | "git";
+type WorkspaceMode =
+	| "editor"
+	| "enjoy"
+	| "tutorial"
+	| "settings"
+	| "git"
+	| "dataset";
 
 export type UiCommandId = GlobalCommandId;
 

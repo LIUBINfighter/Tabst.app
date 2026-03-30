@@ -107,6 +107,9 @@ export function createPreviewSettings(
 		player: {
 			playerMode: alphaTab.PlayerMode.EnabledAutomatic,
 			enablePlayer: enablePlayerSafely,
+			// Keep player cursor rendering in sync with enablePlayer.
+			// This prevents the playback cursor being mounted when playback is disabled.
+			enableCursor: enablePlayerSafely,
 			outputMode: alphaTab.PlayerOutputMode.WebAudioScriptProcessor,
 			soundFont: urls.soundFontUrl,
 			...(scrollElement && {

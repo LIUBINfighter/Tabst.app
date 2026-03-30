@@ -5,7 +5,8 @@ export type WorkspaceMode =
 	| "enjoy"
 	| "tutorial"
 	| "settings"
-	| "git";
+	| "git"
+	| "dataset";
 
 interface WebsiteMobileLayoutOptions {
 	isWebRuntime: boolean;
