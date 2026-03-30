@@ -61,7 +61,13 @@ export interface RepoMetadata {
 	expandedFolders: string[];
 	preferences?: RepoPreferences;
 	activeFilePath?: string | null;
-	workspaceMode?: "editor" | "enjoy" | "tutorial" | "settings" | "git";
+	workspaceMode?:
+		| "editor"
+		| "enjoy"
+		| "tutorial"
+		| "settings"
+		| "git"
+		| "dataset";
 	activeSettingsPageId?: string | null;
 	activeTutorialId?: string | null;
 	tutorialAudience?: "user" | "power-user" | "developer";

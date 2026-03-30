@@ -1,4 +1,16 @@
 import type {
+	CreateDatasetInput,
+	CreateSampleInput,
+	DatasetCommandResponse,
+	DatasetExportResult,
+	DatasetListEntry,
+	DatasetManifest,
+	LoadedDataset,
+	LoadedSample,
+	SaveSampleArtifactInput,
+	UpdateSampleInput,
+} from "../types/dataset";
+import type {
 	DesktopAPI,
 	FileResult,
 	SaveResult,
@@ -157,6 +169,15 @@ function fileNameFromPath(path: string): string {
 	const normalized = path.replace(/\\/g, "/");
 	const segments = normalized.split("/");
 	return segments[segments.length - 1] || path;
+}
+
+function unsupportedDatasetResponse<T>(
+	error = "Unsupported in web runtime",
+): DatasetCommandResponse<T> {
+	return {
+		success: false,
+		error,
+	};
 }
 
 async function createBrowserStoredFile(
@@ -513,6 +534,51 @@ export function createWebDesktopAPI(): DesktopAPI {
 			success: false,
 			error: "Unsupported in web runtime",
 		}),
+
+		listDatasets: async (_repoPath: string) =>
+			unsupportedDatasetResponse<DatasetListEntry[]>(),
+
+		createDataset: async (_repoPath: string, _input: CreateDatasetInput) =>
+			unsupportedDatasetResponse<DatasetManifest>(),
+
+		loadDataset: async (_repoPath: string, _datasetId: string) =>
+			unsupportedDatasetResponse<LoadedDataset>(),
+
+		createSample: async (
+			_repoPath: string,
+			_datasetId: string,
+			_input: CreateSampleInput,
+		) => unsupportedDatasetResponse<LoadedSample>(),
+
+		loadSample: async (
+			_repoPath: string,
+			_datasetId: string,
+			_sampleId: string,
+		) => unsupportedDatasetResponse<LoadedSample>(),
+
+		saveSampleSource: async (
+			_repoPath: string,
+			_datasetId: string,
+			_sampleId: string,
+			_sourceText: string,
+		) => unsupportedDatasetResponse<LoadedSample>(),
+
+		saveSampleArtifact: async (
+			_repoPath: string,
+			_datasetId: string,
+			_sampleId: string,
+			_input: SaveSampleArtifactInput,
+		) => unsupportedDatasetResponse<LoadedSample>(),
+
+		updateSample: async (
+			_repoPath: string,
+			_datasetId: string,
+			_sampleId: string,
+			_update: UpdateSampleInput,
+		) => unsupportedDatasetResponse<LoadedSample>(),
+
+		exportDatasetJsonl: async (_repoPath: string, _datasetId: string) =>
+			unsupportedDatasetResponse<DatasetExportResult>(),
 
 		checkForUpdates: async () => ({
 			supported: false,

@@ -1,3 +1,15 @@
+import type {
+	CreateDatasetInput,
+	CreateSampleInput,
+	DatasetCommandResponse,
+	DatasetExportResult,
+	DatasetListEntry,
+	DatasetManifest,
+	LoadedDataset,
+	LoadedSample,
+	SaveSampleArtifactInput,
+	UpdateSampleInput,
+} from "./dataset";
 import type { GitChangeGroup, GitDiffResult, GitStatusSummary } from "./git";
 import type { FileNode, Repo, RepoMetadata } from "./repo";
 
@@ -125,6 +137,49 @@ export interface DesktopAPI {
 		repoPath: string,
 		message: string,
 	) => Promise<{ success: boolean; error?: string }>;
+	listDatasets: (
+		repoPath: string,
+	) => Promise<DatasetCommandResponse<DatasetListEntry[]>>;
+	createDataset: (
+		repoPath: string,
+		input: CreateDatasetInput,
+	) => Promise<DatasetCommandResponse<DatasetManifest>>;
+	loadDataset: (
+		repoPath: string,
+		datasetId: string,
+	) => Promise<DatasetCommandResponse<LoadedDataset>>;
+	createSample: (
+		repoPath: string,
+		datasetId: string,
+		input: CreateSampleInput,
+	) => Promise<DatasetCommandResponse<LoadedSample>>;
+	loadSample: (
+		repoPath: string,
+		datasetId: string,
+		sampleId: string,
+	) => Promise<DatasetCommandResponse<LoadedSample>>;
+	saveSampleSource: (
+		repoPath: string,
+		datasetId: string,
+		sampleId: string,
+		sourceText: string,
+	) => Promise<DatasetCommandResponse<LoadedSample>>;
+	saveSampleArtifact: (
+		repoPath: string,
+		datasetId: string,
+		sampleId: string,
+		input: SaveSampleArtifactInput,
+	) => Promise<DatasetCommandResponse<LoadedSample>>;
+	updateSample: (
+		repoPath: string,
+		datasetId: string,
+		sampleId: string,
+		update: UpdateSampleInput,
+	) => Promise<DatasetCommandResponse<LoadedSample>>;
+	exportDatasetJsonl: (
+		repoPath: string,
+		datasetId: string,
+	) => Promise<DatasetCommandResponse<DatasetExportResult>>;
 
 	// Auto-update
 	checkForUpdates: () => Promise<{ supported: boolean; message?: string }>;

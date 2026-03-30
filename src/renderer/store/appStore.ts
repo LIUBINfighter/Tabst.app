@@ -15,6 +15,22 @@ import {
 	loadWorkspaceMetadata,
 	updateWorkspaceMetadata,
 } from "../lib/workspace-metadata-store";
+
+import {
+	type CreateDatasetInput,
+	type CreateSampleInput,
+	type DatasetExportResult,
+	type DatasetListEntry,
+	type DatasetManifest,
+	normalizeLoadedDataset,
+	normalizeLoadedSample,
+	normalizeSampleManifest,
+	normalizeSampleSummary,
+	type SampleManifest,
+	type SampleSummary,
+	type SaveSampleArtifactInput,
+	type UpdateSampleInput,
+} from "../types/dataset";
 import type {
 	GitDiffResult,
 	GitSelectedChange,
@@ -401,6 +417,21 @@ export interface PlayerControls {
 	setScoreTracksMuted?: (muted: boolean) => void;
 }
 
+type WorkspaceMode =
+	| "editor"
+	| "enjoy"
+	| "tutorial"
+	| "settings"
+	| "git"
+	| "dataset";
+
+type DatasetFeedbackKind = "success" | "error";
+
+interface DatasetFeedback {
+	kind: DatasetFeedbackKind;
+	message: string;
+}
+
 interface AppState {
 	// ===== Repo 管理 =====
 	repos: Repo[];
@@ -509,10 +540,8 @@ interface AppState {
 	bumpScoreVersion: () => void;
 	bumpEditorRefreshVersion: () => void;
 	bumpBottomBarRefreshVersion: () => void;
-	workspaceMode: "editor" | "enjoy" | "tutorial" | "settings" | "git";
-	setWorkspaceMode: (
-		mode: "editor" | "enjoy" | "tutorial" | "settings" | "git",
-	) => void;
+	workspaceMode: WorkspaceMode;
+	setWorkspaceMode: (mode: WorkspaceMode) => void;
 	gitStatus: GitStatusSummary | null;
 	gitStatusLoading: boolean;
 	gitStatusError: string | null;
@@ -534,6 +563,36 @@ interface AppState {
 	syncGitPull: () => Promise<boolean>;
 	commitGitChanges: () => Promise<boolean>;
 	clearGitState: () => void;
+	datasetList: DatasetListEntry[];
+	datasetListLoading: boolean;
+	datasetListError: string | null;
+	datasetLoading: boolean;
+	datasetError: string | null;
+	datasetActiveId: string | null;
+	datasetActive: DatasetManifest | null;
+	datasetSamples: SampleSummary[];
+	datasetActiveSampleId: string | null;
+	datasetActiveSample: SampleManifest | null;
+	datasetSampleLoading: boolean;
+	datasetSourceText: string;
+	datasetSourceSavedText: string;
+	datasetSourceDirty: boolean;
+	datasetMutationLoading: boolean;
+	datasetMutationError: string | null;
+	datasetFeedback: DatasetFeedback | null;
+	datasetLastExport: DatasetExportResult | null;
+	listDatasets: () => Promise<void>;
+	createDataset: (input: CreateDatasetInput) => Promise<boolean>;
+	loadDataset: (datasetId: string) => Promise<boolean>;
+	createSample: (input: CreateSampleInput) => Promise<boolean>;
+	loadSample: (sampleId: string) => Promise<boolean>;
+	setDatasetSourceText: (sourceText: string) => void;
+	saveDatasetSampleSource: () => Promise<boolean>;
+	saveDatasetArtifact: (input: SaveSampleArtifactInput) => Promise<boolean>;
+	updateDatasetSample: (update: UpdateSampleInput) => Promise<boolean>;
+	exportDatasetJsonl: () => Promise<boolean>;
+	clearDatasetFeedback: () => void;
+	clearDatasetState: () => void;
 
 	// 🆕 第一个谱表显示选项
 	firstStaffOptions: StaffDisplayOptions | null;
@@ -703,6 +762,64 @@ function collectExpandedFolders(nodes: FileNode[]): string[] {
 	return result;
 }
 
+function toSampleSummary(sample: SampleManifest): SampleSummary {
+	const normalizedSample = normalizeSampleManifest(sample);
+	return {
+		id: normalizedSample.id,
+		title: normalizedSample.title,
+		tags: normalizedSample.tags,
+		reviewStatus: normalizedSample.reviewStatus,
+		reviewNotes: normalizedSample.reviewNotes,
+		metadata: normalizedSample.metadata,
+		source: normalizedSample.source,
+		artifacts: normalizedSample.artifacts,
+		createdAt: normalizedSample.createdAt,
+		updatedAt: normalizedSample.updatedAt,
+	};
+}
+
+function sortSampleSummaries(samples: SampleSummary[]): SampleSummary[] {
+	return [...samples].sort(
+		(left, right) =>
+			right.updatedAt - left.updatedAt || left.id.localeCompare(right.id),
+	);
+}
+
+function upsertSampleSummary(
+	samples: SampleSummary[],
+	sample: SampleManifest,
+): SampleSummary[] {
+	const summary = toSampleSummary(sample);
+	const withoutCurrent = samples.filter((entry) => entry.id !== sample.id);
+	return sortSampleSummaries([
+		normalizeSampleSummary(summary),
+		...withoutCurrent.map(normalizeSampleSummary),
+	]);
+}
+
+function createInitialDatasetState() {
+	return {
+		datasetList: [] as DatasetListEntry[],
+		datasetListLoading: false,
+		datasetListError: null as string | null,
+		datasetLoading: false,
+		datasetError: null as string | null,
+		datasetActiveId: null as string | null,
+		datasetActive: null as DatasetManifest | null,
+		datasetSamples: [] as SampleSummary[],
+		datasetActiveSampleId: null as string | null,
+		datasetActiveSample: null as SampleManifest | null,
+		datasetSampleLoading: false,
+		datasetSourceText: "",
+		datasetSourceSavedText: "",
+		datasetSourceDirty: false,
+		datasetMutationLoading: false,
+		datasetMutationError: null as string | null,
+		datasetFeedback: null as DatasetFeedback | null,
+		datasetLastExport: null as DatasetExportResult | null,
+	};
+}
+
 async function mergeAndSaveWorkspacePreferences(partial: RepoPreferences) {
 	const state = useAppStore.getState();
 	const repo = state.repos.find((r) => r.id === state.activeRepoId);
@@ -849,6 +966,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 		set({ deleteBehavior: behavior });
 		void saveGlobalSettings({ deleteBehavior: behavior });
 	},
+	...createInitialDatasetState(),
 
 	// ===== Repo Actions =====
 	addRepo: async (path: string, name?: string) => {
@@ -891,12 +1009,35 @@ export const useAppStore = create<AppState>((set, get) => ({
 	removeRepo: (id: string) => {
 		const state = get();
 		const newRepos = state.repos.filter((repo) => repo.id !== id);
+		const removedActiveRepo = state.activeRepoId === id;
 		const newActiveId =
 			state.activeRepoId === id
 				? newRepos.length > 0
 					? newRepos[0].id
 					: null
 				: state.activeRepoId;
+		const nextDatasetState = removedActiveRepo
+			? createInitialDatasetState()
+			: {
+					datasetList: state.datasetList,
+					datasetListLoading: state.datasetListLoading,
+					datasetListError: state.datasetListError,
+					datasetLoading: state.datasetLoading,
+					datasetError: state.datasetError,
+					datasetActiveId: state.datasetActiveId,
+					datasetActive: state.datasetActive,
+					datasetSamples: state.datasetSamples,
+					datasetActiveSampleId: state.datasetActiveSampleId,
+					datasetActiveSample: state.datasetActiveSample,
+					datasetSampleLoading: state.datasetSampleLoading,
+					datasetSourceText: state.datasetSourceText,
+					datasetSourceSavedText: state.datasetSourceSavedText,
+					datasetSourceDirty: state.datasetSourceDirty,
+					datasetMutationLoading: state.datasetMutationLoading,
+					datasetMutationError: state.datasetMutationError,
+					datasetFeedback: state.datasetFeedback,
+					datasetLastExport: state.datasetLastExport,
+				};
 		const nextActiveRepoContext =
 			newRepos.find((repo) => repo.id === newActiveId) ?? null;
 
@@ -919,6 +1060,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 			gitCommitMessage: newActiveId ? state.gitCommitMessage : "",
 			gitActionLoading: false,
 			gitActionError: newActiveId ? state.gitActionError : null,
+			...nextDatasetState,
 		});
 		setActiveRepoContext(
 			nextActiveRepoContext
@@ -972,6 +1114,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 						gitCommitMessage: "",
 						gitActionLoading: false,
 						gitActionError: null,
+						...createInitialDatasetState(),
 					};
 					return baseState;
 				});
@@ -1459,9 +1602,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 			bottomBarRefreshVersion: state.bottomBarRefreshVersion + 1,
 		})),
 	workspaceMode: "editor",
-	setWorkspaceMode: (
-		mode: "editor" | "enjoy" | "tutorial" | "settings" | "git",
-	) => {
+	setWorkspaceMode: (mode: WorkspaceMode) => {
 		set({ workspaceMode: mode });
 		scheduleSaveAppState();
 	},
@@ -1798,6 +1939,721 @@ export const useAppStore = create<AppState>((set, get) => ({
 			gitActionLoading: false,
 			gitActionError: null,
 		}),
+	listDatasets: async () => {
+		const state = get();
+		const activeRepo = state.repos.find(
+			(repo) => repo.id === state.activeRepoId,
+		);
+		if (!activeRepo) {
+			set(createInitialDatasetState());
+			return;
+		}
+
+		set({
+			datasetListLoading: true,
+			datasetListError: null,
+		});
+
+		try {
+			const result = await window.desktopAPI.listDatasets(activeRepo.path);
+			if (!result.success || !result.data) {
+				set({
+					datasetList: [],
+					datasetListLoading: false,
+					datasetListError: result.error ?? "Failed to list datasets",
+				});
+				return;
+			}
+
+			const nextList = result.data;
+			set((current) => {
+				const activeDatasetStillExists =
+					current.datasetActiveId !== null &&
+					nextList.some(
+						(entry) => entry.dataset.id === current.datasetActiveId,
+					);
+
+				if (activeDatasetStillExists) {
+					return {
+						datasetList: nextList,
+						datasetListLoading: false,
+						datasetListError: null,
+					};
+				}
+
+				return {
+					datasetList: nextList,
+					datasetListLoading: false,
+					datasetListError: null,
+					datasetLoading: false,
+					datasetError: null,
+					datasetActiveId: null,
+					datasetActive: null,
+					datasetSamples: [],
+					datasetActiveSampleId: null,
+					datasetActiveSample: null,
+					datasetSampleLoading: false,
+					datasetSourceText: "",
+					datasetSourceSavedText: "",
+					datasetSourceDirty: false,
+					datasetMutationError: null,
+					datasetFeedback: null,
+					datasetLastExport: null,
+				};
+			});
+		} catch (error) {
+			set({
+				datasetListLoading: false,
+				datasetListError:
+					error instanceof Error ? error.message : "Failed to list datasets",
+			});
+		}
+	},
+	createDataset: async (input) => {
+		const state = get();
+		const activeRepo = state.repos.find(
+			(repo) => repo.id === state.activeRepoId,
+		);
+		if (!activeRepo) {
+			set({
+				datasetMutationError: "No active repository",
+				datasetFeedback: {
+					kind: "error",
+					message: "Select a repository before creating a dataset.",
+				},
+			});
+			return false;
+		}
+
+		if (input.name.trim().length === 0) {
+			set({
+				datasetMutationError: "Dataset name is required",
+				datasetFeedback: {
+					kind: "error",
+					message: "Dataset name is required.",
+				},
+			});
+			return false;
+		}
+
+		set({
+			datasetMutationLoading: true,
+			datasetMutationError: null,
+			datasetFeedback: null,
+		});
+
+		try {
+			const result = await window.desktopAPI.createDataset(
+				activeRepo.path,
+				input,
+			);
+			if (!result.success || !result.data) {
+				set({
+					datasetMutationLoading: false,
+					datasetMutationError: result.error ?? "Failed to create dataset",
+					datasetFeedback: {
+						kind: "error",
+						message: result.error ?? "Failed to create dataset.",
+					},
+				});
+				return false;
+			}
+
+			const createdDataset = result.data;
+			set({
+				datasetMutationLoading: false,
+				datasetMutationError: null,
+				datasetFeedback: {
+					kind: "success",
+					message: `Created dataset "${createdDataset.name}".`,
+				},
+			});
+
+			await get().listDatasets();
+			await get().loadDataset(createdDataset.id);
+			return true;
+		} catch (error) {
+			set({
+				datasetMutationLoading: false,
+				datasetMutationError:
+					error instanceof Error ? error.message : "Failed to create dataset",
+				datasetFeedback: {
+					kind: "error",
+					message:
+						error instanceof Error
+							? error.message
+							: "Failed to create dataset.",
+				},
+			});
+			return false;
+		}
+	},
+	loadDataset: async (datasetId) => {
+		const state = get();
+		const activeRepo = state.repos.find(
+			(repo) => repo.id === state.activeRepoId,
+		);
+		if (!activeRepo) {
+			set({ datasetError: "No active repository" });
+			return false;
+		}
+
+		set({
+			datasetLoading: true,
+			datasetError: null,
+			datasetActiveId: datasetId,
+			datasetActiveSampleId: null,
+			datasetActiveSample: null,
+			datasetSampleLoading: false,
+			datasetSourceText: "",
+			datasetSourceSavedText: "",
+			datasetSourceDirty: false,
+			datasetLastExport: null,
+		});
+
+		try {
+			const result = await window.desktopAPI.loadDataset(
+				activeRepo.path,
+				datasetId,
+			);
+			if (!result.success || !result.data) {
+				set({
+					datasetLoading: false,
+					datasetError: result.error ?? "Failed to load dataset",
+					datasetSamples: [],
+					datasetActiveSampleId: null,
+					datasetActiveSample: null,
+					datasetSourceText: "",
+					datasetSourceSavedText: "",
+					datasetSourceDirty: false,
+				});
+				return false;
+			}
+
+			const loadedDataset = normalizeLoadedDataset(result.data);
+			set({
+				datasetLoading: false,
+				datasetError: null,
+				datasetActiveId: loadedDataset.dataset.id,
+				datasetActive: loadedDataset.dataset,
+				datasetSamples: sortSampleSummaries(loadedDataset.samples),
+				datasetActiveSampleId: null,
+				datasetActiveSample: null,
+				datasetSourceText: "",
+				datasetSourceSavedText: "",
+				datasetSourceDirty: false,
+				datasetMutationError: null,
+			});
+			return true;
+		} catch (error) {
+			set({
+				datasetLoading: false,
+				datasetError:
+					error instanceof Error ? error.message : "Failed to load dataset",
+				datasetSamples: [],
+				datasetActiveSampleId: null,
+				datasetActiveSample: null,
+				datasetSourceText: "",
+				datasetSourceSavedText: "",
+				datasetSourceDirty: false,
+			});
+			return false;
+		}
+	},
+	createSample: async (input) => {
+		const state = get();
+		const activeRepo = state.repos.find(
+			(repo) => repo.id === state.activeRepoId,
+		);
+		const datasetId = state.datasetActiveId;
+		if (!activeRepo || !datasetId) {
+			set({
+				datasetMutationError: "No active dataset",
+				datasetFeedback: {
+					kind: "error",
+					message: "Select a dataset before creating a sample.",
+				},
+			});
+			return false;
+		}
+
+		const titleText = input.title?.trim() ?? "";
+		const sourceText = input.sourceText?.trim() ?? "";
+		if (titleText.length === 0 && sourceText.length === 0) {
+			set({
+				datasetMutationError: "Sample title is required",
+				datasetFeedback: {
+					kind: "error",
+					message: "Sample title or source is required.",
+				},
+			});
+			return false;
+		}
+
+		set({
+			datasetMutationLoading: true,
+			datasetMutationError: null,
+			datasetFeedback: null,
+		});
+
+		try {
+			const result = await window.desktopAPI.createSample(
+				activeRepo.path,
+				datasetId,
+				input,
+			);
+			if (!result.success || !result.data) {
+				set({
+					datasetMutationLoading: false,
+					datasetMutationError: result.error ?? "Failed to create sample",
+					datasetFeedback: {
+						kind: "error",
+						message: result.error ?? "Failed to create sample.",
+					},
+				});
+				return false;
+			}
+
+			const loadedSample = normalizeLoadedSample(result.data);
+			const alreadyExists = state.datasetSamples.some(
+				(sample) => sample.id === loadedSample.sample.id,
+			);
+			set((current) => ({
+				datasetMutationLoading: false,
+				datasetMutationError: null,
+				datasetFeedback: {
+					kind: "success",
+					message: `Created sample "${loadedSample.sample.title}".`,
+				},
+				datasetActiveSampleId: loadedSample.sample.id,
+				datasetActiveSample: loadedSample.sample,
+				datasetSampleLoading: false,
+				datasetSourceText: loadedSample.sourceText,
+				datasetSourceSavedText: loadedSample.sourceText,
+				datasetSourceDirty: false,
+				datasetSamples: upsertSampleSummary(
+					current.datasetSamples,
+					loadedSample.sample,
+				),
+				datasetList: current.datasetList.map((entry) =>
+					entry.dataset.id === loadedSample.sample.datasetId
+						? {
+								...entry,
+								sampleCount: alreadyExists
+									? entry.sampleCount
+									: entry.sampleCount + 1,
+							}
+						: entry,
+				),
+			}));
+			return true;
+		} catch (error) {
+			set({
+				datasetMutationLoading: false,
+				datasetMutationError:
+					error instanceof Error ? error.message : "Failed to create sample",
+				datasetFeedback: {
+					kind: "error",
+					message:
+						error instanceof Error ? error.message : "Failed to create sample.",
+				},
+			});
+			return false;
+		}
+	},
+	loadSample: async (sampleId) => {
+		const state = get();
+		const activeRepo = state.repos.find(
+			(repo) => repo.id === state.activeRepoId,
+		);
+		if (!activeRepo || !state.datasetActiveId) {
+			set({
+				datasetMutationError: "No active dataset",
+				datasetSampleLoading: false,
+			});
+			return false;
+		}
+
+		set({
+			datasetSampleLoading: true,
+			datasetMutationError: null,
+			datasetFeedback: null,
+		});
+
+		try {
+			const result = await window.desktopAPI.loadSample(
+				activeRepo.path,
+				state.datasetActiveId,
+				sampleId,
+			);
+			if (!result.success || !result.data) {
+				set({
+					datasetSampleLoading: false,
+					datasetMutationError: result.error ?? "Failed to load sample",
+					datasetFeedback: {
+						kind: "error",
+						message: result.error ?? "Failed to load sample.",
+					},
+				});
+				return false;
+			}
+
+			const loadedSample = normalizeLoadedSample(result.data);
+			set((current) => ({
+				datasetSampleLoading: false,
+				datasetMutationError: null,
+				datasetActiveSampleId: loadedSample.sample.id,
+				datasetActiveSample: loadedSample.sample,
+				datasetSourceText: loadedSample.sourceText,
+				datasetSourceSavedText: loadedSample.sourceText,
+				datasetSourceDirty: false,
+				datasetSamples: upsertSampleSummary(
+					current.datasetSamples,
+					loadedSample.sample,
+				),
+			}));
+			return true;
+		} catch (error) {
+			set({
+				datasetSampleLoading: false,
+				datasetMutationError:
+					error instanceof Error ? error.message : "Failed to load sample",
+				datasetFeedback: {
+					kind: "error",
+					message:
+						error instanceof Error ? error.message : "Failed to load sample.",
+				},
+			});
+			return false;
+		}
+	},
+	setDatasetSourceText: (sourceText) => {
+		set((state) => ({
+			datasetSourceText: sourceText,
+			datasetSourceDirty: sourceText !== state.datasetSourceSavedText,
+		}));
+	},
+	saveDatasetSampleSource: async () => {
+		const state = get();
+		const activeRepo = state.repos.find(
+			(repo) => repo.id === state.activeRepoId,
+		);
+		if (!activeRepo || !state.datasetActiveId || !state.datasetActiveSampleId) {
+			set({
+				datasetMutationError: "No active sample",
+				datasetFeedback: {
+					kind: "error",
+					message: "Select a sample before saving source.",
+				},
+			});
+			return false;
+		}
+
+		if (!state.datasetSourceDirty) {
+			set({
+				datasetMutationError: null,
+				datasetFeedback: {
+					kind: "success",
+					message: "Source is already up to date.",
+				},
+			});
+			return true;
+		}
+
+		set({
+			datasetMutationLoading: true,
+			datasetMutationError: null,
+			datasetFeedback: null,
+		});
+
+		try {
+			const result = await window.desktopAPI.saveSampleSource(
+				activeRepo.path,
+				state.datasetActiveId,
+				state.datasetActiveSampleId,
+				state.datasetSourceText,
+			);
+
+			if (!result.success || !result.data) {
+				set({
+					datasetMutationLoading: false,
+					datasetMutationError: result.error ?? "Failed to save source",
+					datasetFeedback: {
+						kind: "error",
+						message: result.error ?? "Failed to save source.",
+					},
+				});
+				return false;
+			}
+
+			const loadedSample = normalizeLoadedSample(result.data);
+			set((current) => ({
+				datasetMutationLoading: false,
+				datasetMutationError: null,
+				datasetFeedback: {
+					kind: "success",
+					message: "Source saved.",
+				},
+				datasetActiveSampleId: loadedSample.sample.id,
+				datasetActiveSample: loadedSample.sample,
+				datasetSourceText: loadedSample.sourceText,
+				datasetSourceSavedText: loadedSample.sourceText,
+				datasetSourceDirty: false,
+				datasetSamples: upsertSampleSummary(
+					current.datasetSamples,
+					loadedSample.sample,
+				),
+			}));
+			return true;
+		} catch (error) {
+			set({
+				datasetMutationLoading: false,
+				datasetMutationError:
+					error instanceof Error ? error.message : "Failed to save source",
+				datasetFeedback: {
+					kind: "error",
+					message:
+						error instanceof Error ? error.message : "Failed to save source.",
+				},
+			});
+			return false;
+		}
+	},
+	saveDatasetArtifact: async (input) => {
+		const state = get();
+		const activeRepo = state.repos.find(
+			(repo) => repo.id === state.activeRepoId,
+		);
+		if (!activeRepo || !state.datasetActiveId || !state.datasetActiveSampleId) {
+			set({
+				datasetMutationError: "No active sample",
+				datasetFeedback: {
+					kind: "error",
+					message: "Select a sample before saving an artifact.",
+				},
+			});
+			return false;
+		}
+
+		set({
+			datasetMutationLoading: true,
+			datasetMutationError: null,
+			datasetFeedback: null,
+		});
+
+		try {
+			const result = await window.desktopAPI.saveSampleArtifact(
+				activeRepo.path,
+				state.datasetActiveId,
+				state.datasetActiveSampleId,
+				input,
+			);
+
+			if (!result.success || !result.data) {
+				set({
+					datasetMutationLoading: false,
+					datasetMutationError:
+						result.error ?? "Failed to save dataset artifact",
+					datasetFeedback: {
+						kind: "error",
+						message: result.error ?? "Failed to save dataset artifact.",
+					},
+				});
+				return false;
+			}
+
+			const loadedSample = normalizeLoadedSample(result.data);
+			set((current) => ({
+				datasetMutationLoading: false,
+				datasetMutationError: null,
+				datasetFeedback: {
+					kind: "success",
+					message: `Saved ${String(input.artifactKind).toUpperCase()} artifact.`,
+				},
+				datasetActiveSampleId: loadedSample.sample.id,
+				datasetActiveSample: loadedSample.sample,
+				datasetSourceText: loadedSample.sourceText,
+				datasetSourceSavedText: loadedSample.sourceText,
+				datasetSourceDirty: false,
+				datasetSamples: upsertSampleSummary(
+					current.datasetSamples,
+					loadedSample.sample,
+				),
+			}));
+			return true;
+		} catch (error) {
+			set({
+				datasetMutationLoading: false,
+				datasetMutationError:
+					error instanceof Error
+						? error.message
+						: "Failed to save dataset artifact",
+				datasetFeedback: {
+					kind: "error",
+					message:
+						error instanceof Error
+							? error.message
+							: "Failed to save dataset artifact.",
+				},
+			});
+			return false;
+		}
+	},
+	updateDatasetSample: async (update) => {
+		const state = get();
+		const activeRepo = state.repos.find(
+			(repo) => repo.id === state.activeRepoId,
+		);
+		if (!activeRepo || !state.datasetActiveId || !state.datasetActiveSampleId) {
+			set({
+				datasetMutationError: "No active sample",
+				datasetFeedback: {
+					kind: "error",
+					message: "Select a sample before updating metadata.",
+				},
+			});
+			return false;
+		}
+
+		set({
+			datasetMutationLoading: true,
+			datasetMutationError: null,
+			datasetFeedback: null,
+		});
+
+		try {
+			const result = await window.desktopAPI.updateSample(
+				activeRepo.path,
+				state.datasetActiveId,
+				state.datasetActiveSampleId,
+				update,
+			);
+
+			if (!result.success || !result.data) {
+				set({
+					datasetMutationLoading: false,
+					datasetMutationError: result.error ?? "Failed to update sample",
+					datasetFeedback: {
+						kind: "error",
+						message: result.error ?? "Failed to update sample.",
+					},
+				});
+				return false;
+			}
+
+			const loadedSample = normalizeLoadedSample(result.data);
+			set((current) => {
+				const nextSavedSource = loadedSample.sourceText;
+				const nextSourceText = current.datasetSourceDirty
+					? current.datasetSourceText
+					: loadedSample.sourceText;
+				const nextSourceDirty = nextSourceText !== nextSavedSource;
+
+				return {
+					datasetMutationLoading: false,
+					datasetMutationError: null,
+					datasetFeedback: {
+						kind: "success",
+						message: "Sample metadata updated.",
+					},
+					datasetActiveSampleId: loadedSample.sample.id,
+					datasetActiveSample: loadedSample.sample,
+					datasetSourceText: nextSourceText,
+					datasetSourceSavedText: nextSavedSource,
+					datasetSourceDirty: nextSourceDirty,
+					datasetSamples: upsertSampleSummary(
+						current.datasetSamples,
+						loadedSample.sample,
+					),
+				};
+			});
+			return true;
+		} catch (error) {
+			set({
+				datasetMutationLoading: false,
+				datasetMutationError:
+					error instanceof Error ? error.message : "Failed to update sample",
+				datasetFeedback: {
+					kind: "error",
+					message:
+						error instanceof Error ? error.message : "Failed to update sample.",
+				},
+			});
+			return false;
+		}
+	},
+	exportDatasetJsonl: async () => {
+		const state = get();
+		const activeRepo = state.repos.find(
+			(repo) => repo.id === state.activeRepoId,
+		);
+		if (!activeRepo || !state.datasetActiveId) {
+			set({
+				datasetMutationError: "No active dataset",
+				datasetFeedback: {
+					kind: "error",
+					message: "Select a dataset before exporting.",
+				},
+			});
+			return false;
+		}
+
+		set({
+			datasetMutationLoading: true,
+			datasetMutationError: null,
+			datasetFeedback: null,
+		});
+
+		try {
+			const result = await window.desktopAPI.exportDatasetJsonl(
+				activeRepo.path,
+				state.datasetActiveId,
+			);
+			if (!result.success || !result.data) {
+				set({
+					datasetMutationLoading: false,
+					datasetMutationError: result.error ?? "Failed to export dataset",
+					datasetFeedback: {
+						kind: "error",
+						message: result.error ?? "Failed to export dataset.",
+					},
+				});
+				return false;
+			}
+
+			const exportResult = result.data;
+			set({
+				datasetMutationLoading: false,
+				datasetMutationError: null,
+				datasetLastExport: exportResult,
+				datasetFeedback: {
+					kind: "success",
+					message: `Exported ${exportResult.exportedCount} sample(s) to ${exportResult.relativePath}.`,
+				},
+			});
+			return true;
+		} catch (error) {
+			set({
+				datasetMutationLoading: false,
+				datasetMutationError:
+					error instanceof Error ? error.message : "Failed to export dataset",
+				datasetFeedback: {
+					kind: "error",
+					message:
+						error instanceof Error
+							? error.message
+							: "Failed to export dataset.",
+				},
+			});
+			return false;
+		}
+	},
+	clearDatasetFeedback: () => {
+		set({ datasetFeedback: null });
+	},
+	clearDatasetState: () => {
+		set(createInitialDatasetState());
+	},
 	firstStaffOptions: null,
 	pendingStaffToggle: null,
 	activeTutorialId: "user-readme",
@@ -2091,7 +2947,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 				file.path,
 				finalName,
 			);
-			if (!result || !result.success) {
+			if (!result?.success) {
 				console.error("renameFile failed:", result?.error);
 				return false;
 			}

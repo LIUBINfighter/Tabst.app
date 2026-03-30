@@ -1,6 +1,18 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import type {
+	CreateDatasetInput,
+	CreateSampleInput,
+	DatasetCommandResponse,
+	DatasetExportResult,
+	DatasetListEntry,
+	DatasetManifest,
+	LoadedDataset,
+	LoadedSample,
+	SaveSampleArtifactInput,
+	UpdateSampleInput,
+} from "../types/dataset";
+import type {
 	DesktopAPI,
 	FileResult,
 	SaveResult,
@@ -463,6 +475,167 @@ export function createTauriDesktopAPI(): DesktopAPI {
 				return await invokeCommand<{ success: boolean; error?: string }>(
 					"commit_git_changes",
 					{ repo_path: repoPath, message },
+				);
+			} catch (error) {
+				return { success: false, error: toErrorMessage(error) };
+			}
+		},
+
+		listDatasets: async (
+			repoPath: string,
+		): Promise<DatasetCommandResponse<DatasetListEntry[]>> => {
+			try {
+				return await invokeCommand<DatasetCommandResponse<DatasetListEntry[]>>(
+					"list_datasets",
+					{ repo_path: repoPath },
+				);
+			} catch (error) {
+				return { success: false, error: toErrorMessage(error) };
+			}
+		},
+
+		createDataset: async (
+			repoPath: string,
+			input: CreateDatasetInput,
+		): Promise<DatasetCommandResponse<DatasetManifest>> => {
+			try {
+				return await invokeCommand<DatasetCommandResponse<DatasetManifest>>(
+					"create_dataset",
+					{ repo_path: repoPath, input },
+				);
+			} catch (error) {
+				return { success: false, error: toErrorMessage(error) };
+			}
+		},
+
+		loadDataset: async (
+			repoPath: string,
+			datasetId: string,
+		): Promise<DatasetCommandResponse<LoadedDataset>> => {
+			try {
+				return await invokeCommand<DatasetCommandResponse<LoadedDataset>>(
+					"load_dataset",
+					{ repo_path: repoPath, dataset_id: datasetId },
+				);
+			} catch (error) {
+				return { success: false, error: toErrorMessage(error) };
+			}
+		},
+
+		createSample: async (
+			repoPath: string,
+			datasetId: string,
+			input: CreateSampleInput,
+		): Promise<DatasetCommandResponse<LoadedSample>> => {
+			try {
+				return await invokeCommand<DatasetCommandResponse<LoadedSample>>(
+					"create_sample",
+					{
+						repo_path: repoPath,
+						dataset_id: datasetId,
+						input,
+					},
+				);
+			} catch (error) {
+				return { success: false, error: toErrorMessage(error) };
+			}
+		},
+
+		loadSample: async (
+			repoPath: string,
+			datasetId: string,
+			sampleId: string,
+		): Promise<DatasetCommandResponse<LoadedSample>> => {
+			try {
+				return await invokeCommand<DatasetCommandResponse<LoadedSample>>(
+					"load_sample",
+					{
+						repo_path: repoPath,
+						dataset_id: datasetId,
+						sample_id: sampleId,
+					},
+				);
+			} catch (error) {
+				return { success: false, error: toErrorMessage(error) };
+			}
+		},
+
+		saveSampleSource: async (
+			repoPath: string,
+			datasetId: string,
+			sampleId: string,
+			sourceText: string,
+		): Promise<DatasetCommandResponse<LoadedSample>> => {
+			try {
+				return await invokeCommand<DatasetCommandResponse<LoadedSample>>(
+					"save_sample_source",
+					{
+						repo_path: repoPath,
+						dataset_id: datasetId,
+						sample_id: sampleId,
+						source_text: sourceText,
+					},
+				);
+			} catch (error) {
+				return { success: false, error: toErrorMessage(error) };
+			}
+		},
+
+		saveSampleArtifact: async (
+			repoPath: string,
+			datasetId: string,
+			sampleId: string,
+			input: SaveSampleArtifactInput,
+		): Promise<DatasetCommandResponse<LoadedSample>> => {
+			try {
+				return await invokeCommand<DatasetCommandResponse<LoadedSample>>(
+					"save_sample_artifact",
+					{
+						repo_path: repoPath,
+						dataset_id: datasetId,
+						sample_id: sampleId,
+						artifact_kind: input.artifactKind,
+						target_file_name: input.targetFileName,
+						bytes: Array.from(input.bytes),
+					},
+				);
+			} catch (error) {
+				return { success: false, error: toErrorMessage(error) };
+			}
+		},
+
+		updateSample: async (
+			repoPath: string,
+			datasetId: string,
+			sampleId: string,
+			update: UpdateSampleInput,
+		): Promise<DatasetCommandResponse<LoadedSample>> => {
+			try {
+				return await invokeCommand<DatasetCommandResponse<LoadedSample>>(
+					"update_sample",
+					{
+						repo_path: repoPath,
+						dataset_id: datasetId,
+						sample_id: sampleId,
+						update,
+					},
+				);
+			} catch (error) {
+				return { success: false, error: toErrorMessage(error) };
+			}
+		},
+
+		exportDatasetJsonl: async (
+			repoPath: string,
+			datasetId: string,
+		): Promise<DatasetCommandResponse<DatasetExportResult>> => {
+			try {
+				return await invokeCommand<DatasetCommandResponse<DatasetExportResult>>(
+					"export_dataset_jsonl",
+					{
+						repo_path: repoPath,
+						dataset_id: datasetId,
+					},
 				);
 			} catch (error) {
 				return { success: false, error: toErrorMessage(error) };

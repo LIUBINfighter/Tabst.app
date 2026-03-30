@@ -1,3 +1,4 @@
+mod dataset_commands;
 mod fs_commands;
 mod git_commands;
 mod models;
@@ -7,6 +8,10 @@ mod settings_commands;
 mod support;
 mod updater_commands;
 
+use dataset_commands::{
+    create_dataset, create_sample, export_dataset_jsonl, list_datasets, load_dataset, load_sample,
+    save_sample_artifact, save_sample_source, update_sample,
+};
 use fs_commands::{
     create_file, create_folder, load_app_state, move_path, open_external, open_file, read_asset,
     read_file, read_file_bytes, rename_file, reveal_in_folder, save_app_state, save_file,
@@ -56,6 +61,15 @@ pub fn run() {
             delete_file,
             start_repo_watch,
             stop_repo_watch,
+            list_datasets,
+            create_dataset,
+            load_dataset,
+            create_sample,
+            load_sample,
+            save_sample_source,
+            save_sample_artifact,
+            update_sample,
+            export_dataset_jsonl,
             get_git_status,
             get_git_diff,
             stage_git_file,
