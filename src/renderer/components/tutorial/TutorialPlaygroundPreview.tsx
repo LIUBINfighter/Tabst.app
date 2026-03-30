@@ -16,6 +16,7 @@ interface TutorialPlaygroundPreviewProps {
 	className?: string;
 	onApiChange?: (api: alphaTab.AlphaTabApi | null) => void;
 	disablePlayer?: boolean;
+	scale?: number;
 }
 
 export function TutorialPlaygroundPreview({
@@ -24,6 +25,7 @@ export function TutorialPlaygroundPreview({
 	className,
 	onApiChange,
 	disablePlayer,
+	scale = 0.6,
 }: TutorialPlaygroundPreviewProps) {
 	const containerRef = useRef<HTMLDivElement | null>(null);
 	const apiRef = useRef<alphaTab.AlphaTabApi | null>(null);
@@ -49,7 +51,7 @@ export function TutorialPlaygroundPreview({
 			const urls = await getResourceUrls();
 			const colors = getAlphaTabColorsForTheme();
 			const settings = createPreviewSettings(urls, {
-				scale: 0.6,
+				scale,
 				enablePlayer: !disablePlayer,
 				colors,
 			});
@@ -90,7 +92,7 @@ export function TutorialPlaygroundPreview({
 			apiRef.current = null;
 			onApiChange?.(null);
 		};
-	}, [disablePlayer, onApiChange]);
+	}, [disablePlayer, onApiChange, scale]);
 
 	// Update the score when content changes (without re-creating AlphaTab API).
 	useEffect(() => {

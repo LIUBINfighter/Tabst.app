@@ -25,6 +25,7 @@ interface TutorialAlphaTexPlaygroundProps {
 	showRefresh?: boolean;
 	variant?: "default" | "embedded";
 	embeddedHeightPx?: number;
+	previewScale?: number;
 }
 
 const PLAYER_STATE_PLAYING = 1;
@@ -41,6 +42,7 @@ export function TutorialAlphaTexPlayground({
 	showRefresh = true,
 	variant = "default",
 	embeddedHeightPx = 420,
+	previewScale,
 }: TutorialAlphaTexPlaygroundProps) {
 	const [content, setContent] = useState(initialContent);
 	const [previewContent, setPreviewContent] = useState(initialContent);
@@ -269,6 +271,7 @@ export function TutorialAlphaTexPlayground({
 						onApiChange={handleApiChange}
 						className="h-full"
 						disablePlayer={effectiveDisablePlayer}
+						scale={previewScale}
 					/>
 				</div>
 			</div>

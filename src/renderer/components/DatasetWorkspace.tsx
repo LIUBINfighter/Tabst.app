@@ -58,6 +58,7 @@ const REVIEW_STATUS_OPTIONS: SampleReviewStatus[] = [
 	"rejected",
 ];
 const DEFAULT_IMAGE_PLACEHOLDER_FILE_NAME = "render.png";
+const DEFAULT_AUDIO_PLACEHOLDER_FILE_NAME = "audio.wav";
 function parseTags(input: string): string[] {
 	return input
 		.split(",")
@@ -129,6 +130,21 @@ function getExtensionFromMimeType(mimeType: string): string {
 	if (subtype === "svg+xml") return "svg";
 	// Drop charset suffixes like ";charset=utf-8".
 	return subtype.split(";")[0].trim();
+}
+
+function getAudioExtensionFromMimeType(mimeType: string): string {
+	const normalized = mimeType.trim().toLowerCase();
+	if (!normalized.startsWith("audio/")) return "";
+	const subtype = normalized.slice("audio/".length).split(";")[0].trim();
+	if (subtype === "mpeg") return "mp3";
+	if (subtype === "mp4") return "m4a";
+	if (subtype === "x-m4a") return "m4a";
+	if (subtype === "wav" || subtype === "x-wav") return "wav";
+	if (subtype === "ogg") return "ogg";
+	if (subtype === "flac") return "flac";
+	if (subtype === "aac") return "aac";
+	if (subtype === "opus") return "opus";
+	return "";
 }
 
 function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
@@ -241,6 +257,7 @@ export default function DatasetWorkspace({
 		setAlphaTexArtifactError(null);
 		setAlphaTexArtifactLoading(false);
 		setAlphaTexArtifactDirty(false);
+		setAudioLoadAllNonce(0);
 
 		if (!datasetActiveSample) {
 			setTagsValue("");
@@ -393,7 +410,13 @@ export default function DatasetWorkspace({
 	const alphaTexArtifact = useMemo(() => {
 		const artifacts = normalizeSampleArtifacts(datasetActiveSample?.artifacts);
 		const direct = artifacts.alphatex;
-		if (direct && getExtension(direct.fileName) === "atex") return direct;
+		if (
+			direct &&
+			getExtension(direct.fileName) === "atex" &&
+			direct.state !== "missing"
+		) {
+			return direct;
+		}
 		return (
 			alphaTexArtifacts.find((entry) => entry.artifact.state === "ready")
 				?.artifact ?? null
@@ -420,6 +443,12 @@ export default function DatasetWorkspace({
 		!(
 			imageArtifact.fileName === DEFAULT_IMAGE_PLACEHOLDER_FILE_NAME &&
 			!imageArtifact.sourceHash
+		);
+	const shouldShowPrimaryAudio =
+		wavArtifact.state !== "missing" &&
+		!(
+			wavArtifact.fileName === DEFAULT_AUDIO_PLACEHOLDER_FILE_NAME &&
+			!wavArtifact.sourceHash
 		);
 
 	// Auto-preview existing image artifacts (ready or stale).
@@ -524,7 +553,7 @@ export default function DatasetWorkspace({
 			return;
 		}
 
-		if (alphaTexArtifact.state !== "ready") return;
+		if (alphaTexArtifact.state === "missing") return;
 
 		const filePath = buildDatasetArtifactPath(
 			activeRepoPath,
@@ -924,6 +953,62 @@ export default function DatasetWorkspace({
 		}
 	};
 
+	const handlePasteAudio = async () => {
+		if (!datasetActiveSample) return;
+		clearDatasetFeedback();
+		setArtifactGenerationError(null);
+		setArtifactUploadInProgress(true);
+
+		try {
+			if (!navigator.clipboard?.read) {
+				throw new Error("Clipboard read is not supported in this browser.");
+			}
+
+			const items = await navigator.clipboard.read();
+			let selectedBlob: Blob | null = null;
+			let selectedMime = "";
+
+			for (const item of items) {
+				for (const type of item.types) {
+					if (!type.startsWith("audio/")) continue;
+					selectedMime = type;
+					selectedBlob = await item.getType(type);
+					break;
+				}
+				if (selectedBlob) break;
+			}
+
+			if (!selectedBlob || !selectedMime) {
+				throw new Error("No audio found in clipboard.");
+			}
+
+			const ext = getAudioExtensionFromMimeType(selectedMime);
+			if (!ext) {
+				throw new Error(
+					`Unsupported audio mime type in clipboard: ${selectedMime}`,
+				);
+			}
+
+			const hash6 = shortHash6(datasetActiveSample.id);
+			const origin = getUploadOrigin();
+			const targetFileName = `${hash6}-${origin}.${ext}`;
+			const artifactKind = `audio-${origin}`;
+			const bytes = new Uint8Array(await selectedBlob.arrayBuffer());
+
+			await saveDatasetArtifact({
+				artifactKind,
+				targetFileName,
+				bytes,
+			});
+		} catch (error) {
+			setArtifactGenerationError(
+				error instanceof Error ? error.message : "Failed to paste Audio.",
+			);
+		} finally {
+			setArtifactUploadInProgress(false);
+		}
+	};
+
 	useLayoutEffect(() => {
 		const host = scrollHostRef.current;
 		if (!host) return;
@@ -1128,6 +1213,7 @@ export default function DatasetWorkspace({
 											showDisablePlayerToggle
 											showRefresh
 											variant="embedded"
+											previewScale={0.75}
 											embeddedHeightPx={360}
 											className="border-0 rounded-none bg-transparent max-w-none"
 										/>
@@ -1143,48 +1229,50 @@ export default function DatasetWorkspace({
 												Artifacts
 											</h4>
 											<div
-												className={`grid grid-cols-1 ${
+												className={`grid grid-cols-1 auto-rows-fr items-stretch ${
 													showMidiArtifactCard
 														? "md:grid-cols-4"
 														: "md:grid-cols-3"
 												} gap-2 text-xs`}
 											>
 												{/* Image */}
-												<div className="rounded border border-border/60 p-2 space-y-2">
+												<div className="rounded border border-border/60 p-2 h-full flex flex-col">
 													<div className="text-muted-foreground font-medium">
 														Image
 													</div>
-													{imagePastePreviewUrl || imageArtifactPreviewUrl ? (
-														<div className="rounded border border-border/60 p-2 bg-card">
-															<img
-																src={
-																	imagePastePreviewUrl ??
-																	imageArtifactPreviewUrl ??
-																	undefined
-																}
-																alt="Pasted preview"
-																className="w-full max-h-48 object-contain rounded"
-															/>
-														</div>
-													) : null}
-													<div className="space-y-1">
-														{shouldShowPrimaryImageFileName ? (
-															<div className="text-[11px] text-muted-foreground break-all">
-																{imageArtifact.fileName}
+													<div className="flex-1 space-y-2">
+														{imagePastePreviewUrl || imageArtifactPreviewUrl ? (
+															<div className="rounded border border-border/60 p-2 bg-card">
+																<img
+																	src={
+																		imagePastePreviewUrl ??
+																		imageArtifactPreviewUrl ??
+																		undefined
+																	}
+																	alt="Pasted preview"
+																	className="w-full max-h-48 object-contain rounded"
+																/>
 															</div>
 														) : null}
-														{uploadedImageArtifacts.map(
-															({ artifactKind, artifact }) => (
-																<div
-																	key={artifactKind}
-																	className="text-[11px] text-muted-foreground break-all"
-																>
-																	{artifact.fileName}
+														<div className="space-y-1">
+															{shouldShowPrimaryImageFileName ? (
+																<div className="text-[11px] text-muted-foreground break-all">
+																	{imageArtifact.fileName}
 																</div>
-															),
-														)}
+															) : null}
+															{uploadedImageArtifacts.map(
+																({ artifactKind, artifact }) => (
+																	<div
+																		key={artifactKind}
+																		className="text-[11px] text-muted-foreground break-all"
+																	>
+																		{artifact.fileName}
+																	</div>
+																),
+															)}
+														</div>
 													</div>
-													<div className="space-y-2">
+													<div className="space-y-2 pt-2">
 														<Button
 															type="button"
 															variant="ghost"
@@ -1224,97 +1312,252 @@ export default function DatasetWorkspace({
 													</div>
 												</div>
 
+												{/* AlphaTex */}
+												<div className="rounded border border-border/60 p-2 h-full flex flex-col">
+													<div className="text-muted-foreground font-medium">
+														AlphaTex
+													</div>
+													<div className="flex-1 space-y-2">
+														<div className="space-y-1">
+															{alphaTexArtifacts.map(
+																({ artifactKind, artifact }) => (
+																	<div
+																		key={artifactKind}
+																		className="text-[11px] text-muted-foreground break-all"
+																	>
+																		{artifact.fileName}
+																	</div>
+																),
+															)}
+														</div>
+														<textarea
+															value={alphaTexArtifactText}
+															onChange={(event) => {
+																setAlphaTexArtifactText(
+																	event.currentTarget.value,
+																);
+																setAlphaTexArtifactDirty(true);
+																if (alphaTexArtifactError) {
+																	setAlphaTexArtifactError(null);
+																}
+															}}
+															placeholder="Edit AlphaTex artifact..."
+															className="w-full min-h-[180px] rounded border border-border/60 bg-background px-2 py-1 text-xs font-mono leading-relaxed focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+															disabled={busy || alphaTexArtifactLoading}
+														/>
+														{alphaTexArtifactLoading ? (
+															<div className="text-[11px] text-muted-foreground">
+																Loading AlphaTex artifact...
+															</div>
+														) : null}
+														{alphaTexArtifactError ? (
+															<div className="text-[11px] text-destructive">
+																{alphaTexArtifactError}
+															</div>
+														) : null}
+													</div>
+													<div className="space-y-2 pt-2">
+														<Button
+															type="button"
+															variant="ghost"
+															size="sm"
+															className="h-8 w-full rounded-md bg-muted text-muted-foreground border border-transparent hover:bg-[var(--hover-bg)] hover:text-[var(--hover-text)]"
+															onClick={() => {
+																void handleSaveAlphaTexArtifact();
+															}}
+															disabled={
+																busy ||
+																alphaTexArtifactLoading ||
+																!alphaTexArtifactDirty ||
+																!alphaTexArtifactText.trim()
+															}
+														>
+															<Save className="mr-1 h-3.5 w-3.5" />
+															Save AlphaTex
+														</Button>
+													</div>
+												</div>
+
 												{/* Audio */}
-												<div className="rounded border border-border/60 p-2 space-y-2">
+												<div className="rounded border border-border/60 p-2 h-full flex flex-col">
 													<div className="text-muted-foreground font-medium">
 														Audio
 													</div>
-													<div className="space-y-2">
-														<Button
-															type="button"
-															variant="ghost"
-															size="sm"
-															className="h-8 w-full rounded-md bg-muted text-muted-foreground border border-transparent hover:bg-[var(--hover-bg)] hover:text-[var(--hover-text)]"
-															onClick={() => setAudioLoadAllNonce((n) => n + 1)}
-															disabled={busy}
-														>
-															<Volume2 className="mr-1 h-3.5 w-3.5" />
-															Load all Audio
-														</Button>
-													</div>
-													<div className="space-y-2">
-														{wavArtifact.state !== "missing" ? (
-															<DatasetWavPlayer
-																repoPath={activeRepoPath}
-																datasetId={datasetActive.id}
-																sampleId={datasetActiveSample.id}
-																artifact={wavArtifact}
-																loadAllNonce={audioLoadAllNonce}
-																autoPlayOnExternalLoad={false}
-															/>
-														) : null}
-														{uploadedAudioArtifacts.map(
-															({ artifactKind, artifact }) => (
-																<DatasetWavPlayer
-																	key={artifactKind}
-																	repoPath={activeRepoPath}
-																	datasetId={datasetActive.id}
-																	sampleId={datasetActiveSample.id}
-																	artifact={artifact}
-																	loadAllNonce={audioLoadAllNonce}
-																	autoPlayOnExternalLoad={false}
-																/>
-															),
+													<div className="flex-1 space-y-2">
+														{!shouldShowPrimaryAudio &&
+														uploadedAudioArtifacts.length === 0 ? (
+															<div className="rounded border border-border/60 bg-muted/30 px-3 py-2">
+																<div className="text-[11px] text-muted-foreground">
+																	Hint: upload, paste, or generate Audio to
+																	preview.
+																</div>
+															</div>
+														) : (
+															<div className="space-y-2">
+																{shouldShowPrimaryAudio ? (
+																	<DatasetWavPlayer
+																		repoPath={activeRepoPath}
+																		datasetId={datasetActive.id}
+																		sampleId={datasetActiveSample.id}
+																		artifact={wavArtifact}
+																		loadAllNonce={audioLoadAllNonce}
+																		autoPlayOnExternalLoad={false}
+																	/>
+																) : null}
+																{uploadedAudioArtifacts.map(
+																	({ artifactKind, artifact }) => (
+																		<DatasetWavPlayer
+																			key={artifactKind}
+																			repoPath={activeRepoPath}
+																			datasetId={datasetActive.id}
+																			sampleId={datasetActiveSample.id}
+																			artifact={artifact}
+																			loadAllNonce={audioLoadAllNonce}
+																			autoPlayOnExternalLoad={false}
+																		/>
+																	),
+																)}
+															</div>
 														)}
 													</div>
-													<div className="space-y-2">
-														<Button
-															type="button"
-															variant="ghost"
-															size="sm"
-															className="h-8 w-full rounded-md bg-muted text-muted-foreground border border-transparent hover:bg-[var(--hover-bg)] hover:text-[var(--hover-text)]"
-															onClick={() => {
-																void handleGenerateWav();
-															}}
-															disabled={busy}
-														>
-															{artifactGenerationKind === "wav" ? (
-																<Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
-															) : (
-																<Volume2 className="mr-1 h-3.5 w-3.5" />
-															)}
-															Generate Audio
-														</Button>
-														{artifactGenerationKind === "wav" &&
-														artifactGenerationProgress !== null ? (
-															<div className="text-[11px] text-muted-foreground">
-																Progress:{" "}
-																{Math.round(artifactGenerationProgress * 100)}%
-															</div>
-														) : null}
-														<Button
-															type="button"
-															variant="ghost"
-															size="sm"
-															className="h-8 w-full rounded-md bg-muted text-muted-foreground border border-transparent hover:bg-[var(--hover-bg)] hover:text-[var(--hover-text)]"
-															onClick={() => {
-																void handleUploadAudio();
-															}}
-															disabled={busy}
-														>
-															<Upload className="mr-1 h-3.5 w-3.5" />
-															Upload Audio
-														</Button>
+													<div className="space-y-2 pt-2">
+														{shouldShowPrimaryAudio ||
+														uploadedAudioArtifacts.length > 0 ? (
+															<>
+																<Button
+																	type="button"
+																	variant="ghost"
+																	size="sm"
+																	className="h-8 w-full rounded-md bg-muted text-muted-foreground border border-transparent hover:bg-[var(--hover-bg)] hover:text-[var(--hover-text)]"
+																	onClick={() =>
+																		setAudioLoadAllNonce((n) => n + 1)
+																	}
+																	disabled={busy}
+																>
+																	<Volume2 className="mr-1 h-3.5 w-3.5" />
+																	Load all Audio
+																</Button>
+																<Button
+																	type="button"
+																	variant="ghost"
+																	size="sm"
+																	className="h-8 w-full rounded-md bg-muted text-muted-foreground border border-transparent hover:bg-[var(--hover-bg)] hover:text-[var(--hover-text)]"
+																	onClick={() => {
+																		void handleGenerateWav();
+																	}}
+																	disabled={busy}
+																>
+																	{artifactGenerationKind === "wav" ? (
+																		<Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+																	) : (
+																		<Volume2 className="mr-1 h-3.5 w-3.5" />
+																	)}
+																	Generate Audio
+																</Button>
+																{artifactGenerationKind === "wav" &&
+																artifactGenerationProgress !== null ? (
+																	<div className="text-[11px] text-muted-foreground">
+																		Progress:{" "}
+																		{Math.round(
+																			artifactGenerationProgress * 100,
+																		)}
+																		%
+																	</div>
+																) : null}
+																<Button
+																	type="button"
+																	variant="ghost"
+																	size="sm"
+																	className="h-8 w-full rounded-md bg-muted text-muted-foreground border border-transparent hover:bg-[var(--hover-bg)] hover:text-[var(--hover-text)]"
+																	onClick={() => {
+																		void handleUploadAudio();
+																	}}
+																	disabled={busy}
+																>
+																	<Upload className="mr-1 h-3.5 w-3.5" />
+																	Upload Audio
+																</Button>
+																<Button
+																	type="button"
+																	variant="ghost"
+																	size="sm"
+																	className="h-8 w-full rounded-md bg-muted text-muted-foreground border border-transparent hover:bg-[var(--hover-bg)] hover:text-[var(--hover-text)]"
+																	onClick={() => {
+																		void handlePasteAudio();
+																	}}
+																	disabled={busy}
+																>
+																	<ClipboardPaste className="mr-1 h-3.5 w-3.5" />
+																	Paste Audio
+																</Button>
+															</>
+														) : (
+															<>
+																<Button
+																	type="button"
+																	variant="ghost"
+																	size="sm"
+																	className="h-8 w-full rounded-md bg-muted text-muted-foreground border border-transparent hover:bg-[var(--hover-bg)] hover:text-[var(--hover-text)]"
+																	onClick={() => {
+																		void handleUploadAudio();
+																	}}
+																	disabled={busy}
+																>
+																	<Upload className="mr-1 h-3.5 w-3.5" />
+																	Upload Audio
+																</Button>
+																<Button
+																	type="button"
+																	variant="ghost"
+																	size="sm"
+																	className="h-8 w-full rounded-md bg-muted text-muted-foreground border border-transparent hover:bg-[var(--hover-bg)] hover:text-[var(--hover-text)]"
+																	onClick={() => {
+																		void handlePasteAudio();
+																	}}
+																	disabled={busy}
+																>
+																	<ClipboardPaste className="mr-1 h-3.5 w-3.5" />
+																	Paste Audio
+																</Button>
+																<Button
+																	type="button"
+																	variant="ghost"
+																	size="sm"
+																	className="h-8 w-full rounded-md bg-muted text-muted-foreground border border-transparent hover:bg-[var(--hover-bg)] hover:text-[var(--hover-text)]"
+																	onClick={() => {
+																		void handleGenerateWav();
+																	}}
+																	disabled={busy}
+																>
+																	{artifactGenerationKind === "wav" ? (
+																		<Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+																	) : (
+																		<Volume2 className="mr-1 h-3.5 w-3.5" />
+																	)}
+																	Generate Audio
+																</Button>
+																{artifactGenerationKind === "wav" &&
+																artifactGenerationProgress !== null ? (
+																	<div className="text-[11px] text-muted-foreground">
+																		Progress:{" "}
+																		{Math.round(
+																			artifactGenerationProgress * 100,
+																		)}
+																		%
+																	</div>
+																) : null}
+															</>
+														)}
 													</div>
 												</div>
 
 												{showMidiArtifactCard ? (
 													/* MIDI */
-													<div className="rounded border border-border/60 p-2 space-y-2">
+													<div className="rounded border border-border/60 p-2 h-full flex flex-col">
 														<div className="text-muted-foreground font-medium">
 															MIDI
 														</div>
-														<div className="space-y-1">
+														<div className="flex-1 space-y-1">
 															{midiArtifact.state !== "missing" ? (
 																<div className="text-[11px] text-muted-foreground break-all">
 																	{midiArtifact.fileName}
@@ -1331,7 +1574,7 @@ export default function DatasetWorkspace({
 																),
 															)}
 														</div>
-														<div className="space-y-2">
+														<div className="space-y-2 pt-2">
 															<Button
 																type="button"
 																variant="ghost"
@@ -1365,70 +1608,6 @@ export default function DatasetWorkspace({
 														</div>
 													</div>
 												) : null}
-
-												{/* AlphaTex */}
-												<div className="rounded border border-border/60 p-2 space-y-2">
-													<div className="text-muted-foreground font-medium">
-														AlphaTex
-													</div>
-													<div className="space-y-1">
-														{alphaTexArtifacts.map(
-															({ artifactKind, artifact }) => (
-																<div
-																	key={artifactKind}
-																	className="text-[11px] text-muted-foreground break-all"
-																>
-																	{artifact.fileName}
-																</div>
-															),
-														)}
-													</div>
-													<textarea
-														value={alphaTexArtifactText}
-														onChange={(event) => {
-															setAlphaTexArtifactText(
-																event.currentTarget.value,
-															);
-															setAlphaTexArtifactDirty(true);
-															if (alphaTexArtifactError) {
-																setAlphaTexArtifactError(null);
-															}
-														}}
-														placeholder="Edit AlphaTex artifact..."
-														className="w-full min-h-[180px] rounded border border-border/60 bg-background px-2 py-1 text-xs font-mono leading-relaxed focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-														disabled={busy || alphaTexArtifactLoading}
-													/>
-													{alphaTexArtifactLoading ? (
-														<div className="text-[11px] text-muted-foreground">
-															Loading AlphaTex artifact...
-														</div>
-													) : null}
-													{alphaTexArtifactError ? (
-														<div className="text-[11px] text-destructive">
-															{alphaTexArtifactError}
-														</div>
-													) : null}
-													<div className="space-y-2">
-														<Button
-															type="button"
-															variant="ghost"
-															size="sm"
-															className="h-8 w-full rounded-md bg-muted text-muted-foreground border border-transparent hover:bg-[var(--hover-bg)] hover:text-[var(--hover-text)]"
-															onClick={() => {
-																void handleSaveAlphaTexArtifact();
-															}}
-															disabled={
-																busy ||
-																alphaTexArtifactLoading ||
-																!alphaTexArtifactDirty ||
-																!alphaTexArtifactText.trim()
-															}
-														>
-															<Save className="mr-1 h-3.5 w-3.5" />
-															Save AlphaTex
-														</Button>
-													</div>
-												</div>
 											</div>
 											{otherExtraArtifacts.length ? (
 												<div className="pt-2 space-y-1">
