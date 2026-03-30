@@ -6,20 +6,24 @@ import {
 
 describe("getCountInVolume", () => {
 	it("disables count-in volume when count-in is turned off", () => {
-		expect(getCountInVolume({ countInEnabled: false, metronomeVolume: 0.6 })).toBe(
-			0,
-		);
+		expect(
+			getCountInVolume({ countInEnabled: false, metronomeVolume: 0.6 }),
+		).toBe(0);
 	});
 
 	it("reuses the metronome volume when count-in is enabled", () => {
-		expect(getCountInVolume({ countInEnabled: true, metronomeVolume: 0.35 })).toBe(
-			0.35,
-		);
+		expect(
+			getCountInVolume({ countInEnabled: true, metronomeVolume: 0.35 }),
+		).toBe(0.35);
 	});
 
 	it("clamps the derived count-in volume into alphaTab's expected range", () => {
-		expect(getCountInVolume({ countInEnabled: true, metronomeVolume: -1 })).toBe(0);
-		expect(getCountInVolume({ countInEnabled: true, metronomeVolume: 3 })).toBe(1);
+		expect(
+			getCountInVolume({ countInEnabled: true, metronomeVolume: -1 }),
+		).toBe(0);
+		expect(getCountInVolume({ countInEnabled: true, metronomeVolume: 3 })).toBe(
+			1,
+		);
 	});
 });
 

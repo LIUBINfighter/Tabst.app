@@ -35,7 +35,7 @@ describe("jsonl sample import", () => {
 		});
 
 		expect(result.errors).toEqual([]);
-			expect(result.samples).toEqual([
+		expect(result.samples).toEqual([
 			{
 				title: "Verse 1",
 				sourceText: "\\tempo 120\n.",
@@ -81,8 +81,18 @@ describe("jsonl sample import", () => {
 
 		expect(result.errors).toEqual([]);
 		expect(result.samples).toEqual([
-			{ title: "Sample 1", sourceText: "A B C", tags: undefined, metadata: records[0] },
-			{ title: "Sample 2", sourceText: "D E F", tags: undefined, metadata: records[1] },
+			{
+				title: "Sample 1",
+				sourceText: "A B C",
+				tags: undefined,
+				metadata: records[0],
+			},
+			{
+				title: "Sample 2",
+				sourceText: "D E F",
+				tags: undefined,
+				metadata: records[1],
+			},
 		]);
 	});
 });

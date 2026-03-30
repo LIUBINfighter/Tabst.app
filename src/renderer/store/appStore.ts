@@ -22,6 +22,7 @@ import {
 	type DatasetExportResult,
 	type DatasetListEntry,
 	type DatasetManifest,
+	type LoadedSample,
 	normalizeLoadedDataset,
 	normalizeLoadedSample,
 	normalizeSampleManifest,
@@ -795,6 +796,44 @@ function upsertSampleSummary(
 		normalizeSampleSummary(summary),
 		...withoutCurrent.map(normalizeSampleSummary),
 	]);
+}
+
+// In-memory cache to speed up "switching between samples repeatedly".
+// This avoids re-reading sample manifests/source files from disk during fast tabbing.
+const DATASET_SAMPLE_CACHE_MAX_ENTRIES = 200;
+const datasetSampleCache = new Map<string, LoadedSample>();
+
+function normalizeRepoPathForCache(repoPath: string): string {
+	return repoPath.replace(/\\/g, "/");
+}
+
+function makeDatasetSampleCacheKey(
+	repoPath: string,
+	datasetId: string,
+	sampleId: string,
+): string {
+	return `${normalizeRepoPathForCache(repoPath)}::${datasetId}::${sampleId}`;
+}
+
+function getCachedDatasetSample(key: string): LoadedSample | null {
+	const cached = datasetSampleCache.get(key);
+	if (!cached) return null;
+	// Touch for LRU.
+	datasetSampleCache.delete(key);
+	datasetSampleCache.set(key, cached);
+	return cached;
+}
+
+function setCachedDatasetSample(key: string, value: LoadedSample): void {
+	// Keep insertion order as LRU.
+	if (datasetSampleCache.has(key)) datasetSampleCache.delete(key);
+	datasetSampleCache.set(key, value);
+	if (datasetSampleCache.size <= DATASET_SAMPLE_CACHE_MAX_ENTRIES) return;
+
+	const lruKey = datasetSampleCache.keys().next().value;
+	if (typeof lruKey === "string") {
+		datasetSampleCache.delete(lruKey);
+	}
 }
 
 function createInitialDatasetState() {
@@ -2274,56 +2313,118 @@ export const useAppStore = create<AppState>((set, get) => ({
 			return false;
 		}
 
+		const repoPath = activeRepo.path;
+		const datasetId = state.datasetActiveId;
+		const cacheKey = makeDatasetSampleCacheKey(repoPath, datasetId, sampleId);
+		const cached = getCachedDatasetSample(cacheKey);
+
+		if (cached) {
+			set((current) => ({
+				datasetSampleLoading: false,
+				datasetMutationError: null,
+				datasetFeedback: null,
+				datasetActiveSampleId: cached.sample.id,
+				datasetActiveSample: cached.sample,
+				datasetSourceText: cached.sourceText,
+				datasetSourceSavedText: cached.sourceText,
+				datasetSourceDirty: false,
+				datasetSamples: upsertSampleSummary(
+					current.datasetSamples,
+					cached.sample,
+				),
+			}));
+			return true;
+		}
+
+		// Optimistically update selected sample id so rapid tabbing doesn't feel delayed.
+		// (We still keep the old sample content until the new one resolves.)
 		set({
 			datasetSampleLoading: true,
 			datasetMutationError: null,
 			datasetFeedback: null,
+			datasetActiveSampleId: sampleId,
 		});
 
 		try {
 			const result = await window.desktopAPI.loadSample(
-				activeRepo.path,
-				state.datasetActiveId,
+				repoPath,
+				datasetId,
 				sampleId,
 			);
 			if (!result.success || !result.data) {
-				set({
-					datasetSampleLoading: false,
-					datasetMutationError: result.error ?? "Failed to load sample",
-					datasetFeedback: {
-						kind: "error",
-						message: result.error ?? "Failed to load sample.",
-					},
-				});
+				const current = get();
+				const isStillSelected =
+					current.datasetActiveId === datasetId &&
+					current.datasetActiveSampleId === sampleId;
+				if (isStillSelected) {
+					set({
+						datasetSampleLoading: false,
+						datasetMutationError: result.error ?? "Failed to load sample",
+						datasetFeedback: {
+							kind: "error",
+							message: result.error ?? "Failed to load sample.",
+						},
+					});
+				}
 				return false;
 			}
 
 			const loadedSample = normalizeLoadedSample(result.data);
-			set((current) => ({
-				datasetSampleLoading: false,
-				datasetMutationError: null,
-				datasetActiveSampleId: loadedSample.sample.id,
-				datasetActiveSample: loadedSample.sample,
-				datasetSourceText: loadedSample.sourceText,
-				datasetSourceSavedText: loadedSample.sourceText,
-				datasetSourceDirty: false,
-				datasetSamples: upsertSampleSummary(
-					current.datasetSamples,
+
+			setCachedDatasetSample(cacheKey, loadedSample);
+
+			// If user has switched to another sample while we were loading,
+			// avoid overriding the UI state with stale results.
+			const current = get();
+			const isStillSelected =
+				current.datasetActiveId === datasetId &&
+				current.datasetActiveSampleId === sampleId;
+
+			set((prev) => {
+				const nextDatasetSamples = upsertSampleSummary(
+					prev.datasetSamples,
 					loadedSample.sample,
-				),
-			}));
+				);
+
+				if (!isStillSelected) {
+					return {
+						datasetSamples: nextDatasetSamples,
+					};
+				}
+
+				return {
+					datasetSampleLoading: false,
+					datasetMutationError: null,
+					datasetActiveSampleId: loadedSample.sample.id,
+					datasetActiveSample: loadedSample.sample,
+					datasetSourceText: loadedSample.sourceText,
+					datasetSourceSavedText: loadedSample.sourceText,
+					datasetSourceDirty: false,
+					datasetSamples: nextDatasetSamples,
+				};
+			});
+
 			return true;
 		} catch (error) {
-			set({
-				datasetSampleLoading: false,
-				datasetMutationError:
-					error instanceof Error ? error.message : "Failed to load sample",
-				datasetFeedback: {
-					kind: "error",
-					message:
-						error instanceof Error ? error.message : "Failed to load sample.",
-				},
-			});
+			// Avoid showing an error for stale loads if the user has already
+			// moved on to another sample.
+			const current = get();
+			const isStillSelected =
+				current.datasetActiveId === datasetId &&
+				current.datasetActiveSampleId === sampleId;
+
+			if (isStillSelected) {
+				set({
+					datasetSampleLoading: false,
+					datasetMutationError:
+						error instanceof Error ? error.message : "Failed to load sample",
+					datasetFeedback: {
+						kind: "error",
+						message:
+							error instanceof Error ? error.message : "Failed to load sample.",
+					},
+				});
+			}
 			return false;
 		}
 	},

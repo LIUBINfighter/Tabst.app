@@ -82,6 +82,19 @@ export function createTauriDesktopAPI(): DesktopAPI {
 			}
 		},
 
+		pickFile: async (
+			extensions: string[],
+		): Promise<{ path: string; name: string } | null> => {
+			try {
+				return await invokeCommand<{ path: string; name: string } | null>(
+					"pick_file",
+					{ extensions },
+				);
+			} catch {
+				return null;
+			}
+		},
+
 		selectFolder: async (): Promise<string | null> => {
 			try {
 				return await invokeCommand<string | null>("select_folder");

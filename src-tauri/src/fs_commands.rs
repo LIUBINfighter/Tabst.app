@@ -12,7 +12,7 @@ use crate::{
     register_allowed_root, register_persisted_repos, rename_path, replace_registered_exact_file,
     sanitize_name, to_error, validate_child_name, AppState, AppStateWithContent,
     AppStateWithContentFile, BasicResult, FileResult, FolderResult, OperationResult,
-    ReadFileBytesResponse, ReadFileResponse, SaveResult,
+    PickedFileResult, ReadFileBytesResponse, ReadFileResponse, SaveResult,
 };
 
 fn is_allowed_external_target(target: &str) -> bool {
@@ -51,6 +51,34 @@ pub(crate) fn open_file(extensions: Vec<String>) -> Option<FileResult> {
         path: registered_path.to_string_lossy().to_string(),
         name,
         content,
+    })
+}
+
+#[tauri::command]
+pub(crate) fn pick_file(extensions: Vec<String>) -> Option<PickedFileResult> {
+    let mut dialog = FileDialog::new();
+
+    let normalized_extensions = extensions
+        .iter()
+        .map(|ext| ext.trim().trim_start_matches('.').to_string())
+        .filter(|ext| !ext.is_empty())
+        .collect::<Vec<_>>();
+
+    if !normalized_extensions.is_empty() {
+        let values = normalized_extensions
+            .iter()
+            .map(String::as_str)
+            .collect::<Vec<_>>();
+        dialog = dialog.add_filter("Supported", &values);
+    }
+
+    let selected = dialog.pick_file()?;
+    let name = selected.file_name()?.to_string_lossy().to_string();
+    let registered_path = register_allowed_file(&selected).ok()?;
+
+    Some(PickedFileResult {
+        path: registered_path.to_string_lossy().to_string(),
+        name,
     })
 }
 

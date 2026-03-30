@@ -3,9 +3,11 @@ import {
 	ChevronRight,
 	Database,
 	Download,
+	Image as ImageIcon,
 	Loader2,
 	Music,
 	Save,
+	Upload,
 	Volume2,
 	X,
 } from "lucide-react";
@@ -23,7 +25,6 @@ import {
 } from "../lib/alphatab-export";
 import { useAppStore } from "../store/appStore";
 import {
-	type ArtifactState,
 	DEFAULT_SAMPLE_ARTIFACT_FILES,
 	getSampleArtifact,
 	KNOWN_SAMPLE_ARTIFACT_ORDER,
@@ -64,19 +65,46 @@ function parseTags(input: string): string[] {
 		.filter((tag) => tag.length > 0);
 }
 
-function artifactTone(state: ArtifactState): string {
-	if (state === "ready") {
-		return "border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400";
-	}
-	if (state === "stale") {
-		return "border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400";
-	}
-	return "border-border bg-muted text-muted-foreground";
-}
-
 function formatTimestamp(timestamp?: number): string {
 	if (!timestamp || !Number.isFinite(timestamp)) return "-";
 	return new Date(timestamp).toLocaleString();
+}
+
+function shortHash6(input: string): string {
+	// Stable non-crypto hash; keep ASCII-only output for filenames.
+	// FNV-1a 64 -> hex -> first 6 chars.
+	let hash = 0xcbf29ce484222325n;
+	const mod = 1n << 64n;
+	for (let i = 0; i < input.length; i += 1) {
+		hash ^= BigInt(input.charCodeAt(i));
+		hash = (hash * 0x100000001b3n) % mod;
+	}
+	const hex = hash.toString(16).padStart(16, "0");
+	return hex.slice(0, 6);
+}
+
+function pad2(n: number): string {
+	return String(n).padStart(2, "0");
+}
+
+function getUploadOrigin(now = new Date()): string {
+	// upload-<hhmmss>-<yymmdd>
+	const yymmdd = `${pad2(now.getFullYear() % 100)}${pad2(
+		now.getMonth() + 1,
+	)}${pad2(now.getDate())}`;
+	const hhmmss = `${pad2(now.getHours())}${pad2(now.getMinutes())}${pad2(
+		now.getSeconds(),
+	)}`;
+	const ms3 = String(now.getMilliseconds()).padStart(3, "0");
+	return `upload-${hhmmss}${ms3}-${yymmdd}`;
+}
+
+function getExtension(fileName: string): string {
+	const normalized = fileName.replace(/\\/g, "/");
+	const base = normalized.split("/").pop() ?? normalized;
+	const dot = base.lastIndexOf(".");
+	if (dot <= 0) return "";
+	return base.slice(dot + 1).toLowerCase();
 }
 
 export interface DatasetWorkspaceProps {
@@ -126,13 +154,16 @@ export default function DatasetWorkspace({
 	const [artifactGenerationError, setArtifactGenerationError] = useState<
 		string | null
 	>(null);
+	const [artifactUploadInProgress, setArtifactUploadInProgress] =
+		useState(false);
+	const [audioLoadAllNonce, setAudioLoadAllNonce] = useState(0);
 	const tagsFieldId = "dataset-sample-tags";
 	const reviewStatusFieldId = "dataset-sample-review-status";
 	const reviewNotesFieldId = "dataset-sample-review-notes";
 	const activeRepoPath =
 		repos.find((repo) => repo.id === activeRepoId)?.path ?? null;
 
-	// Some export UI changes (WAV generation/progress) can cause layout shifts
+	// Some export UI changes (Audio generation/progress) can cause layout shifts
 	// that also make the scroll container "jump". Lock & restore while exporting.
 	const scrollHostRef = useRef<HTMLDivElement | null>(null);
 	const lockedScrollTopRef = useRef<number | null>(null);
@@ -159,7 +190,8 @@ export default function DatasetWorkspace({
 	const busy =
 		datasetSampleLoading ||
 		datasetMutationLoading ||
-		artifactGenerationKind !== null;
+		artifactGenerationKind !== null ||
+		artifactUploadInProgress;
 
 	const metadataDirty = useMemo(() => {
 		if (!datasetActiveSample) return false;
@@ -196,12 +228,91 @@ export default function DatasetWorkspace({
 		);
 	}, [datasetActiveSample]);
 
-	const formatArtifactLabel = (artifactKind: string) => {
-		if (artifactKind === "midi") return "MIDI";
-		if (artifactKind === "wav") return "WAV";
-		if (artifactKind === "image") return "Image";
-		return artifactKind;
-	};
+	const sampleShortHash6 = useMemo(() => {
+		if (!datasetActiveSample) return null;
+		return shortHash6(datasetActiveSample.id);
+	}, [datasetActiveSample]);
+
+	const generatedMidiFileName = useMemo(() => {
+		if (!sampleShortHash6) return DEFAULT_SAMPLE_ARTIFACT_FILES.midi;
+		return `${sampleShortHash6}-auto.mid`;
+	}, [sampleShortHash6]);
+
+	const generatedAudioFileName = useMemo(() => {
+		if (!sampleShortHash6) return DEFAULT_SAMPLE_ARTIFACT_FILES.wav;
+		return `${sampleShortHash6}-auto.wav`;
+	}, [sampleShortHash6]);
+
+	const generatedImageFileName = useMemo(() => {
+		if (!sampleShortHash6) return DEFAULT_SAMPLE_ARTIFACT_FILES.image;
+		return `${sampleShortHash6}-auto.png`;
+	}, [sampleShortHash6]);
+
+	const uploadedMidiArtifacts = useMemo(() => {
+		const midiExts = new Set(["mid", "midi"]);
+		return extraArtifacts
+			.map(([artifactKind, artifact]) => ({
+				artifactKind,
+				artifact: artifact as SampleArtifactManifest,
+			}))
+			.filter((entry) => midiExts.has(getExtension(entry.artifact.fileName)));
+	}, [extraArtifacts]);
+
+	const uploadedAudioArtifacts = useMemo(() => {
+		const audioExts = new Set([
+			"wav",
+			"mp3",
+			"m4a",
+			"ogg",
+			"oga",
+			"flac",
+			"mp4",
+			"aac",
+			"opus",
+		]);
+		return extraArtifacts
+			.map(([artifactKind, artifact]) => ({
+				artifactKind,
+				artifact: artifact as SampleArtifactManifest,
+			}))
+			.filter((entry) => audioExts.has(getExtension(entry.artifact.fileName)));
+	}, [extraArtifacts]);
+
+	const uploadedImageArtifacts = useMemo(() => {
+		const imageExts = new Set(["png", "jpg", "jpeg", "webp", "gif", "bmp"]);
+		return extraArtifacts
+			.map(([artifactKind, artifact]) => ({
+				artifactKind,
+				artifact: artifact as SampleArtifactManifest,
+			}))
+			.filter((entry) => imageExts.has(getExtension(entry.artifact.fileName)));
+	}, [extraArtifacts]);
+
+	const otherExtraArtifacts = useMemo(() => {
+		const midiExts = new Set(["mid", "midi"]);
+		const audioExts = new Set([
+			"wav",
+			"mp3",
+			"m4a",
+			"ogg",
+			"oga",
+			"flac",
+			"mp4",
+			"aac",
+			"opus",
+		]);
+		const imageExts = new Set(["png", "jpg", "jpeg", "webp", "gif", "bmp"]);
+
+		return extraArtifacts
+			.map(([artifactKind, artifact]) => ({
+				artifactKind,
+				artifact: artifact as SampleArtifactManifest,
+			}))
+			.filter((entry) => {
+				const ext = getExtension(entry.artifact.fileName);
+				return !(midiExts.has(ext) || audioExts.has(ext) || imageExts.has(ext));
+			});
+	}, [extraArtifacts]);
 
 	const ensureSavedSourceForGeneration = async (): Promise<string | null> => {
 		setArtifactGenerationError(null);
@@ -227,14 +338,17 @@ export default function DatasetWorkspace({
 		setArtifactGenerationProgress(null);
 
 		try {
+			if (!datasetActiveSample) return;
+			const hash6 = shortHash6(datasetActiveSample.id);
+			const targetFileName = `${hash6}-auto.mid`;
+
 			const sourceText = await ensureSavedSourceForGeneration();
 			if (!sourceText) return;
 
 			const bytes = generateMidiBytesFromAlphaTex(sourceText);
 			await saveDatasetArtifact({
 				artifactKind: "midi",
-				targetFileName:
-					midiArtifact.fileName || DEFAULT_SAMPLE_ARTIFACT_FILES.midi,
+				targetFileName,
 				bytes,
 			});
 		} catch (error) {
@@ -248,7 +362,7 @@ export default function DatasetWorkspace({
 	};
 
 	const handleGenerateWav = async () => {
-		// Capture scroll position at the start of WAV generation.
+		// Capture scroll position at the start of Audio generation.
 		if (scrollHostRef.current) {
 			lockedScrollTopRef.current = scrollHostRef.current.scrollTop;
 		}
@@ -259,6 +373,10 @@ export default function DatasetWorkspace({
 		setArtifactGenerationProgress(0);
 
 		try {
+			if (!datasetActiveSample) return;
+			const hash6 = shortHash6(datasetActiveSample.id);
+			const targetFileName = `${hash6}-auto.wav`;
+
 			const sourceText = await ensureSavedSourceForGeneration();
 			if (!sourceText) return;
 
@@ -270,17 +388,150 @@ export default function DatasetWorkspace({
 			);
 			await saveDatasetArtifact({
 				artifactKind: "wav",
-				targetFileName:
-					wavArtifact.fileName || DEFAULT_SAMPLE_ARTIFACT_FILES.wav,
+				targetFileName,
 				bytes,
 			});
 		} catch (error) {
 			setArtifactGenerationError(
-				error instanceof Error ? error.message : "Failed to generate WAV.",
+				error instanceof Error ? error.message : "Failed to generate Audio.",
 			);
 		} finally {
 			setArtifactGenerationKind(null);
 			setArtifactGenerationProgress(null);
+		}
+	};
+
+	const handleUploadMidi = async () => {
+		if (!datasetActiveSample) return;
+		clearDatasetFeedback();
+		setArtifactGenerationError(null);
+		setArtifactUploadInProgress(true);
+
+		try {
+			const picked = await window.desktopAPI.pickFile(["mid", "midi"]);
+			if (!picked) return;
+
+			const ext = getExtension(picked.name);
+			if (!ext) {
+				throw new Error("Invalid MIDI file extension.");
+			}
+
+			const hash6 = shortHash6(datasetActiveSample.id);
+			const origin = getUploadOrigin();
+			const targetFileName = `${hash6}-${origin}.${ext}`;
+			const artifactKind = `midi-${origin}`;
+
+			const result = await window.desktopAPI.readFileBytes(picked.path);
+			if (!result.data) {
+				throw new Error(result.error ?? "Failed to read MIDI bytes.");
+			}
+
+			await saveDatasetArtifact({
+				artifactKind,
+				targetFileName,
+				bytes: result.data,
+			});
+		} catch (error) {
+			setArtifactGenerationError(
+				error instanceof Error ? error.message : "Failed to upload MIDI.",
+			);
+		} finally {
+			setArtifactUploadInProgress(false);
+		}
+	};
+
+	const handleUploadAudio = async () => {
+		if (!datasetActiveSample) return;
+		clearDatasetFeedback();
+		setArtifactGenerationError(null);
+		setArtifactUploadInProgress(true);
+
+		try {
+			const picked = await window.desktopAPI.pickFile([
+				"wav",
+				"mp3",
+				"m4a",
+				"ogg",
+				"oga",
+				"flac",
+				"mp4",
+				"aac",
+				"opus",
+			]);
+			if (!picked) return;
+
+			const ext = getExtension(picked.name);
+			if (!ext) {
+				throw new Error("Invalid audio file extension.");
+			}
+
+			const hash6 = shortHash6(datasetActiveSample.id);
+			const origin = getUploadOrigin();
+			const targetFileName = `${hash6}-${origin}.${ext}`;
+			const artifactKind = `audio-${origin}`;
+
+			const result = await window.desktopAPI.readFileBytes(picked.path);
+			if (!result.data) {
+				throw new Error(result.error ?? "Failed to read audio bytes.");
+			}
+
+			await saveDatasetArtifact({
+				artifactKind,
+				targetFileName,
+				bytes: result.data,
+			});
+		} catch (error) {
+			setArtifactGenerationError(
+				error instanceof Error ? error.message : "Failed to upload Audio.",
+			);
+		} finally {
+			setArtifactUploadInProgress(false);
+		}
+	};
+
+	const handleUploadImage = async () => {
+		if (!datasetActiveSample) return;
+		clearDatasetFeedback();
+		setArtifactGenerationError(null);
+		setArtifactUploadInProgress(true);
+
+		try {
+			const picked = await window.desktopAPI.pickFile([
+				"png",
+				"jpg",
+				"jpeg",
+				"webp",
+				"gif",
+				"bmp",
+			]);
+			if (!picked) return;
+
+			const ext = getExtension(picked.name);
+			if (!ext) {
+				throw new Error("Invalid image file extension.");
+			}
+
+			const hash6 = shortHash6(datasetActiveSample.id);
+			const origin = getUploadOrigin();
+			const targetFileName = `${hash6}-${origin}.${ext}`;
+			const artifactKind = `image-${origin}`;
+
+			const result = await window.desktopAPI.readFileBytes(picked.path);
+			if (!result.data) {
+				throw new Error(result.error ?? "Failed to read image bytes.");
+			}
+
+			await saveDatasetArtifact({
+				artifactKind,
+				targetFileName,
+				bytes: result.data,
+			});
+		} catch (error) {
+			setArtifactGenerationError(
+				error instanceof Error ? error.message : "Failed to upload Image.",
+			);
+		} finally {
+			setArtifactUploadInProgress(false);
 		}
 	};
 
@@ -296,8 +547,8 @@ export default function DatasetWorkspace({
 			return;
 		}
 
-		// WAV finished: if we captured a locked scrollTop at start, restore once
-		// more so the scroll container doesn't appear to "jump" when the WAV card expands.
+		// Audio finished: if we captured a locked scrollTop at start, restore once
+		// more so the scroll container doesn't appear to "jump" when the Audio card expands.
 		const locked = lockedScrollTopRef.current;
 		if (typeof locked === "number" && host.scrollTop !== locked) {
 			host.scrollTop = locked;
@@ -359,7 +610,7 @@ export default function DatasetWorkspace({
 					icon={
 						<Database className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
 					}
-					title="Dataset Workspace"
+					title="Tabel: Tabst Label Dataset Workspace"
 					trailing={
 						<Tooltip>
 							<TooltipTrigger asChild>
@@ -523,129 +774,219 @@ export default function DatasetWorkspace({
 												Artifacts
 											</h4>
 											<div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-xs">
-												<div className="rounded border border-border/60 p-2 space-y-1">
-													<div className="flex items-center justify-between">
-														<span className="text-muted-foreground">Image</span>
-														<span
-															className={`inline-flex rounded border px-1.5 py-0 text-[10px] ${artifactTone(imageArtifact.state)}`}
-														>
-															{imageArtifact.state}
-														</span>
+												{/* Image */}
+												<div className="rounded border border-border/60 p-2 space-y-2">
+													<div className="text-muted-foreground font-medium">
+														Image
 													</div>
-													<div className="text-[11px] text-muted-foreground">
-														Source hash: {imageArtifact.sourceHash ?? "-"}
-													</div>
-													<div className="text-[11px] text-muted-foreground">
-														File: {imageArtifact.fileName}
-													</div>
-												</div>
-												<div className="rounded border border-border/60 p-2 space-y-1">
-													<div className="flex items-center justify-between">
-														<span className="text-muted-foreground">MIDI</span>
-														<span
-															className={`inline-flex rounded border px-1.5 py-0 text-[10px] ${artifactTone(midiArtifact.state)}`}
-														>
-															{midiArtifact.state}
-														</span>
-													</div>
-													<div className="text-[11px] text-muted-foreground">
-														Source hash: {midiArtifact.sourceHash ?? "-"}
-													</div>
-													<div className="text-[11px] text-muted-foreground">
-														File: {midiArtifact.fileName}
-													</div>
-													<Button
-														type="button"
-														variant="ghost"
-														size="sm"
-														className="h-8 w-full rounded-md bg-muted text-muted-foreground border border-transparent hover:bg-[var(--hover-bg)] hover:text-[var(--hover-text)]"
-														onClick={() => {
-															void handleGenerateMidi();
-														}}
-														disabled={busy}
-													>
-														{artifactGenerationKind === "midi" ? (
-															<Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
-														) : (
-															<Music className="mr-1 h-3.5 w-3.5" />
-														)}
-														Generate MIDI
-													</Button>
-												</div>
-												<div className="rounded border border-border/60 p-2 space-y-1">
-													<div className="flex items-center justify-between">
-														<span className="text-muted-foreground">WAV</span>
-														<span
-															className={`inline-flex rounded border px-1.5 py-0 text-[10px] ${artifactTone(wavArtifact.state)}`}
-														>
-															{wavArtifact.state}
-														</span>
-													</div>
-													<div className="text-[11px] text-muted-foreground">
-														Source hash: {wavArtifact.sourceHash ?? "-"}
-													</div>
-													<div className="text-[11px] text-muted-foreground">
-														File: {wavArtifact.fileName}
-													</div>
-													<Button
-														type="button"
-														variant="ghost"
-														size="sm"
-														className="h-8 w-full rounded-md bg-muted text-muted-foreground border border-transparent hover:bg-[var(--hover-bg)] hover:text-[var(--hover-text)]"
-														onClick={() => {
-															void handleGenerateWav();
-														}}
-														disabled={busy}
-													>
-														{artifactGenerationKind === "wav" ? (
-															<Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
-														) : (
-															<Volume2 className="mr-1 h-3.5 w-3.5" />
-														)}
-														Generate WAV
-													</Button>
-													{artifactGenerationKind === "wav" &&
-													artifactGenerationProgress !== null ? (
-														<div className="text-[11px] text-muted-foreground">
-															Progress:{" "}
-															{Math.round(artifactGenerationProgress * 100)}%
+													<div className="space-y-1">
+														<div className="text-[11px] text-muted-foreground break-all">
+															{imageArtifact.state === "missing"
+																? generatedImageFileName
+																: imageArtifact.fileName}
 														</div>
-													) : null}
-													<DatasetWavPlayer
-														repoPath={activeRepoPath}
-														datasetId={datasetActive.id}
-														sampleId={datasetActiveSample.id}
-														artifact={wavArtifact}
-													/>
-												</div>
-												{extraArtifacts.map(([artifactKind, artifact]) => {
-													const extraArtifact =
-														artifact as SampleArtifactManifest;
-													return (
-														<div
-															key={artifactKind}
-															className="rounded border border-border/60 p-2 space-y-1 md:col-span-3"
-														>
-															<div className="flex items-center justify-between">
-																<span className="text-muted-foreground">
-																	{formatArtifactLabel(artifactKind)}
-																</span>
-																<span
-																	className={`inline-flex rounded border px-1.5 py-0 text-[10px] ${artifactTone(extraArtifact.state)}`}
+														{uploadedImageArtifacts.map(
+															({ artifactKind, artifact }) => (
+																<div
+																	key={artifactKind}
+																	className="text-[11px] text-muted-foreground break-all"
 																>
-																	{extraArtifact.state}
-																</span>
-															</div>
-															<div className="text-[11px] text-muted-foreground">
-																Source hash: {extraArtifact.sourceHash ?? "-"}
-															</div>
-															<div className="text-[11px] text-muted-foreground">
-																File: {extraArtifact.fileName}
-															</div>
+																	{artifact.fileName}
+																</div>
+															),
+														)}
+													</div>
+													<div className="space-y-2">
+														<Button
+															type="button"
+															variant="ghost"
+															size="sm"
+															className="h-8 w-full rounded-md bg-muted text-muted-foreground border border-transparent hover:bg-[var(--hover-bg)] hover:text-[var(--hover-text)]"
+															disabled
+														>
+															<ImageIcon className="mr-1 h-3.5 w-3.5" />
+															Generate Image (WIP)
+														</Button>
+														<Button
+															type="button"
+															variant="ghost"
+															size="sm"
+															className="h-8 w-full rounded-md bg-muted text-muted-foreground border border-transparent hover:bg-[var(--hover-bg)] hover:text-[var(--hover-text)]"
+															onClick={() => {
+																void handleUploadImage();
+															}}
+															disabled={busy}
+														>
+															<Upload className="mr-1 h-3.5 w-3.5" />
+															Upload Image
+														</Button>
+													</div>
+												</div>
+
+												{/* MIDI */}
+												<div className="rounded border border-border/60 p-2 space-y-2">
+													<div className="text-muted-foreground font-medium">
+														MIDI
+													</div>
+													<div className="space-y-1">
+														<div className="text-[11px] text-muted-foreground break-all">
+															{midiArtifact.state === "missing"
+																? generatedMidiFileName
+																: midiArtifact.fileName}
 														</div>
-													);
-												})}
+														{uploadedMidiArtifacts.map(
+															({ artifactKind, artifact }) => (
+																<div
+																	key={artifactKind}
+																	className="text-[11px] text-muted-foreground break-all"
+																>
+																	{artifact.fileName}
+																</div>
+															),
+														)}
+													</div>
+													<div className="space-y-2">
+														<Button
+															type="button"
+															variant="ghost"
+															size="sm"
+															className="h-8 w-full rounded-md bg-muted text-muted-foreground border border-transparent hover:bg-[var(--hover-bg)] hover:text-[var(--hover-text)]"
+															onClick={() => {
+																void handleGenerateMidi();
+															}}
+															disabled={busy}
+														>
+															{artifactGenerationKind === "midi" ? (
+																<Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+															) : (
+																<Music className="mr-1 h-3.5 w-3.5" />
+															)}
+															Generate MIDI
+														</Button>
+														<Button
+															type="button"
+															variant="ghost"
+															size="sm"
+															className="h-8 w-full rounded-md bg-muted text-muted-foreground border border-transparent hover:bg-[var(--hover-bg)] hover:text-[var(--hover-text)]"
+															onClick={() => {
+																void handleUploadMidi();
+															}}
+															disabled={busy}
+														>
+															<Upload className="mr-1 h-3.5 w-3.5" />
+															Upload MIDI
+														</Button>
+													</div>
+												</div>
+
+												{/* Audio */}
+												<div className="rounded border border-border/60 p-2 space-y-2">
+													<div className="text-muted-foreground font-medium">
+														Audio
+													</div>
+													<div className="space-y-2">
+														<Button
+															type="button"
+															variant="ghost"
+															size="sm"
+															className="h-8 w-full rounded-md bg-muted text-muted-foreground border border-transparent hover:bg-[var(--hover-bg)] hover:text-[var(--hover-text)]"
+															onClick={() => setAudioLoadAllNonce((n) => n + 1)}
+															disabled={busy}
+														>
+															<Volume2 className="mr-1 h-3.5 w-3.5" />
+															Load all Audio
+														</Button>
+													</div>
+													<div className="space-y-2">
+														<DatasetWavPlayer
+															repoPath={activeRepoPath}
+															datasetId={datasetActive.id}
+															sampleId={datasetActiveSample.id}
+															artifact={
+																wavArtifact.state === "missing"
+																	? {
+																			...wavArtifact,
+																			fileName: generatedAudioFileName,
+																		}
+																	: wavArtifact
+															}
+															loadAllNonce={audioLoadAllNonce}
+															autoPlayOnExternalLoad={false}
+														/>
+														{uploadedAudioArtifacts.map(
+															({ artifactKind, artifact }) => (
+																<DatasetWavPlayer
+																	key={artifactKind}
+																	repoPath={activeRepoPath}
+																	datasetId={datasetActive.id}
+																	sampleId={datasetActiveSample.id}
+																	artifact={artifact}
+																	loadAllNonce={audioLoadAllNonce}
+																	autoPlayOnExternalLoad={false}
+																/>
+															),
+														)}
+													</div>
+													<div className="space-y-2">
+														<Button
+															type="button"
+															variant="ghost"
+															size="sm"
+															className="h-8 w-full rounded-md bg-muted text-muted-foreground border border-transparent hover:bg-[var(--hover-bg)] hover:text-[var(--hover-text)]"
+															onClick={() => {
+																void handleGenerateWav();
+															}}
+															disabled={busy}
+														>
+															{artifactGenerationKind === "wav" ? (
+																<Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+															) : (
+																<Volume2 className="mr-1 h-3.5 w-3.5" />
+															)}
+															Generate Audio
+														</Button>
+														{artifactGenerationKind === "wav" &&
+														artifactGenerationProgress !== null ? (
+															<div className="text-[11px] text-muted-foreground">
+																Progress:{" "}
+																{Math.round(artifactGenerationProgress * 100)}%
+															</div>
+														) : null}
+														<Button
+															type="button"
+															variant="ghost"
+															size="sm"
+															className="h-8 w-full rounded-md bg-muted text-muted-foreground border border-transparent hover:bg-[var(--hover-bg)] hover:text-[var(--hover-text)]"
+															onClick={() => {
+																void handleUploadAudio();
+															}}
+															disabled={busy}
+														>
+															<Upload className="mr-1 h-3.5 w-3.5" />
+															Upload Audio
+														</Button>
+													</div>
+												</div>
 											</div>
+											{otherExtraArtifacts.length ? (
+												<div className="pt-2 space-y-1">
+													<div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+														Other
+													</div>
+													<div className="space-y-1">
+														{otherExtraArtifacts.map(
+															({ artifactKind, artifact }) => (
+																<div
+																	key={artifactKind}
+																	className="text-[11px] text-muted-foreground break-all"
+																>
+																	{artifact.fileName}
+																</div>
+															),
+														)}
+													</div>
+												</div>
+											) : null}
 										</div>
 									</div>
 

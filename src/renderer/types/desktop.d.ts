@@ -38,6 +38,9 @@ export interface RepoFsChangedEvent {
 
 export interface DesktopAPI {
 	openFile: (extensions: string[]) => Promise<FileResult | null>;
+	pickFile: (
+		extensions: string[],
+	) => Promise<{ path: string; name: string } | null>;
 	createFile: (
 		ext?: string,
 		preferredDir?: string,

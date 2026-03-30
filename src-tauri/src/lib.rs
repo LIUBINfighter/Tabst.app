@@ -13,7 +13,7 @@ use dataset_commands::{
     save_sample_artifact, save_sample_source, update_sample,
 };
 use fs_commands::{
-    create_file, create_folder, load_app_state, move_path, open_external, open_file, read_asset,
+    create_file, create_folder, load_app_state, move_path, open_external, open_file, pick_file, read_asset,
     read_file, read_file_bytes, rename_file, reveal_in_folder, save_app_state, save_file,
     select_folder,
 };
@@ -40,6 +40,7 @@ pub fn run() {
         .manage(KeepAwakeManager::default())
         .invoke_handler(tauri::generate_handler![
             open_file,
+            pick_file,
             select_folder,
             create_file,
             create_folder,

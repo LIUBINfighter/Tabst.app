@@ -228,6 +228,8 @@ export function createWebDesktopAPI(): DesktopAPI {
 			};
 		},
 
+		pickFile: async (_extensions: string[]) => null,
+
 		createFile: async (
 			ext?: string,
 			preferredDir?: string,

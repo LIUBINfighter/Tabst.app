@@ -30,6 +30,13 @@ export function TutorialPlaygroundPreview({
 	const [error, setError] = useState<string | null>(null);
 	const [loading, setLoading] = useState(true);
 
+	// Keep latest content without re-initializing the AlphaTab API.
+	const contentRef = useRef(content);
+	useEffect(() => {
+		contentRef.current = content;
+	}, [content]);
+
+	// Create AlphaTab API only when the player enable/disable setting changes.
 	useEffect(() => {
 		let destroyed = false;
 		let api: alphaTab.AlphaTabApi | null = null;
@@ -52,18 +59,22 @@ export function TutorialPlaygroundPreview({
 				apiRef.current = api;
 				onApiChange?.(api);
 
-				api.scoreLoaded.on(() => setLoading(false));
+				api.scoreLoaded.on(() => {
+					if (destroyed) return;
+					setLoading(false);
+				});
 				api.error.on((err) => {
 					if (destroyed) return;
 					setError(formatFullError(err));
+					setLoading(false);
 				});
 
-				const atDoc = parseAtDoc(content);
-				applyAtDocColoring(api, atDoc.config, (message) => {
+				// First render.
+				const initialAtDoc = parseAtDoc(contentRef.current);
+				applyAtDocColoring(api, initialAtDoc.config, (message) => {
 					console.warn(message);
 				});
-
-				api.tex(content);
+				api.tex(contentRef.current);
 			} catch (err) {
 				if (destroyed) return;
 				setError(formatFullError(err));
@@ -71,7 +82,7 @@ export function TutorialPlaygroundPreview({
 			}
 		};
 
-		init();
+		void init();
 
 		return () => {
 			destroyed = true;
@@ -79,7 +90,27 @@ export function TutorialPlaygroundPreview({
 			apiRef.current = null;
 			onApiChange?.(null);
 		};
-	}, [content, onApiChange, disablePlayer]);
+	}, [disablePlayer, onApiChange]);
+
+	// Update the score when content changes (without re-creating AlphaTab API).
+	useEffect(() => {
+		const api = apiRef.current;
+		if (!api) return;
+
+		setLoading(true);
+		setError(null);
+
+		try {
+			const nextAtDoc = parseAtDoc(content);
+			applyAtDocColoring(api, nextAtDoc.config, (message) => {
+				console.warn(message);
+			});
+			api.tex(content);
+		} catch (err) {
+			setError(formatFullError(err));
+			setLoading(false);
+		}
+	}, [content]);
 
 	useEffect(() => {
 		const api = apiRef.current;

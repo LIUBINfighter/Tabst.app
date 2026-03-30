@@ -17,6 +17,13 @@ pub(crate) struct FileResult {
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub(crate) struct PickedFileResult {
+    pub(crate) path: String,
+    pub(crate) name: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub(crate) struct SaveResult {
     pub(crate) success: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
