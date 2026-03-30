@@ -1,5 +1,9 @@
 {
 	"mcpServers": {
+		"tauri_mcp": {
+			"command": "/opt/homebrew/bin/mcp-server-tauri",
+			"args": []
+		},
 		"shadcn": {
 			"command": "npx",
 			"args": ["shadcn@latest", "mcp"]
