@@ -9,8 +9,8 @@ mod support;
 mod updater_commands;
 
 use dataset_commands::{
-    create_dataset, create_sample, export_dataset_jsonl, list_datasets, load_dataset, load_sample,
-    save_sample_artifact, save_sample_source, update_sample,
+    create_dataset, create_sample, create_subsample, export_dataset_jsonl, list_datasets,
+    load_dataset, load_sample, save_sample_artifact, save_sample_source, update_sample,
 };
 use fs_commands::{
     create_file, create_folder, load_app_state, move_path, open_external, open_file, pick_file, read_asset,
@@ -66,6 +66,7 @@ pub fn run() {
             create_dataset,
             load_dataset,
             create_sample,
+            create_subsample,
             load_sample,
             save_sample_source,
             save_sample_artifact,

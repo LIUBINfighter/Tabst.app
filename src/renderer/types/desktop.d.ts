@@ -1,6 +1,7 @@
 import type {
 	CreateDatasetInput,
 	CreateSampleInput,
+	CreateSubsampleInput,
 	DatasetCommandResponse,
 	DatasetExportResult,
 	DatasetListEntry,
@@ -155,6 +156,12 @@ export interface DesktopAPI {
 		repoPath: string,
 		datasetId: string,
 		input: CreateSampleInput,
+	) => Promise<DatasetCommandResponse<LoadedSample>>;
+	createSubsample: (
+		repoPath: string,
+		datasetId: string,
+		sampleId: string,
+		input: CreateSubsampleInput,
 	) => Promise<DatasetCommandResponse<LoadedSample>>;
 	loadSample: (
 		repoPath: string,

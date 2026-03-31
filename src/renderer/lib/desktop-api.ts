@@ -1,6 +1,7 @@
 import type {
 	CreateDatasetInput,
 	CreateSampleInput,
+	CreateSubsampleInput,
 	DatasetCommandResponse,
 	DatasetExportResult,
 	DatasetListEntry,
@@ -550,6 +551,13 @@ export function createWebDesktopAPI(): DesktopAPI {
 			_repoPath: string,
 			_datasetId: string,
 			_input: CreateSampleInput,
+		) => unsupportedDatasetResponse<LoadedSample>(),
+
+		createSubsample: async (
+			_repoPath: string,
+			_datasetId: string,
+			_sampleId: string,
+			_input: CreateSubsampleInput,
 		) => unsupportedDatasetResponse<LoadedSample>(),
 
 		loadSample: async (

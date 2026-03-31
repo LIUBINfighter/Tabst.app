@@ -73,6 +73,7 @@ export interface RepoMetadata {
 	tutorialAudience?: "user" | "power-user" | "developer";
 	datasetActiveId?: string | null;
 	datasetActiveSampleId?: string | null;
+	datasetActiveSubsampleId?: string | null;
 }
 
 /**

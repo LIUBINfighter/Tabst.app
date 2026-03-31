@@ -6,6 +6,7 @@ import {
 	Image as ImageIcon,
 	Loader2,
 	Music,
+	Plus,
 	Save,
 	Upload,
 	Volume2,
@@ -25,9 +26,8 @@ import {
 } from "../lib/alphatab-export";
 import { useAppStore } from "../store/appStore";
 import {
-	getSampleArtifact,
-	KNOWN_SAMPLE_ARTIFACT_ORDER,
-	normalizeSampleArtifacts,
+	getSubsampleObject,
+	normalizeSampleSubsamples,
 	type SampleArtifactManifest,
 	type SampleReviewStatus,
 } from "../types/dataset";
@@ -115,6 +115,21 @@ function buildDatasetArtifactPath(
 	].join(separator);
 }
 
+function sanitizeFileSegment(input: string): string {
+	return input
+		.trim()
+		.toLowerCase()
+		.replace(/[^a-z0-9._-]/g, "-")
+		.replace(/-+/g, "-")
+		.replace(/^-+|-+$/g, "") || "subsample";
+}
+
+function scopeTargetFileName(subsampleId: string, fileName: string): string {
+	const scopedPrefix = `${sanitizeFileSegment(subsampleId)}--`;
+	if (fileName.startsWith(scopedPrefix)) return fileName;
+	return `${scopedPrefix}${fileName}`;
+}
+
 function getExtension(fileName: string): string {
 	const normalized = fileName.replace(/\\/g, "/");
 	const base = normalized.split("/").pop() ?? normalized;
@@ -186,6 +201,7 @@ export default function DatasetWorkspace({
 	const datasetActive = useAppStore((s) => s.datasetActive);
 	const datasetActiveSample = useAppStore((s) => s.datasetActiveSample);
 	const datasetActiveSampleId = useAppStore((s) => s.datasetActiveSampleId);
+	const datasetActiveSubsampleId = useAppStore((s) => s.datasetActiveSubsampleId);
 	const datasetSourceText = useAppStore((s) => s.datasetSourceText);
 	const datasetSourceSavedText = useAppStore((s) => s.datasetSourceSavedText);
 	const datasetSourceDirty = useAppStore((s) => s.datasetSourceDirty);
@@ -197,6 +213,8 @@ export default function DatasetWorkspace({
 	const setDatasetSourceText = useAppStore((s) => s.setDatasetSourceText);
 	const saveDatasetSampleSource = useAppStore((s) => s.saveDatasetSampleSource);
 	const saveDatasetArtifact = useAppStore((s) => s.saveDatasetArtifact);
+	const createDatasetSubsample = useAppStore((s) => s.createDatasetSubsample);
+	const selectDatasetSubsample = useAppStore((s) => s.selectDatasetSubsample);
 	const updateDatasetSample = useAppStore((s) => s.updateDatasetSample);
 	const clearDatasetFeedback = useAppStore((s) => s.clearDatasetFeedback);
 
@@ -332,98 +350,56 @@ export default function DatasetWorkspace({
 		setImagePastePreviewUrl(null);
 	}, [datasetActiveSample?.id]);
 
+	const normalizedSubsamples = useMemo(
+		() => normalizeSampleSubsamples(datasetActiveSample?.subsamples),
+		[datasetActiveSample?.subsamples],
+	);
+	const activeSubsample = useMemo(() => {
+		if (normalizedSubsamples.length === 0) return null;
+		if (!datasetActiveSubsampleId) return normalizedSubsamples[0] ?? null;
+		return (
+			normalizedSubsamples.find(
+				(subsample) => subsample.id === datasetActiveSubsampleId,
+			) ??
+			normalizedSubsamples[0] ??
+			null
+		);
+	}, [datasetActiveSubsampleId, normalizedSubsamples]);
 	const imageArtifact = useMemo(
-		() => getSampleArtifact(datasetActiveSample?.artifacts, "image"),
-		[datasetActiveSample],
+		() => getSubsampleObject(activeSubsample ?? undefined, "image"),
+		[activeSubsample],
 	);
 	const midiArtifact = useMemo(
-		() => getSampleArtifact(datasetActiveSample?.artifacts, "midi"),
-		[datasetActiveSample],
+		() => getSubsampleObject(activeSubsample ?? undefined, "midi"),
+		[activeSubsample],
 	);
 	const wavArtifact = useMemo(
-		() => getSampleArtifact(datasetActiveSample?.artifacts, "wav"),
-		[datasetActiveSample],
+		() => getSubsampleObject(activeSubsample ?? undefined, "audio"),
+		[activeSubsample],
 	);
-	const extraArtifacts = useMemo(() => {
-		const artifacts = normalizeSampleArtifacts(datasetActiveSample?.artifacts);
-		return Object.entries(artifacts).filter(
-			([artifactKind]) =>
-				!KNOWN_SAMPLE_ARTIFACT_ORDER.includes(artifactKind as never),
-		);
-	}, [datasetActiveSample]);
-
-	const uploadedMidiArtifacts = useMemo(() => {
-		const midiExts = new Set(["mid", "midi"]);
-		return extraArtifacts
-			.map(([artifactKind, artifact]) => ({
-				artifactKind,
-				artifact: artifact as SampleArtifactManifest,
-			}))
-			.filter((entry) => midiExts.has(getExtension(entry.artifact.fileName)));
-	}, [extraArtifacts]);
-
-	const uploadedAudioArtifacts = useMemo(() => {
-		const audioExts = new Set([
-			"wav",
-			"mp3",
-			"m4a",
-			"ogg",
-			"oga",
-			"flac",
-			"mp4",
-			"aac",
-			"opus",
-		]);
-		return extraArtifacts
-			.map(([artifactKind, artifact]) => ({
-				artifactKind,
-				artifact: artifact as SampleArtifactManifest,
-			}))
-			.filter((entry) => audioExts.has(getExtension(entry.artifact.fileName)));
-	}, [extraArtifacts]);
-
-	const uploadedImageArtifacts = useMemo(() => {
-		const imageExts = new Set(["png", "jpg", "jpeg", "webp", "gif", "bmp"]);
-		return extraArtifacts
-			.map(([artifactKind, artifact]) => ({
-				artifactKind,
-				artifact: artifact as SampleArtifactManifest,
-			}))
-			.filter((entry) => imageExts.has(getExtension(entry.artifact.fileName)));
-	}, [extraArtifacts]);
-
-	const alphaTexArtifacts = useMemo(() => {
-		return extraArtifacts
-			.map(([artifactKind, artifact]) => ({
-				artifactKind,
-				artifact: artifact as SampleArtifactManifest,
-			}))
-			.filter((entry) => getExtension(entry.artifact.fileName) === "atex")
-			.sort((left, right) => {
-				const leftTime = left.artifact.updatedAt ?? 0;
-				const rightTime = right.artifact.updatedAt ?? 0;
-				return (
-					rightTime - leftTime ||
-					left.artifactKind.localeCompare(right.artifactKind)
-				);
-			});
-	}, [extraArtifacts]);
-
-	const alphaTexArtifact = useMemo(() => {
-		const artifacts = normalizeSampleArtifacts(datasetActiveSample?.artifacts);
-		const direct = artifacts.alphatex;
-		if (
-			direct &&
-			getExtension(direct.fileName) === "atex" &&
-			direct.state !== "missing"
-		) {
-			return direct;
-		}
-		return (
-			alphaTexArtifacts.find((entry) => entry.artifact.state === "ready")
-				?.artifact ?? null
-		);
-	}, [alphaTexArtifacts, datasetActiveSample]);
+	const alphaTexArtifact = useMemo(
+		() => getSubsampleObject(activeSubsample ?? undefined, "alphatex"),
+		[activeSubsample],
+	);
+	const uploadedMidiArtifacts: Array<{
+		artifactKind: string;
+		artifact: SampleArtifactManifest;
+	}> = [];
+	const uploadedAudioArtifacts: Array<{
+		artifactKind: string;
+		artifact: SampleArtifactManifest;
+	}> = [];
+	const uploadedImageArtifacts: Array<{
+		artifactKind: string;
+		artifact: SampleArtifactManifest;
+	}> = [];
+	const alphaTexArtifacts = useMemo(
+		() =>
+			alphaTexArtifact.state === "missing"
+				? []
+				: [{ artifactKind: "alphatex", artifact: alphaTexArtifact }],
+		[alphaTexArtifact],
+	);
 
 	// Choose which on-disk image artifact we should preview in the Image card.
 	// Prefer the canonical `image` artifact; if it's missing/stale, fall back to uploaded images.
@@ -434,24 +410,15 @@ export default function DatasetWorkspace({
 		if (!isPlaceholder && imageArtifact.state !== "missing")
 			return imageArtifact;
 
-		const uploaded = uploadedImageArtifacts.map((entry) => entry.artifact);
-		const readyUploaded = uploaded.find((a) => a.state === "ready");
-		if (readyUploaded) return readyUploaded;
-		const staleUploaded = uploaded.find((a) => a.state === "stale");
-		return staleUploaded ?? null;
-	}, [imageArtifact, uploadedImageArtifacts]);
+		return null;
+	}, [imageArtifact]);
 	const shouldShowPrimaryImageFileName =
 		imageArtifact.state !== "missing" &&
 		!(
 			imageArtifact.fileName === DEFAULT_IMAGE_PLACEHOLDER_FILE_NAME &&
 			!imageArtifact.sourceHash
 		);
-	const shouldShowPrimaryAudio =
-		wavArtifact.state !== "missing" &&
-		!(
-			wavArtifact.fileName === DEFAULT_AUDIO_PLACEHOLDER_FILE_NAME &&
-			!wavArtifact.sourceHash
-		);
+	const shouldShowPrimaryAudio = wavArtifact.state !== "missing";
 
 	// Auto-preview existing image artifacts (ready or stale).
 	useEffect(() => {
@@ -599,37 +566,10 @@ export default function DatasetWorkspace({
 		};
 	}, [activeRepoPath, datasetActive, datasetActiveSample, alphaTexArtifact]);
 
-	const otherExtraArtifacts = useMemo(() => {
-		const midiExts = new Set(["mid", "midi"]);
-		const audioExts = new Set([
-			"wav",
-			"mp3",
-			"m4a",
-			"ogg",
-			"oga",
-			"flac",
-			"mp4",
-			"aac",
-			"opus",
-		]);
-		const imageExts = new Set(["png", "jpg", "jpeg", "webp", "gif", "bmp"]);
-		const alphaTexExts = new Set(["atex"]);
-
-		return extraArtifacts
-			.map(([artifactKind, artifact]) => ({
-				artifactKind,
-				artifact: artifact as SampleArtifactManifest,
-			}))
-			.filter((entry) => {
-				const ext = getExtension(entry.artifact.fileName);
-				return !(
-					midiExts.has(ext) ||
-					audioExts.has(ext) ||
-					imageExts.has(ext) ||
-					alphaTexExts.has(ext)
-				);
-			});
-	}, [extraArtifacts]);
+	const otherExtraArtifacts: Array<{
+		artifactKind: string;
+		artifact: SampleArtifactManifest;
+	}> = [];
 
 	const ensureSavedSourceForGeneration = async (): Promise<string | null> => {
 		setArtifactGenerationError(null);
@@ -657,13 +597,18 @@ export default function DatasetWorkspace({
 		try {
 			if (!datasetActiveSample) return;
 			const hash6 = shortHash6(datasetActiveSample.id);
-			const targetFileName = `${hash6}-auto.mid`;
+			const targetFileName = scopeTargetFileName(
+				activeSubsample?.id ?? "subsample",
+				`${hash6}-auto.mid`,
+			);
 
 			const sourceText = await ensureSavedSourceForGeneration();
 			if (!sourceText) return;
 
 			const bytes = generateMidiBytesFromAlphaTex(sourceText);
 			await saveDatasetArtifact({
+				subsampleId: activeSubsample?.id ?? "",
+				objectKind: "midi",
 				artifactKind: "midi",
 				targetFileName,
 				bytes,
@@ -692,7 +637,10 @@ export default function DatasetWorkspace({
 		try {
 			if (!datasetActiveSample) return;
 			const hash6 = shortHash6(datasetActiveSample.id);
-			const targetFileName = `${hash6}-auto.wav`;
+			const targetFileName = scopeTargetFileName(
+				activeSubsample?.id ?? "subsample",
+				`${hash6}-auto.wav`,
+			);
 
 			const sourceText = await ensureSavedSourceForGeneration();
 			if (!sourceText) return;
@@ -704,6 +652,8 @@ export default function DatasetWorkspace({
 				},
 			);
 			await saveDatasetArtifact({
+				subsampleId: activeSubsample?.id ?? "",
+				objectKind: "audio",
 				artifactKind: "wav",
 				targetFileName,
 				bytes,
@@ -735,8 +685,11 @@ export default function DatasetWorkspace({
 
 			const hash6 = shortHash6(datasetActiveSample.id);
 			const origin = getUploadOrigin();
-			const targetFileName = `${hash6}-${origin}.${ext}`;
-			const artifactKind = `midi-${origin}`;
+			const targetFileName = scopeTargetFileName(
+				activeSubsample?.id ?? "subsample",
+				`${hash6}-${origin}.${ext}`,
+			);
+			const artifactKind = "midi";
 
 			const result = await window.desktopAPI.readFileBytes(picked.path);
 			if (!result.data) {
@@ -744,6 +697,8 @@ export default function DatasetWorkspace({
 			}
 
 			await saveDatasetArtifact({
+				subsampleId: activeSubsample?.id ?? "",
+				objectKind: "midi",
 				artifactKind,
 				targetFileName,
 				bytes: result.data,
@@ -784,8 +739,11 @@ export default function DatasetWorkspace({
 
 			const hash6 = shortHash6(datasetActiveSample.id);
 			const origin = getUploadOrigin();
-			const targetFileName = `${hash6}-${origin}.${ext}`;
-			const artifactKind = `audio-${origin}`;
+			const targetFileName = scopeTargetFileName(
+				activeSubsample?.id ?? "subsample",
+				`${hash6}-${origin}.${ext}`,
+			);
+			const artifactKind = "audio";
 
 			const result = await window.desktopAPI.readFileBytes(picked.path);
 			if (!result.data) {
@@ -793,6 +751,8 @@ export default function DatasetWorkspace({
 			}
 
 			await saveDatasetArtifact({
+				subsampleId: activeSubsample?.id ?? "",
+				objectKind: "audio",
 				artifactKind,
 				targetFileName,
 				bytes: result.data,
@@ -830,8 +790,11 @@ export default function DatasetWorkspace({
 
 			const hash6 = shortHash6(datasetActiveSample.id);
 			const origin = getUploadOrigin();
-			const targetFileName = `${hash6}-${origin}.${ext}`;
-			const artifactKind = `image-${origin}`;
+			const targetFileName = scopeTargetFileName(
+				activeSubsample?.id ?? "subsample",
+				`${hash6}-${origin}.${ext}`,
+			);
+			const artifactKind = "image";
 
 			const result = await window.desktopAPI.readFileBytes(picked.path);
 			if (!result.data) {
@@ -839,6 +802,8 @@ export default function DatasetWorkspace({
 			}
 
 			await saveDatasetArtifact({
+				subsampleId: activeSubsample?.id ?? "",
+				objectKind: "image",
 				artifactKind,
 				targetFileName,
 				bytes: result.data,
@@ -866,10 +831,15 @@ export default function DatasetWorkspace({
 			}
 
 			const hash6 = shortHash6(datasetActiveSample.id);
-			const targetFileName = `${hash6}-edit.atex`;
+			const targetFileName = scopeTargetFileName(
+				activeSubsample?.id ?? "subsample",
+				`${hash6}-edit.atex`,
+			);
 			const artifactKind = "alphatex";
 
 			await saveDatasetArtifact({
+				subsampleId: activeSubsample?.id ?? "",
+				objectKind: "alphatex",
 				artifactKind,
 				targetFileName,
 				bytes: new TextEncoder().encode(alphaTexArtifactText),
@@ -931,11 +901,16 @@ export default function DatasetWorkspace({
 
 			const hash6 = shortHash6(datasetActiveSample.id);
 			const origin = getUploadOrigin();
-			const targetFileName = `${hash6}-${origin}.${ext}`;
-			const artifactKind = `image-${origin}`;
+			const targetFileName = scopeTargetFileName(
+				activeSubsample?.id ?? "subsample",
+				`${hash6}-${origin}.${ext}`,
+			);
+			const artifactKind = "image";
 			const bytes = new Uint8Array(await selectedBlob.arrayBuffer());
 
 			await saveDatasetArtifact({
+				subsampleId: activeSubsample?.id ?? "",
+				objectKind: "image",
 				artifactKind,
 				targetFileName,
 				bytes,
@@ -993,11 +968,16 @@ export default function DatasetWorkspace({
 
 			const hash6 = shortHash6(datasetActiveSample.id);
 			const origin = getUploadOrigin();
-			const targetFileName = `${hash6}-${origin}.${ext}`;
-			const artifactKind = `audio-${origin}`;
+			const targetFileName = scopeTargetFileName(
+				activeSubsample?.id ?? "subsample",
+				`${hash6}-${origin}.${ext}`,
+			);
+			const artifactKind = "audio";
 			const bytes = new Uint8Array(await selectedBlob.arrayBuffer());
 
 			await saveDatasetArtifact({
+				subsampleId: activeSubsample?.id ?? "",
+				objectKind: "audio",
 				artifactKind,
 				targetFileName,
 				bytes,
@@ -1227,6 +1207,43 @@ export default function DatasetWorkspace({
 											{datasetSourceDirty
 												? "Unsaved changes"
 												: "All changes saved"}
+										</div>
+
+										<div className="rounded border border-border/60 bg-muted/20 p-2 space-y-2">
+											<div className="flex items-center justify-between gap-2">
+												<div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+													Subsample
+												</div>
+												<Button
+													type="button"
+													variant="ghost"
+													size="sm"
+													className="h-8 rounded-md bg-muted text-muted-foreground border border-transparent hover:bg-[var(--hover-bg)] hover:text-[var(--hover-text)]"
+													onClick={() => {
+														void createDatasetSubsample({});
+													}}
+													disabled={busy || !datasetActiveSample}
+												>
+													<Plus className="mr-1 h-3.5 w-3.5" />
+													New subsample
+												</Button>
+											</div>
+											<select
+												value={activeSubsample?.id ?? ""}
+												onChange={(event) =>
+													selectDatasetSubsample(event.currentTarget.value)
+												}
+												className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs text-foreground"
+												disabled={busy || normalizedSubsamples.length === 0}
+											>
+												{normalizedSubsamples.map((subsample) => (
+													<option key={subsample.id} value={subsample.id}>
+														{subsample.title?.trim().length
+															? subsample.title
+															: subsample.id}
+													</option>
+												))}
+											</select>
 										</div>
 
 										<div className="pt-3 space-y-2">

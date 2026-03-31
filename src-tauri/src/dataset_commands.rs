@@ -17,6 +17,9 @@ const EXPORT_SCHEMA_VERSION: u32 = 1;
 const DATASET_MANIFEST_FILE_NAME: &str = "dataset.json";
 const SAMPLE_MANIFEST_FILE_NAME: &str = "metadata.json";
 const SOURCE_FILE_NAME: &str = "source.atex";
+const DEFAULT_SUBSAMPLE_ID: &str = "subsample-1";
+const ALPHATEX_OBJECT_KIND: &str = "alphatex";
+const ALPHATEX_OBJECT_FILE_NAME: &str = "score.atex";
 const MIDI_ARTIFACT_KIND: &str = "midi";
 const MIDI_ARTIFACT_FILE_NAME: &str = "score.mid";
 const WAV_ARTIFACT_KIND: &str = "wav";
@@ -116,6 +119,19 @@ pub(crate) struct SampleArtifactManifest {
 }
 
 pub(crate) type SampleArtifactsManifest = BTreeMap<String, SampleArtifactManifest>;
+pub(crate) type SubsampleObjectsManifest = BTreeMap<String, SampleArtifactManifest>;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct SubsampleManifest {
+    pub(crate) id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) title: Option<String>,
+    #[serde(default = "make_default_subsample_objects")]
+    pub(crate) objects: SubsampleObjectsManifest,
+    pub(crate) created_at: u64,
+    pub(crate) updated_at: u64,
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -133,8 +149,10 @@ pub(crate) struct SampleManifest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) metadata: Option<Value>,
     pub(crate) source: SampleSourceManifest,
-    #[serde(default = "make_default_artifacts")]
-    pub(crate) artifacts: SampleArtifactsManifest,
+    #[serde(default)]
+    pub(crate) subsamples: Vec<SubsampleManifest>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) artifacts: Option<SampleArtifactsManifest>,
     pub(crate) created_at: u64,
     pub(crate) updated_at: u64,
 }
@@ -152,7 +170,7 @@ pub(crate) struct SampleSummary {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) metadata: Option<Value>,
     pub(crate) source: SampleSourceManifest,
-    pub(crate) artifacts: SampleArtifactsManifest,
+    pub(crate) subsamples: Vec<SubsampleManifest>,
     pub(crate) created_at: u64,
     pub(crate) updated_at: u64,
 }
@@ -257,7 +275,16 @@ struct JsonlExportRecord {
     metadata: Option<Value>,
     review_status: SampleReviewStatus,
     source: ExportSourcePayload,
-    artifacts: SampleArtifactsManifest,
+    subsamples: Vec<SubsampleManifest>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct CreateSubsampleInput {
+    #[serde(default)]
+    pub(crate) id: Option<String>,
+    #[serde(default)]
+    pub(crate) title: Option<String>,
 }
 
 fn tabel_root(repo_root: &Path) -> PathBuf {
@@ -349,8 +376,35 @@ fn normalize_artifact_kind(value: &str) -> Result<String, String> {
     Ok(normalized.to_ascii_lowercase())
 }
 
+fn normalize_subsample_id(value: &str) -> Result<String, String> {
+    let normalized = validate_child_name(value).map_err(|_| "invalid-subsample-id".to_string())?;
+    Ok(normalized.to_ascii_lowercase())
+}
+
+fn normalize_subsample_object_kind(value: &str) -> Result<String, String> {
+    let normalized = normalize_artifact_kind(value)?;
+    match normalized.as_str() {
+        ALPHATEX_OBJECT_KIND | IMAGE_ARTIFACT_KIND | LEGACY_AUDIO_ARTIFACT_KIND | WAV_ARTIFACT_KIND
+        | MIDI_ARTIFACT_KIND => Ok(if normalized == WAV_ARTIFACT_KIND {
+            LEGACY_AUDIO_ARTIFACT_KIND.to_string()
+        } else {
+            normalized
+        }),
+        _ => Err("invalid-subsample-object-kind".to_string()),
+    }
+}
+
 fn normalize_artifact_file_name(value: &str) -> Result<String, String> {
     validate_child_name(value).map_err(|_| "invalid-artifact-file-name".to_string())
+}
+
+fn make_subsample_scoped_file_name(subsample_id: &str, file_name: &str) -> String {
+    let prefix = format!("{subsample_id}--");
+    if file_name.starts_with(&prefix) {
+        file_name.to_string()
+    } else {
+        format!("{prefix}{file_name}")
+    }
 }
 
 fn slugify(value: &str, fallback_prefix: &str) -> String {
@@ -423,19 +477,6 @@ fn make_missing_artifact(file_name: &str) -> SampleArtifactManifest {
     }
 }
 
-fn make_default_artifacts() -> SampleArtifactsManifest {
-    let mut artifacts = SampleArtifactsManifest::new();
-    for (artifact_kind, file_name) in [
-        (MIDI_ARTIFACT_KIND, MIDI_ARTIFACT_FILE_NAME),
-        (WAV_ARTIFACT_KIND, WAV_ARTIFACT_FILE_NAME),
-        (IMAGE_ARTIFACT_KIND, IMAGE_ARTIFACT_FILE_NAME),
-    ] {
-        artifacts.insert(artifact_kind.to_string(), make_missing_artifact(file_name));
-    }
-
-    artifacts
-}
-
 fn ensure_default_artifacts(artifacts: &mut SampleArtifactsManifest) {
     if !artifacts.contains_key(WAV_ARTIFACT_KIND) {
         if let Some(legacy_audio_artifact) = artifacts.get(LEGACY_AUDIO_ARTIFACT_KIND).cloned() {
@@ -454,8 +495,97 @@ fn ensure_default_artifacts(artifacts: &mut SampleArtifactsManifest) {
     }
 }
 
+fn make_default_subsample_objects() -> SubsampleObjectsManifest {
+    let mut objects = SubsampleObjectsManifest::new();
+    for (kind, file_name) in [
+        (ALPHATEX_OBJECT_KIND, ALPHATEX_OBJECT_FILE_NAME),
+        (IMAGE_ARTIFACT_KIND, IMAGE_ARTIFACT_FILE_NAME),
+        (LEGACY_AUDIO_ARTIFACT_KIND, WAV_ARTIFACT_FILE_NAME),
+        (MIDI_ARTIFACT_KIND, MIDI_ARTIFACT_FILE_NAME),
+    ] {
+        objects.insert(kind.to_string(), make_missing_artifact(file_name));
+    }
+    objects
+}
+
+fn ensure_default_subsample_objects(objects: &mut SubsampleObjectsManifest) {
+    if !objects.contains_key(LEGACY_AUDIO_ARTIFACT_KIND) {
+        if let Some(legacy_audio) = objects.get(WAV_ARTIFACT_KIND).cloned() {
+            objects.insert(LEGACY_AUDIO_ARTIFACT_KIND.to_string(), legacy_audio);
+        }
+    }
+
+    for (kind, file_name) in [
+        (ALPHATEX_OBJECT_KIND, ALPHATEX_OBJECT_FILE_NAME),
+        (IMAGE_ARTIFACT_KIND, IMAGE_ARTIFACT_FILE_NAME),
+        (LEGACY_AUDIO_ARTIFACT_KIND, WAV_ARTIFACT_FILE_NAME),
+        (MIDI_ARTIFACT_KIND, MIDI_ARTIFACT_FILE_NAME),
+    ] {
+        objects
+            .entry(kind.to_string())
+            .or_insert_with(|| make_missing_artifact(file_name));
+    }
+}
+
 fn normalize_sample_manifest(manifest: &mut SampleManifest) {
-    ensure_default_artifacts(&mut manifest.artifacts);
+    let mut migrated_legacy_objects: Option<SubsampleObjectsManifest> = None;
+    if let Some(legacy_artifacts) = manifest.artifacts.take() {
+        let mut normalized_legacy = legacy_artifacts;
+        ensure_default_artifacts(&mut normalized_legacy);
+        let mut objects = make_default_subsample_objects();
+        if let Some(item) = normalized_legacy.get(ALPHATEX_OBJECT_KIND).cloned() {
+            objects.insert(ALPHATEX_OBJECT_KIND.to_string(), item);
+        }
+        if let Some(item) = normalized_legacy.get(IMAGE_ARTIFACT_KIND).cloned() {
+            objects.insert(IMAGE_ARTIFACT_KIND.to_string(), item);
+        }
+        if let Some(item) = normalized_legacy.get(WAV_ARTIFACT_KIND).cloned() {
+            objects.insert(LEGACY_AUDIO_ARTIFACT_KIND.to_string(), item);
+        } else if let Some(item) = normalized_legacy.get(LEGACY_AUDIO_ARTIFACT_KIND).cloned() {
+            objects.insert(LEGACY_AUDIO_ARTIFACT_KIND.to_string(), item);
+        }
+        if let Some(item) = normalized_legacy.get(MIDI_ARTIFACT_KIND).cloned() {
+            objects.insert(MIDI_ARTIFACT_KIND.to_string(), item);
+        }
+        ensure_default_subsample_objects(&mut objects);
+        migrated_legacy_objects = Some(objects);
+    }
+
+    if manifest.subsamples.is_empty() {
+        manifest.subsamples = vec![SubsampleManifest {
+            id: DEFAULT_SUBSAMPLE_ID.to_string(),
+            title: None,
+            objects: migrated_legacy_objects
+                .clone()
+                .unwrap_or_else(make_default_subsample_objects),
+            created_at: manifest.created_at,
+            updated_at: manifest.updated_at,
+        }];
+    } else if let Some(migrated_objects) = migrated_legacy_objects {
+        if let Some(first_subsample) = manifest.subsamples.first_mut() {
+            ensure_default_subsample_objects(&mut first_subsample.objects);
+            for (kind, migrated_object) in migrated_objects {
+                let should_apply = first_subsample
+                    .objects
+                    .get(&kind)
+                    .map(|current| matches!(current.state, ArtifactState::Missing))
+                    .unwrap_or(true);
+                if should_apply {
+                    first_subsample.objects.insert(kind, migrated_object);
+                }
+            }
+        }
+    }
+
+    for (idx, subsample) in manifest.subsamples.iter_mut().enumerate() {
+        if subsample.id.trim().is_empty() {
+            subsample.id = format!("{DEFAULT_SUBSAMPLE_ID}-{}", idx + 1);
+        }
+        ensure_default_subsample_objects(&mut subsample.objects);
+    }
+
+    // Never write legacy field after normalization.
+    manifest.artifacts = None;
 }
 
 fn read_required_json<T: for<'de> Deserialize<'de>>(
@@ -565,11 +695,16 @@ fn load_sample_manifest(
 ) -> Result<SampleManifest, String> {
     let validated_dataset_id = validate_child_name(dataset_id)?;
     let validated_sample_id = validate_child_name(sample_id)?;
+    let manifest_path = sample_manifest_path(repo_root, &validated_dataset_id, &validated_sample_id);
     let mut manifest: SampleManifest = read_required_json(
-        &sample_manifest_path(repo_root, &validated_dataset_id, &validated_sample_id),
+        &manifest_path,
         "sample-not-found",
     )?;
+    let needs_persist = manifest.artifacts.is_some() || manifest.subsamples.is_empty();
     normalize_sample_manifest(&mut manifest);
+    if needs_persist {
+        write_json_file(&manifest_path, &manifest)?;
+    }
     Ok(manifest)
 }
 
@@ -582,7 +717,7 @@ fn sample_summary_from_manifest(manifest: SampleManifest) -> SampleSummary {
         review_notes: manifest.review_notes,
         metadata: manifest.metadata,
         source: manifest.source,
-        artifacts: manifest.artifacts,
+        subsamples: manifest.subsamples,
         created_at: manifest.created_at,
         updated_at: manifest.updated_at,
     }
@@ -605,11 +740,15 @@ fn list_sample_manifests(
             continue;
         }
 
-        let mut sample_manifest: SampleManifest = read_required_json(
-            &entry.path().join(SAMPLE_MANIFEST_FILE_NAME),
-            "sample-not-found",
-        )?;
+        let manifest_path = entry.path().join(SAMPLE_MANIFEST_FILE_NAME);
+        let mut sample_manifest: SampleManifest =
+            read_required_json(&manifest_path, "sample-not-found")?;
+        let needs_persist =
+            sample_manifest.artifacts.is_some() || sample_manifest.subsamples.is_empty();
         normalize_sample_manifest(&mut sample_manifest);
+        if needs_persist {
+            write_json_file(&manifest_path, &sample_manifest)?;
+        }
         manifests.push(sample_manifest);
     }
 
@@ -776,7 +915,14 @@ fn create_sample_impl(
             text_hash: hash_text(&source_text),
             updated_at: timestamp,
         },
-        artifacts: make_default_artifacts(),
+        subsamples: vec![SubsampleManifest {
+            id: DEFAULT_SUBSAMPLE_ID.to_string(),
+            title: None,
+            objects: make_default_subsample_objects(),
+            created_at: timestamp,
+            updated_at: timestamp,
+        }],
+        artifacts: None,
         created_at: timestamp,
         updated_at: timestamp,
     };
@@ -835,9 +981,12 @@ fn save_sample_source_impl(
     let next_source_hash = hash_text(&source_text);
     sample.source.text_hash = next_source_hash.clone();
     sample.source.updated_at = timestamp;
-    ensure_default_artifacts(&mut sample.artifacts);
-    for artifact in sample.artifacts.values_mut() {
-        invalidate_artifact_for_source(artifact, &next_source_hash);
+    for subsample in sample.subsamples.iter_mut() {
+        ensure_default_subsample_objects(&mut subsample.objects);
+        for object in subsample.objects.values_mut() {
+            invalidate_artifact_for_source(object, &next_source_hash);
+        }
+        subsample.updated_at = timestamp;
     }
     sample.updated_at = timestamp;
 
@@ -856,29 +1005,42 @@ fn save_sample_artifact_impl(
     repo_root: &Path,
     dataset_id: &str,
     sample_id: &str,
-    artifact_kind: &str,
+    subsample_id: &str,
+    object_kind: &str,
     target_file_name: &str,
     bytes: Vec<u8>,
 ) -> Result<LoadedSample, String> {
     let mut sample = load_sample_manifest(repo_root, dataset_id, sample_id)?;
-    let normalized_artifact_kind = normalize_artifact_kind(artifact_kind)?;
+    let normalized_subsample_id = normalize_subsample_id(subsample_id)?;
+    let normalized_object_kind = normalize_subsample_object_kind(object_kind)?;
     let normalized_file_name = normalize_artifact_file_name(target_file_name)?;
+    let scoped_file_name = normalize_artifact_file_name(&make_subsample_scoped_file_name(
+        &normalized_subsample_id,
+        &normalized_file_name,
+    ))?;
+
+    let subsample = sample
+        .subsamples
+        .iter_mut()
+        .find(|item| item.id == normalized_subsample_id)
+        .ok_or_else(|| "subsample-not-found".to_string())?;
+    ensure_default_subsample_objects(&mut subsample.objects);
 
     let artifact_path =
-        sample_dir(repo_root, &sample.dataset_id, &sample.id).join(&normalized_file_name);
+        sample_dir(repo_root, &sample.dataset_id, &sample.id).join(&scoped_file_name);
     write_binary_file(&artifact_path, &bytes)?;
 
     let timestamp = now_ms();
     let source_hash = sample.source.text_hash.clone();
-    ensure_default_artifacts(&mut sample.artifacts);
-    let artifact = sample
-        .artifacts
-        .entry(normalized_artifact_kind)
-        .or_insert_with(|| make_missing_artifact(&normalized_file_name));
-    artifact.file_name = normalized_file_name;
-    artifact.state = ArtifactState::Ready;
-    artifact.source_hash = Some(source_hash);
-    artifact.updated_at = Some(timestamp);
+    let object = subsample
+        .objects
+        .entry(normalized_object_kind)
+        .or_insert_with(|| make_missing_artifact(&scoped_file_name));
+    object.file_name = scoped_file_name;
+    object.state = ArtifactState::Ready;
+    object.source_hash = Some(source_hash);
+    object.updated_at = Some(timestamp);
+    subsample.updated_at = timestamp;
     sample.updated_at = timestamp;
 
     write_json_file(
@@ -889,6 +1051,60 @@ fn save_sample_artifact_impl(
     let source_text = read_required_text(
         &sample_source_path(repo_root, &sample.dataset_id, &sample.id),
         "sample-source-not-found",
+    )?;
+
+    Ok(LoadedSample {
+        sample,
+        source_text,
+    })
+}
+
+fn create_subsample_impl(
+    repo_root: &Path,
+    dataset_id: &str,
+    sample_id: &str,
+    input: CreateSubsampleInput,
+) -> Result<LoadedSample, String> {
+    let mut sample = load_sample_manifest(repo_root, dataset_id, sample_id)?;
+    let source_text = read_required_text(
+        &sample_source_path(repo_root, &sample.dataset_id, &sample.id),
+        "sample-source-not-found",
+    )?;
+    let timestamp = now_ms();
+
+    let base_id = input
+        .id
+        .as_ref()
+        .map(|v| normalize_subsample_id(v))
+        .transpose()?
+        .unwrap_or_else(|| DEFAULT_SUBSAMPLE_ID.to_string());
+
+    let mut next_id = base_id.clone();
+    if sample.subsamples.iter().any(|item| item.id == next_id) {
+        for suffix in 2..=4096 {
+            let candidate = format!("{base_id}-{suffix}");
+            if !sample.subsamples.iter().any(|item| item.id == candidate) {
+                next_id = candidate;
+                break;
+            }
+        }
+        if sample.subsamples.iter().any(|item| item.id == next_id) {
+            return Err("subsample-already-exists".to_string());
+        }
+    }
+
+    sample.subsamples.push(SubsampleManifest {
+        id: next_id,
+        title: normalize_optional_text(input.title),
+        objects: make_default_subsample_objects(),
+        created_at: timestamp,
+        updated_at: timestamp,
+    });
+    sample.updated_at = timestamp;
+
+    write_json_file(
+        &sample_manifest_path(repo_root, &sample.dataset_id, &sample.id),
+        &sample,
     )?;
 
     Ok(LoadedSample {
@@ -967,7 +1183,7 @@ fn export_dataset_jsonl_impl(
                 text: source_text,
                 text_hash: sample.source.text_hash.clone(),
             },
-            artifacts: sample.artifacts.clone(),
+            subsamples: sample.subsamples.clone(),
         });
     }
 
@@ -1181,7 +1397,8 @@ pub(crate) fn save_sample_artifact(
     repo_path: String,
     dataset_id: String,
     sample_id: String,
-    artifact_kind: String,
+    subsample_id: String,
+    object_kind: String,
     target_file_name: String,
     bytes: Vec<u8>,
 ) -> DatasetCommandResponse<LoadedSample> {
@@ -1200,10 +1417,43 @@ pub(crate) fn save_sample_artifact(
         &repo_root,
         &dataset_id,
         &sample_id,
-        &artifact_kind,
+        &subsample_id,
+        &object_kind,
         &target_file_name,
         bytes,
     ) {
+        Ok(data) => DatasetCommandResponse {
+            success: true,
+            data: Some(data),
+            error: None,
+        },
+        Err(error) => DatasetCommandResponse {
+            success: false,
+            data: None,
+            error: Some(error),
+        },
+    }
+}
+
+#[tauri::command]
+pub(crate) fn create_subsample(
+    repo_path: String,
+    dataset_id: String,
+    sample_id: String,
+    input: CreateSubsampleInput,
+) -> DatasetCommandResponse<LoadedSample> {
+    let repo_root = match authorize_repo_root(&repo_path) {
+        Ok(value) => value,
+        Err(error) => {
+            return DatasetCommandResponse {
+                success: false,
+                data: None,
+                error: Some(error),
+            };
+        }
+    };
+
+    match create_subsample_impl(&repo_root, &dataset_id, &sample_id, input) {
         Ok(data) => DatasetCommandResponse {
             success: true,
             data: Some(data),

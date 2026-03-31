@@ -19,6 +19,7 @@ import {
 import {
 	type CreateDatasetInput,
 	type CreateSampleInput,
+	type CreateSubsampleInput,
 	type DatasetExportResult,
 	type DatasetListEntry,
 	type DatasetManifest,
@@ -26,6 +27,7 @@ import {
 	normalizeLoadedDataset,
 	normalizeLoadedSample,
 	normalizeSampleManifest,
+	normalizeSampleSubsamples,
 	normalizeSampleSummary,
 	type SampleManifest,
 	type SampleSummary,
@@ -573,6 +575,7 @@ interface AppState {
 	datasetActive: DatasetManifest | null;
 	datasetSamples: SampleSummary[];
 	datasetActiveSampleId: string | null;
+	datasetActiveSubsampleId: string | null;
 	datasetActiveSample: SampleManifest | null;
 	datasetSampleLoading: boolean;
 	datasetSourceText: string;
@@ -586,7 +589,9 @@ interface AppState {
 	createDataset: (input: CreateDatasetInput) => Promise<boolean>;
 	loadDataset: (datasetId: string) => Promise<boolean>;
 	createSample: (input: CreateSampleInput) => Promise<boolean>;
+	createDatasetSubsample: (input: CreateSubsampleInput) => Promise<boolean>;
 	loadSample: (sampleId: string) => Promise<boolean>;
+	selectDatasetSubsample: (subsampleId: string) => void;
 	clearDatasetActiveSample: () => void;
 	setDatasetSourceText: (sourceText: string) => void;
 	saveDatasetSampleSource: () => Promise<boolean>;
@@ -774,10 +779,16 @@ function toSampleSummary(sample: SampleManifest): SampleSummary {
 		reviewNotes: normalizedSample.reviewNotes,
 		metadata: normalizedSample.metadata,
 		source: normalizedSample.source,
-		artifacts: normalizedSample.artifacts,
+		subsamples: normalizedSample.subsamples,
 		createdAt: normalizedSample.createdAt,
 		updatedAt: normalizedSample.updatedAt,
 	};
+}
+
+function getFirstSubsampleId(sample: SampleManifest | null | undefined): string | null {
+	if (!sample) return null;
+	const subsamples = normalizeSampleSubsamples(sample.subsamples);
+	return subsamples[0]?.id ?? null;
 }
 
 function sortSampleSummaries(samples: SampleSummary[]): SampleSummary[] {
@@ -852,6 +863,7 @@ function createInitialDatasetState() {
 		datasetActive: null as DatasetManifest | null,
 		datasetSamples: [] as SampleSummary[],
 		datasetActiveSampleId: null as string | null,
+		datasetActiveSubsampleId: null as string | null,
 		datasetActiveSample: null as SampleManifest | null,
 		datasetSampleLoading: false,
 		datasetSourceText: "",
@@ -901,6 +913,7 @@ interface WorkspaceSessionSnapshot {
 	tutorialAudience: AppState["tutorialAudience"];
 	datasetActiveId: string | null;
 	datasetActiveSampleId: string | null;
+	datasetActiveSubsampleId: string | null;
 }
 
 function scheduleSaveAppState() {
@@ -928,6 +941,7 @@ function scheduleSaveAppState() {
 		tutorialAudience: state.tutorialAudience,
 		datasetActiveId: state.datasetActiveId,
 		datasetActiveSampleId: state.datasetActiveSampleId,
+		datasetActiveSubsampleId: state.datasetActiveSubsampleId,
 	};
 	const expandedFallback = collectExpandedFolders(state.fileTree);
 
@@ -958,6 +972,7 @@ async function saveWorkspaceSessionForRepo(
 			tutorialAudience: snapshot.tutorialAudience,
 			datasetActiveId: snapshot.datasetActiveId,
 			datasetActiveSampleId: snapshot.datasetActiveSampleId,
+			datasetActiveSubsampleId: snapshot.datasetActiveSubsampleId,
 		}));
 	} catch (error) {
 		console.error("saveWorkspaceSession failed:", error);
@@ -1078,6 +1093,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 					datasetActive: state.datasetActive,
 					datasetSamples: state.datasetSamples,
 					datasetActiveSampleId: state.datasetActiveSampleId,
+					datasetActiveSubsampleId: state.datasetActiveSubsampleId,
 					datasetActiveSample: state.datasetActiveSample,
 					datasetSampleLoading: state.datasetSampleLoading,
 					datasetSourceText: state.datasetSourceText,
@@ -1345,12 +1361,19 @@ export const useAppStore = create<AppState>((set, get) => ({
 								typeof meta.datasetActiveSampleId === "string"
 									? meta.datasetActiveSampleId
 									: null;
+							const subsampleId =
+								typeof meta.datasetActiveSubsampleId === "string"
+									? meta.datasetActiveSubsampleId
+									: null;
 
 							if (datasetId) {
 								try {
 									await get().loadDataset(datasetId);
 									if (sampleId) {
 										await get().loadSample(sampleId);
+										if (subsampleId) {
+											get().selectDatasetSubsample(subsampleId);
+										}
 									}
 								} catch (error) {
 									console.error("Failed to hydrate dataset workspace:", error);
@@ -1424,6 +1447,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 								tutorialAudience: "user",
 								datasetActiveId: null,
 								datasetActiveSampleId: null,
+								datasetActiveSubsampleId: null,
 							};
 						});
 					}
@@ -2067,6 +2091,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 					datasetActive: null,
 					datasetSamples: [],
 					datasetActiveSampleId: null,
+					datasetActiveSubsampleId: null,
 					datasetActiveSample: null,
 					datasetSampleLoading: false,
 					datasetSourceText: "",
@@ -2179,6 +2204,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 			datasetError: null,
 			datasetActiveId: datasetId,
 			datasetActiveSampleId: null,
+			datasetActiveSubsampleId: null,
 			datasetActiveSample: null,
 			datasetSampleLoading: false,
 			datasetSourceText: "",
@@ -2198,6 +2224,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 					datasetError: result.error ?? "Failed to load dataset",
 					datasetSamples: [],
 					datasetActiveSampleId: null,
+					datasetActiveSubsampleId: null,
 					datasetActiveSample: null,
 					datasetSourceText: "",
 					datasetSourceSavedText: "",
@@ -2214,6 +2241,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 				datasetActive: loadedDataset.dataset,
 				datasetSamples: sortSampleSummaries(loadedDataset.samples),
 				datasetActiveSampleId: null,
+				datasetActiveSubsampleId: null,
 				datasetActiveSample: null,
 				datasetSourceText: "",
 				datasetSourceSavedText: "",
@@ -2228,6 +2256,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 					error instanceof Error ? error.message : "Failed to load dataset",
 				datasetSamples: [],
 				datasetActiveSampleId: null,
+				datasetActiveSubsampleId: null,
 				datasetActiveSample: null,
 				datasetSourceText: "",
 				datasetSourceSavedText: "",
@@ -2302,6 +2331,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 					message: `Created sample "${loadedSample.sample.title}".`,
 				},
 				datasetActiveSampleId: loadedSample.sample.id,
+				datasetActiveSubsampleId: getFirstSubsampleId(loadedSample.sample),
 				datasetActiveSample: loadedSample.sample,
 				datasetSampleLoading: false,
 				datasetSourceText: loadedSample.sourceText,
@@ -2337,6 +2367,95 @@ export const useAppStore = create<AppState>((set, get) => ({
 			return false;
 		}
 	},
+	createDatasetSubsample: async (input) => {
+		const state = get();
+		const activeRepo = state.repos.find(
+			(repo) => repo.id === state.activeRepoId,
+		);
+		if (!activeRepo || !state.datasetActiveId || !state.datasetActiveSampleId) {
+			set({
+				datasetMutationError: "No active sample",
+				datasetFeedback: {
+					kind: "error",
+					message: "Select a sample before creating a subsample.",
+				},
+			});
+			return false;
+		}
+
+		set({
+			datasetMutationLoading: true,
+			datasetMutationError: null,
+			datasetFeedback: null,
+		});
+
+		try {
+			const result = await window.desktopAPI.createSubsample(
+				activeRepo.path,
+				state.datasetActiveId,
+				state.datasetActiveSampleId,
+				input,
+			);
+			if (!result.success || !result.data) {
+				set({
+					datasetMutationLoading: false,
+					datasetMutationError: result.error ?? "Failed to create subsample",
+					datasetFeedback: {
+						kind: "error",
+						message: result.error ?? "Failed to create subsample.",
+					},
+				});
+				return false;
+			}
+
+			const loadedSample = normalizeLoadedSample(result.data);
+			const newSubsampleId =
+				loadedSample.sample.subsamples[loadedSample.sample.subsamples.length - 1]
+					?.id ?? getFirstSubsampleId(loadedSample.sample);
+			set((current) => {
+				const nextSavedSource = loadedSample.sourceText;
+				const nextSourceText = current.datasetSourceDirty
+					? current.datasetSourceText
+					: loadedSample.sourceText;
+				const nextSourceDirty = nextSourceText !== nextSavedSource;
+				return {
+					datasetMutationLoading: false,
+					datasetMutationError: null,
+					datasetFeedback: {
+						kind: "success",
+						message: "Created subsample.",
+					},
+					datasetActiveSampleId: loadedSample.sample.id,
+					datasetActiveSubsampleId: newSubsampleId,
+					datasetActiveSample: loadedSample.sample,
+					datasetSourceText: nextSourceText,
+					datasetSourceSavedText: nextSavedSource,
+					datasetSourceDirty: nextSourceDirty,
+					datasetSamples: upsertSampleSummary(
+						current.datasetSamples,
+						loadedSample.sample,
+					),
+				};
+			});
+			return true;
+		} catch (error) {
+			set({
+				datasetMutationLoading: false,
+				datasetMutationError:
+					error instanceof Error
+						? error.message
+						: "Failed to create subsample",
+				datasetFeedback: {
+					kind: "error",
+					message:
+						error instanceof Error
+							? error.message
+							: "Failed to create subsample.",
+				},
+			});
+			return false;
+		}
+	},
 	loadSample: async (sampleId) => {
 		const state = get();
 		const activeRepo = state.repos.find(
@@ -2361,6 +2480,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 				datasetMutationError: null,
 				datasetFeedback: null,
 				datasetActiveSampleId: cached.sample.id,
+				datasetActiveSubsampleId: getFirstSubsampleId(cached.sample),
 				datasetActiveSample: cached.sample,
 				datasetSourceText: cached.sourceText,
 				datasetSourceSavedText: cached.sourceText,
@@ -2380,6 +2500,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 			datasetMutationError: null,
 			datasetFeedback: null,
 			datasetActiveSampleId: sampleId,
+			datasetActiveSubsampleId: null,
 		});
 
 		try {
@@ -2433,6 +2554,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 					datasetSampleLoading: false,
 					datasetMutationError: null,
 					datasetActiveSampleId: loadedSample.sample.id,
+					datasetActiveSubsampleId: getFirstSubsampleId(loadedSample.sample),
 					datasetActiveSample: loadedSample.sample,
 					datasetSourceText: loadedSample.sourceText,
 					datasetSourceSavedText: loadedSample.sourceText,
@@ -2465,9 +2587,22 @@ export const useAppStore = create<AppState>((set, get) => ({
 			return false;
 		}
 	},
+	selectDatasetSubsample: (subsampleId) => {
+		set((state) => {
+			const sample = state.datasetActiveSample;
+			if (!sample) return {};
+			const exists = sample.subsamples.some((entry) => entry.id === subsampleId);
+			if (!exists) return {};
+			return {
+				datasetActiveSubsampleId: subsampleId,
+			};
+		});
+		scheduleSaveAppState();
+	},
 	clearDatasetActiveSample: () => {
 		set({
 			datasetActiveSampleId: null,
+			datasetActiveSubsampleId: null,
 			datasetActiveSample: null,
 			datasetSampleLoading: false,
 			datasetSourceText: "",
@@ -2578,6 +2713,13 @@ export const useAppStore = create<AppState>((set, get) => ({
 						message: "Source saved.",
 					},
 					datasetActiveSampleId: loadedSample.sample.id,
+					datasetActiveSubsampleId:
+						prev.datasetActiveSubsampleId &&
+						loadedSample.sample.subsamples.some(
+							(subsample) => subsample.id === prev.datasetActiveSubsampleId,
+						)
+							? prev.datasetActiveSubsampleId
+							: getFirstSubsampleId(loadedSample.sample),
 					datasetActiveSample: loadedSample.sample,
 					datasetSourceText: loadedSample.sourceText,
 					datasetSourceSavedText: loadedSample.sourceText,
@@ -2606,12 +2748,17 @@ export const useAppStore = create<AppState>((set, get) => ({
 		const activeRepo = state.repos.find(
 			(repo) => repo.id === state.activeRepoId,
 		);
-		if (!activeRepo || !state.datasetActiveId || !state.datasetActiveSampleId) {
+		if (
+			!activeRepo ||
+			!state.datasetActiveId ||
+			!state.datasetActiveSampleId ||
+			!state.datasetActiveSubsampleId
+		) {
 			set({
 				datasetMutationError: "No active sample",
 				datasetFeedback: {
 					kind: "error",
-					message: "Select a sample before saving an artifact.",
+					message: "Select a subsample before saving an object.",
 				},
 			});
 			return false;
@@ -2631,7 +2778,10 @@ export const useAppStore = create<AppState>((set, get) => ({
 				activeRepo.path,
 				datasetIdAtStart,
 				sampleIdAtStart,
-				input,
+				{
+					...input,
+					subsampleId: state.datasetActiveSubsampleId,
+				},
 			);
 
 			if (!result.success || !result.data) {
@@ -2675,7 +2825,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 						datasetMutationError: null,
 						datasetFeedback: {
 							kind: "success",
-							message: `Saved ${String(input.artifactKind).toUpperCase()} artifact.`,
+							message: `Saved ${String(input.objectKind).toUpperCase()} object.`,
 						},
 						datasetSamples: nextDatasetSamples,
 					};
@@ -2686,9 +2836,16 @@ export const useAppStore = create<AppState>((set, get) => ({
 					datasetMutationError: null,
 					datasetFeedback: {
 						kind: "success",
-						message: `Saved ${String(input.artifactKind).toUpperCase()} artifact.`,
+						message: `Saved ${String(input.objectKind).toUpperCase()} object.`,
 					},
 					datasetActiveSampleId: loadedSample.sample.id,
+					datasetActiveSubsampleId:
+						currentState.datasetActiveSubsampleId &&
+						loadedSample.sample.subsamples.some(
+							(subsample) => subsample.id === currentState.datasetActiveSubsampleId,
+						)
+							? currentState.datasetActiveSubsampleId
+							: getFirstSubsampleId(loadedSample.sample),
 					datasetActiveSample: loadedSample.sample,
 					datasetSourceText: loadedSample.sourceText,
 					datasetSourceSavedText: loadedSample.sourceText,
@@ -2804,6 +2961,13 @@ export const useAppStore = create<AppState>((set, get) => ({
 						message: "Sample metadata updated.",
 					},
 					datasetActiveSampleId: loadedSample.sample.id,
+					datasetActiveSubsampleId:
+						prev.datasetActiveSubsampleId &&
+						loadedSample.sample.subsamples.some(
+							(subsample) => subsample.id === prev.datasetActiveSubsampleId,
+						)
+							? prev.datasetActiveSubsampleId
+							: getFirstSubsampleId(loadedSample.sample),
 					datasetActiveSample: loadedSample.sample,
 					datasetSourceText: nextSourceText,
 					datasetSourceSavedText: nextSavedSource,

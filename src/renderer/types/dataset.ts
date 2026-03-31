@@ -23,6 +23,27 @@ export type KnownSampleArtifactKind =
 
 export type SampleArtifactKind = KnownSampleArtifactKind | (string & {});
 
+export const DEFAULT_SUBSAMPLE_ID = "subsample-1" as const;
+
+export const DEFAULT_SUBSAMPLE_OBJECT_FILES = {
+	alphatex: "score.atex",
+	image: "render.png",
+	audio: "audio.wav",
+	midi: "score.mid",
+} as const;
+
+export const KNOWN_SUBSAMPLE_OBJECT_ORDER = [
+	"alphatex",
+	"image",
+	"audio",
+	"midi",
+] as const;
+
+export type KnownSubsampleObjectKind =
+	(typeof KNOWN_SUBSAMPLE_OBJECT_ORDER)[number];
+
+export type SubsampleObjectKind = KnownSubsampleObjectKind | (string & {});
+
 export interface DatasetManifest {
 	schemaVersion: number;
 	id: string;
@@ -47,6 +68,17 @@ export interface SampleArtifactManifest {
 
 export type SampleArtifactsManifest = Record<string, SampleArtifactManifest>;
 
+export interface SubsampleManifest {
+	id: string;
+	title?: string;
+	objects: SubsampleObjectsManifest;
+	createdAt: number;
+	updatedAt: number;
+}
+
+export type SubsampleObjectManifest = SampleArtifactManifest;
+export type SubsampleObjectsManifest = Record<string, SubsampleObjectManifest>;
+
 export interface SampleSummary {
 	id: string;
 	title: string;
@@ -55,7 +87,7 @@ export interface SampleSummary {
 	reviewNotes?: string;
 	metadata?: DatasetJsonValue;
 	source: SampleSourceManifest;
-	artifacts: SampleArtifactsManifest;
+	subsamples: SubsampleManifest[];
 	createdAt: number;
 	updatedAt: number;
 }
@@ -70,7 +102,7 @@ export interface SampleManifest {
 	reviewNotes?: string;
 	metadata?: DatasetJsonValue;
 	source: SampleSourceManifest;
-	artifacts: SampleArtifactsManifest;
+	subsamples: SubsampleManifest[];
 	createdAt: number;
 	updatedAt: number;
 }
@@ -125,12 +157,28 @@ export interface DatasetExportResult {
 }
 
 export interface SaveSampleArtifactInput {
+	subsampleId: string;
+	objectKind: SubsampleObjectKind;
 	artifactKind: SampleArtifactKind;
 	targetFileName: string;
 	bytes: Uint8Array;
 }
 
+export interface CreateSubsampleInput {
+	id?: string;
+	title?: string;
+}
+
 function createMissingArtifact(fileName: string): SampleArtifactManifest {
+	return {
+		fileName,
+		state: "missing",
+	};
+}
+
+function createMissingSubsampleObject(
+	fileName: string,
+): SubsampleObjectManifest {
 	return {
 		fileName,
 		state: "missing",
@@ -159,6 +207,85 @@ export function normalizeSampleArtifacts(
 	return normalized;
 }
 
+function normalizeSubsampleObjects(
+	objects?: SubsampleObjectsManifest,
+): SubsampleObjectsManifest {
+	const normalized: SubsampleObjectsManifest = {
+		...(objects ?? {}),
+	};
+
+	if (!normalized.audio && normalized.wav) {
+		normalized.audio = { ...normalized.wav };
+	}
+
+	for (const objectKind of KNOWN_SUBSAMPLE_OBJECT_ORDER) {
+		if (!normalized[objectKind]) {
+			normalized[objectKind] = createMissingSubsampleObject(
+				DEFAULT_SUBSAMPLE_OBJECT_FILES[objectKind],
+			);
+		}
+	}
+
+	return normalized;
+}
+
+function migrateArtifactsToSubsample(
+	artifacts?: SampleArtifactsManifest,
+): SubsampleManifest {
+	const normalizedArtifacts = normalizeSampleArtifacts(artifacts);
+	const nextObjects: SubsampleObjectsManifest = {
+		alphatex:
+			normalizedArtifacts.alphatex ??
+			createMissingSubsampleObject(DEFAULT_SUBSAMPLE_OBJECT_FILES.alphatex),
+		image:
+			normalizedArtifacts.image ??
+			createMissingSubsampleObject(DEFAULT_SUBSAMPLE_OBJECT_FILES.image),
+		audio:
+			normalizedArtifacts.audio ??
+			normalizedArtifacts.wav ??
+			createMissingSubsampleObject(DEFAULT_SUBSAMPLE_OBJECT_FILES.audio),
+		midi:
+			normalizedArtifacts.midi ??
+			createMissingSubsampleObject(DEFAULT_SUBSAMPLE_OBJECT_FILES.midi),
+	};
+
+	return {
+		id: DEFAULT_SUBSAMPLE_ID,
+		objects: normalizeSubsampleObjects(nextObjects),
+		createdAt: 0,
+		updatedAt: 0,
+	};
+}
+
+export function normalizeSampleSubsamples(
+	subsamples: SubsampleManifest[] | undefined,
+	legacyArtifacts?: SampleArtifactsManifest,
+): SubsampleManifest[] {
+	if (!subsamples || subsamples.length === 0) {
+		return [migrateArtifactsToSubsample(legacyArtifacts)];
+	}
+
+	return subsamples.map((subsample, index) => ({
+		...subsample,
+		id:
+			typeof subsample.id === "string" && subsample.id.trim().length > 0
+				? subsample.id
+				: `${DEFAULT_SUBSAMPLE_ID}-${index + 1}`,
+		objects: normalizeSubsampleObjects(subsample.objects),
+	}));
+}
+
+export function getSubsampleObject(
+	subsample: SubsampleManifest | undefined,
+	objectKind: SubsampleObjectKind,
+): SubsampleObjectManifest {
+	const normalized = normalizeSubsampleObjects(subsample?.objects);
+	return (
+		normalized[objectKind] ??
+		createMissingSubsampleObject(`${String(objectKind)}.bin`)
+	);
+}
+
 export function getSampleArtifact(
 	artifacts: SampleArtifactsManifest | undefined,
 	artifactKind: SampleArtifactKind,
@@ -171,20 +298,26 @@ export function getSampleArtifact(
 }
 
 export function normalizeSampleSummary(sample: SampleSummary): SampleSummary {
+	const legacy = sample as SampleSummary & {
+		artifacts?: SampleArtifactsManifest;
+	};
 	return {
 		...sample,
 		tags: sample.tags ?? [],
-		artifacts: normalizeSampleArtifacts(sample.artifacts),
+		subsamples: normalizeSampleSubsamples(sample.subsamples, legacy.artifacts),
 	};
 }
 
 export function normalizeSampleManifest(
 	sample: SampleManifest,
 ): SampleManifest {
+	const legacy = sample as SampleManifest & {
+		artifacts?: SampleArtifactsManifest;
+	};
 	return {
 		...sample,
 		tags: sample.tags ?? [],
-		artifacts: normalizeSampleArtifacts(sample.artifacts),
+		subsamples: normalizeSampleSubsamples(sample.subsamples, legacy.artifacts),
 	};
 }
 

@@ -19,8 +19,8 @@ export function DatasetOnlyWorkspace() {
 			</div>
 
 			<div className="text-xs text-muted-foreground">
-				No sample selected. Select a sample in the sidebar to edit its source,
-				artifacts, and review metadata.
+				No sample selected. Select a sample in the sidebar to edit source,
+				subsamples, and review metadata.
 			</div>
 		</div>
 	);

@@ -3,6 +3,7 @@ import { listen } from "@tauri-apps/api/event";
 import type {
 	CreateDatasetInput,
 	CreateSampleInput,
+	CreateSubsampleInput,
 	DatasetCommandResponse,
 	DatasetExportResult,
 	DatasetListEntry,
@@ -554,6 +555,27 @@ export function createTauriDesktopAPI(): DesktopAPI {
 			}
 		},
 
+		createSubsample: async (
+			repoPath: string,
+			datasetId: string,
+			sampleId: string,
+			input: CreateSubsampleInput,
+		): Promise<DatasetCommandResponse<LoadedSample>> => {
+			try {
+				return await invokeCommand<DatasetCommandResponse<LoadedSample>>(
+					"create_subsample",
+					{
+						repo_path: repoPath,
+						dataset_id: datasetId,
+						sample_id: sampleId,
+						input,
+					},
+				);
+			} catch (error) {
+				return { success: false, error: toErrorMessage(error) };
+			}
+		},
+
 		loadSample: async (
 			repoPath: string,
 			datasetId: string,
@@ -607,7 +629,8 @@ export function createTauriDesktopAPI(): DesktopAPI {
 						repo_path: repoPath,
 						dataset_id: datasetId,
 						sample_id: sampleId,
-						artifact_kind: input.artifactKind,
+						subsample_id: input.subsampleId,
+						object_kind: input.objectKind,
 						target_file_name: input.targetFileName,
 						bytes: Array.from(input.bytes),
 					},
