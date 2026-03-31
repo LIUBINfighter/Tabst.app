@@ -49,6 +49,7 @@ export function DatasetSidebar() {
 	const datasetActive = useAppStore((s) => s.datasetActive);
 	const datasetSamples = useAppStore((s) => s.datasetSamples);
 	const datasetActiveSampleId = useAppStore((s) => s.datasetActiveSampleId);
+	const datasetSourceDirty = useAppStore((s) => s.datasetSourceDirty);
 	const datasetSampleLoading = useAppStore((s) => s.datasetSampleLoading);
 	const datasetMutationLoading = useAppStore((s) => s.datasetMutationLoading);
 	const datasetMutationError = useAppStore((s) => s.datasetMutationError);
@@ -58,6 +59,9 @@ export function DatasetSidebar() {
 	const createSample = useAppStore((s) => s.createSample);
 	const exportDatasetJsonl = useAppStore((s) => s.exportDatasetJsonl);
 	const loadSample = useAppStore((s) => s.loadSample);
+	const clearDatasetActiveSample = useAppStore(
+		(s) => s.clearDatasetActiveSample,
+	);
 	const clearDatasetFeedback = useAppStore((s) => s.clearDatasetFeedback);
 
 	const [datasetName, setDatasetName] = useState("");
@@ -507,7 +511,20 @@ export function DatasetSidebar() {
 								<button
 									type="button"
 									key={sample.id}
-									onClick={() => void loadSample(sample.id)}
+									onClick={() => {
+										if (selected) {
+											if (datasetSourceDirty) {
+												const ok = window.confirm(
+													"Discard unsaved changes and deselect this sample?",
+												);
+												if (!ok) return;
+											}
+											clearDatasetActiveSample();
+											return;
+										}
+
+										void loadSample(sample.id);
+									}}
 									disabled={datasetSampleLoading || datasetMutationLoading}
 									className={`w-full border-b border-border/40 px-2 py-1.5 text-left text-xs transition-colors last:border-b-0 ${
 										selected

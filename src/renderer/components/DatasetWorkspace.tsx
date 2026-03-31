@@ -31,6 +31,7 @@ import {
 	type SampleArtifactManifest,
 	type SampleReviewStatus,
 } from "../types/dataset";
+import { DatasetOnlyWorkspace } from "./DatasetOnlyWorkspace";
 import DatasetTopToast from "./DatasetTopToast";
 import { DatasetWavPlayer } from "./DatasetWavPlayer";
 import TopBar from "./TopBar";
@@ -184,6 +185,7 @@ export default function DatasetWorkspace({
 
 	const datasetActive = useAppStore((s) => s.datasetActive);
 	const datasetActiveSample = useAppStore((s) => s.datasetActiveSample);
+	const datasetActiveSampleId = useAppStore((s) => s.datasetActiveSampleId);
 	const datasetSourceText = useAppStore((s) => s.datasetSourceText);
 	const datasetSourceSavedText = useAppStore((s) => s.datasetSourceSavedText);
 	const datasetSourceDirty = useAppStore((s) => s.datasetSourceDirty);
@@ -1163,10 +1165,13 @@ export default function DatasetWorkspace({
 							) : null}
 
 							{!datasetActiveSample ? (
-								<div className="rounded border border-border bg-card p-4 text-sm text-muted-foreground">
-									Select a sample from the sidebar to edit source and review
-									fields.
-								</div>
+								datasetSampleLoading || datasetActiveSampleId ? (
+									<div className="rounded border border-border bg-card p-4 text-sm text-muted-foreground">
+										Loading sample...
+									</div>
+								) : (
+									<DatasetOnlyWorkspace />
+								)
 							) : (
 								<div className="rounded border border-border bg-card p-4 space-y-3">
 									<div className="flex items-center justify-between gap-2">

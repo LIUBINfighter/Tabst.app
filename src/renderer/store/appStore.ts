@@ -587,6 +587,7 @@ interface AppState {
 	loadDataset: (datasetId: string) => Promise<boolean>;
 	createSample: (input: CreateSampleInput) => Promise<boolean>;
 	loadSample: (sampleId: string) => Promise<boolean>;
+	clearDatasetActiveSample: () => void;
 	setDatasetSourceText: (sourceText: string) => void;
 	saveDatasetSampleSource: () => Promise<boolean>;
 	saveDatasetArtifact: (input: SaveSampleArtifactInput) => Promise<boolean>;
@@ -898,6 +899,8 @@ interface WorkspaceSessionSnapshot {
 	activeSettingsPageId: string | null;
 	activeTutorialId: string | null;
 	tutorialAudience: AppState["tutorialAudience"];
+	datasetActiveId: string | null;
+	datasetActiveSampleId: string | null;
 }
 
 function scheduleSaveAppState() {
@@ -923,6 +926,8 @@ function scheduleSaveAppState() {
 		activeSettingsPageId: state.activeSettingsPageId,
 		activeTutorialId: state.activeTutorialId,
 		tutorialAudience: state.tutorialAudience,
+		datasetActiveId: state.datasetActiveId,
+		datasetActiveSampleId: state.datasetActiveSampleId,
 	};
 	const expandedFallback = collectExpandedFolders(state.fileTree);
 
@@ -951,6 +956,8 @@ async function saveWorkspaceSessionForRepo(
 			activeSettingsPageId: snapshot.activeSettingsPageId,
 			activeTutorialId: snapshot.activeTutorialId,
 			tutorialAudience: snapshot.tutorialAudience,
+			datasetActiveId: snapshot.datasetActiveId,
+			datasetActiveSampleId: snapshot.datasetActiveSampleId,
 		}));
 	} catch (error) {
 		console.error("saveWorkspaceSession failed:", error);
@@ -1327,6 +1334,30 @@ export const useAppStore = create<AppState>((set, get) => ({
 							tutorialAudience: meta.tutorialAudience ?? "user",
 						});
 
+						// Dataset workspace hydration: restore last active dataset/sample
+						// only when the user was last in dataset mode.
+						if (meta.workspaceMode === "dataset") {
+							const datasetId =
+								typeof meta.datasetActiveId === "string"
+									? meta.datasetActiveId
+									: null;
+							const sampleId =
+								typeof meta.datasetActiveSampleId === "string"
+									? meta.datasetActiveSampleId
+									: null;
+
+							if (datasetId) {
+								try {
+									await get().loadDataset(datasetId);
+									if (sampleId) {
+										await get().loadSample(sampleId);
+									}
+								} catch (error) {
+									console.error("Failed to hydrate dataset workspace:", error);
+								}
+							}
+						}
+
 						if (meta.activeFilePath) {
 							const normalizedPath = normalizePathForCompare(
 								meta.activeFilePath,
@@ -1391,6 +1422,8 @@ export const useAppStore = create<AppState>((set, get) => ({
 								activeSettingsPageId: null,
 								activeTutorialId: "user-readme",
 								tutorialAudience: "user",
+								datasetActiveId: null,
+								datasetActiveSampleId: null,
 							};
 						});
 					}
@@ -2431,6 +2464,19 @@ export const useAppStore = create<AppState>((set, get) => ({
 			}
 			return false;
 		}
+	},
+	clearDatasetActiveSample: () => {
+		set({
+			datasetActiveSampleId: null,
+			datasetActiveSample: null,
+			datasetSampleLoading: false,
+			datasetSourceText: "",
+			datasetSourceSavedText: "",
+			datasetSourceDirty: false,
+			datasetMutationLoading: false,
+			datasetMutationError: null,
+			datasetFeedback: null,
+		});
 	},
 	setDatasetSourceText: (sourceText) => {
 		set((state) => ({
