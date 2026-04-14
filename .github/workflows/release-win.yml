@@ -140,7 +140,7 @@ jobs:
         shell: pwsh
 
       - name: Create or update draft release with Windows assets
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ github.ref_name }}
           name: ${{ steps.package-version.outputs.version }}
