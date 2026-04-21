@@ -1,6 +1,7 @@
 import type * as alphaTab from "@coderline/alphatab";
-import { type MutableRefObject, useEffect } from "react";
+import { type MutableRefObject, useEffect, useRef } from "react";
 import { useAppStore } from "../store/appStore";
+import { shouldSchedulePreviewReinit } from "./preview-api-lifecycle";
 
 type ApiWithThemeCleanup = alphaTab.AlphaTabApi & {
 	__unsubscribeTheme?: (() => void) | unknown;
@@ -52,13 +53,23 @@ export function usePrintPreviewApiLifecycle({
 	setReinitTrigger,
 	onBeforeDestroy,
 }: UsePrintPreviewApiLifecycleParams) {
+	const hadPrintPreviewOpenRef = useRef(false);
+
 	useEffect(() => {
 		if (showPrintPreview) {
+			hadPrintPreviewOpenRef.current = true;
 			destroyPreviewApi(apiRef, emitApiChange, onBeforeDestroy);
 			return;
 		}
 
-		if (!apiRef.current) {
+		if (
+			shouldSchedulePreviewReinit({
+				showPrintPreview,
+				hadPrintPreviewOpen: hadPrintPreviewOpenRef.current,
+				hasApi: apiRef.current !== null,
+			})
+		) {
+			hadPrintPreviewOpenRef.current = false;
 			const timer = setTimeout(() => {
 				setReinitTrigger((prev) => prev + 1);
 			}, 150);

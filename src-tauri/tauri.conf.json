@@ -47,7 +47,7 @@
 				"worker-src": "'self' blob: http://127.0.0.1:7777"
 			}
 		},
-		"withGlobalTauri": false
+		"withGlobalTauri": true
 	},
 	"bundle": {
 		"active": true,
