@@ -8,6 +8,11 @@ function readJson(relativePath) {
 	return JSON.parse(fs.readFileSync(filePath, "utf8"));
 }
 
+function readText(relativePath) {
+	const filePath = path.join(root, relativePath);
+	return fs.readFileSync(filePath, "utf8");
+}
+
 function ensure(condition, message) {
 	if (!condition) {
 		throw new Error(message);
@@ -84,12 +89,15 @@ function main() {
 	const tauriConfig = readJson("src-tauri/tauri.conf.json");
 	const mainCapability = readJson("src-tauri/capabilities/default.json");
 	const printCapability = readJson("src-tauri/capabilities/print.json");
+	const cargoToml = readText("src-tauri/Cargo.toml");
+	const tauriEntry = readText("src-tauri/src/lib.rs");
 
 	verifyCspObject("app.security.csp", tauriConfig.app?.security?.csp);
 	verifyCspObject("app.security.devCsp", tauriConfig.app?.security?.devCsp, {
 		allowDevEval: true,
 		requireDevHost: true,
 	});
+	ensure(tauriConfig.app?.withGlobalTauri === true, "app.withGlobalTauri must be enabled for Tauri MCP bridge");
 
 	verifyCapability("main-capability", mainCapability, {
 		windows: ["main"],
@@ -97,6 +105,7 @@ function main() {
 			"core:default",
 			"core:webview:allow-create-webview-window",
 			"core:window:allow-create",
+			"mcp-bridge:default",
 		],
 		mustExclude: ["core:webview:allow-print"],
 	});
@@ -106,6 +115,14 @@ function main() {
 		mustInclude: ["core:default", "core:webview:allow-print"],
 		mustExclude: ["core:webview:allow-create-webview-window", "core:window:allow-create"],
 	});
+	ensure(
+		cargoToml.includes('tauri-plugin-mcp-bridge = "0.10"'),
+		"src-tauri/Cargo.toml must declare tauri-plugin-mcp-bridge",
+	);
+	ensure(
+		tauriEntry.includes("tauri_plugin_mcp_bridge::init()"),
+		"src-tauri/src/lib.rs must register tauri_plugin_mcp_bridge::init()",
+	);
 
 	console.log("Tauri security configuration verified.");
 }
