@@ -10,10 +10,6 @@ import {
 } from "react";
 import { useTranslation } from "react-i18next";
 import {
-	destroyPreviewApi,
-	usePrintPreviewApiLifecycle,
-} from "../hooks/usePreviewApiLifecycle";
-import {
 	getCountInVolume,
 	resolvePreviewPlayerState,
 } from "../hooks/preview-count-in";
@@ -21,6 +17,10 @@ import {
 	captureTrackConfigForRebuild,
 	shouldStartThemeRebuild,
 } from "../hooks/preview-session-controller";
+import {
+	destroyPreviewApi,
+	usePrintPreviewApiLifecycle,
+} from "../hooks/usePreviewApiLifecycle";
 import { usePreviewBarHighlight } from "../hooks/usePreviewBarHighlight";
 import { usePreviewErrorRecovery } from "../hooks/usePreviewErrorRecovery";
 import { usePreviewEventBindings } from "../hooks/usePreviewEventBindings";
@@ -1870,8 +1870,9 @@ export default function Preview({
 						void (async () => {
 							try {
 								// 保存当前的 tracks 配置
-								const trackConfigSnapshot =
-									captureTrackConfigForRebuild(apiRef.current);
+								const trackConfigSnapshot = captureTrackConfigForRebuild(
+									apiRef.current,
+								);
 								if (trackConfigSnapshot) {
 									trackConfigRef.current = trackConfigSnapshot;
 									// Saved tracks config before rebuild
@@ -1888,13 +1889,16 @@ export default function Preview({
 								const newColors = getAlphaTabColorsForTheme();
 
 								// 使用工具函数重新创建 API 配置
-								const newSettings = createPreviewSettings(urls as ResourceUrls, {
-									scale: getEffectivePreviewScale(zoomRef.current),
-									scrollElement:
-										(scrollHostRef.current as HTMLElement | null) ?? scrollEl,
-									enablePlayer: !editorHasFocusRef.current,
-									colors: newColors,
-								});
+								const newSettings = createPreviewSettings(
+									urls as ResourceUrls,
+									{
+										scale: getEffectivePreviewScale(zoomRef.current),
+										scrollElement:
+											(scrollHostRef.current as HTMLElement | null) ?? scrollEl,
+										enablePlayer: !editorHasFocusRef.current,
+										colors: newColors,
+									},
+								);
 
 								// 创建新的 API
 								apiRef.current = new alphaTab.AlphaTabApi(el, newSettings);
@@ -1910,10 +1914,10 @@ export default function Preview({
 									apiRef.current.playbackSpeed = playbackSpeedRef.current;
 									apiRef.current.masterVolume = masterVolumeRef.current;
 									apiRef.current.metronomeVolume = metronomeVolumeRef.current;
-										apiRef.current.countInVolume = getCountInVolume({
-											countInEnabled: countInEnabledRef.current,
-											metronomeVolume: metronomeVolumeRef.current,
-										});
+									apiRef.current.countInVolume = getCountInVolume({
+										countInEnabled: countInEnabledRef.current,
+										metronomeVolume: metronomeVolumeRef.current,
+									});
 								} catch {
 									// Failed to reapply speed/metronome after rebuild
 								}

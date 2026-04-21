@@ -12,17 +12,19 @@ type SuppressOptions = {
 	message: string;
 };
 
-const FONT_WARNING_PATTERN = /^Could not load font '([^']+)' within \d+ seconds$/;
+const FONT_WARNING_PATTERN =
+	/^Could not load font '([^']+)' within \d+ seconds$/;
 
-export function parseAlphaTabFontWarningFamily(
-	message: string,
-): string | null {
+export function parseAlphaTabFontWarningFamily(message: string): string | null {
 	const match = FONT_WARNING_PATTERN.exec(message.trim());
 	return match?.[1] ?? null;
 }
 
 function defaultCheckFontAvailable(family: string): boolean {
-	if (typeof document === "undefined" || typeof document.fonts?.check !== "function") {
+	if (
+		typeof document === "undefined" ||
+		typeof document.fonts?.check !== "function"
+	) {
 		return false;
 	}
 
