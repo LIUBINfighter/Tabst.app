@@ -9,6 +9,7 @@ import {
 	getAlphaTabColorsForTheme,
 	updateAlphaTabColorsForTheme,
 } from "@/renderer/lib/themeManager";
+import { useAppStore } from "@/renderer/store/appStore";
 
 interface TutorialPlaygroundPreviewProps {
 	content: string;
@@ -27,6 +28,7 @@ export function TutorialPlaygroundPreview({
 	const apiRef = useRef<alphaTab.AlphaTabApi | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const [loading, setLoading] = useState(true);
+	const resourceAssetOverrides = useAppStore((s) => s.resourceAssetOverrides);
 
 	useEffect(() => {
 		let destroyed = false;
@@ -37,7 +39,7 @@ export function TutorialPlaygroundPreview({
 			setLoading(true);
 			setError(null);
 
-			const urls = await getResourceUrls();
+			const urls = await getResourceUrls(resourceAssetOverrides);
 			const colors = getAlphaTabColorsForTheme();
 			const settings = createPreviewSettings(urls, {
 				scale: 0.6,
@@ -77,7 +79,7 @@ export function TutorialPlaygroundPreview({
 			apiRef.current = null;
 			onApiChange?.(null);
 		};
-	}, [content, onApiChange]);
+	}, [content, onApiChange, resourceAssetOverrides]);
 
 	useEffect(() => {
 		const api = apiRef.current;

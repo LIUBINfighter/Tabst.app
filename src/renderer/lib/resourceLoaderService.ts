@@ -5,6 +5,11 @@ export interface ResourceUrls {
 	soundFontUrl: string;
 }
 
+export interface ResourceUrlOverrides {
+	bravuraFontUrl?: string;
+	soundFontUrl?: string;
+}
+
 const DOCUMENT_PATH_EXTENSIONS = new Set([
 	"html",
 	"htm",
@@ -46,13 +51,30 @@ function toBaseWithTrailingSlash(base: string): string {
 	return base.endsWith("/") ? base : `${base}/`;
 }
 
+function isAbsoluteResourceUrl(value: string): boolean {
+	return (
+		/^(?:[a-z][a-z\d+\-.]*:)?\/\//i.test(value) ||
+		/^[a-z][a-z\d+\-.]*:/i.test(value)
+	);
+}
+
+function normalizeAssetPath(value: string): string {
+	const trimmed = value.trim();
+	if (trimmed.length === 0) return trimmed;
+	return trimmed.replace(/^\/+/, "");
+}
+
 /**
  * 获取所有 AlphaTab 资源 URL
  * 自动区分开发环境和打包环境，生成正确的资源 URL
  */
-export async function getResourceUrls(): Promise<ResourceUrls> {
-	const buildPublicAssetUrl = (fileName: string): string => {
-		const assetPath = `assets/${fileName}`.replace(/\/{2,}/g, "/");
+export async function getResourceUrls(
+	overrides?: ResourceUrlOverrides,
+): Promise<ResourceUrls> {
+	const buildAssetUrl = (assetPathInput: string): string => {
+		const assetPath = assetPathInput
+			.replace(/^\/+/, "")
+			.replace(/\/{2,}/g, "/");
 
 		// 获取当前页面 URL
 		if (typeof window === "undefined" || !window.location?.href) {
@@ -124,15 +146,42 @@ export async function getResourceUrls(): Promise<ResourceUrls> {
 		}
 	};
 
-	const workerUrl = buildPublicAssetUrl("alphaTab.min.js");
-	const bravuraFontUrl = buildPublicAssetUrl("Bravura.woff2");
-	const soundFontUrl = buildPublicAssetUrl("sonivox.sf3");
+	const resolveOverrideUrl = (value: string): string => {
+		if (typeof window === "undefined" || !window.location?.href) {
+			return value;
+		}
 
-	// 获取字体目录：需要移除文件名部分
-	// 例如：file:///path/dist/assets/Bravura.woff2 → file:///path/dist/assets/
-	const bravuraFontDirectory = bravuraFontUrl.substring(
+		const normalizedValue = value.trim();
+		if (normalizedValue.length === 0) return normalizedValue;
+		if (isAbsoluteResourceUrl(normalizedValue)) return normalizedValue;
+
+		const normalizedAssetPath = normalizeAssetPath(normalizedValue);
+		try {
+			return buildAssetUrl(normalizedAssetPath);
+		} catch {
+			return normalizedValue;
+		}
+	};
+
+	const workerUrl = buildAssetUrl("assets/alphaTab.min.js");
+	const defaultBravuraFontUrl = buildAssetUrl("assets/Bravura.woff2");
+	const defaultSoundFontUrl = buildAssetUrl("assets/sonivox.sf3");
+	const bravuraFontUrl =
+		typeof overrides?.bravuraFontUrl === "string" &&
+		overrides.bravuraFontUrl.trim().length > 0
+			? resolveOverrideUrl(overrides.bravuraFontUrl)
+			: defaultBravuraFontUrl;
+	const soundFontUrl =
+		typeof overrides?.soundFontUrl === "string" &&
+		overrides.soundFontUrl.trim().length > 0
+			? resolveOverrideUrl(overrides.soundFontUrl)
+			: defaultSoundFontUrl;
+
+	// Keep alphaTab core fontDirectory on default assets path.
+	// Some internal resources still assume the bundled Bravura directory layout.
+	const bravuraFontDirectory = defaultBravuraFontUrl.substring(
 		0,
-		bravuraFontUrl.lastIndexOf("/") + 1,
+		defaultBravuraFontUrl.lastIndexOf("/") + 1,
 	);
 
 	// 开发环境日志
