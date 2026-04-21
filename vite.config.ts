@@ -15,6 +15,9 @@ const tauriDevHost = process.env.TAURI_DEV_HOST;
 const isTauriBuild = Boolean(process.env.TAURI_ENV_PLATFORM);
 const tauriBuildTarget =
 	process.env.TAURI_ENV_PLATFORM === "windows" ? "chrome105" : "safari13";
+const EXCLUDED_BUNDLED_PUBLIC_FILES = [
+	"assets/soundfonts/sgm-v2-01/SGM-V2.01.sf2",
+];
 
 // Plugin to copy docs (README.md, ROADMAP.md) from root to public/docs
 const copyDocsPlugin = () => {
@@ -53,10 +56,27 @@ const copyDocsPlugin = () => {
 	};
 };
 
+const excludeHeavyAssetsFromBundlePlugin = () => {
+	return {
+		name: "exclude-heavy-assets-from-bundle",
+		closeBundle() {
+			const distRoot = path.join(__dirname, "dist");
+			for (const relativePath of EXCLUDED_BUNDLED_PUBLIC_FILES) {
+				const targetPath = path.join(distRoot, relativePath);
+				if (fs.existsSync(targetPath)) {
+					fs.unlinkSync(targetPath);
+					console.info(`[exclude-heavy-assets] removed ${relativePath}`);
+				}
+			}
+		},
+	};
+};
+
 export default defineConfig({
 	clearScreen: false,
 	plugins: [
 		copyDocsPlugin(),
+		excludeHeavyAssetsFromBundlePlugin(),
 		react(),
 		mdx({
 			remarkPlugins: [remarkGfm],

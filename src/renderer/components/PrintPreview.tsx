@@ -29,6 +29,7 @@ import {
 } from "../lib/print-window";
 import type { ResourceUrls } from "../lib/resourceLoaderService";
 import { getResourceUrls } from "../lib/resourceLoaderService";
+import { useAppStore } from "../store/appStore";
 import { PrintTracksPanel } from "./PrintTracksPanel";
 import TopBar from "./TopBar";
 import { Button } from "./ui/button";
@@ -64,6 +65,7 @@ export default function PrintPreview({
 }: PrintPreviewProps) {
 	const { t } = useTranslation("print");
 	const fileName = fileNameProp ?? t("defaultFileName");
+	const resourceAssetOverrides = useAppStore((s) => s.resourceAssetOverrides);
 
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
@@ -225,7 +227,7 @@ export default function PrintPreview({
 			setIsLoading(true);
 			setError(null);
 
-			const urls = await getResourceUrls();
+			const urls = await getResourceUrls(resourceAssetOverrides);
 
 			// Use stable font URL (no longer using timestamp) and concise print font name
 			const fontUrl = urls.bravuraFontUrl;
@@ -321,7 +323,7 @@ export default function PrintPreview({
 			setError(err instanceof Error ? err.message : "Initialization failed");
 			setIsLoading(false);
 		}
-	}, [cleanContent, contentWidthPx, handlePaginate]);
+	}, [cleanContent, contentWidthPx, handlePaginate, resourceAssetOverrides]);
 
 	/**
 	 * Handle print/export PDF

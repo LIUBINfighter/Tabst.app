@@ -226,6 +226,10 @@
 		"theme": "Theme",
 		"toggleTheme": "Toggle light/dark theme",
 		"themeHint": "Theme is controlled by page class",
+		"resourceAssets": "Built-in Font and Soundfont",
+		"resourceAssetsHint": "Choose built-in playback resources. Soundfont files and licenses are stored under public/assets/soundfonts/*.",
+		"builtInFont": "Built-in music font",
+		"builtInSoundFont": "Built-in soundfont",
 		"language": "Language",
 		"languageHint": "App UI language",
 		"languageEn": "English",
@@ -251,7 +255,13 @@
 		"enableCursorBroadcast": "Enable cursor broadcast to Preview",
 		"cursorBroadcastHint": "Sync editor cursor bar position to Preview display",
 		"customPlayer": "Custom Player Controls",
-		"customPlayerHint": "Configure which player controls to show and their order"
+		"customPlayerHint": "Configure which player controls to show and their order",
+		"customAssets": "Custom Font and Soundfont",
+		"customAssetsHint": "Use custom runtime resource urls. Relative paths resolve from app root in dev and from bundled dist in desktop build.",
+		"customBravuraFontUrl": "Bravura font url",
+		"customSoundFontUrl": "Soundfont url",
+		"applyCustomAssets": "Apply and Refresh",
+		"resetCustomAssets": "Use Defaults"
 	},
 	"playerConfigurator": {
 		"dragDropArea": "Drag to reorder player components",

@@ -84,6 +84,7 @@ export function useAlphaTab(options: UseAlphaTabOptions): UseAlphaTabReturn {
 
 	const setFirstStaffOptions = useAppStore((s) => s.setFirstStaffOptions);
 	const bumpScoreVersion = useAppStore((s) => s.bumpScoreVersion);
+	const resourceAssetOverrides = useAppStore((s) => s.resourceAssetOverrides);
 
 	useEffect(() => {
 		latestContentRef.current = content ?? "";
@@ -181,7 +182,7 @@ export function useAlphaTab(options: UseAlphaTabOptions): UseAlphaTabReturn {
 				setIsLoading(true);
 				setError(null);
 
-				const urls = await getResourceUrls();
+				const urls = await getResourceUrls(resourceAssetOverrides);
 				const el = containerRef.current as HTMLElement;
 				const fallbackScrollEl = (el.parentElement ?? el) as HTMLElement;
 				const scrollEl =
@@ -326,6 +327,7 @@ export function useAlphaTab(options: UseAlphaTabOptions): UseAlphaTabReturn {
 		applyTracksConfig,
 		bumpScoreVersion,
 		reinitTrigger,
+		resourceAssetOverrides,
 		suspended,
 		themeReinitKey,
 	]);

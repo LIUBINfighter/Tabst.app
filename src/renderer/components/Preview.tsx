@@ -189,6 +189,7 @@ export default function Preview({
 		(s) => s.enableKeepAwakeDuringPlayback,
 	);
 	const editorHasFocus = useAppStore((s) => s.editorHasFocus);
+	const resourceAssetOverrides = useAppStore((s) => s.resourceAssetOverrides);
 	const _scoreVersion = useAppStore((s) => s.scoreVersion);
 	const bumpApiInstanceId = useAppStore((s) => s.bumpApiInstanceId);
 	const bumpScoreVersion = useAppStore((s) => s.bumpScoreVersion);
@@ -1797,7 +1798,7 @@ export default function Preview({
 				}
 
 				// 1. 获取所有资源 URL（自动适配 dev 和打包环境）
-				const urls = await getResourceUrls();
+				const urls = await getResourceUrls(resourceAssetOverrides);
 				currentSoundFontUrlRef.current = urls.soundFontUrl;
 				const el = containerRef.current as HTMLElement;
 				// 实际滚动容器：优先使用 scrollHostRef（overflow-auto），
@@ -2051,6 +2052,7 @@ export default function Preview({
 		setPlayerCursorIfChanged,
 		setPlayerIsPlayingIfChanged,
 		refreshPlaybackAudioPipeline,
+		resourceAssetOverrides,
 	]);
 
 	// 内容更新：仅调用 tex，不销毁 API，避免闪烁

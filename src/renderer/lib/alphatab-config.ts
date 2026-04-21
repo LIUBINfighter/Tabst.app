@@ -8,6 +8,22 @@ import * as alphaTab from "@coderline/alphatab";
 import type { ResourceUrls } from "./resourceLoaderService";
 import type { AlphaTabColors } from "./themeManager";
 
+function buildSmuflFontSources(
+	fontUrl: string,
+): Map<alphaTab.FontFileFormat, string> {
+	const normalized = fontUrl.split("?")[0].split("#")[0].toLowerCase();
+	if (normalized.endsWith(".otf")) {
+		return new Map([[alphaTab.FontFileFormat.OpenType, fontUrl]]);
+	}
+	if (normalized.endsWith(".ttf")) {
+		return new Map([[alphaTab.FontFileFormat.TrueType, fontUrl]]);
+	}
+	if (normalized.endsWith(".woff")) {
+		return new Map([[alphaTab.FontFileFormat.Woff, fontUrl]]);
+	}
+	return new Map([[alphaTab.FontFileFormat.Woff2, fontUrl]]);
+}
+
 /**
  * 预览配置选项
  */
@@ -83,6 +99,7 @@ export function createPreviewSettings(
 			tex: true,
 			scriptFile: urls.workerUrl,
 			fontDirectory: urls.bravuraFontDirectory,
+			smuflFontSources: buildSmuflFontSources(urls.bravuraFontUrl),
 		},
 		display: {
 			layoutMode: alphaTab.LayoutMode.Page,
@@ -137,10 +154,8 @@ export function createPrintSettings(
 		stretchForce = 1.0,
 	} = options;
 
-	// 使用 smuflFontSources 明确指定字体 URL
-	const printSmuflFontSources = new Map([
-		[alphaTab.FontFileFormat.Woff2, urls.bravuraFontUrl],
-	]);
+	// Use explicit SMuFL font source mapping by file extension.
+	const printSmuflFontSources = buildSmuflFontSources(urls.bravuraFontUrl);
 
 	return {
 		core: {

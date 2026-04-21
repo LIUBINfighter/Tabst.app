@@ -226,6 +226,10 @@
 		"theme": "主题",
 		"toggleTheme": "切换明暗主题",
 		"themeHint": "当前主题由页面 class 控制",
+		"resourceAssets": "内置字体与采样文件",
+		"resourceAssetsHint": "选择内置播放资源。采样文件与许可证位于 public/assets/soundfonts/* 目录。",
+		"builtInFont": "内置乐谱字体",
+		"builtInSoundFont": "内置采样文件",
 		"language": "语言",
 		"languageHint": "应用界面语言",
 		"languageEn": "English",
@@ -251,7 +255,13 @@
 		"enableCursorBroadcast": "启用光标广播到Preview",
 		"cursorBroadcastHint": "编辑器光标所在小节位置同步显示在Preview中",
 		"customPlayer": "自定义播放器控件",
-		"customPlayerHint": "配置要显示的播放器控件及其顺序"
+		"customPlayerHint": "配置要显示的播放器控件及其顺序",
+		"customAssets": "自定义字体与音色",
+		"customAssetsHint": "使用自定义运行时资源地址。相对路径在开发环境按应用根目录解析，在桌面构建中按打包后的 dist 目录解析。",
+		"customBravuraFontUrl": "Bravura 字体地址",
+		"customSoundFontUrl": "Soundfont 地址",
+		"applyCustomAssets": "应用并刷新",
+		"resetCustomAssets": "恢复默认"
 	},
 	"playerConfigurator": {
 		"dragDropArea": "拖拽重新排序播放器组件",

@@ -35,6 +35,10 @@ export interface RepoPreferences {
 	enablePlaybackProgressSeek?: boolean;
 	enableSyncScroll?: boolean;
 	enableCursorBroadcast?: boolean;
+	resourceAssetOverrides?: {
+		bravuraFontUrl?: string;
+		soundFontUrl?: string;
+	};
 	customPlayerConfig?: {
 		components: Array<{
 			type:

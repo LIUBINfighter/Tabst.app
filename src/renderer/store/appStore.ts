@@ -4,6 +4,12 @@ import i18n, { type Locale } from "../i18n";
 import { setActiveRepoContext } from "../lib/active-repo-context";
 import { extractAtDocFileMeta } from "../lib/atdoc";
 import { loadGlobalSettings, saveGlobalSettings } from "../lib/global-settings";
+import {
+	BUILT_IN_FONT_OPTIONS,
+	BUILT_IN_SOUNDFONT_OPTIONS,
+	getBuiltInFontByUrl,
+	getBuiltInSoundFontByUrl,
+} from "../lib/resource-asset-catalog";
 import { sanitizeShortcutList } from "../lib/shortcut-utils";
 import type { StaffDisplayOptions } from "../lib/staff-config";
 import {
@@ -230,6 +236,33 @@ export interface PlayerComponentConfig {
 export interface CustomPlayerConfig {
 	/** 组件顺序列表 */
 	components: PlayerComponentConfig[];
+}
+
+export interface ResourceAssetOverrides {
+	bravuraFontUrl: string;
+	soundFontUrl: string;
+}
+
+const DEFAULT_RESOURCE_ASSET_OVERRIDES: ResourceAssetOverrides = {
+	bravuraFontUrl:
+		BUILT_IN_FONT_OPTIONS[0]?.relativeUrl ?? "assets/Bravura.woff2",
+	soundFontUrl:
+		BUILT_IN_SOUNDFONT_OPTIONS[0]?.relativeUrl ?? "assets/sonivox.sf3",
+};
+
+function sanitizeResourceAssetOverrides(
+	input: Partial<ResourceAssetOverrides> | null | undefined,
+): ResourceAssetOverrides {
+	const nextFont = getBuiltInFontByUrl(input?.bravuraFontUrl ?? "");
+	const nextSoundfont = getBuiltInSoundFontByUrl(input?.soundFontUrl ?? "");
+
+	return {
+		bravuraFontUrl:
+			nextFont?.relativeUrl ?? DEFAULT_RESOURCE_ASSET_OVERRIDES.bravuraFontUrl,
+		soundFontUrl:
+			nextSoundfont?.relativeUrl ??
+			DEFAULT_RESOURCE_ASSET_OVERRIDES.soundFontUrl,
+	};
 }
 
 const DEFAULT_PLAYER_COMPONENTS: PlayerComponentConfig[] = [
@@ -493,6 +526,11 @@ interface AppState {
 	// 是否启用编辑器光标广播到Preview
 	enableCursorBroadcast: boolean;
 	setEnableCursorBroadcast: (v: boolean) => void;
+	resourceAssetOverrides: ResourceAssetOverrides;
+	setResourceAssetOverrides: (
+		overrides: Partial<ResourceAssetOverrides>,
+	) => void;
+	resetResourceAssetOverrides: () => void;
 
 	// 🆕 自定义播放器配置
 	customPlayerConfig: CustomPlayerConfig;
@@ -972,6 +1010,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 						gitCommitMessage: "",
 						gitActionLoading: false,
 						gitActionError: null,
+						resourceAssetOverrides: DEFAULT_RESOURCE_ASSET_OVERRIDES,
 					};
 					return baseState;
 				});
@@ -1035,6 +1074,16 @@ export const useAppStore = create<AppState>((set, get) => ({
 						}
 						if (typeof prefs.enableCursorBroadcast === "boolean") {
 							set({ enableCursorBroadcast: prefs.enableCursorBroadcast });
+						}
+						if (
+							prefs.resourceAssetOverrides &&
+							typeof prefs.resourceAssetOverrides === "object"
+						) {
+							set({
+								resourceAssetOverrides: sanitizeResourceAssetOverrides(
+									prefs.resourceAssetOverrides,
+								),
+							});
 						}
 						if (Array.isArray(prefs.disabledCommandIds)) {
 							set({
@@ -1392,6 +1441,21 @@ export const useAppStore = create<AppState>((set, get) => ({
 	setEnableCursorBroadcast: (v) => {
 		set({ enableCursorBroadcast: v });
 		void mergeAndSaveWorkspacePreferences({ enableCursorBroadcast: v });
+	},
+	resourceAssetOverrides: DEFAULT_RESOURCE_ASSET_OVERRIDES,
+	setResourceAssetOverrides: (overrides) => {
+		const current = get().resourceAssetOverrides;
+		const next = sanitizeResourceAssetOverrides({
+			bravuraFontUrl: overrides.bravuraFontUrl ?? current.bravuraFontUrl,
+			soundFontUrl: overrides.soundFontUrl ?? current.soundFontUrl,
+		});
+		set({ resourceAssetOverrides: next });
+		void mergeAndSaveWorkspacePreferences({ resourceAssetOverrides: next });
+	},
+	resetResourceAssetOverrides: () => {
+		const next = DEFAULT_RESOURCE_ASSET_OVERRIDES;
+		set({ resourceAssetOverrides: next });
+		void mergeAndSaveWorkspacePreferences({ resourceAssetOverrides: next });
 	},
 
 	customPlayerConfig: createDefaultCustomPlayerConfig(),
