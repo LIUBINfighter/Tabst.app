@@ -4,6 +4,7 @@ import {
 	FileMusic,
 	FileQuestion,
 	FolderOpen,
+	FolderPlus,
 	GitBranch,
 	Monitor,
 	Moon,
@@ -32,6 +33,7 @@ export function SidebarCommands({
 	onCollapse,
 	onOpenFile,
 	onNewFile,
+	onNewFolder,
 	onToggleTheme,
 	themeMode,
 }: SidebarCommandsProps) {
@@ -128,6 +130,23 @@ export function SidebarCommands({
 						</TooltipTrigger>
 						<TooltipContent side="bottom">
 							<p>{t("newAtex")}</p>
+						</TooltipContent>
+					</Tooltip>
+
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<Button
+								variant="ghost"
+								size="icon"
+								className="h-8 w-8 hover:bg-[var(--hover-bg)] hover:text-[var(--hover-text)]"
+								onClick={onNewFolder}
+							>
+								<span className="sr-only">{t("newFolder")}</span>
+								<FolderPlus className="h-4 w-4" />
+							</Button>
+						</TooltipTrigger>
+						<TooltipContent side="bottom">
+							<p>{t("newFolder")}</p>
 						</TooltipContent>
 					</Tooltip>
 				</>
