@@ -1155,9 +1155,10 @@ export default function Preview({
 			// 3. 播放进度（更新光标位置）
 			subscribe(api.playedBeatChanged, (beat: alphaTab.model.Beat | null) => {
 				if (!beat) {
-					// 播放停止/结束时回到无高亮状态（同时清除黄色小节高亮的来源）
 					useAppStore.getState().clearPlaybackHighlights();
-					setPlayerIsPlayingIfChanged(false);
+					if (!countInPendingRef.current) {
+						setPlayerIsPlayingIfChanged(false);
+					}
 					setPlaybackProgressIfChanged({
 						positionTick: 0,
 						endTick:
@@ -1168,10 +1169,12 @@ export default function Preview({
 					});
 					return;
 				}
+				if (countInPendingRef.current) {
+					return;
+				}
 				const barIndex = beat.voice?.bar?.index ?? 0;
 				const beatIndex = beat.index ?? 0;
 				useAppStore.getState().setPlaybackBeat({ barIndex, beatIndex });
-				// 🆕 同时更新播放器光标位置（暂停后保留）
 				setPlayerCursorIfChanged({ barIndex, beatIndex });
 
 				// 暂时关闭自定义播放器光标更新
@@ -1200,6 +1203,9 @@ export default function Preview({
 					currentTime?: number;
 					endTime?: number;
 				}) => {
+					if (countInPendingRef.current) {
+						return;
+					}
 					const positionTick =
 						typeof args?.currentTick === "number"
 							? args.currentTick
