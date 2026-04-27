@@ -23,6 +23,7 @@ import {
 	getPrevTutorial,
 	getTutorialDisplayTitle,
 } from "../lib/tutorial-loader";
+import { isGpFilePath } from "../lib/gp-import";
 import { shouldUseWebsiteMobileTransportOnly } from "../lib/website-layout";
 import { useAppStore } from "../store/appStore";
 import BpmStepper from "./BpmStepper";
@@ -699,7 +700,10 @@ export default function GlobalBottomBar() {
 	const activeFile = useAppStore((state) => state.getActiveFile());
 	const firstStaffOptions = useAppStore((state) => state.firstStaffOptions);
 	const requestStaffToggle = useAppStore((state) => state.requestStaffToggle);
-	const isAtexFile = activeFile?.path.endsWith(".atex") ?? false;
+	const isAtexFile =
+		activeFile?.path.endsWith(".atex") ||
+		(activeFile?.path && isGpFilePath(activeFile.path)) ||
+		false;
 
 	const playerIsPlaying = useAppStore((s) => s.playerIsPlaying);
 	const playerControls = useAppStore((s) => s.playerControls);

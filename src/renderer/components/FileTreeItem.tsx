@@ -1,6 +1,7 @@
 import {
 	ChevronDown,
 	ChevronRight,
+	FileAudio,
 	FileDown,
 	FileMusic,
 	FilePlus2,
@@ -12,6 +13,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { isGpFilePath } from "../lib/gp-import";
 import { isTemplateCandidateName } from "../lib/template-utils";
 import { useAppStore } from "../store/appStore";
 import type { FileNode } from "../types/repo";
@@ -425,6 +427,8 @@ export function FileTreeItem({
 				<FileMusic className={iconClass} />
 			) : fileExt === "md" ? (
 				<FileDown className={iconClass} />
+			) : isGpFilePath(node.name) ? (
+				<FileAudio className={iconClass} />
 			) : (
 				<FileText className={iconClass} />
 			)}

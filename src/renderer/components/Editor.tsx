@@ -33,6 +33,7 @@ import {
 	planEditorAutosaveTransition,
 	rebindEditorAutosaveRequest,
 } from "../lib/editor-autosave";
+import { isGpFilePath } from "../lib/gp-import";
 import { runUiCommand } from "../lib/ui-command-registry";
 import {
 	isWebsiteMobileLayout,
@@ -820,11 +821,34 @@ export function Editor({
 
 	// Determine language to optionally enable preview layout for .atex
 	const languageForActive = getLanguageForFile(activeFile.path);
+	const isGpFile = isGpFilePath(activeFile.path);
 
 	return (
 		<div className="flex-1 flex flex-col h-full overflow-hidden">
-			{/* If the active file is AlphaTex, render a two-column editor/preview layout */}
-			{languageForActive === "alphatex" && !hidePreview ? (
+			{isGpFile && !hidePreview ? (
+				<div className="flex-1 overflow-hidden flex">
+					<div className="w-full relative flex flex-col bg-card min-h-0 overflow-y-auto overflow-x-hidden">
+						<Preview
+							fileName={`${activeFile.name} ${t("common:preview")}`}
+							content={activeFile.content}
+							onApiChange={setPreviewApi}
+							onEnjoyToggle={() =>
+								setWorkspaceMode(workspaceMode === "enjoy" ? "editor" : "enjoy")
+							}
+							isEnjoyMode={enjoyMode}
+							mobileScoreFit={websiteMobileLayout}
+						/>
+						{enjoyMode && (
+							<TracksPanel
+								api={previewApi}
+								isOpen={isTracksPanelOpen && previewApi !== null}
+								onClose={() => setTracksPanelOpen(false)}
+								side="left"
+							/>
+						)}
+					</div>
+				</div>
+			) : /* If the active file is AlphaTex, render a two-column editor/preview layout */ languageForActive === "alphatex" && !hidePreview ? (
 				<div
 					className={`flex-1 overflow-hidden flex ${shouldStackWebsitePreview ? "flex-col" : ""}`}
 				>

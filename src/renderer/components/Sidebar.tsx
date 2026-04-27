@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useFileOperations } from "../hooks/useFileOperations";
 import { extractAtDocFileMeta } from "../lib/atdoc";
+import { isGpFilePath } from "../lib/gp-import";
 import { useTheme } from "../lib/theme-system/use-theme";
 import { useAppStore } from "../store/appStore";
 import type { DeleteBehavior, FileNode } from "../types/repo";
@@ -36,7 +37,15 @@ function flattenNodes(nodes: FileNode[]): FileNode[] {
 	return out;
 }
 
-const SIDEBAR_VISIBLE_EXTENSIONS = new Set([".atex", ".md"]);
+const SIDEBAR_VISIBLE_EXTENSIONS = new Set([
+	".atex",
+	".md",
+	".gp",
+	".gp3",
+	".gp4",
+	".gp5",
+	".gpx",
+]);
 
 function getFileExtension(fileName: string): string {
 	const lastDotIndex = fileName.lastIndexOf(".");
@@ -556,8 +565,37 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 				setActiveFile(null);
 			} else {
 				try {
-					// If this file came from a directory scan, it's likely a placeholder with empty content.
-					// Hydrate from disk on first open to avoid Editor/Preview rendering blank.
+					if (isGpFilePath(node.path)) {
+						const readResult = await window.desktopAPI.readFileBytes(
+							node.path,
+						);
+						if (readResult.error || !readResult.data) {
+							console.error(
+								"[Sidebar] Failed to read GP file:",
+								readResult.error,
+							);
+							showSidebarToast(
+								t("gpReadFailed", { name: node.name }),
+							);
+							return;
+						}
+						const { convertGpBytesToAlphaTex } = await import(
+							"../lib/gp-import"
+						);
+						const alphaTex = convertGpBytesToAlphaTex(readResult.data);
+						const gpFileId = existingFile?.id ?? node.id;
+						addFile({
+							id: gpFileId,
+							name: node.name,
+							path: node.path,
+							content: alphaTex,
+							contentLoaded: true,
+						});
+						setActiveFile(gpFileId);
+						setWorkspaceMode("editor");
+						return;
+					}
+
 					const shouldHydrate = !existingFile?.contentLoaded;
 					let content = existingFile?.content ?? "";
 					let contentLoaded = existingFile?.contentLoaded ?? false;
