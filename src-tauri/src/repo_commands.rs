@@ -92,6 +92,14 @@ fn has_supported_extension(path: &Path) -> bool {
 
 fn sort_file_nodes(nodes: &mut [FileNode]) {
     nodes.sort_by(|left, right| {
+        let left_is_folder = left.node_type == "folder";
+        let right_is_folder = right.node_type == "folder";
+        if left_is_folder && !right_is_folder {
+            return std::cmp::Ordering::Less;
+        }
+        if !left_is_folder && right_is_folder {
+            return std::cmp::Ordering::Greater;
+        }
         let left_time = left.mtime_ms.unwrap_or(0);
         let right_time = right.mtime_ms.unwrap_or(0);
         right_time

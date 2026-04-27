@@ -196,6 +196,8 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 
 	const sortTreeNodes = (nodes: FileNode[]) => {
 		nodes.sort((a, b) => {
+			if (a.type === "folder" && b.type === "file") return -1;
+			if (a.type === "file" && b.type === "folder") return 1;
 			const timeA = a.mtimeMs ?? 0;
 			const timeB = b.mtimeMs ?? 0;
 			if (timeA !== timeB) return timeB - timeA;
