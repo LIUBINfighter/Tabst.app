@@ -92,6 +92,12 @@ export interface EditorHighlightColors {
 	attribute: string;
 	variable: string;
 	bracket: string;
+	// Markdown / 富文本
+	heading?: string;
+	link?: string;
+	quote?: string;
+	list?: string;
+	emphasis?: string;
 	// 背景/修饰
 	atomBackground?: string;
 	matchBackground?: string;

@@ -33,6 +33,29 @@ export function createCMThemeFromEditorTheme(
 		{ tag: tags.attributeName, color: colors.attribute },
 		{ tag: tags.variableName, color: colors.variable },
 		{ tag: tags.bracket, color: colors.bracket },
+		{ tag: tags.heading, color: colors.heading ?? colors.keyword, fontWeight: "bold" },
+		{ tag: tags.link, color: colors.link ?? colors.function },
+		{ tag: tags.url, color: colors.string, textDecoration: "underline" },
+		{ tag: tags.quote, color: colors.quote ?? colors.comment, fontStyle: "italic" },
+		{ tag: tags.list, color: colors.list ?? colors.operator },
+		{ tag: tags.emphasis, fontStyle: "italic" },
+		{ tag: tags.strong, fontWeight: "bold" },
+		{
+			tag: tags.literal,
+			color: colors.atom,
+			...(colors.atomBackground && { backgroundColor: colors.atomBackground }),
+			borderRadius: "3px",
+		},
+		{
+			tag: tags.monospace,
+			color: colors.atom,
+			...(colors.atomBackground && { backgroundColor: colors.atomBackground }),
+			borderRadius: "3px",
+			fontFamily:
+				"var(--font-mono, ui-monospace, SFMono-Regular, SFMono, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace)",
+		},
+		{ tag: tags.meta, color: colors.keyword },
+		{ tag: tags.punctuation, color: colors.bracket },
 	]);
 
 	const themeStyles: Record<string, Record<string, string>> = {
