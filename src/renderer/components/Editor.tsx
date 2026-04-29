@@ -837,6 +837,8 @@ export function Editor({
 							}
 							isEnjoyMode={enjoyMode}
 							mobileScoreFit={websiteMobileLayout}
+							showExpandSidebar={showExpandSidebar}
+							onExpandSidebar={onExpandSidebar}
 						/>
 						{enjoyMode && (
 							<TracksPanel
@@ -848,7 +850,8 @@ export function Editor({
 						)}
 					</div>
 				</div>
-			) : /* If the active file is AlphaTex, render a two-column editor/preview layout */ languageForActive === "alphatex" && !hidePreview ? (
+			) : /* If the active file is AlphaTex, render a two-column editor/preview layout */ languageForActive ===
+					"alphatex" && !hidePreview ? (
 				<div
 					className={`flex-1 overflow-hidden flex ${shouldStackWebsitePreview ? "flex-col" : ""}`}
 				>

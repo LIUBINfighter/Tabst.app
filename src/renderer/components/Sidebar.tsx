@@ -566,17 +566,13 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 			} else {
 				try {
 					if (isGpFilePath(node.path)) {
-						const readResult = await window.desktopAPI.readFileBytes(
-							node.path,
-						);
+						const readResult = await window.desktopAPI.readFileBytes(node.path);
 						if (readResult.error || !readResult.data) {
 							console.error(
 								"[Sidebar] Failed to read GP file:",
 								readResult.error,
 							);
-							showSidebarToast(
-								t("gpReadFailed", { name: node.name }),
-							);
+							showSidebarToast(t("gpReadFailed", { name: node.name }));
 							return;
 						}
 						const { convertGpBytesToAlphaTex } = await import(

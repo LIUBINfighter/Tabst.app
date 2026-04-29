@@ -1,5 +1,5 @@
 import * as alphaTab from "@coderline/alphatab";
-import { FileText } from "lucide-react";
+import { ChevronRight, FileText } from "lucide-react";
 import {
 	lazy,
 	Suspense,
@@ -82,6 +82,7 @@ import {
 import { useAppStore } from "../store/appStore";
 import PreviewToolbar from "./PreviewToolbar";
 import TopBar from "./TopBar";
+import { Button } from "./ui/button";
 import {
 	Tooltip,
 	TooltipContent,
@@ -97,6 +98,8 @@ export interface PreviewProps {
 	onEnjoyToggle?: () => void;
 	isEnjoyMode?: boolean;
 	mobileScoreFit?: boolean;
+	showExpandSidebar?: boolean;
+	onExpandSidebar?: () => void;
 }
 
 type PlaybackProgressSnapshot = {
@@ -123,6 +126,8 @@ export default function Preview({
 	onEnjoyToggle,
 	isEnjoyMode = false,
 	mobileScoreFit = false,
+	showExpandSidebar = false,
+	onExpandSidebar,
 }: PreviewProps) {
 	const { t } = useTranslation(["common", "errors", "print", "toolbar"]);
 	const containerRef = useRef<HTMLDivElement | null>(null);
@@ -2149,6 +2154,19 @@ export default function Preview({
 					<>
 						{/* 错误提示已移到底部 */}
 						<TopBar
+							leading={
+								showExpandSidebar ? (
+									<Button
+										variant="ghost"
+										size="icon"
+										className="h-8 w-8"
+										onClick={onExpandSidebar}
+										aria-label={t("common:expandSidebar")}
+									>
+										<ChevronRight className="h-4 w-4" />
+									</Button>
+								) : undefined
+							}
 							icon={
 								<FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
 							}

@@ -18,12 +18,12 @@ import {
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { TutorialMetadata } from "../data/tutorials";
+import { isGpFilePath } from "../lib/gp-import";
 import {
 	getNextTutorial,
 	getPrevTutorial,
 	getTutorialDisplayTitle,
 } from "../lib/tutorial-loader";
-import { isGpFilePath } from "../lib/gp-import";
 import { shouldUseWebsiteMobileTransportOnly } from "../lib/website-layout";
 import { useAppStore } from "../store/appStore";
 import BpmStepper from "./BpmStepper";
