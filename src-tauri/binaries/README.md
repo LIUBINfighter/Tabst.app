@@ -1,7 +1,7 @@
 # llama.cpp sidecar binaries
 
-This directory is populated by `scripts/fetch-llama-server.sh` and should not
-store downloaded binaries in git.
+This directory backs the macOS OMR Lab llama.cpp sidecar. It is populated by
+`scripts/fetch-llama-server.sh` and should not store downloaded binaries in git.
 
 The Tauri bundle config references these files through `bundle.externalBin`, and
 the fetch/build wrappers create the platform-suffixed files that Tauri expects:
