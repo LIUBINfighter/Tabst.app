@@ -18,9 +18,9 @@ describe("getCountInVolume", () => {
 	});
 
 	it("falls back to default volume when metronome is muted", () => {
-		expect(
-			getCountInVolume({ countInEnabled: true, metronomeVolume: 0 }),
-		).toBe(0.5);
+		expect(getCountInVolume({ countInEnabled: true, metronomeVolume: 0 })).toBe(
+			0.5,
+		);
 	});
 
 	it("clamps the derived count-in volume into alphaTab's expected range", () => {
