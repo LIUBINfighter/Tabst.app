@@ -542,7 +542,7 @@ export function FileTreeItem({
 				</div>
 			)}
 
-			{!isFolder && fileExt === "md" && (
+			{!isFolder && (fileExt === "md" || isGpFilePath(node.name)) && (
 				<code
 					className={`shrink-0 font-mono bg-muted/50 px-1 rounded text-xs h-6 leading-6 select-none ${
 						isActive ? "text-[var(--highlight-text)]" : "text-muted-foreground"

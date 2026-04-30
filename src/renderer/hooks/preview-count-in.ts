@@ -21,7 +21,9 @@ export function getCountInVolume({
 	metronomeVolume,
 }: GetCountInVolumeParams): number {
 	if (!countInEnabled) return 0;
-	return Math.max(0, Math.min(1, metronomeVolume));
+	const effectiveVolume =
+		metronomeVolume === 0 ? 0.5 : metronomeVolume;
+	return Math.max(0, Math.min(1, effectiveVolume));
 }
 
 export function resolvePreviewPlayerState({
