@@ -7,6 +7,15 @@
 		"core:default",
 		"core:webview:allow-create-webview-window",
 		"core:window:allow-create",
-		"mcp-bridge:default"
+		"mcp-bridge:default",
+		{
+			"identifier": "shell:allow-execute",
+			"allow": [
+				{
+					"name": "llama-server",
+					"sidecar": true
+				}
+			]
+		}
 	]
 }
