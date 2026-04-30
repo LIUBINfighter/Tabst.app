@@ -1,5 +1,6 @@
 import {
 	Command,
+	FlaskConical,
 	Info,
 	Keyboard,
 	Map as MapIcon,
@@ -88,6 +89,16 @@ export function SettingsSidebar() {
 							case "about":
 								return (
 									<Info
+										className={`flex-none h-3.5 w-3.5 ${
+											activeSettingsPageId === p.id
+												? "text-[var(--highlight-text)]"
+												: "text-muted-foreground hover:text-[var(--hover-text)]"
+										}`}
+									/>
+								);
+							case "lab":
+								return (
+									<FlaskConical
 										className={`flex-none h-3.5 w-3.5 ${
 											activeSettingsPageId === p.id
 												? "text-[var(--highlight-text)]"

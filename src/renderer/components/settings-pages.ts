@@ -50,4 +50,9 @@ export const defaultSettingsPages: SettingsPage[] = [
 		title: "关于", // 后备值，实际使用 t("settings:about")
 		description: "应用信息与相关链接",
 	},
+	{
+		id: "lab",
+		title: "实验室",
+		description: "OMR 功能实验和测试入口",
+	},
 ];
