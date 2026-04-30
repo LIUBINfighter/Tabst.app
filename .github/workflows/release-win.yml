@@ -9,7 +9,8 @@ on:
 
 jobs:
   build-and-release:
-    name: Build and release Tauri Windows artifacts
+    name: Skipped (OMR sidecar packaging is macOS-only)
+    if: ${{ false }}
     runs-on: windows-latest
     steps:
       - name: Checkout

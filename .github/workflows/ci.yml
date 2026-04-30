@@ -45,10 +45,10 @@ jobs:
         run: pnpm lint
 
   tauri-build:
-    name: Desktop Build (unsigned CI bundle)
-    runs-on: ubuntu-latest
+    name: Desktop Build (unsigned macOS CI bundle)
+    runs-on: macos-latest
     needs: lint
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -71,16 +71,6 @@ jobs:
         with:
           workspaces: src-tauri -> target
 
-      - name: Install Tauri Linux system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libgtk-3-dev \
-            libwebkit2gtk-4.1-dev \
-            libappindicator3-dev \
-            librsvg2-dev \
-            patchelf
-
       - name: Check pnpm version
         run: pnpm -v
 
@@ -102,7 +92,7 @@ jobs:
       - name: Upload Tauri bundle artifacts
         uses: actions/upload-artifact@v7
         with:
-          name: tauri-linux-bundle-${{ github.run_id }}
+          name: tauri-macos-bundle-${{ github.run_id }}
           path: src-tauri/target/release/bundle/**/*
           if-no-files-found: error
           retention-days: 30

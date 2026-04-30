@@ -9,7 +9,8 @@ on:
 
 jobs:
   build-and-release-linux:
-    name: Build and release Tauri Linux artifacts
+    name: Skipped (OMR sidecar packaging is macOS-only)
+    if: ${{ false }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
