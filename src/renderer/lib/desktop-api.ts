@@ -26,6 +26,10 @@ const STORAGE_KEYS = {
 	globalSettings: "tabst:web:global-settings",
 };
 
+function createDesktopOnlyError(): Error {
+	return new Error("OMR Lab is only available in desktop app");
+}
+
 function safeReadJson<T>(key: string, fallback: T): T {
 	try {
 		const raw = window.localStorage.getItem(key);
@@ -180,6 +184,32 @@ async function createBrowserStoredFile(
 
 export function createWebDesktopAPI(): DesktopAPI {
 	const api: DesktopAPI = {
+		ai: {
+			getModelStatus: async () => ({
+				version: "",
+				downloaded: false,
+				downloadedBytes: 0,
+				totalBytes: 0,
+				checksumVerified: false,
+			}),
+			downloadModel: async () => {
+				throw createDesktopOnlyError();
+			},
+			transcribe: async () => {
+				throw createDesktopOnlyError();
+			},
+			getOmrResult: async () => {
+				throw createDesktopOnlyError();
+			},
+			cancelOmrJob: async () => {
+				throw createDesktopOnlyError();
+			},
+			getSidecarStatus: async () => ({ state: "stopped" }),
+			restartSidecar: async () => {
+				throw createDesktopOnlyError();
+			},
+		},
+
 		openFile: async (extensions: string[]): Promise<FileResult | null> => {
 			const accept = extensions.join(",");
 			const files = await pickTextFiles({ accept, multiple: false });
