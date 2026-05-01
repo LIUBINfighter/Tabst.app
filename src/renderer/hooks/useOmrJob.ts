@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef } from "react";
-import { validateAlphaTex } from "../lib/omr-validation";
 import { useLabStore } from "../store/labStore";
 import type { OmrOptions } from "../types/ai";
 
@@ -28,7 +27,11 @@ export function useOmrJob() {
 			const job = await window.desktopAPI.ai.getOmrResult(jobId);
 			if (job.status === "completed" && job.result) {
 				useLabStore.getState().setOmrStage("validating");
-				useLabStore.getState().completeOmr(validateAlphaTex(job.result));
+				useLabStore.getState().completeOmr({
+					...job.result,
+					diagnosticErrors: [],
+					isValidAlphaTex: false,
+				});
 				useLabStore.getState().setRuntimeHealth("healthy", null);
 				return;
 			}
@@ -80,6 +83,8 @@ export function useOmrJob() {
 					.setSidecarState(
 						sidecarStatus.state,
 						sidecarStatus.lastError ?? null,
+						sidecarStatus.resourceUsage ?? null,
+						sidecarStatus.currentJobId ?? null,
 					);
 				if (
 					sidecarStatus.state === "stopped" ||
@@ -93,6 +98,8 @@ export function useOmrJob() {
 						.setSidecarState(
 							restartedStatus.state,
 							restartedStatus.lastError ?? null,
+							restartedStatus.resourceUsage ?? null,
+							restartedStatus.currentJobId ?? null,
 						);
 				}
 

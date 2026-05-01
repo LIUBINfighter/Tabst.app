@@ -1,5 +1,10 @@
 import { create } from "zustand";
-import type { DownloadProgress, OmrResult, SidecarStatus } from "../types/ai";
+import type {
+	DownloadProgress,
+	OmrResult,
+	SidecarResourceUsage,
+	SidecarStatus,
+} from "../types/ai";
 
 type LabJobStatus =
 	| "idle"
@@ -34,6 +39,8 @@ interface LabState {
 	currentImage: string | null;
 	sidecarState: SidecarStatus["state"];
 	sidecarError: string | null;
+	sidecarResourceUsage: SidecarResourceUsage | null;
+	sidecarCurrentJobId: string | null;
 	modelVersion: string;
 	modelDownloaded: boolean;
 	downloadProgress: DownloadProgress | null;
@@ -49,6 +56,8 @@ interface LabState {
 	setSidecarState: (
 		state: SidecarStatus["state"],
 		error?: string | null,
+		resourceUsage?: SidecarResourceUsage | null,
+		currentJobId?: string | null,
 	) => void;
 	setModelStatus: (
 		downloaded: boolean,
@@ -64,6 +73,7 @@ interface LabState {
 	clearOmrFeedback: (stage?: LabOmrStage) => void;
 	startOmr: (jobId: string) => void;
 	completeOmr: (result: OmrResult) => void;
+	setOmrAlphaTexValidation: (isValid: boolean, message?: string | null) => void;
 	failOmr: (error: string) => void;
 	cancelOmr: () => void;
 	reset: () => void;
@@ -73,6 +83,8 @@ export const useLabStore = create<LabState>((set) => ({
 	currentImage: null,
 	sidecarState: "stopped",
 	sidecarError: null,
+	sidecarResourceUsage: null,
+	sidecarCurrentJobId: null,
 	modelVersion: "v1",
 	modelDownloaded: false,
 	downloadProgress: null,
@@ -93,8 +105,18 @@ export const useLabStore = create<LabState>((set) => ({
 			omrResult: null,
 			omrError: null,
 		}),
-	setSidecarState: (state, error = null) =>
-		set({ sidecarState: state, sidecarError: error }),
+	setSidecarState: (
+		state,
+		error = null,
+		resourceUsage = null,
+		currentJobId = null,
+	) =>
+		set({
+			sidecarState: state,
+			sidecarError: error,
+			sidecarResourceUsage: resourceUsage,
+			sidecarCurrentJobId: currentJobId,
+		}),
 	setModelStatus: (downloaded, progress = null) =>
 		set({ modelDownloaded: downloaded, downloadProgress: progress }),
 	setOmrStage: (stage) => set({ omrStage: stage }),
@@ -129,7 +151,28 @@ export const useLabStore = create<LabState>((set) => ({
 			omrError: null,
 		}),
 	completeOmr: (result) =>
-		set({ jobStatus: "completed", omrStage: "completed", omrResult: result }),
+		set({ jobStatus: "completed", omrStage: "validating", omrResult: result }),
+	setOmrAlphaTexValidation: (isValid, message = null) =>
+		set((state) => {
+			if (!state.omrResult) return state;
+			return {
+				omrStage: "completed",
+				omrResult: {
+					...state.omrResult,
+					isValidAlphaTex: isValid,
+					diagnosticErrors: isValid
+						? []
+						: [
+								{
+									line: 1,
+									column: 1,
+									message: message ?? "alphaTab render failed",
+									severity: "error",
+								},
+							],
+				},
+			};
+		}),
 	failOmr: (error) =>
 		set({ jobStatus: "failed", omrStage: "failed", omrError: error }),
 	cancelOmr: () =>
