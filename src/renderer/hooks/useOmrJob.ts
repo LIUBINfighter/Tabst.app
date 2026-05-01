@@ -27,11 +27,16 @@ export function useOmrJob() {
 		try {
 			const job = await window.desktopAPI.ai.getOmrResult(jobId);
 			if (job.status === "completed" && job.result) {
+				useLabStore.getState().setOmrStage("validating");
 				useLabStore.getState().completeOmr(validateAlphaTex(job.result));
+				useLabStore.getState().setRuntimeHealth("healthy", null);
 				return;
 			}
 			if (job.status === "failed") {
 				useLabStore.getState().failOmr(job.error ?? "omr-request-failed");
+				useLabStore
+					.getState()
+					.setRuntimeHealth("error", job.error ?? "omr-request-failed");
 				return;
 			}
 			if (job.status === "cancelled") {
@@ -43,9 +48,9 @@ export function useOmrJob() {
 				void pollJob(jobId);
 			}, POLL_INTERVAL_MS);
 		} catch (error) {
-			useLabStore
-				.getState()
-				.failOmr(error instanceof Error ? error.message : String(error));
+			const message = error instanceof Error ? error.message : String(error);
+			useLabStore.getState().failOmr(message);
+			useLabStore.getState().setRuntimeHealth("error", message);
 		}
 	}, []);
 
@@ -57,7 +62,18 @@ export function useOmrJob() {
 			}
 
 			clearPollTimer();
+			useLabStore.getState().prepareOmr("checking-model");
 			try {
+				const modelStatus = await window.desktopAPI.ai.getModelStatus();
+				useLabStore.getState().setModelStatus(modelStatus.downloaded, null);
+				if (!modelStatus.downloaded) {
+					useLabStore.getState().failOmr("model-not-found");
+					useLabStore.getState().setRuntimeHealth("warning", "model-not-found");
+					return;
+				}
+
+				useLabStore.getState().setOmrStage("checking-sidecar");
+				useLabStore.getState().setRuntimeHealth("checking", null);
 				const sidecarStatus = await window.desktopAPI.ai.getSidecarStatus();
 				useLabStore
 					.getState()
@@ -69,19 +85,29 @@ export function useOmrJob() {
 					sidecarStatus.state === "stopped" ||
 					sidecarStatus.state === "failed"
 				) {
+					useLabStore.getState().setOmrStage("starting-sidecar");
 					await window.desktopAPI.ai.restartSidecar();
+					const restartedStatus = await window.desktopAPI.ai.getSidecarStatus();
+					useLabStore
+						.getState()
+						.setSidecarState(
+							restartedStatus.state,
+							restartedStatus.lastError ?? null,
+						);
 				}
 
+				useLabStore.getState().setOmrStage("submitting-job");
 				const jobId = await window.desktopAPI.ai.transcribe(
 					dataUrlToBase64(currentImage),
 					options,
 				);
+				useLabStore.getState().setRuntimeHealth("healthy", null);
 				useLabStore.getState().startOmr(jobId);
 				void pollJob(jobId);
 			} catch (error) {
-				useLabStore
-					.getState()
-					.failOmr(error instanceof Error ? error.message : String(error));
+				const message = error instanceof Error ? error.message : String(error);
+				useLabStore.getState().failOmr(message);
+				useLabStore.getState().setRuntimeHealth("error", message);
 			}
 		},
 		[clearPollTimer, currentImage, pollJob],
@@ -100,7 +126,10 @@ export function useOmrJob() {
 	useEffect(() => clearPollTimer, [clearPollTimer]);
 
 	return {
-		canRecognize: Boolean(currentImage) && jobStatus !== "running",
+		canRecognize:
+			Boolean(currentImage) &&
+			jobStatus !== "running" &&
+			jobStatus !== "pending",
 		startRecognition,
 		cancelRecognition,
 	};
