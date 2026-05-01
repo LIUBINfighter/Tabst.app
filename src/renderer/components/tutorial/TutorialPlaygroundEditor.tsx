@@ -20,8 +20,18 @@ export function TutorialPlaygroundEditor({
 }: TutorialPlaygroundEditorProps) {
 	const hostRef = useRef<HTMLDivElement | null>(null);
 	const viewRef = useRef<EditorView | null>(null);
+	const initialContentRef = useRef(initialContent);
 	const lastDocRef = useRef<string>(initialContent);
+	const onChangeRef = useRef(onChange);
 	const { themeExtension } = useEditorTheme();
+
+	useEffect(() => {
+		initialContentRef.current = initialContent;
+	}, [initialContent]);
+
+	useEffect(() => {
+		onChangeRef.current = onChange;
+	}, [onChange]);
 
 	const baseExtensions = useMemo<Extension[]>(
 		() => [basicSetup, whitespaceDecoration(), themeExtension],
@@ -45,13 +55,15 @@ export function TutorialPlaygroundEditor({
 					if (update.docChanged) {
 						const doc = update.state.doc.toString();
 						lastDocRef.current = doc;
-						onChange?.(doc);
+						onChangeRef.current?.(doc);
 					}
 				}),
 			];
+			const initialDoc = initialContentRef.current;
+			lastDocRef.current = initialDoc;
 
 			const state = EditorState.create({
-				doc: initialContent,
+				doc: initialDoc,
 				extensions,
 			});
 
@@ -73,7 +85,7 @@ export function TutorialPlaygroundEditor({
 				hostRef.current.innerHTML = "";
 			}
 		};
-	}, [initialContent, baseExtensions, onChange]);
+	}, [baseExtensions]);
 
 	useEffect(() => {
 		const view = viewRef.current;
@@ -89,10 +101,6 @@ export function TutorialPlaygroundEditor({
 		});
 		lastDocRef.current = initialContent;
 	}, [initialContent]);
-
-	useEffect(() => {
-		return () => {};
-	}, []);
 
 	return (
 		<div
