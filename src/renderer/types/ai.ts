@@ -42,6 +42,13 @@ export interface SidecarStatus {
 	state: "stopped" | "starting" | "ready" | "busy" | "stopping" | "failed";
 	currentJobId?: string;
 	lastError?: string;
+	resourceUsage?: SidecarResourceUsage;
+}
+
+export interface SidecarResourceUsage {
+	pid: number;
+	cpuPercent: number;
+	memoryBytes: number;
 }
 
 export interface OmrJob {
@@ -62,5 +69,6 @@ export interface AiDesktopAPI {
 	getOmrResult: (jobId: string) => Promise<OmrJob>;
 	cancelOmrJob: (jobId: string) => Promise<void>;
 	getSidecarStatus: () => Promise<SidecarStatus>;
+	stopSidecar: () => Promise<void>;
 	restartSidecar: () => Promise<void>;
 }

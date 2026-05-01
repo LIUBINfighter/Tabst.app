@@ -81,6 +81,9 @@ export function createTauriDesktopAPI(): DesktopAPI {
 				await invokeCommand<void>("cancel_omr_job", { job_id: jobId });
 			},
 			getSidecarStatus: async () => invokeCommand("get_sidecar_status"),
+			stopSidecar: async () => {
+				await invokeCommand<void>("stop_sidecar");
+			},
 			restartSidecar: async () => {
 				await invokeCommand<void>("restart_sidecar");
 			},

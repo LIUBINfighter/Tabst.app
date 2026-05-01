@@ -205,6 +205,9 @@ export function createWebDesktopAPI(): DesktopAPI {
 				throw createDesktopOnlyError();
 			},
 			getSidecarStatus: async () => ({ state: "stopped" }),
+			stopSidecar: async () => {
+				throw createDesktopOnlyError();
+			},
 			restartSidecar: async () => {
 				throw createDesktopOnlyError();
 			},
