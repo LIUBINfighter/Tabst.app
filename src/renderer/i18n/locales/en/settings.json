@@ -225,6 +225,9 @@
 		"runtimeReadyHint": "Model and local inference service are ready for OMR.",
 		"refreshStatus": "Check status",
 		"restartService": "Restart service",
+		"stopService": "Stop service",
+		"resourceUsage": "PID {{pid}} · CPU {{cpu}}% · RAM {{memory}}",
+		"resourceIdle": "Resources: service not running",
 		"lastChecked": "Checked {{time}} ago",
 		"notChecked": "Not checked yet",
 		"sidecar": {
@@ -301,9 +304,18 @@
 		"insertToEditor": "Insert to editor",
 		"validating": "Validating alphaTex syntax...",
 		"validAlphaTex": "alphaTex syntax looks valid.",
+		"playgroundTitle": "Editable alphaTex with live score preview",
+		"playground": {
+			"enableMetronome": "Enable metronome",
+			"disableMetronome": "Disable metronome",
+			"play": "Play",
+			"pause": "Pause",
+			"stop": "Stop",
+			"loadingPreview": "Loading score..."
+		},
 		"resultPlaceholder": "Recognition output will appear here...",
-		"invalidAlphaTex": "Recognition result contains {{count}} alphaTex syntax issue(s).",
-		"invalidInsertConfirm": "The recognition result has alphaTex syntax issues. Insert it anyway?"
+		"invalidAlphaTex": "alphaTab could not render this alphaTex: {{message}}",
+		"invalidInsertConfirm": "alphaTab could not render this alphaTex. Insert it anyway?"
 	},
 	"labErrors": {
 		"model-not-found": "Model not downloaded. Download the model first.",

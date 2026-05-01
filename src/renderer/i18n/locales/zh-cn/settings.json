@@ -225,6 +225,9 @@
 		"runtimeReadyHint": "模型和本地推理服务已准备好进行 OMR。",
 		"refreshStatus": "检查状态",
 		"restartService": "重启服务",
+		"stopService": "关闭服务",
+		"resourceUsage": "PID {{pid}} · CPU {{cpu}}% · 内存 {{memory}}",
+		"resourceIdle": "资源：服务未运行",
 		"lastChecked": "{{time}} 前检查",
 		"notChecked": "尚未检查",
 		"sidecar": {
@@ -301,9 +304,18 @@
 		"insertToEditor": "插入编辑器",
 		"validating": "正在校验 alphaTex 语法...",
 		"validAlphaTex": "alphaTex 语法看起来有效。",
+		"playgroundTitle": "可编辑 alphaTex 与实时乐谱预览",
+		"playground": {
+			"enableMetronome": "启用节拍器",
+			"disableMetronome": "关闭节拍器",
+			"play": "播放",
+			"pause": "暂停",
+			"stop": "停止",
+			"loadingPreview": "正在加载乐谱..."
+		},
 		"resultPlaceholder": "识别输出会显示在这里...",
-		"invalidAlphaTex": "识别结果包含 {{count}} 个 alphaTex 语法问题。",
-		"invalidInsertConfirm": "识别结果存在 alphaTex 语法问题，仍然插入吗？"
+		"invalidAlphaTex": "alphaTab 无法渲染这段 alphaTex：{{message}}",
+		"invalidInsertConfirm": "alphaTab 无法渲染这段 alphaTex，仍然插入吗？"
 	},
 	"labErrors": {
 		"model-not-found": "模型未下载，请先下载模型。",

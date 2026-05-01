@@ -14,7 +14,7 @@ import {
 	ShieldCheck,
 	X,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useOmrJob } from "../../hooks/useOmrJob";
 import { useAppStore } from "../../store/appStore";
@@ -24,6 +24,8 @@ import {
 	useLabStore,
 } from "../../store/labStore";
 import type { DownloadProgress, SidecarStatus } from "../../types/ai";
+import { TutorialAlphaTexPlayground } from "../tutorial/TutorialAlphaTexPlayground";
+import type { TutorialPlaygroundRenderStatus } from "../tutorial/TutorialPlaygroundPreview";
 import { Button } from "../ui/button";
 import { ImageDropzone } from "../ui/image-dropzone";
 
@@ -41,6 +43,10 @@ const TIMED_STAGES = new Set<LabOmrStage>([
 ]);
 
 type StageTone = "idle" | "running" | "done" | "failed" | "cancelled";
+
+type AlphaTexRenderValidation =
+	| { state: "empty" | "pending" | "valid" }
+	| { state: "invalid"; message: string };
 
 interface PipelineStep {
 	stage: LabOmrStage;
@@ -168,6 +174,9 @@ export function LabPage() {
 	const [isWebRuntime, setIsWebRuntime] = useState(false);
 	const [pageError, setPageError] = useState<string | null>(null);
 	const [editableAlphaTex, setEditableAlphaTex] = useState("");
+	const editableAlphaTexRef = useRef("");
+	const [alphaTexRenderValidation, setAlphaTexRenderValidation] =
+		useState<AlphaTexRenderValidation>({ state: "empty" });
 	const [busySince, setBusySince] = useState<number | null>(null);
 	const [now, setNow] = useState(() => Date.now());
 	const currentImage = useLabStore((state) => state.currentImage);
@@ -176,6 +185,10 @@ export function LabPage() {
 	const downloadProgress = useLabStore((state) => state.downloadProgress);
 	const sidecarState = useLabStore((state) => state.sidecarState);
 	const sidecarError = useLabStore((state) => state.sidecarError);
+	const sidecarResourceUsage = useLabStore(
+		(state) => state.sidecarResourceUsage,
+	);
+	const sidecarCurrentJobId = useLabStore((state) => state.sidecarCurrentJobId);
 	const jobStatus = useLabStore((state) => state.jobStatus);
 	const omrStage = useLabStore((state) => state.omrStage);
 	const runtimeHealth = useLabStore((state) => state.runtimeHealth);
@@ -201,7 +214,12 @@ export function LabPage() {
 			useLabStore.getState().setModelStatus(modelStatus.downloaded, null);
 			useLabStore
 				.getState()
-				.setSidecarState(status.state, status.lastError ?? null);
+				.setSidecarState(
+					status.state,
+					status.lastError ?? null,
+					status.resourceUsage ?? null,
+					status.currentJobId ?? null,
+				);
 			const health = getHealthFromSidecar(modelStatus.downloaded, status);
 			const message = !modelStatus.downloaded
 				? "model-not-found"
@@ -236,8 +254,56 @@ export function LabPage() {
 	}, [isWebRuntime, refreshRuntimeStatus]);
 
 	useEffect(() => {
-		setEditableAlphaTex(omrResult?.alphaTex ?? "");
-	}, [omrResult]);
+		const nextAlphaTex = omrResult?.alphaTex ?? "";
+		setEditableAlphaTex(nextAlphaTex);
+		editableAlphaTexRef.current = nextAlphaTex;
+		setAlphaTexRenderValidation(
+			nextAlphaTex.trim() ? { state: "pending" } : { state: "empty" },
+		);
+	}, [omrResult?.alphaTex]);
+
+	const handleAlphaTexChange = useCallback((nextAlphaTex: string) => {
+		editableAlphaTexRef.current = nextAlphaTex;
+		setEditableAlphaTex(nextAlphaTex);
+		setAlphaTexRenderValidation(
+			nextAlphaTex.trim() ? { state: "pending" } : { state: "empty" },
+		);
+		if (nextAlphaTex.trim()) {
+			useLabStore.getState().setOmrStage("validating");
+		}
+	}, []);
+
+	const handlePlaygroundRenderStatus = useCallback(
+		(status: TutorialPlaygroundRenderStatus) => {
+			if (status.content !== editableAlphaTexRef.current) return;
+
+			if (status.state === "empty") {
+				setAlphaTexRenderValidation({ state: "empty" });
+				return;
+			}
+
+			if (status.state === "loading") {
+				setAlphaTexRenderValidation({ state: "pending" });
+				useLabStore.getState().setOmrStage("validating");
+				return;
+			}
+
+			if (status.state === "success") {
+				setAlphaTexRenderValidation({ state: "valid" });
+				useLabStore.getState().setOmrAlphaTexValidation(true);
+				return;
+			}
+
+			if (status.state === "error") {
+				setAlphaTexRenderValidation({
+					state: "invalid",
+					message: status.error,
+				});
+				useLabStore.getState().setOmrAlphaTexValidation(false, status.error);
+			}
+		},
+		[],
+	);
 
 	useEffect(() => {
 		if (TIMED_STAGES.has(omrStage) && busySince === null) {
@@ -265,6 +331,15 @@ export function LabPage() {
 				time: formatDuration(Date.now() - lastHealthCheckedAt),
 			})
 		: t("labPage.notChecked");
+	const sidecarResourceLabel = sidecarResourceUsage
+		? t("labPage.resourceUsage", {
+				pid: sidecarResourceUsage.pid,
+				cpu: sidecarResourceUsage.cpuPercent.toFixed(1),
+				memory: formatBytes(sidecarResourceUsage.memoryBytes),
+			})
+		: t("labPage.resourceIdle");
+	const hasBusySidecar =
+		Boolean(sidecarCurrentJobId) || sidecarState === "busy";
 
 	const downloadPercent = useMemo(() => {
 		if (!downloadProgress?.totalBytes) return 0;
@@ -390,18 +465,32 @@ export function LabPage() {
 		}
 	}, [currentImage, refreshRuntimeStatus, translateError]);
 
+	const handleStopSidecar = useCallback(async () => {
+		setPageError(null);
+		useLabStore.getState().setRuntimeHealth("checking", null);
+		try {
+			await window.desktopAPI.ai.stopSidecar();
+			await refreshRuntimeStatus();
+			useLabStore.getState().setOmrStage(currentImage ? "image-ready" : "idle");
+		} catch (error) {
+			const message = error instanceof Error ? error.message : String(error);
+			useLabStore.getState().setRuntimeHealth("error", message);
+			await refreshRuntimeStatus();
+			setPageError(translateError(message));
+		}
+	}, [currentImage, refreshRuntimeStatus, translateError]);
+
 	const handleInsertToEditor = useCallback(() => {
 		if (!editableAlphaTex.trim()) return;
 		if (
-			omrResult &&
-			!omrResult.isValidAlphaTex &&
+			alphaTexRenderValidation.state === "invalid" &&
 			!window.confirm(t("labPage.invalidInsertConfirm"))
 		) {
 			return;
 		}
 		useAppStore.getState().setPendingOmrInsert(editableAlphaTex);
 		useAppStore.getState().setWorkspaceMode("editor");
-	}, [editableAlphaTex, omrResult, t]);
+	}, [alphaTexRenderValidation.state, editableAlphaTex, t]);
 
 	const handleCopy = useCallback(async () => {
 		if (!editableAlphaTex.trim()) return;
@@ -448,10 +537,33 @@ export function LabPage() {
 							variant="outline"
 							size="sm"
 							onClick={() => void handleRestartSidecar()}
-							disabled={!modelDownloaded || jobStatus === "running"}
+							disabled={
+								!modelDownloaded ||
+								jobStatus === "running" ||
+								jobStatus === "pending" ||
+								hasBusySidecar ||
+								sidecarState === "starting" ||
+								sidecarState === "stopping"
+							}
 						>
 							<RotateCcw className="h-4 w-4" />
 							{t("labPage.restartService")}
+						</Button>
+						<Button
+							type="button"
+							variant="outline"
+							size="sm"
+							onClick={() => void handleStopSidecar()}
+							disabled={
+								jobStatus === "running" ||
+								jobStatus === "pending" ||
+								hasBusySidecar ||
+								sidecarState === "stopped" ||
+								sidecarState === "stopping"
+							}
+						>
+							<X className="h-4 w-4" />
+							{t("labPage.stopService")}
 						</Button>
 					</div>
 				</div>
@@ -480,6 +592,7 @@ export function LabPage() {
 						<div className="text-right text-xs opacity-80">
 							<p>{t("labPage.modelVersion", { version: modelVersion })}</p>
 							<p>{t(`labPage.sidecar.${sidecarState}`)}</p>
+							<p>{sidecarResourceLabel}</p>
 							<p>{lastCheckedLabel}</p>
 						</div>
 					</div>
@@ -691,7 +804,14 @@ export function LabPage() {
 							variant="outline"
 							size="sm"
 							onClick={() => void handleRestartSidecar()}
-							disabled={!modelDownloaded || jobStatus === "running"}
+							disabled={
+								!modelDownloaded ||
+								jobStatus === "running" ||
+								jobStatus === "pending" ||
+								hasBusySidecar ||
+								sidecarState === "starting" ||
+								sidecarState === "stopping"
+							}
 						>
 							<RotateCcw className="h-4 w-4" />
 							{t("labPage.restartService")}
@@ -761,27 +881,38 @@ export function LabPage() {
 					</div>
 				</div>
 
-				{omrResult && !omrResult.isValidAlphaTex && (
+				{alphaTexRenderValidation.state === "invalid" && (
 					<p className="flex items-center gap-2 text-xs text-amber-600">
 						<AlertTriangle className="h-3.5 w-3.5" />
 						{t("labPage.invalidAlphaTex", {
-							count: omrResult.diagnosticErrors?.length ?? 0,
+							message: alphaTexRenderValidation.message,
 						})}
 					</p>
 				)}
 
-				{omrResult?.isValidAlphaTex && (
+				{alphaTexRenderValidation.state === "valid" && (
 					<p className="flex items-center gap-2 text-xs text-emerald-600">
 						<CheckCircle2 className="h-3.5 w-3.5" />
 						{t("labPage.validAlphaTex")}
 					</p>
 				)}
 
-				<textarea
-					className="min-h-56 w-full rounded border border-input bg-background p-3 font-mono text-xs outline-none focus:ring-1 focus:ring-[var(--focus-ring)]"
-					value={editableAlphaTex}
-					onChange={(event) => setEditableAlphaTex(event.currentTarget.value)}
-					placeholder={t("labPage.resultPlaceholder")}
+				<TutorialAlphaTexPlayground
+					initialContent={editableAlphaTex}
+					fileName="omr-result.atex"
+					title={t("labPage.playgroundTitle")}
+					labels={{
+						enableMetronome: t("labPage.playground.enableMetronome"),
+						disableMetronome: t("labPage.playground.disableMetronome"),
+						play: t("labPage.playground.play"),
+						pause: t("labPage.playground.pause"),
+						stop: t("labPage.playground.stop"),
+						emptyPreview: t("labPage.resultPlaceholder"),
+						loadingPreview: t("labPage.playground.loadingPreview"),
+					}}
+					className="my-0 max-w-none"
+					onChange={handleAlphaTexChange}
+					onRenderStatusChange={handlePlaygroundRenderStatus}
 				/>
 			</section>
 		</div>
