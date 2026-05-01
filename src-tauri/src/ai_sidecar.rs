@@ -3,6 +3,7 @@ use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
 use serde::Serialize;
+use sysinfo::{Pid, System};
 use tauri::Manager;
 use tauri_plugin_shell::{process::CommandChild, ShellExt};
 
@@ -29,6 +30,16 @@ pub(crate) struct SidecarStatus {
     pub(crate) current_job_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) last_error: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) resource_usage: Option<SidecarResourceUsage>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct SidecarResourceUsage {
+    pub(crate) pid: u32,
+    pub(crate) cpu_percent: f32,
+    pub(crate) memory_bytes: u64,
 }
 
 #[derive(Default)]
@@ -53,12 +64,15 @@ impl LlamaServerState {
                 state: SidecarState::Failed,
                 current_job_id: None,
                 last_error: Some("sidecar-lock-failed".to_string()),
+                resource_usage: None,
             };
         };
+        let pid = inner.child.as_ref().map(|child| child.pid());
         SidecarStatus {
             state: inner.state.clone().unwrap_or(SidecarState::Stopped),
             current_job_id: inner.current_job_id.clone(),
             last_error: inner.last_error.clone(),
+            resource_usage: pid.and_then(resource_usage_for_pid),
         }
     }
 
@@ -178,10 +192,25 @@ impl LlamaServerState {
     }
 
     pub(crate) fn stop(&self) {
+        let _ = self.stop_inner(true);
+    }
+
+    pub(crate) fn stop_when_idle(&self) -> Result<(), String> {
+        self.stop_inner(false)
+    }
+
+    fn stop_inner(&self, force: bool) -> Result<(), String> {
         let child = {
-            let Ok(mut inner) = self.inner.lock() else {
-                return;
-            };
+            let mut inner = self
+                .inner
+                .lock()
+                .map_err(|_| "sidecar-lock-failed".to_string())?;
+            if !force
+                && (inner.current_job_id.is_some()
+                    || matches!(inner.state, Some(SidecarState::Busy)))
+            {
+                return Err("sidecar-busy".to_string());
+            }
             inner.state = Some(SidecarState::Stopping);
             inner.port = None;
             inner.current_job_id = None;
@@ -191,9 +220,12 @@ impl LlamaServerState {
         if let Some(child) = child {
             let _ = child.kill();
         }
-        if let Ok(mut inner) = self.inner.lock() {
-            inner.state = Some(SidecarState::Stopped);
-        }
+        let mut inner = self
+            .inner
+            .lock()
+            .map_err(|_| "sidecar-lock-failed".to_string())?;
+        inner.state = Some(SidecarState::Stopped);
+        Ok(())
     }
 
     pub(crate) fn schedule_idle_shutdown<R: tauri::Runtime>(&self, app: tauri::AppHandle<R>) {
@@ -292,6 +324,17 @@ fn random_local_port() -> Result<u16, String> {
         .map_err(|error| format!("sidecar-start-failed: {error}"))?
         .port();
     Ok(port)
+}
+
+fn resource_usage_for_pid(pid: u32) -> Option<SidecarResourceUsage> {
+    let mut system = System::new_all();
+    system.refresh_processes();
+    let process = system.process(Pid::from_u32(pid))?;
+    Some(SidecarResourceUsage {
+        pid,
+        cpu_percent: process.cpu_usage(),
+        memory_bytes: process.memory(),
+    })
 }
 
 async fn health_check(port: u16, timeout: Duration) -> bool {

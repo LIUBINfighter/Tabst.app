@@ -14,7 +14,7 @@ mod updater_commands;
 use ai_job_manager::OmrJobManager;
 use ai_ocr_commands::{
     cancel_omr_job, download_model, get_model_status, get_omr_result, get_sidecar_status,
-    omr_transcribe, restart_sidecar,
+    omr_transcribe, restart_sidecar, stop_sidecar,
 };
 use ai_sidecar::LlamaServerState;
 use fs_commands::{
@@ -54,6 +54,7 @@ pub fn run() {
         get_omr_result,
         cancel_omr_job,
         get_sidecar_status,
+        stop_sidecar,
         restart_sidecar,
         open_file,
         select_folder,

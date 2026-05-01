@@ -141,11 +141,16 @@ pub(crate) async fn get_sidecar_status(
 }
 
 #[tauri::command]
+pub(crate) async fn stop_sidecar(sidecar: State<'_, LlamaServerState>) -> Result<(), String> {
+    sidecar.stop_when_idle()
+}
+
+#[tauri::command]
 pub(crate) async fn restart_sidecar(
     app: AppHandle,
     sidecar: State<'_, LlamaServerState>,
 ) -> Result<(), String> {
-    sidecar.stop();
+    sidecar.stop_when_idle()?;
     let model = ai_model_manager::ensure_model_cached(&app).await?;
     sidecar
         .ensure_server_running(&app, &model)
