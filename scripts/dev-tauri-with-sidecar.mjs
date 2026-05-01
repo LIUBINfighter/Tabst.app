@@ -1,4 +1,5 @@
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
+import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -7,12 +8,62 @@ const rootDir = path.resolve(scriptDir, "..");
 const scriptPath = path.join(scriptDir, "dev-tauri-with-sidecar.sh");
 const passthroughArgs = process.argv.slice(2);
 
+function cargoBinDir() {
+	if (process.platform !== "win32") {
+		return null;
+	}
+
+	return path.join(process.env.USERPROFILE ?? "", ".cargo", "bin");
+}
+
+function cargoExecutablePath() {
+	const windowsCargoPath = cargoBinDir()
+		? path.join(cargoBinDir(), "cargo.exe")
+		: null;
+	if (windowsCargoPath && existsSync(windowsCargoPath)) {
+		return windowsCargoPath;
+	}
+
+	return null;
+}
+
+function resolvedCargoPath() {
+	if (hasCommand("cargo")) {
+		return "cargo";
+	}
+
+	return cargoExecutablePath();
+}
+
+function hasCommand(command) {
+	const result = spawnSync(command, ["--version"], {
+		cwd: rootDir,
+		stdio: "ignore",
+		shell: process.platform === "win32",
+	});
+
+	return result.status === 0;
+}
+
+function childEnvWithCargoPath() {
+	const cargoDir = cargoBinDir();
+	if (!cargoDir || !existsSync(cargoDir)) {
+		return process.env;
+	}
+
+	return {
+		...process.env,
+		PATH: `${cargoDir}${path.delimiter}${process.env.PATH ?? ""}`,
+	};
+}
+
 function run(command, args, options = {}) {
 	return new Promise((resolve, reject) => {
 		const child = spawn(command, args, {
 			cwd: rootDir,
 			stdio: "inherit",
-			shell: false,
+			shell: process.platform === "win32",
+			env: process.platform === "win32" ? childEnvWithCargoPath() : process.env,
 			...options,
 		});
 
@@ -32,15 +83,20 @@ function run(command, args, options = {}) {
 }
 
 async function main() {
+	const cargoPath = resolvedCargoPath();
+	if (!cargoPath) {
+		console.warn(
+			"Cargo is not available; starting the renderer-only dev server instead.",
+		);
+		await run("pnpm", ["dev:react", ...passthroughArgs]);
+		return;
+	}
+
 	if (process.platform === "win32") {
 		console.warn(
-			"Windows detected: skipping macOS sidecar staging and running Tauri dev directly.",
+			"Windows detected: running Tauri dev directly with the installed Cargo toolchain.",
 		);
-		await run(process.platform === "win32" ? "pnpm.cmd" : "pnpm", [
-			"tauri",
-			"dev",
-			...passthroughArgs,
-		]);
+		await run("pnpm", ["tauri", "dev", ...passthroughArgs]);
 		return;
 	}
 
