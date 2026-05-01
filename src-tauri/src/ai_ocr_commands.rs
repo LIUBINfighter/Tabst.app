@@ -9,25 +9,9 @@ use crate::ai_model_manager::{self, DownloadProgress, ModelStatus};
 use crate::ai_sidecar::{LlamaServerState, SidecarStatus};
 use crate::{now_ms, to_error};
 
-const OMR_SYSTEM_PROMPT: &str = r#"You are an Optical Music Recognition (OMR) engine specialized in guitar tabs.
-Convert the provided sheet music image to alphaTex format.
-
-Rules:
-1. Output ONLY valid alphaTex syntax, no markdown, no explanations
-2. Use standard notation: \title, \artist, \tempo, \instrument
-3. Use correct barline syntax: | for measure boundaries
-4. Use appropriate note durations: 1 2 4 8 16 s (s for dotted)
-5. For guitar: default tuning is E4 B3 G3 D3 A2 E2
-6. Use . for dotted notes, : for beat duration prefix
-7. Maintain rhythmic accuracy from the source image"#;
-
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct OmrOptions {
-    tuning: Option<String>,
-    instrument: Option<String>,
-    language: Option<String>,
-}
+pub(crate) struct OmrOptions {}
 
 #[derive(Debug, Deserialize)]
 struct CompletionResponse {
@@ -163,19 +147,18 @@ pub(crate) async fn restart_sidecar(
 async fn request_omr(
     port: u16,
     image_base64: &str,
-    options: Option<&OmrOptions>,
+    _options: Option<&OmrOptions>,
     started_at: u64,
 ) -> Result<OmrRawResult, String> {
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(60))
         .build()
         .map_err(to_error)?;
-    let user_prompt = build_user_prompt(options);
     let response = client
         .post(format!("http://127.0.0.1:{port}/completions"))
         .json(&json!({
             "prompt": {
-                "prompt_string": format!("{OMR_SYSTEM_PROMPT}\n\n<__media__>\n{user_prompt}"),
+                "prompt_string": "<__media__>",
                 "multimodal_data": [image_base64]
             },
             "temperature": 0.1,
@@ -224,32 +207,4 @@ fn parse_error_message(raw_response: &str) -> String {
         .and_then(|response| response.error.map(|error| error.message))
         .unwrap_or_else(|| raw_response.trim().to_string());
     message.chars().take(240).collect()
-}
-
-fn build_user_prompt(options: Option<&OmrOptions>) -> String {
-    let mut prompt = "Convert this guitar tab image to alphaTex format.".to_string();
-    if let Some(options) = options {
-        if let Some(instrument) = options
-            .instrument
-            .as_ref()
-            .filter(|value| !value.trim().is_empty())
-        {
-            prompt.push_str(&format!(" Instrument: {}.", instrument.trim()));
-        }
-        if let Some(tuning) = options
-            .tuning
-            .as_ref()
-            .filter(|value| !value.trim().is_empty())
-        {
-            prompt.push_str(&format!(" Tuning: {}.", tuning.trim()));
-        }
-        if let Some(language) = options
-            .language
-            .as_ref()
-            .filter(|value| !value.trim().is_empty())
-        {
-            prompt.push_str(&format!(" Prefer metadata language: {}.", language.trim()));
-        }
-    }
-    prompt
 }
