@@ -4,6 +4,7 @@ export interface ModelStatus {
 	downloadedBytes: number;
 	totalBytes: number;
 	checksumVerified: boolean;
+	error?: string;
 }
 
 export interface DownloadProgress {

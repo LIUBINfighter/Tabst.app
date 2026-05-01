@@ -131,7 +131,9 @@ function getStageToneClass(tone: StageTone): string {
 function getHealthFromSidecar(
 	modelDownloaded: boolean,
 	status: SidecarStatus,
+	modelError?: string,
 ): LabRuntimeHealth {
+	if (modelError) return "error";
 	if (!modelDownloaded) return "warning";
 	if (status.state === "failed") return "error";
 	if (status.state === "starting" || status.state === "stopping")
@@ -211,7 +213,9 @@ export function LabPage() {
 				window.desktopAPI.ai.getModelStatus(),
 				window.desktopAPI.ai.getSidecarStatus(),
 			]);
-			useLabStore.getState().setModelStatus(modelStatus.downloaded, null);
+			useLabStore
+				.getState()
+				.setModelStatus(modelStatus.downloaded, null, modelStatus.version);
 			useLabStore
 				.getState()
 				.setSidecarState(
@@ -220,11 +224,17 @@ export function LabPage() {
 					status.resourceUsage ?? null,
 					status.currentJobId ?? null,
 				);
-			const health = getHealthFromSidecar(modelStatus.downloaded, status);
-			const message = !modelStatus.downloaded
-				? "model-not-found"
-				: (status.lastError ??
-					(status.state === "stopped" ? "sidecar-stopped" : null));
+			const health = getHealthFromSidecar(
+				modelStatus.downloaded,
+				status,
+				modelStatus.error,
+			);
+			const message = modelStatus.error
+				? modelStatus.error
+				: !modelStatus.downloaded
+					? "model-not-found"
+					: (status.lastError ??
+						(status.state === "stopped" ? "sidecar-stopped" : null));
 			useLabStore.getState().setRuntimeHealth(health, message);
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
@@ -431,11 +441,15 @@ export function LabPage() {
 			);
 			const completedBytes =
 				useLabStore.getState().downloadProgress?.totalBytes ?? 0;
-			useLabStore.getState().setModelStatus(true, {
-				phase: "complete",
-				downloadedBytes: completedBytes,
-				totalBytes: completedBytes,
-			});
+			useLabStore.getState().setModelStatus(
+				true,
+				{
+					phase: "complete",
+					downloadedBytes: completedBytes,
+					totalBytes: completedBytes,
+				},
+				modelVersion,
+			);
 			useLabStore
 				.getState()
 				.clearOmrFeedback(currentImage ? "image-ready" : "idle");
