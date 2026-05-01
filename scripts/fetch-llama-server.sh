@@ -44,15 +44,21 @@ mkdir -p "${BINARY_DIR}"
 
 binary_set_ready() {
 	local target="$1"
-	if [[ ! -x "${BINARY_DIR}/llama-server-${target}" ]]; then
+	if ! mach_o_file_ready "${BINARY_DIR}/llama-server-${target}"; then
 		return 1
 	fi
 	for runtime_lib in "${RUNTIME_LIBS[@]}"; do
-		if [[ ! -f "${BINARY_DIR}/${runtime_lib}-${target}" ]]; then
+		if ! mach_o_file_ready "${BINARY_DIR}/${runtime_lib}-${target}"; then
 			return 1
 		fi
 	done
 	return 0
+}
+
+mach_o_file_ready() {
+	local file_path="$1"
+	[[ -f "${file_path}" && -x "${file_path}" ]] || return 1
+	file "${file_path}" | grep -q "Mach-O"
 }
 
 download_and_extract() {
