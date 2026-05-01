@@ -114,7 +114,7 @@ pnpm mix --out ./dist/share.md   # 指定输出文件
 - `pnpm perf:tauri:assert`：根据 `.github/perf-thresholds.json` 校验 Tauri 构建时长与关键产物体积
 - `pnpm perf:tauri:ci`：CI 使用的组合命令
 
-说明：Tauri 构建时长阈值按 `tauri-performance-baseline-summary.json` 中的 `platform` 选择，避免将本地 macOS 基线误用于 Linux CI 的冷 `release` 构建。
+说明：Tauri 构建时长阈值按 `tauri-performance-baseline-summary.json` 中的 `platform` 选择。CI 上的 `darwin` / `linux` 冷 `release` 构建使用独立阈值，避免误用本地开发机基线。
 
 迁移前的 multi-baseline / long-stress 数据仍保留在 `docs/dev/ops/` 作为历史记录，但当前主线 CI 不再依赖它们。
 
