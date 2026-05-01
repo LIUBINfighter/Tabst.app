@@ -36,6 +36,7 @@ use repo_commands::{
 };
 use settings_commands::{load_global_settings, save_global_settings};
 pub(crate) use support::*;
+use tauri::Manager;
 use updater_commands::{check_for_updates, fetch_releases_feed, get_app_version, install_update};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -93,8 +94,16 @@ pub fn run() {
         save_global_settings,
         set_keep_awake
     ])
-    .run(tauri::generate_context!())
-    .expect("error while running tauri application");
+    .build(tauri::generate_context!())
+    .expect("error while building tauri application")
+    .run(|app, event| {
+        if matches!(
+            event,
+            tauri::RunEvent::ExitRequested { .. } | tauri::RunEvent::Exit
+        ) {
+            app.state::<LlamaServerState>().stop();
+        }
+    });
 }
 
 #[cfg(not(debug_assertions))]
@@ -168,13 +177,14 @@ mod tests {
 
         let result = run(home_dir.clone());
 
-        match previous_home {
-            Some(value) => unsafe {
+        if let Some(value) = previous_home {
+            unsafe {
                 env::set_var("HOME", value);
-            },
-            None => unsafe {
+            }
+        } else {
+            unsafe {
                 env::remove_var("HOME");
-            },
+            }
         }
 
         let _ = fs::remove_dir_all(&home_dir);
