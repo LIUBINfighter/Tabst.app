@@ -92,10 +92,10 @@ pub(crate) fn set_keep_awake(
 
         *guard = Some(child);
 
-        return BasicResult {
+        BasicResult {
             success: true,
             error: None,
-        };
+        }
     }
 
     #[cfg(not(target_os = "macos"))]

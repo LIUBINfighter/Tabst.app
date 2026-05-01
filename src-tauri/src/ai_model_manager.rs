@@ -311,7 +311,7 @@ fn default_model_manifest() -> ModelManifest {
 async fn download_file_with_fallback(
     repo: &str,
     file: &ModelManifestFile,
-    dir: &PathBuf,
+    dir: &Path,
     completed_bytes: u64,
     total_bytes: u64,
     on_progress: &Channel<DownloadProgress>,
@@ -331,7 +331,7 @@ async fn download_file_with_fallback(
 async fn download_file(
     url: &str,
     file: &ModelManifestFile,
-    dir: &PathBuf,
+    dir: &Path,
     completed_bytes: u64,
     total_bytes: u64,
     on_progress: &Channel<DownloadProgress>,
