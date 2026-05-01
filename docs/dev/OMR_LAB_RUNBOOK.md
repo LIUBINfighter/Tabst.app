@@ -1,6 +1,6 @@
 # OMR Lab Runbook
 
-Last updated: 2026-05-01
+Last updated: 2026-05-02
 
 This runbook explains how to run, build, and troubleshoot the experimental OMR Lab. It reflects the current implementation, not the original design draft.
 
@@ -24,6 +24,7 @@ This runbook explains how to run, build, and troubleshoot the experimental OMR L
 | Sidecar lifecycle | `src-tauri/src/ai_sidecar.rs` |
 | Sidecar scripts | `scripts/fetch-llama-server.sh`, `scripts/dev-tauri-with-sidecar.sh`, `scripts/build-tauri-with-sidecar.sh` |
 | Generated sidecar directory | `src-tauri/binaries/README.md` |
+| Model debug notes | `docs/dev/OMR_MODEL_DEBUG.md` |
 
 ## Local development
 
@@ -91,6 +92,18 @@ The current default model repo is `ggml-org/SmolVLM-500M-Instruct-GGUF`.
 
 Models are downloaded to `app_local_data_dir/models/` with a required `model-manifest.json`. The manifest must include one required main GGUF and one required `mmproj` file; filenames are basename-validated and each file is SHA256-checked.
 
+For local development, the backend checks local override env vars before the default manifest:
+
+| Variable | Purpose |
+|----------|---------|
+| `TABST_OMR_MODEL_DIR` | Directory containing exactly one main `.gguf` and one `.gguf` whose filename contains `mmproj` |
+| `TABST_OMR_MODEL_PATH` | Explicit main GGUF path; must be paired with `TABST_OMR_MMPROJ_PATH` |
+| `TABST_OMR_MMPROJ_PATH` | Explicit mmproj GGUF path; must be paired with `TABST_OMR_MODEL_PATH` |
+| `TABST_OMR_CTX_SIZE` | Optional llama.cpp context size; must be an integer >= 1024 |
+| `TABST_OMR_NP` | Optional llama.cpp parallel slot count; must be an integer >= 1 |
+
+Local override files are checked for existence, non-empty size, and GGUF magic bytes. They are not SHA256-verified because they are developer-provided local artifacts.
+
 Download behavior:
 
 - Primary source: `https://huggingface.co/<repo>/resolve/main/<filename>`
@@ -111,12 +124,12 @@ The backend starts llama.cpp with:
 
 Runtime sidecar name matters: do not call `.sidecar("binaries/llama-server")`. Tauri resolves sidecars relative to the executable directory at runtime.
 
-Inference uses llama.cpp `/completions`, not `/v1/chat/completions`:
+Inference uses llama.cpp `/completions`, not `/v1/chat/completions`. For the locally trained OMR model, do not send system prompts, task instructions, tuning hints, or language hints; only send the llama.cpp media marker plus the image data:
 
 ```json
 {
   "prompt": {
-    "prompt_string": "<system prompt>\n\n<__media__>\nConvert this guitar tab image to alphaTex format.",
+    "prompt_string": "<__media__>",
     "multimodal_data": ["<raw base64 image>"]
   },
   "temperature": 0.1,
@@ -125,7 +138,7 @@ Inference uses llama.cpp `/completions`, not `/v1/chat/completions`:
 }
 ```
 
-This shape avoids llama.cpp marker mismatches such as `number of bitmaps (1) does not match number of markers (0)`.
+`<__media__>` is still required because llama.cpp maps each marker to one `multimodal_data` entry. This shape avoids marker mismatches such as `number of bitmaps (1) does not match number of markers (0)`.
 
 ## Verification checklist
 
@@ -157,7 +170,9 @@ src-tauri/target/release/bundle/macos/Tabst.app/Contents/MacOS/llama-server --he
 | Symptom | Likely cause | Check/fix |
 |---------|--------------|-----------|
 | `sidecar-start-failed: No such file or directory` | Runtime used the wrong sidecar name or files were not copied beside the app executable | Ensure code uses `.sidecar("llama-server")`; rerun `pnpm dev:tauri` or `pnpm build:tauri` |
-| `sidecar-crashed` / `dyld: Library not loaded` | Missing llama.cpp dylib dependencies | Rerun `pnpm prepare:llama-server`; confirm `libggml*`, `libllama*`, and `libmtmd*` are in the runtime directory |
+| `sidecar-crashed` / `dyld: Library not loaded` | Missing llama.cpp dylib dependencies, or placeholder scripts copied instead of real Mach-O dylibs | Rerun `pnpm prepare:llama-server`; confirm `file src-tauri/target/debug/libllama.dylib` reports a Mach-O dynamic library |
 | `error: invalid argument: --mmproj` | Old llama.cpp server build | Regenerate sidecar files; current scripts fetch llama.cpp `b8989` |
 | `omr-request-failed: 400: Failed to tokenize prompt` | Multimodal marker mismatch | Keep `/completions`, `LLAMA_MEDIA_MARKER=<__media__>`, and `<__media__>` inside `prompt_string` |
+| `local-model-dir-not-found` | Local override directory does not exist | Extract the local GGUF pair or fix `TABST_OMR_MODEL_DIR` |
+| `local-model-dir-ambiguous` | Local override directory does not contain exactly one main GGUF and one `mmproj` GGUF | Remove stale files/symlinks or set explicit `TABST_OMR_MODEL_PATH` and `TABST_OMR_MMPROJ_PATH` |
 | Web Lab shows desktop-only message | Expected web fallback | Use the Tauri desktop app for OMR |

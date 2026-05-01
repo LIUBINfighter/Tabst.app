@@ -37,6 +37,7 @@ Tabst.app/
 | OMR desktop bridge | `src/renderer/types/ai.ts`, `src/renderer/lib/tauri-desktop-api.ts`, `src/renderer/lib/desktop-api.ts` | all renderer AI calls go through `window.desktopAPI.ai` |
 | OMR Tauri backend | `src-tauri/src/ai_*.rs`, `src-tauri/src/lib.rs` | model download/cache, job state, llama sidecar, command handlers |
 | OMR sidecar packaging | `scripts/fetch-llama-server.sh`, `scripts/dev-tauri-with-sidecar.sh`, `scripts/build-tauri-with-sidecar.sh`, `src-tauri/binaries/README.md` | generated binaries are ignored; scripts fetch llama.cpp b8989 for macOS |
+| OMR model debugging | `docs/dev/OMR_MODEL_DEBUG.md`, `docs/dev/OMR_LAB_RUNBOOK.md` | local BF16 GGUF override, image-only prompt contract, sidecar smoke tests |
 
 ## CONVENTIONS
 - Formatter/linter is **Biome** (`biome.json`): tab indentation, double quotes, organize imports enabled.
@@ -47,7 +48,8 @@ Tabst.app/
 - Desktop bridge surface in the renderer is `window.desktopAPI`.
 - OMR Lab is macOS-only in the current release; web shows a desktop-only fallback and Linux/Windows release commands intentionally fail.
 - `src-tauri/binaries/` keeps only `.gitignore` and `README.md` in git. Do not commit generated `llama-server-*` or `.dylib-*` files; regenerate with `pnpm prepare:llama-server` or the dev/build wrappers.
-- llama.cpp server requests use `/completions` with `LLAMA_MEDIA_MARKER=<__media__>` and `prompt.multimodal_data`; do not switch back to `/v1/chat/completions` without re-verifying marker handling.
+- llama.cpp server requests use `/completions` with `LLAMA_MEDIA_MARKER=<__media__>` and `prompt.multimodal_data`; for the local trained OMR model, `prompt_string` must be only `<__media__>` (no system prompt or task text).
+- Local OMR model override supports `TABST_OMR_MODEL_DIR` or `TABST_OMR_MODEL_PATH` + `TABST_OMR_MMPROJ_PATH`, with optional `TABST_OMR_CTX_SIZE` and `TABST_OMR_NP`; see `docs/dev/OMR_MODEL_DEBUG.md` before changing model-loading behavior.
 
 ## ANTI-PATTERNS (THIS PROJECT)
 - Parsing AlphaTex structure with regex when AST parser is available.
@@ -58,6 +60,7 @@ Tabst.app/
 - Treating `.tmp/notebook-navigator` as part of Tabst runtime.
 - Committing generated sidecar binaries from `src-tauri/binaries/`.
 - Calling the OMR sidecar as `binaries/llama-server` at runtime; Tauri resolves `.sidecar("llama-server")` relative to the executable directory.
+- Reintroducing natural-language prompts into the local OMR model request path; the trained model expects image-only input via the media marker.
 
 ## UNIQUE STYLES
 - Interaction zoning: top/left for navigation context; bottom/right for command actions.

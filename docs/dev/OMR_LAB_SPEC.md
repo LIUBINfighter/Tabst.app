@@ -416,7 +416,7 @@ Content-Type: application/json
 
 {
   "prompt": {
-    "prompt_string": "{{SYSTEM_PROMPT}}\n\n<__media__>\nConvert this guitar tab to alphaTex format.",
+    "prompt_string": "<__media__>",
     "multimodal_data": ["{{BASE64_IMAGE}}"]
   },
   "temperature": 0.1,
@@ -425,7 +425,7 @@ Content-Type: application/json
 }
 ```
 
-运行 sidecar 时设置 `LLAMA_MEDIA_MARKER=<__media__>`，并确保 `prompt_string` 中包含同一个 marker。该形状已经验证可避免 llama.cpp 报错 `number of bitmaps (1) does not match number of markers (0)`。
+运行 sidecar 时设置 `LLAMA_MEDIA_MARKER=<__media__>`，并确保 `prompt_string` 中包含同一个 marker。当前本地训练模型使用 image-only 输入环境，不发送 system prompt、任务文本、tuning、instrument 或 language hints。该形状已经验证可避免 llama.cpp 报错 `number of bitmaps (1) does not match number of markers (0)`。
 
 **响应格式**：
 ```json
@@ -608,31 +608,11 @@ function validateAlphaTex(rawResult: OmrRawResult): OmrResult {
 
 ### 6.1 System Prompt
 
-```
-You are an Optical Music Recognition (OMR) engine specialized in guitar tabs.
-Convert the provided sheet music image to alphaTex format.
-
-Rules:
-1. Output ONLY valid alphaTex syntax, no markdown, no explanations
-2. Use standard notation: \title, \artist, \tempo, \instrument
-3. Use correct barline syntax: | for measure boundaries
-4. Use appropriate note durations: 1 2 4 8 16 s (s for dotted)
-5. For guitar: default tuning is E4 B3 G3 D3 A2 E2
-6. Use . for dotted notes, : for beat duration prefix
-7. Maintain rhythmic accuracy from the source image
-
-Example output:
-\title "Example Song"
-\tempo 120
-.
-:4 0.5 1.5 2.5 3.5 4.5 5.5 | 3.3 3.4 3.5 2.5 0.4 1.4 |
-```
+当前本地训练模型不使用 system prompt。保持为空。
 
 ### 6.2 User Prompt
 
-```
-Convert this guitar tab image to alphaTex format.
-```
+当前本地训练模型不使用 user prompt。`prompt_string` 仅保留 llama.cpp 图片占位符 `<__media__>`。
 
 ### 6.3 后处理
 
