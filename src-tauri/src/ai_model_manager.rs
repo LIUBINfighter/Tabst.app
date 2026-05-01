@@ -1,3 +1,4 @@
+use std::env;
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
@@ -16,6 +17,13 @@ use crate::to_error;
 const DEFAULT_MODEL_VERSION: &str = "v1";
 const DEFAULT_MODEL_REPO: &str = "ggml-org/SmolVLM-500M-Instruct-GGUF";
 const MANIFEST_FILE_NAME: &str = "model-manifest.json";
+const LOCAL_MODEL_VERSION: &str = "local-dev";
+const LOCAL_MODEL_REPO: &str = "local://tabst-omr";
+const ENV_MODEL_DIR: &str = "TABST_OMR_MODEL_DIR";
+const ENV_MODEL_PATH: &str = "TABST_OMR_MODEL_PATH";
+const ENV_MMPROJ_PATH: &str = "TABST_OMR_MMPROJ_PATH";
+const ENV_CTX_SIZE: &str = "TABST_OMR_CTX_SIZE";
+const ENV_NP: &str = "TABST_OMR_NP";
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -25,6 +33,8 @@ pub(crate) struct ModelStatus {
     pub(crate) downloaded_bytes: u64,
     pub(crate) total_bytes: u64,
     pub(crate) checksum_verified: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) error: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -97,6 +107,14 @@ fn send_progress(channel: &Channel<DownloadProgress>, progress: DownloadProgress
 }
 
 pub(crate) async fn get_model_status<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> ModelStatus {
+    let local_model = match local_model_override().await {
+        Ok(local_model) => local_model,
+        Err(error) => return local_error_status(error),
+    };
+    if let Some(local_model) = local_model {
+        return local_model_status(&local_model);
+    }
+
     let Ok(path) = manifest_path(app) else {
         return empty_status();
     };
@@ -132,6 +150,7 @@ pub(crate) async fn get_model_status<R: tauri::Runtime>(app: &tauri::AppHandle<R
         downloaded_bytes,
         total_bytes,
         checksum_verified,
+        error: None,
     }
 }
 
@@ -217,6 +236,10 @@ pub(crate) async fn download_model<R: tauri::Runtime>(
 pub(crate) async fn ensure_model_cached<R: tauri::Runtime>(
     app: &tauri::AppHandle<R>,
 ) -> Result<CachedModelPaths, String> {
+    if let Some(local_model) = local_model_override().await? {
+        return Ok(local_model);
+    }
+
     let dir = model_dir(app)?;
     let manifest_data = fs::read_to_string(dir.join(MANIFEST_FILE_NAME))
         .await
@@ -250,6 +273,176 @@ pub(crate) async fn ensure_model_cached<R: tauri::Runtime>(
         mmproj_path,
         manifest,
     })
+}
+
+async fn local_model_override() -> Result<Option<CachedModelPaths>, String> {
+    let model_path = env_path(ENV_MODEL_PATH);
+    let mmproj_path = env_path(ENV_MMPROJ_PATH);
+    if model_path.is_some() || mmproj_path.is_some() {
+        let Some(model_path) = model_path else {
+            return Err("local-model-config-incomplete".to_string());
+        };
+        let Some(mmproj_path) = mmproj_path else {
+            return Err("local-model-config-incomplete".to_string());
+        };
+        return validate_local_model_files(model_path, mmproj_path)
+            .await
+            .map(Some);
+    }
+
+    let Some(model_dir) = env_path(ENV_MODEL_DIR) else {
+        return Ok(None);
+    };
+    discover_local_model_dir(&model_dir).await.map(Some)
+}
+
+async fn discover_local_model_dir(dir: &Path) -> Result<CachedModelPaths, String> {
+    let mut entries = fs::read_dir(dir)
+        .await
+        .map_err(|_| "local-model-dir-not-found".to_string())?;
+    let mut model_paths = Vec::new();
+    let mut mmproj_paths = Vec::new();
+
+    while let Some(entry) = entries.next_entry().await.map_err(to_error)? {
+        let path = entry.path();
+        if path.extension().and_then(|extension| extension.to_str()) != Some("gguf") {
+            continue;
+        }
+        let filename = path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or_default()
+            .to_lowercase();
+        if filename.contains("mmproj") {
+            mmproj_paths.push(path);
+        } else {
+            model_paths.push(path);
+        }
+    }
+
+    if model_paths.len() != 1 || mmproj_paths.len() != 1 {
+        return Err("local-model-dir-ambiguous".to_string());
+    }
+
+    let model_path = model_paths.remove(0);
+    let mmproj_path = mmproj_paths.remove(0);
+    validate_local_model_files(model_path, mmproj_path).await
+}
+
+async fn validate_local_model_files(
+    model_path: PathBuf,
+    mmproj_path: PathBuf,
+) -> Result<CachedModelPaths, String> {
+    let model_size = validate_local_gguf_file("model", &model_path).await?;
+    let mmproj_size = validate_local_gguf_file("mmproj", &mmproj_path).await?;
+    let model_filename = local_filename(&model_path, "local-model-invalid-path")?;
+    let mmproj_filename = local_filename(&mmproj_path, "local-mmproj-invalid-path")?;
+
+    Ok(CachedModelPaths {
+        model_path,
+        mmproj_path,
+        manifest: ModelManifest {
+            version: LOCAL_MODEL_VERSION.to_string(),
+            model_repo: LOCAL_MODEL_REPO.to_string(),
+            files: vec![
+                ModelManifestFile {
+                    filename: model_filename,
+                    sha256: String::new(),
+                    size: model_size,
+                    required: true,
+                    file_type: "main".to_string(),
+                },
+                ModelManifestFile {
+                    filename: mmproj_filename,
+                    sha256: String::new(),
+                    size: mmproj_size,
+                    required: true,
+                    file_type: "mmproj".to_string(),
+                },
+            ],
+            llama_server_args: Some(LlamaServerArgs {
+                ctx_size: parse_env_u32(ENV_CTX_SIZE, "local-ctx-size-invalid", 1024)?
+                    .or(Some(8192)),
+                np: parse_env_u32(ENV_NP, "local-np-invalid", 1)?.or(Some(1)),
+                host: None,
+            }),
+        },
+    })
+}
+
+async fn validate_local_gguf_file(kind: &str, path: &Path) -> Result<u64, String> {
+    let metadata = fs::metadata(path)
+        .await
+        .map_err(|_| format!("local-{kind}-not-found"))?;
+    if !metadata.is_file() || metadata.len() < 4 {
+        return Err(format!("local-{kind}-invalid"));
+    }
+
+    let mut file = fs::File::open(path)
+        .await
+        .map_err(|_| format!("local-{kind}-unreadable"))?;
+    let mut magic = [0_u8; 4];
+    file.read_exact(&mut magic)
+        .await
+        .map_err(|_| format!("local-{kind}-unreadable"))?;
+    if magic != *b"GGUF" {
+        return Err(format!("local-{kind}-not-gguf"));
+    }
+
+    Ok(metadata.len())
+}
+
+fn local_model_status(model: &CachedModelPaths) -> ModelStatus {
+    let total_bytes = model.manifest.files.iter().map(|file| file.size).sum();
+    ModelStatus {
+        version: model.manifest.version.clone(),
+        downloaded: true,
+        downloaded_bytes: total_bytes,
+        total_bytes,
+        checksum_verified: true,
+        error: None,
+    }
+}
+
+fn local_error_status(error: String) -> ModelStatus {
+    ModelStatus {
+        version: LOCAL_MODEL_VERSION.to_string(),
+        downloaded: false,
+        downloaded_bytes: 0,
+        total_bytes: 0,
+        checksum_verified: false,
+        error: Some(error),
+    }
+}
+
+fn env_path(name: &str) -> Option<PathBuf> {
+    env::var_os(name).and_then(|value| {
+        let path = PathBuf::from(value);
+        if path.as_os_str().is_empty() {
+            None
+        } else {
+            Some(path)
+        }
+    })
+}
+
+fn parse_env_u32(name: &str, error: &str, min: u32) -> Result<Option<u32>, String> {
+    let Ok(value) = env::var(name) else {
+        return Ok(None);
+    };
+    let parsed = value.trim().parse::<u32>().map_err(|_| error.to_string())?;
+    if parsed < min {
+        return Err(error.to_string());
+    }
+    Ok(Some(parsed))
+}
+
+fn local_filename(path: &Path, error: &str) -> Result<String, String> {
+    path.file_name()
+        .and_then(|name| name.to_str())
+        .filter(|name| !name.is_empty())
+        .map(ToString::to_string)
+        .ok_or_else(|| error.to_string())
 }
 
 async fn download_manifest(repo: &str) -> Result<ModelManifest, String> {
@@ -468,5 +661,6 @@ fn empty_status() -> ModelStatus {
         downloaded_bytes: 0,
         total_bytes: 0,
         checksum_verified: false,
+        error: None,
     }
 }
