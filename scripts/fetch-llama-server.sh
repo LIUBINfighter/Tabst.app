@@ -42,9 +42,26 @@ fi
 
 mkdir -p "${BINARY_DIR}"
 
+binary_set_ready() {
+	local target="$1"
+	if [[ ! -x "${BINARY_DIR}/llama-server-${target}" ]]; then
+		return 1
+	fi
+	for runtime_lib in "${RUNTIME_LIBS[@]}"; do
+		if [[ ! -f "${BINARY_DIR}/${runtime_lib}-${target}" ]]; then
+			return 1
+		fi
+	done
+	return 0
+}
+
 download_and_extract() {
 	local arch="$1"
 	local target="$2"
+	if binary_set_ready "${target}"; then
+		echo "llama-server sidecar already prepared for ${target}."
+		return
+	fi
 	local archive="/tmp/llama-${VERSION}-${arch}.tar.gz"
 	local url="https://github.com/ggml-org/llama.cpp/releases/download/${VERSION}/llama-${VERSION}-bin-macos-${arch}.tar.gz"
 	local extract_dir="/tmp/tabst-llama-${VERSION}-${arch}"
