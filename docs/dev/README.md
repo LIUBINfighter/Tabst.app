@@ -50,9 +50,11 @@ OMR Lab 是当前桌面端实验功能：在设置页提供图片输入，将本
 |------|------|----------|
 | [OMR_LAB_SPEC.md](./OMR_LAB_SPEC.md) | OMR Lab 技术规格、实现状态、接口和测试策略 | ⭐⭐⭐⭐⭐ |
 | [OMR_LAB_RUNBOOK.md](./OMR_LAB_RUNBOOK.md) | 开发/构建/故障排查手册，含 sidecar 自动下载与二进制忽略策略 | ⭐⭐⭐⭐⭐ |
+| [OMR_MODEL_DEBUG.md](./OMR_MODEL_DEBUG.md) | 本地训练模型调试手册，含 BF16 GGUF 解压、env override、sidecar 冒烟测试 | ⭐⭐⭐⭐⭐ |
 
 **快速入口**：
 - 只想运行或排查 OMR Lab？→ [OMR_LAB_RUNBOOK.md](./OMR_LAB_RUNBOOK.md)
+- 要切换本地训练模型？→ [OMR_MODEL_DEBUG.md](./OMR_MODEL_DEBUG.md)
 - 要改架构或接口？→ [OMR_LAB_SPEC.md](./OMR_LAB_SPEC.md)
 
 ---
@@ -141,4 +143,4 @@ OMR Lab 是当前桌面端实验功能：在设置页提供图片输入，将本
 
 ---
 
-**最后更新**：2026-05-01
+**最后更新**：2026-05-02
