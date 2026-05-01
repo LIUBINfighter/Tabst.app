@@ -48,7 +48,7 @@
 		"@codemirror/lang-markdown": "^6.5.0",
 		"@codemirror/language": "^6.12.3",
 		"@codemirror/lint": "^6.9.5",
-		"@codemirror/state": "^6.5.4",
+		"@codemirror/state": "^6.6.0",
 		"@codemirror/stream-parser": "^0.19.9",
 		"@codemirror/view": "^6.39.12",
 		"@coderline/alphatab": "^1.8.1",
