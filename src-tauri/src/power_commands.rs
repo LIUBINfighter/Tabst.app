@@ -1,3 +1,4 @@
+#[cfg(target_os = "macos")]
 use std::io::ErrorKind;
 
 #[cfg(target_os = "macos")]
