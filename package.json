@@ -96,7 +96,7 @@
 		"@biomejs/biome": "^2.4.6",
 		"@eslint/js": "^9.39.3",
 		"@tailwindcss/typography": "^0.5.19",
-		"@tauri-apps/cli": "^2.10.1",
+		"@tauri-apps/cli": "^2.11.0",
 		"@types/dompurify": "^3.2.0",
 		"@types/mdx": "^2.0.13",
 		"@types/node": "^25.5.0",
