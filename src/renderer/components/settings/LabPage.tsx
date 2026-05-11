@@ -333,7 +333,7 @@ export function LabPage() {
 
 	const busyElapsedMs = busySince ? now - busySince : 0;
 	const isLongStartup =
-		omrStage === "starting-sidecar" && busyElapsedMs > LONG_STARTUP_HINT_MS;
+		omrStage === "checking-sidecar" && busyElapsedMs > LONG_STARTUP_HINT_MS;
 	const healthLabel = t(`labPage.runtimeHealth.${runtimeHealth}`);
 	const healthDetail = runtimeMessage ? translateError(runtimeMessage) : null;
 	const lastCheckedLabel = lastHealthCheckedAt
@@ -431,7 +431,7 @@ export function LabPage() {
 		setPageError(null);
 		useLabStore.getState().clearOmrFeedback("downloading-model");
 		useLabStore.getState().setOmrStage("downloading-model");
-		useLabStore.getState().setRuntimeHealth("checking", "model-not-found");
+		useLabStore.getState().setRuntimeHealth("checking", "provider-unavailable");
 		try {
 			await window.desktopAPI.ai.downloadModel(
 				modelVersion,
@@ -464,32 +464,16 @@ export function LabPage() {
 
 	const handleRestartSidecar = useCallback(async () => {
 		setPageError(null);
-		useLabStore.getState().clearOmrFeedback("starting-sidecar");
-		useLabStore.getState().setOmrStage("starting-sidecar");
+		useLabStore.getState().clearOmrFeedback("checking-sidecar");
+		useLabStore.getState().setOmrStage("checking-sidecar");
 		useLabStore.getState().setRuntimeHealth("checking", null);
 		try {
-			await window.desktopAPI.ai.restartSidecar();
 			await refreshRuntimeStatus();
 			useLabStore.getState().setOmrStage(currentImage ? "image-ready" : "idle");
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
 			useLabStore.getState().setRuntimeHealth("error", message);
 			useLabStore.getState().setOmrStage("failed");
-			setPageError(translateError(message));
-		}
-	}, [currentImage, refreshRuntimeStatus, translateError]);
-
-	const handleStopSidecar = useCallback(async () => {
-		setPageError(null);
-		useLabStore.getState().setRuntimeHealth("checking", null);
-		try {
-			await window.desktopAPI.ai.stopSidecar();
-			await refreshRuntimeStatus();
-			useLabStore.getState().setOmrStage(currentImage ? "image-ready" : "idle");
-		} catch (error) {
-			const message = error instanceof Error ? error.message : String(error);
-			useLabStore.getState().setRuntimeHealth("error", message);
-			await refreshRuntimeStatus();
 			setPageError(translateError(message));
 		}
 	}, [currentImage, refreshRuntimeStatus, translateError]);
@@ -552,32 +536,13 @@ export function LabPage() {
 							size="sm"
 							onClick={() => void handleRestartSidecar()}
 							disabled={
-								!modelDownloaded ||
 								jobStatus === "running" ||
 								jobStatus === "pending" ||
-								hasBusySidecar ||
-								sidecarState === "starting" ||
-								sidecarState === "stopping"
+								hasBusySidecar
 							}
 						>
 							<RotateCcw className="h-4 w-4" />
 							{t("labPage.restartService")}
-						</Button>
-						<Button
-							type="button"
-							variant="outline"
-							size="sm"
-							onClick={() => void handleStopSidecar()}
-							disabled={
-								jobStatus === "running" ||
-								jobStatus === "pending" ||
-								hasBusySidecar ||
-								sidecarState === "stopped" ||
-								sidecarState === "stopping"
-							}
-						>
-							<X className="h-4 w-4" />
-							{t("labPage.stopService")}
 						</Button>
 					</div>
 				</div>

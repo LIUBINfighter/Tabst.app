@@ -118,27 +118,24 @@ pnpm mix --out ./dist/share.md   # 指定输出文件
 
 迁移前的 multi-baseline / long-stress 数据仍保留在 `docs/dev/ops/` 作为历史记录，但当前主线 CI 不再依赖它们。
 
-## llama-server sidecar 脚本
+## OMR HTTP Provider 脚本
 
-OMR Lab 使用 macOS llama.cpp `llama-server` sidecar。生成的 sidecar 二进制和 `.dylib` 依赖不入库，统一由脚本下载并放置到 Tauri 期望的位置。
-
-相关命令：
+OMR Lab 当前通过外部 HTTP Provider 完成推理，Tabst 不再下载、打包或启动本地推理二进制。用于当前 ONNX 通路验证的开发脚本是：
 
 ```bash
-pnpm prepare:llama-server # 只下载/刷新 src-tauri/binaries/ 下的 macOS sidecar 文件
-pnpm dev:tauri            # 自动准备 sidecar，并把当前架构文件安装到 src-tauri/target/debug
-pnpm build:tauri          # 自动准备 sidecar，并把当前架构文件安装到 release/.app/Contents/MacOS
-pnpm build:tauri:ci       # 同 build:tauri，但传递 --no-sign
+python scripts/omr_onnx_provider.py --onnx-export-dir tmp/onnx_export --port 18089
 ```
 
-脚本分工：
+Tabst 通过环境变量连接 Provider：
 
-- `fetch-llama-server.sh`：下载 llama.cpp `b8989` 的 macOS arm64/x64 tarball，并提取 `llama-server`、`libggml*`、`libllama*`、`libmtmd*`。
-- `dev-tauri-with-sidecar.sh`：开发态 wrapper；备份占位/忽略目录内容、下载 sidecar、复制当前架构运行时文件到 `src-tauri/target/debug`，再启动 `tauri dev`。
-- `build-tauri-with-sidecar.sh`：打包 wrapper；下载 sidecar，执行 `tauri build`，并把当前架构运行时文件复制到 `src-tauri/target/release` 和 `.app/Contents/MacOS`。
+```bash
+TABST_OMR_ENDPOINT=http://127.0.0.1:18089 TABST_OMR_API_KIND=tabst pnpm dev
+```
 
-注意：
+支持的 Provider 类型：
 
-- `src-tauri/binaries/` 只提交 `.gitignore` 和 `README.md`；不要提交生成的 `llama-server-*` 或 `.dylib-*` 文件。
-- 如果 llama.cpp 版本或 dylib 清单变化，需要同步更新 `fetch-llama-server.sh`、`src-tauri/tauri.conf.json` 和 `src-tauri/binaries/README.md`。
-- 当前 sidecar 打包仅覆盖 macOS；`release:linux` / `release:win` 会主动失败。
+- `tabst`：轻量 `/health` + `/transcribe` 协议，适合 `scripts/omr_onnx_provider.py`。
+- `openai` / `lm-studio`：OpenAI-compatible `/v1/chat/completions`。
+- `llamacpp`：外部自行启动的 llama.cpp HTTP server。
+
+注意：`src-tauri/binaries/` 当前只保留 `.gitignore` 和 `README.md`，不要提交模型文件或 Provider 二进制；除非产品重新决定回到 bundled runtime 方案。

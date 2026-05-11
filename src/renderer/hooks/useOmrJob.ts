@@ -70,8 +70,15 @@ export function useOmrJob() {
 				const modelStatus = await window.desktopAPI.ai.getModelStatus();
 				useLabStore.getState().setModelStatus(modelStatus.downloaded, null);
 				if (!modelStatus.downloaded) {
-					useLabStore.getState().failOmr("model-not-found");
-					useLabStore.getState().setRuntimeHealth("warning", "model-not-found");
+					useLabStore
+						.getState()
+						.failOmr(modelStatus.error ?? "provider-unavailable");
+					useLabStore
+						.getState()
+						.setRuntimeHealth(
+							"warning",
+							modelStatus.error ?? "provider-unavailable",
+						);
 					return;
 				}
 
@@ -86,21 +93,11 @@ export function useOmrJob() {
 						sidecarStatus.resourceUsage ?? null,
 						sidecarStatus.currentJobId ?? null,
 					);
-				if (
-					sidecarStatus.state === "stopped" ||
-					sidecarStatus.state === "failed"
-				) {
-					useLabStore.getState().setOmrStage("starting-sidecar");
-					await window.desktopAPI.ai.restartSidecar();
-					const restartedStatus = await window.desktopAPI.ai.getSidecarStatus();
-					useLabStore
-						.getState()
-						.setSidecarState(
-							restartedStatus.state,
-							restartedStatus.lastError ?? null,
-							restartedStatus.resourceUsage ?? null,
-							restartedStatus.currentJobId ?? null,
-						);
+				if (sidecarStatus.state !== "ready" && sidecarStatus.state !== "busy") {
+					const message = sidecarStatus.lastError ?? "provider-unavailable";
+					useLabStore.getState().failOmr(message);
+					useLabStore.getState().setRuntimeHealth("warning", message);
+					return;
 				}
 
 				useLabStore.getState().setOmrStage("submitting-job");

@@ -14,7 +14,7 @@ Tabst.app/
 ├── src/                     # product renderer/runtime code
 │   └── renderer/            # React UI, alphaTab integration, worker/LSP
 ├── src-tauri/               # Tauri shell, commands, updater, desktop capabilities
-├── scripts/                 # codemix, vendor sync, llama-server sidecar tooling
+├── scripts/                 # codemix, vendor sync, OMR provider smoke tooling
 ├── docs/dev/                # active engineering docs (alphatab/alphatex/ops)
 ├── .github/workflows/       # CI, release, mac release, pages deploy
 ├── public/assets/           # Bravura, soundfont, alphaTab runtime assets
@@ -35,9 +35,9 @@ Tabst.app/
 | Git integration | `src-tauri/src/lib.rs`, `src/renderer/components/GitWorkspace.tsx` | porcelain parse + unified diff display |
 | OMR Lab UI | `src/renderer/components/settings/LabPage.tsx`, `src/renderer/hooks/useOmrJob.ts`, `src/renderer/store/labStore.ts` | desktop-only image-to-alphaTex experiment |
 | OMR desktop bridge | `src/renderer/types/ai.ts`, `src/renderer/lib/tauri-desktop-api.ts`, `src/renderer/lib/desktop-api.ts` | all renderer AI calls go through `window.desktopAPI.ai` |
-| OMR Tauri backend | `src-tauri/src/ai_*.rs`, `src-tauri/src/lib.rs` | model download/cache, job state, llama sidecar, command handlers |
-| OMR sidecar packaging | `scripts/fetch-llama-server.sh`, `scripts/dev-tauri-with-sidecar.sh`, `scripts/build-tauri-with-sidecar.sh`, `src-tauri/binaries/README.md` | generated binaries are ignored; scripts fetch llama.cpp b8989 for macOS |
-| OMR model debugging | `docs/dev/OMR_MODEL_DEBUG.md`, `docs/dev/OMR_LAB_RUNBOOK.md` | local BF16 GGUF override, image-only prompt contract, sidecar smoke tests |
+| OMR Tauri backend | `src-tauri/src/ai_ocr_commands.rs`, `src-tauri/src/ai_provider.rs`, `src-tauri/src/ai_job_manager.rs`, `src-tauri/src/lib.rs` | HTTP provider client, job state, command handlers |
+| OMR provider smoke tooling | `scripts/omr_onnx_provider.py`, `src-tauri/binaries/README.md` | temporary ONNX HTTP provider; no bundled inference runtime |
+| OMR model/provider debugging | `docs/dev/OMR_MODEL_DEBUG.md`, `docs/dev/OMR_LAB_RUNBOOK.md` | ONNX provider setup, provider env vars, smoke tests |
 
 ## CONVENTIONS
 - Formatter/linter is **Biome** (`biome.json`): tab indentation, double quotes, organize imports enabled.
@@ -46,10 +46,10 @@ Tabst.app/
 - Deep alphaTab config changes (theme/colors) require API destroy + recreate; `render()` alone is insufficient.
 - Completion/hover source precedence: `src/renderer/data/alphatex-commands.json` first, upstream docs second.
 - Desktop bridge surface in the renderer is `window.desktopAPI`.
-- OMR Lab is macOS-only in the current release; web shows a desktop-only fallback and Linux/Windows release commands intentionally fail.
-- `src-tauri/binaries/` keeps only `.gitignore` and `README.md` in git. Do not commit generated `llama-server-*` or `.dylib-*` files; regenerate with `pnpm prepare:llama-server` or the dev/build wrappers.
-- llama.cpp server requests use `/completions` with `LLAMA_MEDIA_MARKER=<__media__>` and `prompt.multimodal_data`; for the local trained OMR model, `prompt_string` must be only `<__media__>` (no system prompt or task text).
-- Local OMR model override supports `TABST_OMR_MODEL_DIR` or `TABST_OMR_MODEL_PATH` + `TABST_OMR_MMPROJ_PATH`, with optional `TABST_OMR_CTX_SIZE` and `TABST_OMR_NP`; see `docs/dev/OMR_MODEL_DEBUG.md` before changing model-loading behavior.
+- OMR Lab is desktop-only; web shows a desktop-only fallback. Inference is handled by an external HTTP provider configured with `TABST_OMR_ENDPOINT` and `TABST_OMR_API_KIND`.
+- `src-tauri/binaries/` keeps only `.gitignore` and `README.md` in git. Do not commit generated model files or provider binaries unless the product explicitly returns to a bundled-runtime design.
+- OMR provider adapters are `tabst` (`/health` + `/transcribe`), `openai` / `lm-studio` (`/v1/chat/completions`), and `llamacpp` (`/completions` against an already-running server).
+- The temporary ONNX smoke provider lives at `scripts/omr_onnx_provider.py`; see `docs/dev/OMR_MODEL_DEBUG.md` before changing provider preprocessing or request contracts.
 
 ## ANTI-PATTERNS (THIS PROJECT)
 - Parsing AlphaTex structure with regex when AST parser is available.
@@ -58,9 +58,9 @@ Tabst.app/
 - Changing print rendering without preserving `.at` font-size `34px` and absolute Bravura URL loading.
 - Reintroducing legacy desktop-runtime assumptions into renderer code or scripts.
 - Treating `.tmp/notebook-navigator` as part of Tabst runtime.
-- Committing generated sidecar binaries from `src-tauri/binaries/`.
-- Calling the OMR sidecar as `binaries/llama-server` at runtime; Tauri resolves `.sidecar("llama-server")` relative to the executable directory.
-- Reintroducing natural-language prompts into the local OMR model request path; the trained model expects image-only input via the media marker.
+- Committing generated model files or provider binaries from `src-tauri/binaries/`.
+- Reintroducing bundled inference process management before the HTTP provider path has been intentionally redesigned.
+- Hard-coding provider-specific preprocessing in the renderer; keep provider/runtime details behind the HTTP provider contract.
 
 ## UNIQUE STYLES
 - Interaction zoning: top/left for navigation context; bottom/right for command actions.
@@ -76,9 +76,8 @@ pnpm check
 pnpm build
 pnpm release
 pnpm release:mac
-pnpm release:linux # intentionally fails while OMR sidecar packaging is macOS-only
-pnpm release:win   # intentionally fails while OMR sidecar packaging is macOS-only
-pnpm prepare:llama-server
+pnpm release:linux
+pnpm release:win
 pnpm mix
 pnpm mix:main
 pnpm mix:render

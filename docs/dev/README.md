@@ -44,13 +44,13 @@ AlphaTex 编辑器实现文档。
 
 ### omr/desktop lab - 图片转 alphaTex 实验
 
-OMR Lab 是当前桌面端实验功能：在设置页提供图片输入，将本地模型输出转换为 alphaTex 文本。
+OMR Lab 是当前桌面端实验功能：在设置页提供图片输入，将外部 HTTP OMR Provider 输出转换为 alphaTex 文本。
 
 | 文档 | 内容 | 推荐阅读 |
 |------|------|----------|
 | [OMR_LAB_SPEC.md](./OMR_LAB_SPEC.md) | OMR Lab 技术规格、实现状态、接口和测试策略 | ⭐⭐⭐⭐⭐ |
-| [OMR_LAB_RUNBOOK.md](./OMR_LAB_RUNBOOK.md) | 开发/构建/故障排查手册，含 sidecar 自动下载与二进制忽略策略 | ⭐⭐⭐⭐⭐ |
-| [OMR_MODEL_DEBUG.md](./OMR_MODEL_DEBUG.md) | 本地训练模型调试手册，含 BF16 GGUF 解压、env override、sidecar 冒烟测试 | ⭐⭐⭐⭐⭐ |
+| [OMR_LAB_RUNBOOK.md](./OMR_LAB_RUNBOOK.md) | 开发/构建/故障排查手册，含 HTTP Provider 配置与冒烟测试 | ⭐⭐⭐⭐⭐ |
+| [OMR_MODEL_DEBUG.md](./OMR_MODEL_DEBUG.md) | 当前 ONNX Provider 调试手册，含临时 Python 环境、预处理选项与已知输出问题 | ⭐⭐⭐⭐⭐ |
 
 **快速入口**：
 - 只想运行或排查 OMR Lab？→ [OMR_LAB_RUNBOOK.md](./OMR_LAB_RUNBOOK.md)

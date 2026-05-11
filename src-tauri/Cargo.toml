@@ -22,7 +22,6 @@ sha2 = "0.10"
 sysinfo = "0.30"
 tauri = { version = "2.0", features = ["webview-data-url"] }
 tauri-plugin-mcp-bridge = "0.10"
-tauri-plugin-shell = "2"
 tauri-plugin-updater = "2.9"
 tokio = { version = "1", features = ["fs", "io-util", "process", "time", "sync"] }
 trash = "5.2"

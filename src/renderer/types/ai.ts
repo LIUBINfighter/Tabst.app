@@ -18,6 +18,9 @@ export interface OmrOptions {
 	tuning?: string;
 	instrument?: string;
 	language?: string;
+	maxNewTokens?: number;
+	preprocess?: string;
+	invert?: boolean;
 }
 
 export interface OmrRawResult {
@@ -39,6 +42,11 @@ export interface OmrResult extends OmrRawResult {
 	isValidAlphaTex: boolean;
 }
 
+/**
+ * Compatibility name retained for the existing desktop bridge. The current
+ * HTTP-provider backend returns only `ready` or `failed`; broader states remain
+ * for the web fallback and default store state until the bridge is renamed.
+ */
 export interface SidecarStatus {
 	state: "stopped" | "starting" | "ready" | "busy" | "stopping" | "failed";
 	currentJobId?: string;

@@ -1,35 +1,21 @@
-# llama.cpp sidecar binaries
+# External OMR provider binaries
 
-This directory backs the macOS OMR Lab llama.cpp sidecar. It is populated by
-`scripts/fetch-llama-server.sh` and should not store downloaded binaries in git.
+Tabst's OMR Lab now talks to an external HTTP provider instead of bundling a
+local inference runtime. This directory is intentionally kept empty except for
+this README and `.gitignore`.
 
-The Tauri bundle config references these files through `bundle.externalBin`, and
-the fetch/build wrappers create the platform-suffixed files that Tauri expects:
-
-- `llama-server-<target-triple>`
-- `libggml*.dylib-<target-triple>`
-- `libllama*.dylib-<target-triple>`
-- `libmtmd*.dylib-<target-triple>`
-
-Supported target triples for the current macOS-only OMR Lab build are:
-
-- `aarch64-apple-darwin`
-- `x86_64-apple-darwin`
-
-To repopulate the directory locally, run:
+Run an OMR provider separately and point Tabst at it with environment variables:
 
 ```sh
-pnpm prepare:llama-server
+TABST_OMR_ENDPOINT=http://127.0.0.1:18089 TABST_OMR_API_KIND=tabst pnpm dev
 ```
 
-The development and build wrappers also run the fetch step automatically:
+Supported provider adapters:
 
-```sh
-pnpm dev:tauri
-pnpm build:tauri
-pnpm build:tauri:ci
-```
+- `TABST_OMR_API_KIND=tabst` for the lightweight `/health` + `/transcribe` API.
+- `TABST_OMR_API_KIND=openai` for OpenAI-compatible `/v1/chat/completions`
+  servers such as LM Studio.
+- `TABST_OMR_API_KIND=llamacpp` for an already-running llama.cpp HTTP server.
 
-Do not commit the generated `llama-server` or `.dylib` files. If the expected
-runtime payload changes, update `scripts/fetch-llama-server.sh`,
-`src-tauri/tauri.conf.json`, and this README together.
+Do not commit generated model files or provider binaries here unless the product
+explicitly returns to a bundled-runtime design.

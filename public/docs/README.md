@@ -30,7 +30,7 @@ While document writing already has a plethora of out-of-the-box Markdown editors
 
 [MusiXTeX](https://ctan.org/pkg/musixtex) and [Lilypond](https://lilypond.org/) have set a publishing-grade example in music notation languages, while [alphaTab.js](https://www.alphatab.net/) has made interactive and playable scores possible. In Tabst, we write alphaTex in a simple, intuitive syntax, and easily share with your friends.
 
-This is just the beginning. My vision is to transform scattered PDFs and images of scores into alphaTex stored in Tabst. The desktop Lab now includes an experimental OMR flow that runs a local llama.cpp sidecar on macOS.
+This is just the beginning. My vision is to transform scattered PDFs and images of scores into alphaTex stored in Tabst. The desktop Lab now includes an experimental OMR flow that talks to an external HTTP provider, so models and runtimes can be swapped without repackaging the app.
 
 ## Tech Stack
 
@@ -66,10 +66,13 @@ pnpm install
 ```powershell
 pnpm run dev  # Run React development server + Tauri shell
 pnpm run dev:react # Run renderer only
-pnpm run prepare:llama-server # Optional: prefetch macOS llama.cpp sidecar files
 ```
 
-`pnpm run dev` / `pnpm run dev:tauri` automatically prepares the macOS `llama-server` sidecar used by the OMR Lab. Generated sidecar binaries live under `src-tauri/binaries/` locally and are ignored by git; see `src-tauri/binaries/README.md`.
+For OMR Lab, start a compatible provider separately and point Tabst at it, for example:
+
+```powershell
+TABST_OMR_ENDPOINT=http://127.0.0.1:18089 TABST_OMR_API_KIND=tabst pnpm run dev
+```
 
 ## Build Targets
 
@@ -79,7 +82,7 @@ pnpm run build:web    # Website target (static dist)
 pnpm run build:tauri  # Explicit Tauri desktop build
 ```
 
-The OMR Lab sidecar bundle is currently macOS-only. `release:linux` and `release:win` intentionally fail until non-macOS sidecar packaging is designed.
+OMR inference is provider-managed and no longer tied to a platform-specific bundled runtime.
 
 ## Release
 
@@ -97,5 +100,5 @@ The desktop runtime cutover is complete and the repository is now Tauri-first.
 - Product builds, release commands, and CI desktop validation all target Tauri.
 - The renderer uses a unified `desktopAPI` bridge for desktop capabilities.
 - OMR Lab desktop calls live under `window.desktopAPI.ai`; the web runtime shows a desktop-only Lab fallback.
-- macOS desktop builds fetch `llama-server` and required `libggml` / `libllama` / `libmtmd` dynamic libraries during dev/build rather than committing generated binaries.
+- OMR Lab sends images to an external HTTP provider configured with `TABST_OMR_ENDPOINT` / `TABST_OMR_API_KIND`; Tabst does not bundle inference binaries.
 - Detailed normalization work and follow-up tasks are tracked in [docs/dev/TAURI_MIGRATION_STATUS.md](./docs/dev/TAURI_MIGRATION_STATUS.md).

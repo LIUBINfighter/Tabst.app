@@ -54,7 +54,7 @@ impl OmrJobManager {
             .lock()
             .map_err(|_| "job-lock-failed".to_string())?;
         if active.is_some() {
-            return Err("sidecar-busy".to_string());
+            return Err("provider-busy".to_string());
         }
 
         let job_id = format!("omr-{}", now_ms());
@@ -136,7 +136,7 @@ impl OmrJobManager {
             .lock()
             .map_err(|_| "job-lock-failed".to_string())?
             .insert(job_id.to_string());
-        self.clear_active_job(job_id)
+        Ok(())
     }
 
     pub(crate) fn is_cancelled(&self, job_id: &str) -> bool {

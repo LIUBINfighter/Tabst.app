@@ -1,7 +1,6 @@
 mod ai_job_manager;
-mod ai_model_manager;
 mod ai_ocr_commands;
-mod ai_sidecar;
+mod ai_provider;
 mod fs_commands;
 mod git_commands;
 mod models;
@@ -16,7 +15,6 @@ use ai_ocr_commands::{
     cancel_omr_job, download_model, get_model_status, get_omr_result, get_sidecar_status,
     omr_transcribe, restart_sidecar, stop_sidecar,
 };
-use ai_sidecar::LlamaServerState;
 use fs_commands::{
     create_file, create_folder, load_app_state, move_path, open_external, open_file, read_asset,
     read_file, read_file_bytes, rename_file, reveal_in_folder, save_app_state, save_file,
@@ -36,74 +34,63 @@ use repo_commands::{
 };
 use settings_commands::{load_global_settings, save_global_settings};
 pub(crate) use support::*;
-use tauri::Manager;
 use updater_commands::{check_for_updates, fetch_releases_feed, get_app_version, install_update};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    with_debug_plugins(with_optional_updater_plugin(
-        tauri::Builder::default().plugin(tauri_plugin_shell::init()),
-    ))
-    .manage(RepoWatchManager::default())
-    .manage(KeepAwakeManager::default())
-    .manage(LlamaServerState::default())
-    .manage(OmrJobManager::default())
-    .invoke_handler(tauri::generate_handler![
-        get_model_status,
-        download_model,
-        omr_transcribe,
-        get_omr_result,
-        cancel_omr_job,
-        get_sidecar_status,
-        stop_sidecar,
-        restart_sidecar,
-        open_file,
-        select_folder,
-        create_file,
-        create_folder,
-        save_file,
-        load_app_state,
-        save_app_state,
-        rename_file,
-        move_path,
-        reveal_in_folder,
-        open_external,
-        read_asset,
-        read_file,
-        read_file_bytes,
-        scan_directory,
-        load_repos,
-        save_repos,
-        load_workspace_metadata,
-        save_workspace_metadata,
-        delete_file,
-        start_repo_watch,
-        stop_repo_watch,
-        get_git_status,
-        get_git_diff,
-        stage_git_file,
-        stage_all_git_changes,
-        unstage_git_file,
-        sync_git_pull,
-        commit_git_changes,
-        check_for_updates,
-        install_update,
-        get_app_version,
-        fetch_releases_feed,
-        load_global_settings,
-        save_global_settings,
-        set_keep_awake
-    ])
-    .build(tauri::generate_context!())
-    .expect("error while building tauri application")
-    .run(|app, event| {
-        if matches!(
-            event,
-            tauri::RunEvent::ExitRequested { .. } | tauri::RunEvent::Exit
-        ) {
-            app.state::<LlamaServerState>().stop();
-        }
-    });
+    with_debug_plugins(with_optional_updater_plugin(tauri::Builder::default()))
+        .manage(RepoWatchManager::default())
+        .manage(KeepAwakeManager::default())
+        .manage(OmrJobManager::default())
+        .invoke_handler(tauri::generate_handler![
+            get_model_status,
+            download_model,
+            omr_transcribe,
+            get_omr_result,
+            cancel_omr_job,
+            get_sidecar_status,
+            stop_sidecar,
+            restart_sidecar,
+            open_file,
+            select_folder,
+            create_file,
+            create_folder,
+            save_file,
+            load_app_state,
+            save_app_state,
+            rename_file,
+            move_path,
+            reveal_in_folder,
+            open_external,
+            read_asset,
+            read_file,
+            read_file_bytes,
+            scan_directory,
+            load_repos,
+            save_repos,
+            load_workspace_metadata,
+            save_workspace_metadata,
+            delete_file,
+            start_repo_watch,
+            stop_repo_watch,
+            get_git_status,
+            get_git_diff,
+            stage_git_file,
+            stage_all_git_changes,
+            unstage_git_file,
+            sync_git_pull,
+            commit_git_changes,
+            check_for_updates,
+            install_update,
+            get_app_version,
+            fetch_releases_feed,
+            load_global_settings,
+            save_global_settings,
+            set_keep_awake
+        ])
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|_, _| {});
 }
 
 #[cfg(not(debug_assertions))]

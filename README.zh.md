@@ -22,7 +22,7 @@ Write. Play. Share.
 
 MusiXTeX, Lilypond 在乐谱标记语言上做出了出版级的表率，而 alphaTab.js 让可交互可播放的乐谱成为可能。在 Tabst 中，我们以简单直观的语法书写 alphaTex，并轻松与朋友分享。
 
-这只是一个开始，我的愿景是将散落为 pdf/图片的曲谱们都转化为 Tabst 中存储的 alphaTex。桌面端实验室已经包含一个实验性的 OMR 流程，在 macOS 上通过本地 llama.cpp sidecar 运行。
+这只是一个开始，我的愿景是将散落为 pdf/图片的曲谱们都转化为 Tabst 中存储的 alphaTex。桌面端实验室已经包含一个实验性的 OMR 流程，通过外部 HTTP Provider 运行，方便后续替换模型和推理运行时。
 
 ## Tech Stack 技术栈
 
@@ -58,10 +58,13 @@ pnpm install
 ```powershell
 pnpm run dev  # 运行 React 开发服务器 + Tauri 壳层
 pnpm run dev:react # 仅运行渲染器开发服务器
-pnpm run prepare:llama-server # 可选：预下载 macOS llama.cpp sidecar 文件
 ```
 
-`pnpm run dev` / `pnpm run dev:tauri` 会自动准备 OMR Lab 需要的 macOS `llama-server` sidecar。生成的 sidecar 二进制位于本地 `src-tauri/binaries/`，并被 git 忽略；说明见 `src-tauri/binaries/README.md`。
+如需使用 OMR Lab，请先单独启动兼容的 Provider，然后通过环境变量连接，例如：
+
+```powershell
+TABST_OMR_ENDPOINT=http://127.0.0.1:18089 TABST_OMR_API_KIND=tabst pnpm run dev
+```
 
 ## 构建
 
@@ -71,7 +74,7 @@ pnpm run build:web  # 构建 website 静态站点
 pnpm run build:tauri  # 显式执行 Tauri 桌面构建
 ```
 
-OMR Lab 的 sidecar 打包当前仅支持 macOS。`release:linux` 和 `release:win` 会主动失败，直到设计好非 macOS 的 sidecar 打包流程。
+OMR 推理由外部 Provider 管理，不再绑定平台特定的内置运行时。
 
 ## 发布
 
@@ -89,7 +92,7 @@ pnpm run release:win
 - 产品构建、发布命令与 CI 桌面校验均以 Tauri 为准。
 - 渲染层统一通过 `desktopAPI` bridge 接入桌面能力。
 - OMR Lab 桌面能力位于 `window.desktopAPI.ai`；web 运行时只显示桌面端专属提示。
-- macOS 桌面构建会在 dev/build 阶段下载 `llama-server` 以及所需 `libggml` / `libllama` / `libmtmd` 动态库，不提交生成的二进制文件。
+- OMR Lab 会把图片发送给通过 `TABST_OMR_ENDPOINT` / `TABST_OMR_API_KIND` 配置的外部 HTTP Provider；Tabst 不打包推理二进制。
 - 后续的规范化收尾工作见 [docs/dev/TAURI_MIGRATION_STATUS.md](./docs/dev/TAURI_MIGRATION_STATUS.md)。
 
 ## CI
