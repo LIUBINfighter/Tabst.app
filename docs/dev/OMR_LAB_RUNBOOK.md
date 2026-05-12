@@ -1,6 +1,6 @@
 # OMR Lab Runbook
 
-Last updated: 2026-05-11
+Last updated: 2026-05-12
 
 This runbook explains how to run, build, and troubleshoot the experimental OMR Lab after the HTTP-provider migration. Tabst no longer bundles or starts an inference sidecar; the desktop app sends images to an externally managed OMR HTTP provider.
 
@@ -38,7 +38,7 @@ Tabst reads provider settings from environment variables:
 
 Supported adapters:
 
-- `tabst`: `GET /health`, `POST /transcribe` with `{ imageBase64, options }`.
+- `tabst`: `GET /health` with provider readiness and `activeModel`, plus `POST /transcribe` with `{ imageBase64, options }`.
 - `openai` / `lm-studio`: `GET /v1/models`, `POST /v1/chat/completions` with image content.
 - `llamacpp`: `GET /health`, `POST /completions` against an already-running llama.cpp HTTP server.
 
@@ -50,10 +50,13 @@ Install dependencies first:
 pnpm install
 ```
 
-Start a provider. For the temporary ONNX export in `tmp/onnx_export`:
+Start a provider. For the temporary ONNX export in `tmp/onnx_export` and the current nested weights directory:
 
 ```bash
-python scripts/omr_onnx_provider.py --onnx-export-dir tmp/onnx_export --port 18089
+python scripts/omr_onnx_provider.py \
+  --onnx-export-dir tmp/onnx_export \
+  --weights-dir tmp/onnx_export/weights/omr-stage2-815-93x-r03-seq768-frozen-from-top2 \
+  --port 18089
 ```
 
 Then start Tabst:
@@ -72,6 +75,19 @@ pnpm dev
 ```
 
 ## Provider request contract
+
+The native `tabst` provider health endpoint returns readiness and the active model name that the Lab UI displays after **Check status**:
+
+```json
+{
+  "status": "ok",
+  "runtime": "onnx",
+  "ready": true,
+  "activeModel": "omr-stage2-815-93x-r03-seq768-frozen-from-top2"
+}
+```
+
+`activeModel` is additive. Older compatible providers may omit it; Tabst falls back to the configured model label.
 
 The native `tabst` provider receives:
 
@@ -125,7 +141,7 @@ Manual smoke test:
 1. Start an OMR provider.
 2. Open the desktop app.
 3. Go to Settings -> Lab.
-4. Click **Check provider** and confirm the runtime health is ready.
+4. Click **Check provider** and confirm the runtime health is ready and the active model name is shown.
 5. Paste, choose, or drag a PNG/JPG/JPEG/WEBP tab image.
 6. Click recognition.
 7. Confirm an alphaTex result appears and can be copied or inserted into the editor.
@@ -133,7 +149,10 @@ Manual smoke test:
 Standalone ONNX provider smoke test:
 
 ```bash
-python scripts/omr_onnx_provider.py --onnx-export-dir tmp/onnx_export --port 18089
+python scripts/omr_onnx_provider.py \
+  --onnx-export-dir tmp/onnx_export \
+  --weights-dir tmp/onnx_export/weights/omr-stage2-815-93x-r03-seq768-frozen-from-top2 \
+  --port 18089
 curl http://127.0.0.1:18089/health
 ```
 
@@ -145,6 +164,7 @@ curl http://127.0.0.1:18089/health
 | `provider-kind-invalid` | Unsupported adapter name | Use `tabst`, `openai`, or `llamacpp` |
 | `provider-request-failed` | HTTP request failed or provider returned non-2xx | Check provider logs and response body |
 | `provider-invalid-response` | Provider response did not contain usable `alphaTex`/content | Confirm the adapter contract and JSON shape |
+| Active model shows `—` | Provider omitted `activeModel` or health failed before model status was stored | Check `/health`; old providers can omit the field, but the ONNX smoke provider should return it |
 | `provider-managed-externally` | User tried to stop provider from Tabst | Stop it from its own terminal/app |
 | `provider-busy` | A Tabst recognition job is already active | Wait for it to finish or cancel it |
 | `omr-timeout` | Provider took longer than request timeout | Increase `TABST_OMR_REQUEST_TIMEOUT_SECS` or optimize provider runtime |

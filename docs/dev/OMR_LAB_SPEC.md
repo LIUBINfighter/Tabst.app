@@ -1,6 +1,6 @@
 # Tabst OMR Lab Technical Spec
 
-Last updated: 2026-05-11
+Last updated: 2026-05-12
 
 ## 1. Goal
 
@@ -28,6 +28,7 @@ image input -> Tauri command -> external HTTP OMR provider -> alphaTex -> alphaT
 - Accept image input via paste, file chooser, or drag-and-drop.
 - Resize/encode image in the renderer before sending it through the desktop bridge.
 - Check provider readiness before recognition.
+- Display the active provider model reported by health checks when available.
 - Submit recognition as a Tauri job and poll for status.
 - Display editable alphaTex output.
 - Validate output through the existing alphaTab parser/preview pipeline.
@@ -47,11 +48,24 @@ Provider selection is environment-driven:
 
 Adapters:
 
-- `tabst`: native test contract with `GET /health` and `POST /transcribe`.
+- `tabst`: native test contract with `GET /health` and `POST /transcribe`. Health includes an additive `activeModel` field when the provider can report its loaded model.
 - `openai`: OpenAI-compatible `GET /v1/models` and `POST /v1/chat/completions`, useful for LM Studio.
 - `llamacpp`: an already-running llama.cpp HTTP server using `GET /health` and `POST /completions`.
 
 ## 5. Native `tabst` provider contract
+
+Health response:
+
+```json
+{
+  "status": "ok",
+  "runtime": "onnx",
+  "ready": true,
+  "activeModel": "omr-stage2-815-93x-r03-seq768-frozen-from-top2"
+}
+```
+
+`ready: true` is required for Tabst to treat the provider as available. `activeModel` is optional and backward-compatible; if omitted, the app falls back to the configured model label. The local ONNX smoke provider sets it from the `--weights-dir` directory name.
 
 Request:
 
@@ -104,6 +118,7 @@ External HTTP provider
 ## 7. Implementation notes
 
 - `get_model_status` now means provider health status, not local model-cache status.
+- `ModelStatus.activeModel` is populated from native `tabst` `/health.activeModel` and displayed in Settings -> Lab.
 - `download_model` is retained as a compatibility shim that checks provider health and emits a completed progress event.
 - `get_sidecar_status`, `restart_sidecar`, and `stop_sidecar` remain bridge-compatible names for now, but their behavior is provider-oriented:
   - status -> provider health
@@ -124,7 +139,10 @@ pnpm verify:tauri
 Provider smoke gate:
 
 ```bash
-python scripts/omr_onnx_provider.py --onnx-export-dir tmp/onnx_export --port 18089
+python scripts/omr_onnx_provider.py \
+  --onnx-export-dir tmp/onnx_export \
+  --weights-dir tmp/onnx_export/weights/omr-stage2-815-93x-r03-seq768-frozen-from-top2 \
+  --port 18089
 curl http://127.0.0.1:18089/health
 ```
 
@@ -133,7 +151,7 @@ Manual UI gate:
 1. Start a provider.
 2. Launch Tabst with `TABST_OMR_ENDPOINT` and `TABST_OMR_API_KIND`.
 3. Open Settings -> Lab.
-4. Check provider status.
+4. Check provider status and confirm the active model label appears.
 5. Submit a tab image.
 6. Confirm alphaTex appears and parser validation runs.
 
