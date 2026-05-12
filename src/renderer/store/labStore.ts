@@ -42,6 +42,7 @@ interface LabState {
 	sidecarResourceUsage: SidecarResourceUsage | null;
 	sidecarCurrentJobId: string | null;
 	modelVersion: string;
+	activeModel: string | null;
 	modelDownloaded: boolean;
 	downloadProgress: DownloadProgress | null;
 	currentJobId: string | null;
@@ -63,6 +64,7 @@ interface LabState {
 		downloaded: boolean,
 		progress?: DownloadProgress | null,
 		version?: string,
+		activeModel?: string | null,
 	) => void;
 	setOmrStage: (stage: LabOmrStage) => void;
 	setRuntimeHealth: (
@@ -87,6 +89,7 @@ export const useLabStore = create<LabState>((set) => ({
 	sidecarResourceUsage: null,
 	sidecarCurrentJobId: null,
 	modelVersion: "v1",
+	activeModel: null,
 	modelDownloaded: false,
 	downloadProgress: null,
 	currentJobId: null,
@@ -118,11 +121,12 @@ export const useLabStore = create<LabState>((set) => ({
 			sidecarResourceUsage: resourceUsage,
 			sidecarCurrentJobId: currentJobId,
 		}),
-	setModelStatus: (downloaded, progress = null, version) =>
+	setModelStatus: (downloaded, progress = null, version, activeModel) =>
 		set((state) => ({
 			modelDownloaded: downloaded,
 			downloadProgress: progress,
 			modelVersion: version ?? state.modelVersion,
+			activeModel: activeModel === undefined ? state.activeModel : activeModel,
 		})),
 	setOmrStage: (stage) => set({ omrStage: stage }),
 	setRuntimeHealth: (health, message = null, checkedAt = Date.now()) =>

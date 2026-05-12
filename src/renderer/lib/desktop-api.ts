@@ -187,6 +187,7 @@ export function createWebDesktopAPI(): DesktopAPI {
 		ai: {
 			getModelStatus: async () => ({
 				version: "",
+				activeModel: undefined,
 				downloaded: false,
 				downloadedBytes: 0,
 				totalBytes: 0,

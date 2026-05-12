@@ -68,7 +68,14 @@ export function useOmrJob() {
 			useLabStore.getState().prepareOmr("checking-model");
 			try {
 				const modelStatus = await window.desktopAPI.ai.getModelStatus();
-				useLabStore.getState().setModelStatus(modelStatus.downloaded, null);
+				useLabStore
+					.getState()
+					.setModelStatus(
+						modelStatus.downloaded,
+						null,
+						modelStatus.version,
+						modelStatus.activeModel ?? null,
+					);
 				if (!modelStatus.downloaded) {
 					useLabStore
 						.getState()

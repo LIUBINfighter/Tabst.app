@@ -1,5 +1,6 @@
 export interface ModelStatus {
 	version: string;
+	activeModel?: string;
 	downloaded: boolean;
 	downloadedBytes: number;
 	totalBytes: number;
