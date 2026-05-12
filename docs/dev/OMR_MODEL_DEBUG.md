@@ -1,15 +1,21 @@
 # OMR Provider Debug Notes
 
-Last updated: 2026-05-11
+Last updated: 2026-05-12
 
 This document records the current OMR debugging workflow for Tabst's desktop Lab. The app now talks to an external HTTP provider; it no longer manages model downloads, model manifests, or local inference processes.
 
 ## Current temporary model under test
 
-The active smoke-test model is the ONNX export in:
+The active smoke-test runtime is the ONNX export in:
 
 ```text
 tmp/onnx_export/
+```
+
+The current model under test is the nested weights directory:
+
+```text
+tmp/onnx_export/weights/omr-stage2-815-93x-r03-seq768-frozen-from-top2/
 ```
 
 Important files:
@@ -17,13 +23,13 @@ Important files:
 ```text
 tmp/onnx_export/runtime.py
 tmp/onnx_export/tokenizer_wrapper.py
-tmp/onnx_export/weights/encoder.onnx
-tmp/onnx_export/weights/decoder.onnx
-tmp/onnx_export/weights/metadata.json
-tmp/onnx_export/weights/vocab_v2.json
+tmp/onnx_export/weights/omr-stage2-815-93x-r03-seq768-frozen-from-top2/encoder.onnx
+tmp/onnx_export/weights/omr-stage2-815-93x-r03-seq768-frozen-from-top2/decoder.onnx
+tmp/onnx_export/weights/omr-stage2-815-93x-r03-seq768-frozen-from-top2/metadata.json
+tmp/onnx_export/weights/omr-stage2-815-93x-r03-seq768-frozen-from-top2/vocab_v2.json
 ```
 
-This model is temporary and is only used to validate the application path. Its output is syntactically parseable in the current smoke tests, but it often repeats and does not reliably emit EOS.
+This model is temporary and is only used to validate the application path. Model quality is still evaluated through manual smoke tests; repeated or empty output should be treated as a model/preprocessing issue unless the HTTP contract itself fails.
 
 ## Temporary Python environment
 
@@ -44,6 +50,7 @@ Start the development provider:
 /var/folders/93/5ny43nm923ddw1v5tpt8fxc80000gn/T/opencode/tabst-onnx-venv/bin/python \
   scripts/omr_onnx_provider.py \
   --onnx-export-dir tmp/onnx_export \
+  --weights-dir tmp/onnx_export/weights/omr-stage2-815-93x-r03-seq768-frozen-from-top2 \
   --port 18089
 ```
 
@@ -56,8 +63,10 @@ curl http://127.0.0.1:18089/health
 Expected response:
 
 ```json
-{"status":"ok","runtime":"onnx","ready":true}
+{"status":"ok","runtime":"onnx","ready":true,"activeModel":"omr-stage2-815-93x-r03-seq768-frozen-from-top2"}
 ```
+
+`activeModel` is derived from the `--weights-dir` directory name and is displayed in Settings -> Lab after **Check status**. Older compatible providers may omit it; Tabst then falls back to the configured provider model label.
 
 Run Tabst against it:
 
@@ -77,9 +86,9 @@ The `tabst` provider accepts `options`:
 
 The smoke provider composites alpha images over white, emits NCHW float32 tensors, and returns preprocessing metadata in `rawResponse.preprocess`.
 
-## Known model-output behavior
+## Model-output behavior
 
-Representative `fit-pad-800x320` output for `tmp/测试图片.png`:
+Historical `fit-pad-800x320` output from the previous default weights for `tmp/测试图片.png`:
 
 ```alphatex
 (2.3 1.4 1.5).2
@@ -89,7 +98,7 @@ Representative `fit-pad-800x320` output for `tmp/测试图片.png`:
  1.5.4
 ```
 
-The result parses as alphaTex in current tests, but repeats. This is treated as a model/preprocessing quality issue, not an application integration blocker.
+That result parsed as alphaTex but repeated. Use it only as a reminder of the failure mode; the current nested model should be judged with fresh smoke images.
 
 ## Standalone request shape
 
@@ -125,4 +134,5 @@ Expected response includes:
 | `provider-unavailable` in Tabst | Server is not running or endpoint mismatch | Start provider and check `TABST_OMR_ENDPOINT` |
 | `provider-invalid-response` | Provider response is missing `alphaTex` | Inspect provider logs and JSON response |
 | Empty or repeated alphaTex | Model/preprocessing mismatch | Try `native`, `fit-pad-800x320`, `stretch-800x320`, and `invert` variants |
+| Active model is not shown in Lab | `/health` omitted `activeModel` or the status check failed | Verify `curl http://127.0.0.1:18089/health`; the ONNX smoke provider should report the `--weights-dir` name |
 | `ONNX Runtime` text appears before JSON in scripts | Runtime printed to stdout | Suppress runtime stdout when producing machine-readable output |
