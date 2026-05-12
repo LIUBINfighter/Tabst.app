@@ -120,7 +120,9 @@ pub(crate) async fn stop_sidecar() -> Result<(), String> {
 #[tauri::command]
 pub(crate) async fn restart_sidecar() -> Result<(), String> {
     let config = ai_provider::provider_config()?;
-    ai_provider::check_provider_health(&config).await
+    ai_provider::check_provider_health(&config)
+        .await
+        .map(|_| ())
 }
 
 async fn request_omr(

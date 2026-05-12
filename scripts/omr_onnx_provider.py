@@ -111,12 +111,20 @@ def _preprocess(image: Image.Image, options: dict[str, Any]):
 class OmrProviderHandler(BaseHTTPRequestHandler):
     runtime = None
     tokenizer = None
+    active_model = "unknown"
 
     def do_GET(self) -> None:
         if self.path.rstrip("/") != "/health":
             self._send_json({"error": "not-found"}, HTTPStatus.NOT_FOUND)
             return
-        self._send_json({"status": "ok", "runtime": "onnx", "ready": True})
+        self._send_json(
+            {
+                "status": "ok",
+                "runtime": "onnx",
+                "ready": True,
+                "activeModel": self.active_model,
+            }
+        )
 
     def do_POST(self) -> None:
         if self.path.rstrip("/") != "/transcribe":
@@ -189,6 +197,7 @@ def main() -> None:
 
     onnx_export_dir = args.onnx_export_dir.resolve()
     weights_dir = (args.weights_dir or (onnx_export_dir / "weights")).resolve()
+    OmrProviderHandler.active_model = weights_dir.name
     print(f"Loading ONNX OMR provider from {weights_dir}...")
     OmrProviderHandler.runtime, OmrProviderHandler.tokenizer = _load_runtime(
         onnx_export_dir,

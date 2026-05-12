@@ -25,6 +25,8 @@ const ENV_REQUEST_TIMEOUT_SECS: &str = "TABST_OMR_REQUEST_TIMEOUT_SECS";
 #[serde(rename_all = "camelCase")]
 pub(crate) struct ModelStatus {
     pub(crate) version: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) active_model: Option<String>,
     pub(crate) downloaded: bool,
     pub(crate) downloaded_bytes: u64,
     pub(crate) total_bytes: u64,
@@ -116,6 +118,18 @@ struct TabstTranscribeResponse {
     duration_ms: Option<u64>,
 }
 
+#[derive(Debug, Clone)]
+pub(crate) struct ProviderHealth {
+    pub(crate) active_model: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct TabstHealthResponse {
+    ready: Option<bool>,
+    active_model: Option<String>,
+}
+
 #[derive(Debug, Deserialize)]
 struct LlamaCompletionResponse {
     content: String,
@@ -174,8 +188,9 @@ pub(crate) async fn get_model_status() -> ModelStatus {
         Err(error) => return provider_error_status(error),
     };
     match check_provider_health(&config).await {
-        Ok(()) => ModelStatus {
+        Ok(health) => ModelStatus {
             version: provider_version(&config),
+            active_model: health.active_model.or_else(|| Some(config.model.clone())),
             downloaded: true,
             downloaded_bytes: 0,
             total_bytes: 0,
@@ -197,7 +212,7 @@ pub(crate) async fn download_model(
         speed_bps: None,
     });
     let config = provider_config()?;
-    check_provider_health(&config).await
+    check_provider_health(&config).await.map(|_| ())
 }
 
 pub(crate) async fn provider_status() -> ProviderStatus {
@@ -213,7 +228,7 @@ pub(crate) async fn provider_status() -> ProviderStatus {
         }
     };
     match check_provider_health(&config).await {
-        Ok(()) => ProviderStatus {
+        Ok(_) => ProviderStatus {
             state: ProviderState::Ready,
             current_job_id: None,
             last_error: None,
@@ -228,7 +243,9 @@ pub(crate) async fn provider_status() -> ProviderStatus {
     }
 }
 
-pub(crate) async fn check_provider_health(config: &ProviderConfig) -> Result<(), String> {
+pub(crate) async fn check_provider_health(
+    config: &ProviderConfig,
+) -> Result<ProviderHealth, String> {
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(5))
         .build()
@@ -254,14 +271,22 @@ pub(crate) async fn check_provider_health(config: &ProviderConfig) -> Result<(),
     }
 
     if config.kind == ProviderKind::Tabst {
-        let health: Value = serde_json::from_str(&raw_response)
+        let health: TabstHealthResponse = serde_json::from_str(&raw_response)
             .map_err(|error| format!("provider-unavailable: invalid health response: {error}"))?;
-        if health.get("ready").and_then(Value::as_bool) != Some(true) {
+        if health.ready != Some(true) {
             return Err("provider-unavailable: not ready".to_string());
         }
+        return Ok(ProviderHealth {
+            active_model: health
+                .active_model
+                .map(|model| model.trim().to_string())
+                .filter(|model| !model.is_empty()),
+        });
     }
 
-    Ok(())
+    Ok(ProviderHealth {
+        active_model: Some(config.model.clone()),
+    })
 }
 
 pub(crate) async fn transcribe_with_provider(
@@ -435,6 +460,7 @@ fn truncate_for_error(raw_response: &str) -> String {
 fn provider_error_status(error: String) -> ModelStatus {
     ModelStatus {
         version: provider_version_from_env(),
+        active_model: None,
         downloaded: false,
         downloaded_bytes: 0,
         total_bytes: 0,
