@@ -48,8 +48,8 @@ Tabst.app/
 - Desktop bridge surface in the renderer is `window.desktopAPI`.
 - OMR Lab is desktop-only; web shows a desktop-only fallback. Inference is handled by an external HTTP provider configured with `TABST_OMR_ENDPOINT` and `TABST_OMR_API_KIND`.
 - `src-tauri/binaries/` keeps only `.gitignore` and `README.md` in git. Do not commit generated model files or provider binaries unless the product explicitly returns to a bundled-runtime design.
-- OMR provider adapters are `tabst` (`/health` + `/transcribe`), `openai` / `lm-studio` (`/v1/chat/completions`), and `llamacpp` (`/completions` against an already-running server).
-- The temporary ONNX smoke provider lives at `scripts/omr_onnx_provider.py`; see `docs/dev/OMR_MODEL_DEBUG.md` before changing provider preprocessing or request contracts.
+- OMR provider adapters are `tabst` (`/health` with `activeModel` + `/transcribe`), `openai` / `lm-studio` (`/v1/chat/completions`), and `llamacpp` (`/completions` against an already-running server).
+- The temporary ONNX smoke provider lives at `scripts/omr_onnx_provider.py`; use `--weights-dir` to select the active ONNX weights directory, and see `docs/dev/OMR_MODEL_DEBUG.md` before changing provider preprocessing or request contracts.
 
 ## ANTI-PATTERNS (THIS PROJECT)
 - Parsing AlphaTex structure with regex when AST parser is available.

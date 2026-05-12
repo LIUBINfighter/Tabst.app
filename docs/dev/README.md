@@ -54,7 +54,7 @@ OMR Lab 是当前桌面端实验功能：在设置页提供图片输入，将外
 
 **快速入口**：
 - 只想运行或排查 OMR Lab？→ [OMR_LAB_RUNBOOK.md](./OMR_LAB_RUNBOOK.md)
-- 要切换本地训练模型？→ [OMR_MODEL_DEBUG.md](./OMR_MODEL_DEBUG.md)
+- 要切换模型 weights 目录或确认 `activeModel`？→ [OMR_MODEL_DEBUG.md](./OMR_MODEL_DEBUG.md)
 - 要改架构或接口？→ [OMR_LAB_SPEC.md](./OMR_LAB_SPEC.md)
 
 ---
