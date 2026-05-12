@@ -214,6 +214,7 @@
 	"labDesc": "图片转 alphaTex 的 OMR 实验测试入口",
 	"labPage": {
 		"desktopOnly": "实验室功能仅在桌面端可用。请下载 Tabst 桌面应用以体验 OMR 功能。",
+		"activeModel": "当前模型 {{model}}",
 		"modelVersion": "Provider {{version}}",
 		"runtimeHealth": {
 			"unknown": "运行状态未知",

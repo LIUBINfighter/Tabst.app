@@ -183,6 +183,7 @@ export function LabPage() {
 	const [now, setNow] = useState(() => Date.now());
 	const currentImage = useLabStore((state) => state.currentImage);
 	const modelVersion = useLabStore((state) => state.modelVersion);
+	const activeModel = useLabStore((state) => state.activeModel);
 	const modelDownloaded = useLabStore((state) => state.modelDownloaded);
 	const downloadProgress = useLabStore((state) => state.downloadProgress);
 	const sidecarState = useLabStore((state) => state.sidecarState);
@@ -215,7 +216,12 @@ export function LabPage() {
 			]);
 			useLabStore
 				.getState()
-				.setModelStatus(modelStatus.downloaded, null, modelStatus.version);
+				.setModelStatus(
+					modelStatus.downloaded,
+					null,
+					modelStatus.version,
+					modelStatus.activeModel ?? null,
+				);
 			useLabStore
 				.getState()
 				.setSidecarState(
@@ -569,6 +575,7 @@ export function LabPage() {
 							</div>
 						</div>
 						<div className="text-right text-xs opacity-80">
+							<p>{t("labPage.activeModel", { model: activeModel ?? "—" })}</p>
 							<p>{t("labPage.modelVersion", { version: modelVersion })}</p>
 							<p>{t(`labPage.sidecar.${sidecarState}`)}</p>
 							<p>{sidecarResourceLabel}</p>

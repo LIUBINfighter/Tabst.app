@@ -214,6 +214,7 @@
 	"labDesc": "Experimental OMR testing entry for images to alphaTex",
 	"labPage": {
 		"desktopOnly": "Lab features are only available in the desktop app. Download Tabst desktop to try OMR.",
+		"activeModel": "Active model {{model}}",
 		"modelVersion": "Provider {{version}}",
 		"runtimeHealth": {
 			"unknown": "Runtime status unknown",
