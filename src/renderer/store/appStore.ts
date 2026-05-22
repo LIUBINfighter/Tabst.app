@@ -547,9 +547,9 @@ interface AppState {
 	bumpScoreVersion: () => void;
 	bumpEditorRefreshVersion: () => void;
 	bumpBottomBarRefreshVersion: () => void;
-	workspaceMode: "editor" | "enjoy" | "tutorial" | "settings" | "git";
+	workspaceMode: "editor" | "enjoy" | "tutorial" | "settings" | "git" | "cloud";
 	setWorkspaceMode: (
-		mode: "editor" | "enjoy" | "tutorial" | "settings" | "git",
+		mode: "editor" | "enjoy" | "tutorial" | "settings" | "git" | "cloud",
 	) => void;
 	gitStatus: GitStatusSummary | null;
 	gitStatusLoading: boolean;
@@ -582,6 +582,11 @@ interface AppState {
 	// 教程选择（用于侧边栏与教程视图间同步）
 	activeTutorialId: string | null;
 	setActiveTutorialId: (id: string | null) => void;
+	activeCloudObjectId: string | null;
+	setActiveCloudObjectId: (id: string | null) => void;
+	settingsReturnMode: "editor" | "enjoy" | "tutorial" | "git" | "cloud";
+	openSettingsWorkspace: (pageId?: string | null) => void;
+	closeSettingsWorkspace: () => void;
 	tutorialAudience: TutorialAudience;
 	setTutorialAudience: (audience: TutorialAudience) => void;
 	// 设置页选择（用于侧边栏与设置视图间同步）
@@ -759,6 +764,7 @@ async function mergeAndSaveWorkspacePreferences(partial: RepoPreferences) {
 			workspaceMode: existing?.workspaceMode,
 			activeSettingsPageId: existing?.activeSettingsPageId ?? null,
 			activeTutorialId: existing?.activeTutorialId ?? null,
+			activeCloudObjectId: existing?.activeCloudObjectId ?? null,
 			tutorialAudience: existing?.tutorialAudience,
 		}));
 	} catch (e) {
@@ -777,6 +783,8 @@ interface WorkspaceSessionSnapshot {
 	workspaceMode: AppState["workspaceMode"];
 	activeSettingsPageId: string | null;
 	activeTutorialId: string | null;
+	activeCloudObjectId: string | null;
+	settingsReturnMode: AppState["settingsReturnMode"];
 	tutorialAudience: AppState["tutorialAudience"];
 }
 
@@ -802,6 +810,8 @@ function scheduleSaveAppState() {
 		workspaceMode: state.workspaceMode,
 		activeSettingsPageId: state.activeSettingsPageId,
 		activeTutorialId: state.activeTutorialId,
+		activeCloudObjectId: state.activeCloudObjectId,
+		settingsReturnMode: state.settingsReturnMode,
 		tutorialAudience: state.tutorialAudience,
 	};
 	const expandedFallback = collectExpandedFolders(state.fileTree);
@@ -830,6 +840,7 @@ async function saveWorkspaceSessionForRepo(
 			workspaceMode: snapshot.workspaceMode,
 			activeSettingsPageId: snapshot.activeSettingsPageId,
 			activeTutorialId: snapshot.activeTutorialId,
+			activeCloudObjectId: snapshot.activeCloudObjectId,
 			tutorialAudience: snapshot.tutorialAudience,
 		}));
 	} catch (error) {
@@ -852,6 +863,7 @@ async function saveExpandedFoldersForRepo(
 			workspaceMode: existing?.workspaceMode,
 			activeSettingsPageId: existing?.activeSettingsPageId ?? null,
 			activeTutorialId: existing?.activeTutorialId ?? null,
+			activeCloudObjectId: existing?.activeCloudObjectId ?? null,
 			tutorialAudience: existing?.tutorialAudience,
 		}));
 	} catch (e) {
@@ -1189,6 +1201,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 							workspaceMode: meta.workspaceMode ?? "editor",
 							activeSettingsPageId: meta.activeSettingsPageId ?? null,
 							activeTutorialId: meta.activeTutorialId ?? "user-readme",
+							activeCloudObjectId: meta.activeCloudObjectId ?? null,
 							tutorialAudience: meta.tutorialAudience ?? "user",
 						});
 
@@ -1255,6 +1268,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 								workspaceMode: "editor",
 								activeSettingsPageId: null,
 								activeTutorialId: "user-readme",
+								activeCloudObjectId: null,
 								tutorialAudience: "user",
 							};
 						});
@@ -1526,7 +1540,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 		})),
 	workspaceMode: "editor",
 	setWorkspaceMode: (
-		mode: "editor" | "enjoy" | "tutorial" | "settings" | "git",
+		mode: "editor" | "enjoy" | "tutorial" | "settings" | "git" | "cloud",
 	) => {
 		set({ workspaceMode: mode });
 		scheduleSaveAppState();
@@ -1869,6 +1883,33 @@ export const useAppStore = create<AppState>((set, get) => ({
 	activeTutorialId: "user-readme",
 	setActiveTutorialId: (id) => {
 		set({ activeTutorialId: id });
+		scheduleSaveAppState();
+	},
+	activeCloudObjectId: null,
+	setActiveCloudObjectId: (id) => {
+		set({ activeCloudObjectId: id });
+		scheduleSaveAppState();
+	},
+	settingsReturnMode: "editor",
+	openSettingsWorkspace: (pageId = null) => {
+		const state = get();
+		const returnMode =
+			state.workspaceMode === "settings"
+				? state.settingsReturnMode
+				: state.workspaceMode;
+		set({
+			settingsReturnMode: returnMode,
+			workspaceMode: "settings",
+			activeSettingsPageId: pageId,
+		});
+		scheduleSaveAppState();
+	},
+	closeSettingsWorkspace: () => {
+		const state = get();
+		set({
+			workspaceMode: state.settingsReturnMode,
+			activeSettingsPageId: null,
+		});
 		scheduleSaveAppState();
 	},
 	tutorialAudience: "user",
