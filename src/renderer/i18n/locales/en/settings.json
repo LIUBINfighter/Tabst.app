@@ -117,6 +117,10 @@
 			"label": "Switch To Source Control",
 			"description": "Switch workspace mode to git source control"
 		},
+		"workspace_mode_cloud": {
+			"label": "Switch To Cloud",
+			"description": "Switch workspace mode to cloud portal"
+		},
 		"workspace_editor_inline_command_open": {
 			"label": "Open Inline Editor Commands",
 			"description": "Open editor inline command bar"

@@ -26,6 +26,7 @@ export type GlobalOnlyCommandId =
 	| "workspace.mode.tutorial"
 	| "workspace.mode.settings"
 	| "workspace.mode.git"
+	| "workspace.mode.cloud"
 	| "template.insert.open-picker"
 	| "template.new-from.open-picker"
 	| "template.toggle-active-file"
@@ -278,6 +279,15 @@ const GLOBAL_ONLY_COMMANDS: RegisteredCommand<GlobalOnlyCommandId>[] = [
 		),
 		keywords: ["workspace", "mode", "git", "source-control"],
 		icon: "command",
+	},
+	{
+		id: "workspace.mode.cloud",
+		label: i18n.t("settings:commandRegistry.workspace_mode_cloud.label"),
+		description: i18n.t(
+			"settings:commandRegistry.workspace_mode_cloud.description",
+		),
+		keywords: ["workspace", "mode", "cloud", "public", "scores"],
+		icon: "layout",
 	},
 	{
 		id: "workspace.editor-inline-command.open",
