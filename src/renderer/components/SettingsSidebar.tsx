@@ -19,7 +19,7 @@ export function SettingsSidebar() {
 	const { t } = useTranslation("settings");
 	const activeSettingsPageId = useAppStore((s) => s.activeSettingsPageId);
 	const setActiveSettingsPageId = useAppStore((s) => s.setActiveSettingsPageId);
-	const setWorkspaceMode = useAppStore((s) => s.setWorkspaceMode);
+	const openSettingsWorkspace = useAppStore((s) => s.openSettingsWorkspace);
 
 	useEffect(() => {
 		// Initialize to first page if none selected
@@ -36,7 +36,7 @@ export function SettingsSidebar() {
 					type="button"
 					onClick={() => {
 						setActiveSettingsPageId(p.id);
-						setWorkspaceMode("settings");
+						openSettingsWorkspace(p.id);
 					}}
 					className={`w-full group flex items-center gap-2 px-3 py-1.5 cursor-pointer text-xs transition-colors text-left ${
 						activeSettingsPageId === p.id
