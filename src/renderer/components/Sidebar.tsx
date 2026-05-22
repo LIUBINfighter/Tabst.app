@@ -6,6 +6,7 @@ import { isGpFilePath } from "../lib/gp-import";
 import { useTheme } from "../lib/theme-system/use-theme";
 import { useAppStore } from "../store/appStore";
 import type { DeleteBehavior, FileNode } from "../types/repo";
+import { CloudSidebar } from "./CloudSidebar";
 import { DeleteConfirmDialog } from "./DeleteConfirmDialog";
 import { FileTree } from "./FileTree";
 import { GitSidebar } from "./GitSidebar";
@@ -742,6 +743,10 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 	const renderContent = () => {
 		if (workspaceMode === "git") {
 			return <GitSidebar />;
+		}
+
+		if (workspaceMode === "cloud") {
+			return <CloudSidebar />;
 		}
 
 		if (workspaceMode === "tutorial") {

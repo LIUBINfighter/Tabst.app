@@ -5,7 +5,8 @@ export type WorkspaceMode =
 	| "enjoy"
 	| "tutorial"
 	| "settings"
-	| "git";
+	| "git"
+	| "cloud";
 
 interface WebsiteMobileLayoutOptions {
 	isWebRuntime: boolean;

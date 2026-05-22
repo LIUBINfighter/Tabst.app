@@ -1,6 +1,7 @@
 import {
 	ChevronDown,
 	ChevronLeft,
+	Cloud,
 	FileMusic,
 	FileQuestion,
 	FolderOpen,
@@ -205,12 +206,16 @@ export function SidebarBottomBar() {
 
 	const handleOpenSettings = () => {
 		try {
-			const newMode = workspaceMode === "settings" ? "editor" : "settings";
-			setWorkspaceMode(newMode);
+			const openingSettings = workspaceMode !== "settings";
+			if (openingSettings) {
+				useAppStore.getState().openSettingsWorkspace();
+			} else {
+				useAppStore.getState().closeSettingsWorkspace();
+			}
 			const api = (
 				window as unknown as { desktopAPI?: { openSettings?: () => void } }
 			).desktopAPI;
-			if (newMode === "settings" && api?.openSettings) {
+			if (openingSettings && api?.openSettings) {
 				api.openSettings();
 			}
 		} catch (err) {
@@ -267,6 +272,23 @@ export function SidebarBottomBar() {
 
 			<div className="flex-1" />
 
+			<Tooltip>
+				<TooltipTrigger asChild>
+					<IconButton
+						active={workspaceMode === "cloud"}
+						onClick={() => {
+							const newMode = workspaceMode === "cloud" ? "editor" : "cloud";
+							setWorkspaceMode(newMode);
+						}}
+						aria-label={t("cloud")}
+					>
+						<Cloud className="h-4 w-4" />
+					</IconButton>
+				</TooltipTrigger>
+				<TooltipContent side="top">
+					<p>{workspaceMode === "cloud" ? t("exitCloud") : t("enterCloud")}</p>
+				</TooltipContent>
+			</Tooltip>
 			<Tooltip>
 				<TooltipTrigger asChild>
 					<IconButton
