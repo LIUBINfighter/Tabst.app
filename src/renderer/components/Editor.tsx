@@ -1,5 +1,5 @@
 import type { Extension } from "@codemirror/state";
-import { EditorState } from "@codemirror/state";
+import { Compartment, EditorState } from "@codemirror/state";
 import type { ViewUpdate } from "@codemirror/view";
 import { basicSetup, EditorView } from "codemirror";
 import { ChevronRight, Edit, ExternalLink, Github } from "lucide-react";
@@ -64,6 +64,11 @@ interface EditorProps {
 	sandboxMode?: boolean;
 	sandboxFile?: FileItem | null;
 	onSandboxContentChange?: (content: string) => void;
+	readOnly?: boolean;
+}
+
+function createReadOnlyExtensions(readOnly: boolean): Extension {
+	return [EditorState.readOnly.of(readOnly), EditorView.editable.of(!readOnly)];
 }
 
 export function Editor({
@@ -74,6 +79,7 @@ export function Editor({
 	sandboxMode = false,
 	sandboxFile = null,
 	onSandboxContentChange,
+	readOnly = false,
 }: EditorProps) {
 	const { t } = useTranslation(["sidebar", "common"]);
 	const editorRef = useRef<HTMLDivElement | null>(null);
@@ -93,6 +99,7 @@ export function Editor({
 
 	// Track current file path to detect language changes
 	const currentFilePathRef = useRef<string>("");
+	const readOnlyCompartmentRef = useRef(new Compartment());
 
 	// Track if we're currently updating to prevent recursive updates
 	const isUpdatingRef = useRef(false);
@@ -103,6 +110,7 @@ export function Editor({
 	const activeFile = sandboxFile ?? activeFileFromStore;
 	activeFileRef.current = activeFile ?? null;
 	const setWorkspaceMode = useAppStore((s) => s.setWorkspaceMode);
+	const openSettingsWorkspace = useAppStore((s) => s.openSettingsWorkspace);
 	const workspaceMode = useAppStore((s) => s.workspaceMode);
 	const pendingOmrInsert = useAppStore((s) => s.pendingOmrInsert);
 	const isTracksPanelOpen = useAppStore((s) => s.isTracksPanelOpen);
@@ -331,6 +339,9 @@ export function Editor({
 						updateListener,
 						atDocColorSwatch(),
 						whitespaceDecoration(),
+						readOnlyCompartmentRef.current.of(
+							createReadOnlyExtensions(readOnly),
+						),
 						themeCompartment.of(themeExtension),
 						languageCompartment.of(languageExtensions),
 					];
@@ -424,7 +435,18 @@ export function Editor({
 		themeCompartment,
 		languageCompartment,
 		cleanupLSP,
+		readOnly,
 	]);
+
+	useEffect(() => {
+		if (!viewRef.current) return;
+
+		viewRef.current.dispatch({
+			effects: readOnlyCompartmentRef.current.reconfigure(
+				createReadOnlyExtensions(readOnly),
+			),
+		});
+	}, [readOnly]);
 
 	useEffect(() => {
 		if (!pendingOmrInsert || !viewRef.current || !activeFile?.id || enjoyMode) {
@@ -470,112 +492,122 @@ export function Editor({
 		});
 	}, [themeExtension, themeCompartment]);
 
-	const runEditorCommand = useCallback((commandId: InlineCommandId) => {
-		const view = viewRef.current;
+	const runEditorCommand = useCallback(
+		(commandId: InlineCommandId) => {
+			const view = viewRef.current;
 
-		const runGlobalFromInline = (globalCommandId: GlobalCommandId) => {
-			switch (globalCommandId) {
-				case "open-quick-file":
-					return runUiCommand("workspace.quick-switcher.open");
-				case "open-editor-command-palette":
-					return runUiCommand("workspace.editor-inline-command.open");
-				case "insert-atdoc-block":
-					return runUiCommand("insert-atdoc-block");
-				case "insert-atdoc-directive":
-					return runUiCommand("insert-atdoc-directive");
-				case "insert-atdoc-meta-preset":
-					return runUiCommand("insert-atdoc-meta-preset");
-				default:
-					return runUiCommand(globalCommandId);
-			}
-		};
-
-		const isEditorSpecificCommand =
-			commandId.startsWith(ATDOC_INLINE_KEY_COMMAND_PREFIX) ||
-			commandId === "insert-atdoc-block" ||
-			commandId === "insert-atdoc-directive" ||
-			commandId === "insert-atdoc-meta-preset";
-
-		if (!isEditorSpecificCommand) {
-			runGlobalFromInline(commandId as GlobalCommandId);
-			setInlineCommandOpen(false);
-			return;
-		}
-
-		if (!view) return;
-
-		const insertTextAtSelection = (insertText: string) => {
-			const state = view.state;
-			const changes = state.selection.ranges.map((range) => ({
-				from: range.from,
-				to: range.to,
-				insert: insertText,
-			}));
-			view.dispatch({ changes });
-			view.focus();
-		};
-
-		switch (commandId) {
-			case "insert-atdoc-block": {
-				insertTextAtSelection("/**\n * \n */");
-				return;
-			}
-			case "insert-atdoc-directive": {
-				insertTextAtSelection("* at.meta.status=released");
-				return;
-			}
-			case "insert-atdoc-meta-preset": {
-				insertTextAtSelection(
-					[
-						'* at.meta.title=""',
-						'* at.meta.tag=""',
-						"* at.meta.status=released",
-						'* at.meta.tabist=""',
-						'* at.meta.app="tabst.app"',
-						'* at.meta.github="https://github.com/LIUBINfighter/Tabst.app"',
-						"* at.meta.license=CC-BY-4.0",
-						'* at.meta.source=""',
-						'* at.meta.release=""',
-						'* at.meta.alias=""',
-					].join("\n"),
-				);
-				return;
-			}
-		}
-
-		if (commandId.startsWith(ATDOC_INLINE_KEY_COMMAND_PREFIX)) {
-			const atdocKey = commandId.slice(ATDOC_INLINE_KEY_COMMAND_PREFIX.length);
-			const definition = ATDOC_KEY_DEFINITIONS.find(
-				(item) => item.key === atdocKey,
-			);
-			if (!definition) return;
-
-			const valueTemplate = (() => {
-				switch (definition.valueType) {
-					case "boolean":
-						return "true";
-					case "string":
-						return '""';
-					case "enum:status":
-						return "active";
-					case "enum:license":
-						return "CC-BY-4.0";
-					case "enum:layoutMode":
-						return "Page";
-					case "enum:scrollMode":
-						return "OffScreen";
-					case "color":
-						return "#22c55e";
+			const runGlobalFromInline = (globalCommandId: GlobalCommandId) => {
+				switch (globalCommandId) {
+					case "open-quick-file":
+						return runUiCommand("workspace.quick-switcher.open");
+					case "open-editor-command-palette":
+						return runUiCommand("workspace.editor-inline-command.open");
+					case "insert-atdoc-block":
+						return runUiCommand("insert-atdoc-block");
+					case "insert-atdoc-directive":
+						return runUiCommand("insert-atdoc-directive");
+					case "insert-atdoc-meta-preset":
+						return runUiCommand("insert-atdoc-meta-preset");
 					default:
-						return "1";
+						return runUiCommand(globalCommandId);
 				}
-			})();
+			};
 
-			insertTextAtSelection(`* ${definition.key}=${valueTemplate}`);
-			return;
-		}
-		setInlineCommandOpen(false);
-	}, []);
+			const isEditorSpecificCommand =
+				commandId.startsWith(ATDOC_INLINE_KEY_COMMAND_PREFIX) ||
+				commandId === "insert-atdoc-block" ||
+				commandId === "insert-atdoc-directive" ||
+				commandId === "insert-atdoc-meta-preset";
+
+			if (!isEditorSpecificCommand) {
+				runGlobalFromInline(commandId as GlobalCommandId);
+				setInlineCommandOpen(false);
+				return;
+			}
+
+			if (readOnly) {
+				setInlineCommandOpen(false);
+				return;
+			}
+
+			if (!view) return;
+
+			const insertTextAtSelection = (insertText: string) => {
+				const state = view.state;
+				const changes = state.selection.ranges.map((range) => ({
+					from: range.from,
+					to: range.to,
+					insert: insertText,
+				}));
+				view.dispatch({ changes });
+				view.focus();
+			};
+
+			switch (commandId) {
+				case "insert-atdoc-block": {
+					insertTextAtSelection("/**\n * \n */");
+					return;
+				}
+				case "insert-atdoc-directive": {
+					insertTextAtSelection("* at.meta.status=released");
+					return;
+				}
+				case "insert-atdoc-meta-preset": {
+					insertTextAtSelection(
+						[
+							'* at.meta.title=""',
+							'* at.meta.tag=""',
+							"* at.meta.status=released",
+							'* at.meta.tabist=""',
+							'* at.meta.app="tabst.app"',
+							'* at.meta.github="https://github.com/LIUBINfighter/Tabst.app"',
+							"* at.meta.license=CC-BY-4.0",
+							'* at.meta.source=""',
+							'* at.meta.release=""',
+							'* at.meta.alias=""',
+						].join("\n"),
+					);
+					return;
+				}
+			}
+
+			if (commandId.startsWith(ATDOC_INLINE_KEY_COMMAND_PREFIX)) {
+				const atdocKey = commandId.slice(
+					ATDOC_INLINE_KEY_COMMAND_PREFIX.length,
+				);
+				const definition = ATDOC_KEY_DEFINITIONS.find(
+					(item) => item.key === atdocKey,
+				);
+				if (!definition) return;
+
+				const valueTemplate = (() => {
+					switch (definition.valueType) {
+						case "boolean":
+							return "true";
+						case "string":
+							return '""';
+						case "enum:status":
+							return "active";
+						case "enum:license":
+							return "CC-BY-4.0";
+						case "enum:layoutMode":
+							return "Page";
+						case "enum:scrollMode":
+							return "OffScreen";
+						case "color":
+							return "#22c55e";
+						default:
+							return "1";
+					}
+				})();
+
+				insertTextAtSelection(`* ${definition.key}=${valueTemplate}`);
+				return;
+			}
+			setInlineCommandOpen(false);
+		},
+		[readOnly],
+	);
 
 	const openInlineCommandBar = useCallback(() => {
 		const view = viewRef.current;
@@ -814,6 +846,14 @@ export function Editor({
 							variant="ghost"
 							size="sm"
 							className="h-7 px-2 text-muted-foreground"
+							onClick={() => setWorkspaceMode("cloud")}
+						>
+							{t("enterCloud")}
+						</Button>
+						<Button
+							variant="ghost"
+							size="sm"
+							className="h-7 px-2 text-muted-foreground"
 							onClick={() => setWorkspaceMode("tutorial")}
 						>
 							{t("openTutorial")}
@@ -822,7 +862,7 @@ export function Editor({
 							variant="ghost"
 							size="sm"
 							className="h-7 px-2 text-muted-foreground"
-							onClick={() => setWorkspaceMode("settings")}
+							onClick={() => openSettingsWorkspace()}
 						>
 							{t("openSettings")}
 						</Button>
