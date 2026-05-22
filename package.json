@@ -111,7 +111,7 @@
 		"eslint-plugin-react-hooks": "^7.0.1",
 		"globals": "^17.6.0",
 		"nodemon": "^3.1.14",
-		"postcss": "^8.5.6",
+		"postcss": "^8.5.14",
 		"puppeteer": "^24.42.0",
 		"shadcn": "^3.8.4",
 		"tailwindcss": "^3.4.18",
