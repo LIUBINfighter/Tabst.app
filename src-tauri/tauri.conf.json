@@ -21,17 +21,17 @@
 		],
 		"security": {
 			"csp": {
-				"default-src": "'self' customprotocol: asset:",
+				"default-src": "'self' customprotocol: asset: tauri: https://tauri.localhost",
 				"base-uri": "'self'",
 				"object-src": "'none'",
 				"frame-ancestors": "'none'",
-				"script-src": "'self' 'wasm-unsafe-eval'",
-				"style-src": "'self' 'unsafe-inline'",
-				"connect-src": "'self' ipc: http://ipc.localhost https://fkasoumnkzrtqwqicbkg.supabase.co",
-				"img-src": "'self' asset: http://asset.localhost data: blob:",
-				"font-src": "'self' asset: http://asset.localhost data: blob:",
-				"media-src": "'self' asset: http://asset.localhost data: blob:",
-				"worker-src": "'self' blob:"
+				"script-src": "'self' 'wasm-unsafe-eval' tauri: https://tauri.localhost",
+				"style-src": "'self' 'unsafe-inline' tauri: https://tauri.localhost",
+				"connect-src": "'self' ipc: http://ipc.localhost https://fkasoumnkzrtqwqicbkg.supabase.co tauri: https://tauri.localhost",
+				"img-src": "'self' asset: http://asset.localhost data: blob: tauri: https://tauri.localhost",
+				"font-src": "'self' asset: http://asset.localhost data: blob: tauri: https://tauri.localhost",
+				"media-src": "'self' asset: http://asset.localhost data: blob: tauri: https://tauri.localhost",
+				"worker-src": "'self' blob: tauri: https://tauri.localhost"
 			},
 			"devCsp": {
 				"default-src": "'self' customprotocol: asset: http://127.0.0.1:7777 ws://127.0.0.1:7777",

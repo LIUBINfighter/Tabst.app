@@ -15,7 +15,7 @@
 		"build:react": "vite build",
 		"build:web": "pnpm type-check && pnpm build:react",
 		"build:tauri:ci": "pnpm tauri build --no-sign",
-		"build:tauri": "pnpm tauri build",
+		"build:tauri": "CI=true pnpm tauri build",
 		"bundle:assert": "node scripts/check-bundle-thresholds.mjs",
 		"check:tauri:config": "node scripts/verify-tauri-config.mjs",
 		"perf:tauri:baseline": "node scripts/collect-tauri-performance-baseline.mjs",
