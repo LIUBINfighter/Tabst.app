@@ -1,6 +1,9 @@
 # temp
 tmp/
 skills
+**/.DS_Store
+.AppleDouble
+._*
 
 .tmp
 .sisyphus
