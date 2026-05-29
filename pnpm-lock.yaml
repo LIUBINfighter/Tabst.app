@@ -12,8 +12,8 @@ importers:
   .:
     dependencies:
       '@codemirror/autocomplete':
-        specifier: ^6.20.0
-        version: 6.20.0
+        specifier: ^6.20.2
+        version: 6.20.2
       '@codemirror/lang-markdown':
         specifier: ^6.5.0
         version: 6.5.0
@@ -482,8 +482,8 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@codemirror/autocomplete@6.20.0':
-    resolution: {integrity: sha512-bOwvTOIJcG5FVo5gUUupiwYh8MioPLQ4UcqbcRf7UQ98X90tCa9E1kZ3Z7tqwpZxYyOvh1YTYbmZE9RTfTp5hg==}
+  '@codemirror/autocomplete@6.20.2':
+    resolution: {integrity: sha512-G5FPkgIiLjOgZMjqVjvuKQ1rGPtHogLldJr33eFJdVLtmwY+giGrlv/ewljLz6b9BSQLkjxuwBc6g6omDM+YxQ==}
 
   '@codemirror/commands@6.10.1':
     resolution: {integrity: sha512-uWDWFypNdQmz2y1LaNJzK7fL7TYKLeUAU0npEC685OKTF3KcQ2Vu3klIM78D7I6wGhktme0lh3CuQLv0ZCrD9Q==}
@@ -5160,12 +5160,12 @@ snapshots:
   '@biomejs/cli-win32-x64@2.4.6':
     optional: true
 
-  '@codemirror/autocomplete@6.20.0':
+  '@codemirror/autocomplete@6.20.2':
     dependencies:
       '@codemirror/language': 6.12.3
       '@codemirror/state': 6.6.0
       '@codemirror/view': 6.39.12
-      '@lezer/common': 1.5.0
+      '@lezer/common': 1.5.2
 
   '@codemirror/commands@6.10.1':
     dependencies:
@@ -5185,7 +5185,7 @@ snapshots:
 
   '@codemirror/lang-css@6.3.1':
     dependencies:
-      '@codemirror/autocomplete': 6.20.0
+      '@codemirror/autocomplete': 6.20.2
       '@codemirror/language': 6.12.3
       '@codemirror/state': 6.6.0
       '@lezer/common': 1.5.2
@@ -5193,7 +5193,7 @@ snapshots:
 
   '@codemirror/lang-html@6.4.11':
     dependencies:
-      '@codemirror/autocomplete': 6.20.0
+      '@codemirror/autocomplete': 6.20.2
       '@codemirror/lang-css': 6.3.1
       '@codemirror/lang-javascript': 6.2.4
       '@codemirror/language': 6.12.3
@@ -5205,7 +5205,7 @@ snapshots:
 
   '@codemirror/lang-javascript@6.2.4':
     dependencies:
-      '@codemirror/autocomplete': 6.20.0
+      '@codemirror/autocomplete': 6.20.2
       '@codemirror/language': 6.12.3
       '@codemirror/lint': 6.9.5
       '@codemirror/state': 6.6.0
@@ -5215,7 +5215,7 @@ snapshots:
 
   '@codemirror/lang-markdown@6.5.0':
     dependencies:
-      '@codemirror/autocomplete': 6.20.0
+      '@codemirror/autocomplete': 6.20.2
       '@codemirror/lang-html': 6.4.11
       '@codemirror/language': 6.12.3
       '@codemirror/state': 6.6.0
@@ -6872,7 +6872,7 @@ snapshots:
 
   codemirror-languageserver@1.18.1(encoding@0.1.13):
     dependencies:
-      '@codemirror/autocomplete': 6.20.0
+      '@codemirror/autocomplete': 6.20.2
       '@codemirror/lint': 6.9.5
       '@codemirror/state': 6.6.0
       '@codemirror/view': 6.39.12
@@ -6886,7 +6886,7 @@ snapshots:
 
   codemirror@6.0.2:
     dependencies:
-      '@codemirror/autocomplete': 6.20.0
+      '@codemirror/autocomplete': 6.20.2
       '@codemirror/commands': 6.10.1
       '@codemirror/language': 6.12.3
       '@codemirror/lint': 6.9.5
