@@ -83,6 +83,16 @@ export async function listCloudPublicScores(
 	return readSupabaseJson<CloudPublicScoreListItem[]>(url);
 }
 
+export async function listCloudPublicScoresWithContent(): Promise<
+	CloudPublicScore[]
+> {
+	const url = buildScoresUrl(SCORE_DETAIL_SELECT);
+	url.searchParams.set("visibility", "eq.public");
+	url.searchParams.set("order", "created_at.desc");
+
+	return readSupabaseJson<CloudPublicScore[]>(url);
+}
+
 export async function getCloudPublicScore(
 	id: string,
 ): Promise<CloudPublicScore> {

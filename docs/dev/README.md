@@ -73,6 +73,23 @@ OMR Lab 是当前桌面端实验功能：在设置页提供图片输入，将外
 
 ---
 
+### cloud / web public library - 云端公开曲谱浏览
+
+当前的 cloud / web 公开曲谱适配有两条并行语义：
+
+- **Desktop（Tauri）**：使用独立的 `Cloud` workspace mode。左侧 `CloudSidebar` 列出 public score 对象，右侧 `CloudView` 选中后直接复用现有 `Editor` / `Preview` 结构，保持只读。
+- **Web（play.tabst.app）**：不引入独立 cloud repo，而是在初始化时把 public Tabst DB 对象追加到 `Sandbox` repo 中，作为普通 `.atex` 文件进入 file tree。重复访问时，按 `at.meta.source` 做更新覆盖，避免重复导入。
+
+**代码入口**：
+- `src/renderer/components/CloudSidebar.tsx`
+- `src/renderer/components/CloudView.tsx`
+- `src/renderer/lib/cloud-public-scores.ts`
+- `src/renderer/store/appStore.ts`
+
+**注意**：当前实现明确只支持 public 浏览，不包含 web/desktop 登录、私有库或发布流程。
+
+---
+
 ### roadmap/ - 未来规划
 
 未完成的功能规划。

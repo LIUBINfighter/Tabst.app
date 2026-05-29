@@ -31,6 +31,7 @@ Tabst.app/
 | AlphaTex parsing/positions | `src/renderer/lib/alphatex-parse-positions.ts` | AST-first parser with fallback path |
 | Completion and hover | `src/renderer/lib/alphatex-completion.ts`, `src/renderer/workers/alphatex.worker.ts` | local command JSON first, upstream fallback |
 | Preview lifecycle | `src/renderer/components/Preview.tsx`, `src/renderer/hooks/usePreview*` | API init/destroy/reinit and telemetry |
+| Cloud public score browsing | `src/renderer/components/CloudSidebar.tsx`, `src/renderer/components/CloudView.tsx`, `src/renderer/lib/cloud-public-scores.ts` | desktop read-only cloud workspace + web public score import path |
 | Print pipeline | `src/renderer/components/PrintPreview.tsx` | dedicated API instance + print CSS/font rules |
 | Git integration | `src-tauri/src/lib.rs`, `src/renderer/components/GitWorkspace.tsx` | porcelain parse + unified diff display |
 | OMR Lab UI | `src/renderer/components/settings/LabPage.tsx`, `src/renderer/hooks/useOmrJob.ts`, `src/renderer/store/labStore.ts` | desktop-only image-to-alphaTex experiment |
@@ -46,6 +47,8 @@ Tabst.app/
 - Deep alphaTab config changes (theme/colors) require API destroy + recreate; `render()` alone is insufficient.
 - Completion/hover source precedence: `src/renderer/data/alphatex-commands.json` first, upstream docs second.
 - Desktop bridge surface in the renderer is `window.desktopAPI`.
+- Desktop Cloud mode is intentionally public-only and read-only. The selected cloud score should reuse the normal `Editor` / `Preview` workspace experience instead of a parallel viewer stack.
+- Web runtime keeps Sandbox as the primary repo; public Tabst DB scores are appended/imported into that repo and refreshed by `at.meta.source` on initialization.
 - OMR Lab is desktop-only; web shows a desktop-only fallback. Inference is handled by an external HTTP provider configured with `TABST_OMR_ENDPOINT` and `TABST_OMR_API_KIND`.
 - `src-tauri/binaries/` keeps only `.gitignore` and `README.md` in git. Do not commit generated model files or provider binaries unless the product explicitly returns to a bundled-runtime design.
 - OMR provider adapters are `tabst` (`/health` with `activeModel` + `/transcribe`), `openai` / `lm-studio` (`/v1/chat/completions`), and `llamacpp` (`/completions` against an already-running server).

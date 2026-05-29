@@ -22,6 +22,9 @@ Write. Play. Share.
 
 Efficiently write alphaTex. Play scores. Share PDF/GP.
 
+- Desktop: browse public Tabst DB scores through a dedicated Cloud workspace without signing in.
+- Web (`play.tabst.app`): append public Tabst DB scores into the Sandbox workspace so they can be browsed with the normal file tree and player flow.
+
 ## Why Tabst
 
 Say no to bulky binaries and XML; the world belongs to plain text.
@@ -99,6 +102,13 @@ The desktop runtime cutover is complete and the repository is now Tauri-first.
 
 - Product builds, release commands, and CI desktop validation all target Tauri.
 - The renderer uses a unified `desktopAPI` bridge for desktop capabilities.
+- Desktop now includes a read-only Cloud workspace mode: the left sidebar lists public Tabst DB scores, and the selected score reuses the normal Editor/Preview split in read-only form.
 - OMR Lab desktop calls live under `window.desktopAPI.ai`; the web runtime shows a desktop-only Lab fallback.
 - OMR Lab sends images to an external HTTP provider configured with `TABST_OMR_ENDPOINT` / `TABST_OMR_API_KIND`; Tabst does not bundle inference binaries.
 - Detailed normalization work and follow-up tasks are tracked in [docs/dev/TAURI_MIGRATION_STATUS.md](./docs/dev/TAURI_MIGRATION_STATUS.md).
+
+## Web Runtime Notes
+
+- `play.tabst.app` keeps the existing Sandbox repo model as the primary web workspace.
+- On web initialization, public Tabst DB scores are imported into the Sandbox workspace as `.atex` files and refreshed by `at.meta.source`, so repeated visits update existing imported public objects instead of duplicating them.
+- The web flow is intentionally public-only. There is no sign-in, private-library, or publish flow in the current website adaptation.

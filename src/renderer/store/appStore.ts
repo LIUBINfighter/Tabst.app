@@ -3,6 +3,7 @@ import { DEFAULT_SANDBOX_ATEX_CONTENT } from "../data/default-sandbox-content";
 import i18n, { type Locale } from "../i18n";
 import { setActiveRepoContext } from "../lib/active-repo-context";
 import { extractAtDocFileMeta } from "../lib/atdoc";
+import { listCloudPublicScoresWithContent } from "../lib/cloud-public-scores";
 import { loadGlobalSettings, saveGlobalSettings } from "../lib/global-settings";
 import {
 	BUILT_IN_FONT_OPTIONS,
@@ -21,6 +22,7 @@ import {
 	loadWorkspaceMetadata,
 	updateWorkspaceMetadata,
 } from "../lib/workspace-metadata-store";
+import type { CloudPublicScore } from "../types/cloud";
 import type {
 	GitDiffResult,
 	GitSelectedChange,
@@ -85,6 +87,42 @@ const DEFAULT_SANDBOX_FILES: SandboxSeedFile[] = [
 	},
 ];
 
+const CLOUD_PUBLIC_SOURCE_PREFIX = "https://db.tabst.app/#/public/scores/";
+
+function escapeAtDocString(value: string): string {
+	return value.replaceAll("\\", "\\\\").replaceAll('"', '\\"');
+}
+
+function sanitizeCloudScoreFileName(title: string, id: string): string {
+	const base =
+		title
+			.trim()
+			.replace(/[\\/:*?"<>|]/g, "-")
+			.replace(/\s+/g, " ") || "public-score";
+	return `${base} ${id.slice(0, 8)}.atex`;
+}
+
+function buildCloudPublicFileContent(score: CloudPublicScore): string {
+	const lines = [
+		"/**",
+		` * at.meta.title="${escapeAtDocString(score.title)}"`,
+		...score.tags.map((tag) => ` * at.meta.tag="${escapeAtDocString(tag)}"`),
+		` * at.meta.source="${CLOUD_PUBLIC_SOURCE_PREFIX}${score.id}"`,
+		" */",
+		"",
+		score.content,
+	];
+
+	return lines.join("\n");
+}
+
+function extractCloudPublicSourceId(content: string): string | null {
+	const match = content.match(
+		/at\.meta\.source="https:\/\/db\.tabst\.app\/#\/public\/scores\/([^"]+)"/,
+	);
+	return match?.[1] ?? null;
+}
+
 async function seedSandboxFile(
 	directoryPath: string,
 	seed: SandboxSeedFile,
@@ -128,6 +166,74 @@ async function createDefaultSandboxRepo(): Promise<Repo | null> {
 	} catch (error) {
 		console.error("Failed to create default sandbox repo:", error);
 		return null;
+	}
+}
+
+async function appendCloudPublicScoresToSandboxRepo(repo: Repo): Promise<void> {
+	try {
+		const scanResult = await window.desktopAPI.scanDirectory(repo.path);
+		const existingFiles = scanResult ? flattenFileNodes(scanResult.nodes) : [];
+		const existingFilesBySourceId = new Map(
+			existingFiles
+				.map(
+					(file) => [extractCloudPublicSourceId(file.content), file] as const,
+				)
+				.filter((entry): entry is readonly [string, FileItem] =>
+					Boolean(entry[0]),
+				),
+		);
+
+		const cloudScores = await listCloudPublicScoresWithContent();
+		for (const score of cloudScores) {
+			const existingFile = existingFilesBySourceId.get(score.id);
+			const nextContent = buildCloudPublicFileContent(score);
+
+			if (existingFile) {
+				const saveResult = await window.desktopAPI.saveFile(
+					existingFile.path,
+					nextContent,
+				);
+				if (!saveResult.success) {
+					console.error(
+						"Failed to update appended cloud public score:",
+						saveResult.error,
+						existingFile.path,
+					);
+				}
+				continue;
+			}
+
+			const created = await window.desktopAPI.createFile(".atex", repo.path);
+			if (!created) continue;
+
+			const fileName = sanitizeCloudScoreFileName(score.title, score.id);
+			let targetPath = created.path;
+			try {
+				const renamed = await window.desktopAPI.renameFile(
+					created.path,
+					fileName,
+				);
+				if (renamed?.success && renamed.newPath) {
+					targetPath = renamed.newPath;
+				}
+			} catch (error) {
+				console.error("Failed to rename appended cloud score:", error);
+			}
+
+			const saveResult = await window.desktopAPI.saveFile(
+				targetPath,
+				nextContent,
+			);
+			if (!saveResult.success) {
+				console.error(
+					"Failed to append cloud public score:",
+					saveResult.error,
+					targetPath,
+				);
+			}
+		}
+	} catch (error) {
+		console.error("Failed to append cloud public scores into sandbox:", error);
 	}
 }
 
@@ -2536,9 +2642,10 @@ export const useAppStore = create<AppState>((set, get) => ({
 		try {
 			isRestoringAppState = true;
 			setActiveRepoContext(null);
-			const [loadedRepos, legacyAppState] = await Promise.all([
+			const [loadedRepos, legacyAppState, appVersion] = await Promise.all([
 				window.desktopAPI?.loadRepos?.(),
 				window.desktopAPI?.loadAppState?.(),
+				window.desktopAPI?.getAppVersion?.(),
 			]);
 
 			if (!loadedRepos) return;
@@ -2553,6 +2660,15 @@ export const useAppStore = create<AppState>((set, get) => ({
 					} catch (error) {
 						console.error("Failed to persist default sandbox repo:", error);
 					}
+				}
+			}
+
+			if (appVersion === "web") {
+				const sandboxRepo = repos.find(
+					(repo) => repo.name === DEFAULT_SANDBOX_REPO_NAME,
+				);
+				if (sandboxRepo) {
+					await appendCloudPublicScoresToSandboxRepo(sandboxRepo);
 				}
 			}
 
