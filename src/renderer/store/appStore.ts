@@ -59,6 +59,12 @@ function isSameStringList(a: string[] | undefined, b: string[] | undefined) {
 
 const DEFAULT_SANDBOX_REPO_NAME = "Sandbox";
 
+let gitStatusRefreshInFlight: {
+	promise: Promise<void>;
+	repoId: string;
+	repoPath: string;
+} | null = null;
+
 const DEFAULT_SANDBOX_README_CONTENT = `# Tabst Sandbox
 
 Welcome to the default sandbox.
@@ -1681,63 +1687,100 @@ export const useAppStore = create<AppState>((set, get) => ({
 			return;
 		}
 
-		set({ gitStatusLoading: true, gitStatusError: null });
+		if (
+			gitStatusRefreshInFlight?.repoId === activeRepo.id &&
+			gitStatusRefreshInFlight.repoPath === activeRepo.path
+		) {
+			await gitStatusRefreshInFlight.promise;
+			return;
+		}
+
+		const refreshRequest = {
+			repoId: activeRepo.id,
+			repoPath: activeRepo.path,
+			promise: (async () => {
+				set({ gitStatusLoading: true, gitStatusError: null });
+				try {
+					const result = await window.desktopAPI.getGitStatus(activeRepo.path);
+					const currentState = get();
+					const currentRepo = currentState.repos.find(
+						(repo) => repo.id === currentState.activeRepoId,
+					);
+					if (
+						!currentRepo ||
+						currentRepo.id !== activeRepo.id ||
+						currentRepo.path !== activeRepo.path
+					) {
+						return;
+					}
+
+					if (!result.success || !result.data) {
+						set({
+							gitStatusLoading: false,
+							gitStatus: null,
+							gitStatusError: result.error ?? "Failed to load git status",
+							gitSelectedChange: null,
+							gitDiff: null,
+							gitDiffLoading: false,
+							gitDiffError: null,
+							gitActionError: null,
+						});
+						return;
+					}
+
+					const nextStatus = result.data;
+					const selected = get().gitSelectedChange;
+					let selectedStillExists = true;
+					if (selected) {
+						const list =
+							selected.group === "staged"
+								? nextStatus.staged
+								: selected.group === "unstaged"
+									? nextStatus.unstaged
+									: selected.group === "untracked"
+										? nextStatus.untracked
+										: nextStatus.conflicted;
+						selectedStillExists = list.some(
+							(item) =>
+								item.path === selected.path &&
+								(item.fromPath ?? "") === (selected.fromPath ?? ""),
+						);
+					}
+
+					set({
+						gitStatus: nextStatus,
+						gitStatusLoading: false,
+						gitStatusError: null,
+						gitSelectedChange: selectedStillExists ? selected : null,
+						gitDiff: selectedStillExists ? get().gitDiff : null,
+						gitDiffError: selectedStillExists ? get().gitDiffError : null,
+						gitDiffLoading: selectedStillExists ? get().gitDiffLoading : false,
+					});
+				} catch (error) {
+					set({
+						gitStatusLoading: false,
+						gitStatusError:
+							error instanceof Error
+								? error.message
+								: "Failed to load git status",
+						gitStatus: null,
+						gitSelectedChange: null,
+						gitDiff: null,
+						gitDiffError: null,
+						gitDiffLoading: false,
+						gitActionError: null,
+					});
+				}
+			})(),
+		};
+		gitStatusRefreshInFlight = refreshRequest;
+
 		try {
-			const result = await window.desktopAPI.getGitStatus(activeRepo.path);
-			if (!result.success || !result.data) {
-				set({
-					gitStatusLoading: false,
-					gitStatus: null,
-					gitStatusError: result.error ?? "Failed to load git status",
-					gitSelectedChange: null,
-					gitDiff: null,
-					gitDiffLoading: false,
-					gitDiffError: null,
-					gitActionError: null,
-				});
-				return;
+			await refreshRequest.promise;
+		} finally {
+			if (gitStatusRefreshInFlight === refreshRequest) {
+				gitStatusRefreshInFlight = null;
 			}
-
-			const nextStatus = result.data;
-			const selected = get().gitSelectedChange;
-			let selectedStillExists = true;
-			if (selected) {
-				const list =
-					selected.group === "staged"
-						? nextStatus.staged
-						: selected.group === "unstaged"
-							? nextStatus.unstaged
-							: selected.group === "untracked"
-								? nextStatus.untracked
-								: nextStatus.conflicted;
-				selectedStillExists = list.some(
-					(item) =>
-						item.path === selected.path &&
-						(item.fromPath ?? "") === (selected.fromPath ?? ""),
-				);
-			}
-
-			set({
-				gitStatus: nextStatus,
-				gitStatusLoading: false,
-				gitStatusError: null,
-				gitSelectedChange: selectedStillExists ? selected : null,
-				gitDiff: selectedStillExists ? get().gitDiff : null,
-				gitDiffError: selectedStillExists ? get().gitDiffError : null,
-				gitDiffLoading: selectedStillExists ? get().gitDiffLoading : false,
-			});
-		} catch (error) {
-			set({
-				gitStatusLoading: false,
-				gitStatusError:
-					error instanceof Error ? error.message : "Failed to load git status",
-				gitStatus: null,
-				gitSelectedChange: null,
-				gitDiff: null,
-				gitDiffError: null,
-				gitDiffLoading: false,
-				gitActionError: null,
-			});
 		}
 	},
 	selectGitChange: async (change) => {

@@ -354,14 +354,6 @@ pub(crate) fn get_git_status(repo_path: String) -> GitStatusResponse {
         };
     }
 
-    if let Err(error) = assert_git_repository(&normalized_repo_path) {
-        return GitStatusResponse {
-            success: false,
-            data: None,
-            error: Some(error),
-        };
-    }
-
     match run_git(
         &normalized_repo_path,
         &[
