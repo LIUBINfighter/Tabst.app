@@ -30,11 +30,11 @@ importers:
         specifier: ^6.39.12
         version: 6.39.12
       '@coderline/alphatab':
-        specifier: ^1.8.1
-        version: 1.8.1
+        specifier: ^1.8.3
+        version: 1.8.3
       '@coderline/alphatab-language-server':
-        specifier: ^1.8.1
-        version: 1.8.1
+        specifier: ^1.8.3
+        version: 1.8.3
       '@lezer/highlight':
         specifier: ^1.2.3
         version: 1.2.3
@@ -537,12 +537,12 @@ packages:
   '@codemirror/view@6.39.12':
     resolution: {integrity: sha512-f+/VsHVn/kOA9lltk/GFzuYwVVAKmOnNjxbrhkk3tPHntFqjWeI2TbIXx006YkBkqC10wZ4NsnWXCQiFPeAISQ==}
 
-  '@coderline/alphatab-language-server@1.8.1':
-    resolution: {integrity: sha512-cXgL5Kfb35VUf9T968tkSA/ONgCHEFnwtAgYpGxzAE82EHW/9K9vfKxAqFUIUESPC8sv4bAB4sOnRkgqpQX6rw==}
+  '@coderline/alphatab-language-server@1.8.3':
+    resolution: {integrity: sha512-NO6UzN2j82Nxunb8yQbkDNSlB7GylMHFUzfTlyEdAz2iN/DsruGvRU3pUrXzZz1ZEnlcTek3VJ2yrOynTP8dWg==}
     hasBin: true
 
-  '@coderline/alphatab@1.8.1':
-    resolution: {integrity: sha512-sbhSUnuMew3k7I2ulNNunyaqOFIeELOtPAZCQkZo7tPaK/dnWzVk7XSx+nNlakbMqd5zpJZwUnOv5KexkEgz2Q==}
+  '@coderline/alphatab@1.8.3':
+    resolution: {integrity: sha512-gauoZMBL3yzCNn4jz5qhKSmwnlwFpBG+W+HPowiBmPiD6kTH5Ntk3mCUItGqETN7Vl97REXJK6efGKOa13B4Ng==}
     engines: {node: '>=6.0.0'}
 
   '@dotenvx/dotenvx@1.52.0':
@@ -4871,8 +4871,8 @@ packages:
   vscode-languageserver-protocol@3.17.5:
     resolution: {integrity: sha512-mb1bvRJN8SVznADSGWM9u/b07H7Ecg0I3OgXDuLdn307rl/J3A9YD6/eYOssqhecL27hK1IPZAsaqh00i/Jljg==}
 
-  vscode-languageserver-textdocument@1.0.12:
-    resolution: {integrity: sha512-cxWNPesCnQCcMPeenjKKsOCKQZ/L6Tv19DTRIGuLWe32lyzWhihGVJ/rcckZXJxfdKCFvRLS3fpBIsV/ZGX4zA==}
+  vscode-languageserver-textdocument@1.0.13:
+    resolution: {integrity: sha512-nx0ZHwMGIsVkzFG3/VLeJYBLTaFBRuNdGDvevvjuoayU5EOS2fEYazOhtCM3PI9ClMMg5igc0uwXtAq4tJj+Dw==}
 
   vscode-languageserver-types@3.17.5:
     resolution: {integrity: sha512-Ld1VelNuX9pdF39h2Hgaeb5hEZM2Z3jUrrMgWQAu82jMtZp7p3vJT3BzToKtZI7NgQssZje5o0zryOrhQvzQAg==}
@@ -5476,13 +5476,13 @@ snapshots:
       style-mod: 4.1.3
       w3c-keyname: 2.2.8
 
-  '@coderline/alphatab-language-server@1.8.1':
+  '@coderline/alphatab-language-server@1.8.3':
     dependencies:
-      '@coderline/alphatab': 1.8.1
+      '@coderline/alphatab': 1.8.3
       vscode-languageserver: 9.0.1
-      vscode-languageserver-textdocument: 1.0.12
+      vscode-languageserver-textdocument: 1.0.13
 
-  '@coderline/alphatab@1.8.1': {}
+  '@coderline/alphatab@1.8.3': {}
 
   '@dotenvx/dotenvx@1.52.0':
     dependencies:
@@ -10403,7 +10403,7 @@ snapshots:
       vscode-jsonrpc: 8.2.0
       vscode-languageserver-types: 3.17.5
 
-  vscode-languageserver-textdocument@1.0.12: {}
+  vscode-languageserver-textdocument@1.0.13: {}
 
   vscode-languageserver-types@3.17.5: {}
 
