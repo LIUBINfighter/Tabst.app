@@ -309,6 +309,24 @@ export function createWebDesktopAPI(): DesktopAPI {
 			return { success: true };
 		},
 
+		saveBinaryFile: async (
+			filePath: string,
+			data: Uint8Array,
+		): Promise<SaveResult> => {
+			const allFiles = getAllFiles();
+			const existing = allFiles[filePath];
+			allFiles[filePath] = {
+				path: filePath,
+				name: existing?.name ?? fileNameFromPath(filePath),
+				content: "",
+				binaryData: Array.from(data),
+				repoPath: existing?.repoPath ?? "web://scratch",
+				updatedAt: Date.now(),
+			};
+			saveAllFiles(allFiles);
+			return { success: true };
+		},
+
 		loadAppState: async () => {
 			return safeReadJson(STORAGE_KEYS.appState, null);
 		},
@@ -495,10 +513,17 @@ export function createWebDesktopAPI(): DesktopAPI {
 
 		deleteFile: async (filePath: string) => {
 			const allFiles = getAllFiles();
-			if (!allFiles[filePath]) {
-				return { success: false, error: "File not found" };
+			const normalizedPath = filePath.replace(/[\\/]+$/, "");
+			const entries = Object.keys(allFiles).filter(
+				(path) =>
+					path === normalizedPath || path.startsWith(`${normalizedPath}/`),
+			);
+			if (!entries.length) {
+				return { success: false, error: "Path not found" };
 			}
-			delete allFiles[filePath];
+			for (const path of entries) {
+				delete allFiles[path];
+			}
 			saveAllFiles(allFiles);
 			return { success: true };
 		},

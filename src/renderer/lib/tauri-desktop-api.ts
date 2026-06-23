@@ -152,6 +152,20 @@ export function createTauriDesktopAPI(): DesktopAPI {
 			}
 		},
 
+		saveBinaryFile: async (
+			filePath: string,
+			data: Uint8Array,
+		): Promise<SaveResult> => {
+			try {
+				return await invokeCommand<SaveResult>("save_binary_file", {
+					file_path: filePath,
+					data: Array.from(data),
+				});
+			} catch (error) {
+				return { success: false, error: toErrorMessage(error) };
+			}
+		},
+
 		loadAppState: async () => {
 			try {
 				return await invokeCommand<{
