@@ -534,6 +534,24 @@ pub(crate) fn app_state_path<R: tauri::Runtime>(
     Ok(app_data.join("app-state.json"))
 }
 
+fn copy_dir_recursive(source_path: &Path, target_path: &Path) -> Result<(), String> {
+    fs::create_dir_all(target_path).map_err(to_error)?;
+
+    for entry in fs::read_dir(source_path).map_err(to_error)? {
+        let entry = entry.map_err(to_error)?;
+        let source_child = entry.path();
+        let target_child = target_path.join(entry.file_name());
+
+        if source_child.is_dir() {
+            copy_dir_recursive(&source_child, &target_child)?;
+        } else {
+            fs::copy(&source_child, &target_child).map_err(to_error)?;
+        }
+    }
+
+    Ok(())
+}
+
 pub(crate) fn rename_path(source_path: &Path, target_path: &Path) -> Result<(), String> {
     match fs::rename(source_path, target_path) {
         Ok(()) => Ok(()),
@@ -541,6 +559,14 @@ pub(crate) fn rename_path(source_path: &Path, target_path: &Path) -> Result<(), 
             if source_path.is_file() {
                 fs::copy(source_path, target_path).map_err(to_error)?;
                 fs::remove_file(source_path).map_err(to_error)?;
+                return Ok(());
+            }
+            if source_path.is_dir() {
+                if target_path.exists() {
+                    return Err("target-exists".to_string());
+                }
+                copy_dir_recursive(source_path, target_path)?;
+                fs::remove_dir_all(source_path).map_err(to_error)?;
                 return Ok(());
             }
             Err(to_error(error))

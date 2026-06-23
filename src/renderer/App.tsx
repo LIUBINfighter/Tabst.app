@@ -458,6 +458,9 @@ function App() {
 		const shouldProcessChange = (changedPath?: string) => {
 			if (!changedPath) return true;
 			const normalized = changedPath.replace(/\\/g, "/");
+			if (normalized.endsWith("/.git") || normalized.includes("/.git/")) {
+				return false;
+			}
 			if (normalized.includes("/.tabst/")) return false;
 			const base = normalized.split("/").pop() ?? "";
 			if (!base) return true;
