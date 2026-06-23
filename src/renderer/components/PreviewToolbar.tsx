@@ -1,41 +1,56 @@
-import type { AlphaTabApi } from "@coderline/alphatab";
 import type { TFunction } from "i18next";
 import {
 	FileDown,
 	FileMusic,
+	FilePlus2,
+	Loader2,
 	Maximize2,
 	Minimize2,
 	Music,
 	Printer,
 } from "lucide-react";
-import {
-	exportToGp7,
-	exportToMidi,
-	exportToWav,
-	getDefaultExportFilename,
-} from "../lib/alphatab-export";
+import type { ReactNode } from "react";
+import type { ExportFormat } from "../lib/alphatab-export";
 import IconButton from "./ui/icon-button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 
 export interface PreviewToolbarProps {
-	apiRef: React.RefObject<AlphaTabApi | null>;
-	fileName?: string;
 	content?: string;
 	onPrintClick: () => void;
+	onExportClick: (format: ExportFormat) => void | Promise<void>;
+	exportingFormat?: ExportFormat | null;
+	hasScore?: boolean;
+	onGenerateAtexClick?: () => void;
+	isGeneratingAtex?: boolean;
 	onEnjoyToggle?: () => void;
 	isEnjoyMode?: boolean;
 	t: TFunction;
 }
 
 export default function PreviewToolbar({
-	apiRef,
-	fileName,
 	content,
 	onPrintClick,
+	onExportClick,
+	exportingFormat = null,
+	hasScore = false,
+	onGenerateAtexClick,
+	isGeneratingAtex = false,
 	onEnjoyToggle,
 	isEnjoyMode = false,
 	t,
 }: PreviewToolbarProps) {
+	const isExporting = exportingFormat !== null;
+
+	const renderExportIcon = (
+		format: ExportFormat,
+		icon: ReactNode,
+	): ReactNode => {
+		if (exportingFormat === format) {
+			return <Loader2 className="h-4 w-4 animate-spin" />;
+		}
+		return icon;
+	};
+
 	return (
 		<div className="ml-2 flex items-center gap-1">
 			{onEnjoyToggle && (
@@ -61,14 +76,10 @@ export default function PreviewToolbar({
 			<Tooltip>
 				<TooltipTrigger asChild>
 					<IconButton
-						onClick={() => {
-							const api = apiRef.current;
-							if (!api?.score) return;
-							exportToMidi(api);
-						}}
-						disabled={!apiRef.current?.score}
+						onClick={() => void onExportClick("midi")}
+						disabled={!hasScore || isExporting}
 					>
-						<Music className="h-4 w-4" />
+						{renderExportIcon("midi", <Music className="h-4 w-4" />)}
 					</IconButton>
 				</TooltipTrigger>
 				<TooltipContent side="bottom">
@@ -78,15 +89,10 @@ export default function PreviewToolbar({
 			<Tooltip>
 				<TooltipTrigger asChild>
 					<IconButton
-						onClick={async () => {
-							const api = apiRef.current;
-							if (!api?.score) return;
-							const filename = getDefaultExportFilename(fileName, "wav");
-							await exportToWav(api, filename);
-						}}
-						disabled={!apiRef.current?.score}
+						onClick={() => void onExportClick("wav")}
+						disabled={!hasScore || isExporting}
 					>
-						<FileDown className="h-4 w-4" />
+						{renderExportIcon("wav", <FileDown className="h-4 w-4" />)}
 					</IconButton>
 				</TooltipTrigger>
 				<TooltipContent side="bottom">
@@ -96,21 +102,36 @@ export default function PreviewToolbar({
 			<Tooltip>
 				<TooltipTrigger asChild>
 					<IconButton
-						onClick={() => {
-							const api = apiRef.current;
-							if (!api?.score) return;
-							const filename = getDefaultExportFilename(fileName, "gp");
-							exportToGp7(api, filename);
-						}}
-						disabled={!apiRef.current?.score}
+						onClick={() => void onExportClick("gp")}
+						disabled={!hasScore || isExporting}
 					>
-						<FileMusic className="h-4 w-4" />
+						{renderExportIcon("gp", <FileMusic className="h-4 w-4" />)}
 					</IconButton>
 				</TooltipTrigger>
 				<TooltipContent side="bottom">
 					<p>{t("toolbar:export.gp")}</p>
 				</TooltipContent>
 			</Tooltip>
+			{onGenerateAtexClick && (
+				<Tooltip>
+					<TooltipTrigger asChild>
+						<IconButton
+							onClick={onGenerateAtexClick}
+							disabled={isGeneratingAtex}
+							aria-label={t("toolbar:export.atex")}
+						>
+							{isGeneratingAtex ? (
+								<Loader2 className="h-4 w-4 animate-spin" />
+							) : (
+								<FilePlus2 className="h-4 w-4" />
+							)}
+						</IconButton>
+					</TooltipTrigger>
+					<TooltipContent side="bottom">
+						<p>{t("toolbar:export.atex")}</p>
+					</TooltipContent>
+				</Tooltip>
+			)}
 			<Tooltip>
 				<TooltipTrigger asChild>
 					<IconButton onClick={onPrintClick} disabled={!content}>

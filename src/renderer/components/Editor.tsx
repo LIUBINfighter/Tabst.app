@@ -887,6 +887,7 @@ export function Editor({
 					<div className="w-full relative flex flex-col bg-card min-h-0 overflow-y-auto overflow-x-hidden">
 						<Preview
 							fileName={`${activeFile.name} ${t("common:preview")}`}
+							filePath={activeFile.path}
 							content={activeFile.content}
 							onApiChange={setPreviewApi}
 							onEnjoyToggle={() =>
@@ -964,6 +965,7 @@ export function Editor({
 					>
 						<Preview
 							fileName={`${activeFile.name} ${t("common:preview")}`}
+							filePath={activeFile.path}
 							content={activeFile.content}
 							onApiChange={setPreviewApi}
 							onEnjoyToggle={() =>
