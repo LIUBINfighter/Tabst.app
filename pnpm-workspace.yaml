@@ -1,3 +1,5 @@
+nodeLinker: hoisted
+
 allowBuilds:
   esbuild: false
   msw: false
