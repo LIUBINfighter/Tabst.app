@@ -42,7 +42,7 @@
 	"keywords": [],
 	"author": "Jay Bridge huajie8848@foxmail.com",
 	"license": "ISC",
-	"packageManager": "pnpm@10.28.0",
+	"packageManager": "pnpm@11.5.2",
 	"dependencies": {
 		"@codemirror/autocomplete": "^6.20.0",
 		"@codemirror/lang-markdown": "^6.5.0",
