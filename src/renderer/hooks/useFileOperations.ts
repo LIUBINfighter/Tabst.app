@@ -20,6 +20,13 @@ const ALLOWED_EXTENSIONS = [
 	".gpx",
 ];
 
+const NEW_FOLDER_README_NAME = "README.md";
+const NEW_FOLDER_README_CONTENT = "";
+
+function joinChildPath(directoryPath: string, childName: string): string {
+	return `${directoryPath.replace(/[\\/]+$/, "")}/${childName}`;
+}
+
 export function useFileOperations() {
 	const addFile = useAppStore((s) => s.addFile);
 	const renameFile = useAppStore((s) => s.renameFile);
@@ -220,6 +227,17 @@ export function useFileOperations() {
 					targetDir,
 				);
 				if (!result) return null;
+				const readmeResult = await window.desktopAPI.saveFile(
+					joinChildPath(result.path, NEW_FOLDER_README_NAME),
+					NEW_FOLDER_README_CONTENT,
+				);
+				if (!readmeResult.success) {
+					console.error(
+						"Failed to create README.md in new folder:",
+						readmeResult.error,
+					);
+					return null;
+				}
 				return result.path;
 			} catch (error) {
 				console.error("创建文件夹失败:", error);

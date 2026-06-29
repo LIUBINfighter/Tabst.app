@@ -3,6 +3,7 @@ import { DEFAULT_SANDBOX_ATEX_CONTENT } from "../data/default-sandbox-content";
 import i18n, { type Locale } from "../i18n";
 import { setActiveRepoContext } from "../lib/active-repo-context";
 import { extractAtDocFileMeta } from "../lib/atdoc";
+import { listCloudPublicScoresWithContent } from "../lib/cloud-public-scores";
 import { loadGlobalSettings, saveGlobalSettings } from "../lib/global-settings";
 import {
 	BUILT_IN_FONT_OPTIONS,
@@ -21,6 +22,7 @@ import {
 	loadWorkspaceMetadata,
 	updateWorkspaceMetadata,
 } from "../lib/workspace-metadata-store";
+import type { CloudPublicScore } from "../types/cloud";
 import type {
 	GitDiffResult,
 	GitSelectedChange,
@@ -57,6 +59,12 @@ function isSameStringList(a: string[] | undefined, b: string[] | undefined) {
 
 const DEFAULT_SANDBOX_REPO_NAME = "Sandbox";
 
+let gitStatusRefreshInFlight: {
+	promise: Promise<void>;
+	repoId: string;
+	repoPath: string;
+} | null = null;
+
 const DEFAULT_SANDBOX_README_CONTENT = `# Tabst Sandbox
 
 Welcome to the default sandbox.
@@ -84,6 +92,42 @@ const DEFAULT_SANDBOX_FILES: SandboxSeedFile[] = [
 		content: DEFAULT_SANDBOX_README_CONTENT,
 	},
 ];
+
+const CLOUD_PUBLIC_SOURCE_PREFIX = "https://db.tabst.app/#/public/scores/";
+
+function escapeAtDocString(value: string): string {
+	return value.replaceAll("\\", "\\\\").replaceAll('"', '\\"');
+}
+
+function sanitizeCloudScoreFileName(title: string, id: string): string {
+	const base =
+		title
+			.trim()
+			.replace(/[\\/:*?"<>|]/g, "-")
+			.replace(/\s+/g, " ") || "public-score";
+	return `${base} ${id.slice(0, 8)}.atex`;
+}
+
+function buildCloudPublicFileContent(score: CloudPublicScore): string {
+	const lines = [
+		"/**",
+		` * at.meta.title="${escapeAtDocString(score.title)}"`,
+		...score.tags.map((tag) => ` * at.meta.tag="${escapeAtDocString(tag)}"`),
+		` * at.meta.source="${CLOUD_PUBLIC_SOURCE_PREFIX}${score.id}"`,
+		" */",
+		"",
+		score.content,
+	];
+
+	return lines.join("\n");
+}
+
+function extractCloudPublicSourceId(content: string): string | null {
+	const match = content.match(
+		/at\.meta\.source="https:\/\/db\.tabst\.app\/#\/public\/scores\/([^"]+)"/,
+	);
+	return match?.[1] ?? null;
+}
 
 async function seedSandboxFile(
 	directoryPath: string,
@@ -128,6 +172,74 @@ async function createDefaultSandboxRepo(): Promise<Repo | null> {
 	} catch (error) {
 		console.error("Failed to create default sandbox repo:", error);
 		return null;
+	}
+}
+
+async function appendCloudPublicScoresToSandboxRepo(repo: Repo): Promise<void> {
+	try {
+		const scanResult = await window.desktopAPI.scanDirectory(repo.path);
+		const existingFiles = scanResult ? flattenFileNodes(scanResult.nodes) : [];
+		const existingFilesBySourceId = new Map(
+			existingFiles
+				.map(
+					(file) => [extractCloudPublicSourceId(file.content), file] as const,
+				)
+				.filter((entry): entry is readonly [string, FileItem] =>
+					Boolean(entry[0]),
+				),
+		);
+
+		const cloudScores = await listCloudPublicScoresWithContent();
+		for (const score of cloudScores) {
+			const existingFile = existingFilesBySourceId.get(score.id);
+			const nextContent = buildCloudPublicFileContent(score);
+
+			if (existingFile) {
+				const saveResult = await window.desktopAPI.saveFile(
+					existingFile.path,
+					nextContent,
+				);
+				if (!saveResult.success) {
+					console.error(
+						"Failed to update appended cloud public score:",
+						saveResult.error,
+						existingFile.path,
+					);
+				}
+				continue;
+			}
+
+			const created = await window.desktopAPI.createFile(".atex", repo.path);
+			if (!created) continue;
+
+			const fileName = sanitizeCloudScoreFileName(score.title, score.id);
+			let targetPath = created.path;
+			try {
+				const renamed = await window.desktopAPI.renameFile(
+					created.path,
+					fileName,
+				);
+				if (renamed?.success && renamed.newPath) {
+					targetPath = renamed.newPath;
+				}
+			} catch (error) {
+				console.error("Failed to rename appended cloud score:", error);
+			}
+
+			const saveResult = await window.desktopAPI.saveFile(
+				targetPath,
+				nextContent,
+			);
+			if (!saveResult.success) {
+				console.error(
+					"Failed to append cloud public score:",
+					saveResult.error,
+					targetPath,
+				);
+			}
+		}
+	} catch (error) {
+		console.error("Failed to append cloud public scores into sandbox:", error);
 	}
 }
 
@@ -547,9 +659,9 @@ interface AppState {
 	bumpScoreVersion: () => void;
 	bumpEditorRefreshVersion: () => void;
 	bumpBottomBarRefreshVersion: () => void;
-	workspaceMode: "editor" | "enjoy" | "tutorial" | "settings" | "git";
+	workspaceMode: "editor" | "enjoy" | "tutorial" | "settings" | "git" | "cloud";
 	setWorkspaceMode: (
-		mode: "editor" | "enjoy" | "tutorial" | "settings" | "git",
+		mode: "editor" | "enjoy" | "tutorial" | "settings" | "git" | "cloud",
 	) => void;
 	gitStatus: GitStatusSummary | null;
 	gitStatusLoading: boolean;
@@ -582,12 +694,16 @@ interface AppState {
 	// 教程选择（用于侧边栏与教程视图间同步）
 	activeTutorialId: string | null;
 	setActiveTutorialId: (id: string | null) => void;
+	activeCloudObjectId: string | null;
+	setActiveCloudObjectId: (id: string | null) => void;
+	settingsReturnMode: "editor" | "enjoy" | "tutorial" | "git" | "cloud";
+	openSettingsWorkspace: (pageId?: string | null) => void;
+	closeSettingsWorkspace: () => void;
 	tutorialAudience: TutorialAudience;
 	setTutorialAudience: (audience: TutorialAudience) => void;
 	// 设置页选择（用于侧边栏与设置视图间同步）
 	activeSettingsPageId: string | null;
 	setActiveSettingsPageId: (id: string | null) => void;
-
 	// i18n 语言
 	locale: "en" | "zh-cn";
 	setLocale: (locale: "en" | "zh-cn") => void;
@@ -757,6 +873,7 @@ async function mergeAndSaveWorkspacePreferences(partial: RepoPreferences) {
 			workspaceMode: existing?.workspaceMode,
 			activeSettingsPageId: existing?.activeSettingsPageId ?? null,
 			activeTutorialId: existing?.activeTutorialId ?? null,
+			activeCloudObjectId: existing?.activeCloudObjectId ?? null,
 			tutorialAudience: existing?.tutorialAudience,
 		}));
 	} catch (e) {
@@ -775,6 +892,8 @@ interface WorkspaceSessionSnapshot {
 	workspaceMode: AppState["workspaceMode"];
 	activeSettingsPageId: string | null;
 	activeTutorialId: string | null;
+	activeCloudObjectId: string | null;
+	settingsReturnMode: AppState["settingsReturnMode"];
 	tutorialAudience: AppState["tutorialAudience"];
 }
 
@@ -800,6 +919,8 @@ function scheduleSaveAppState() {
 		workspaceMode: state.workspaceMode,
 		activeSettingsPageId: state.activeSettingsPageId,
 		activeTutorialId: state.activeTutorialId,
+		activeCloudObjectId: state.activeCloudObjectId,
+		settingsReturnMode: state.settingsReturnMode,
 		tutorialAudience: state.tutorialAudience,
 	};
 	const expandedFallback = collectExpandedFolders(state.fileTree);
@@ -828,6 +949,7 @@ async function saveWorkspaceSessionForRepo(
 			workspaceMode: snapshot.workspaceMode,
 			activeSettingsPageId: snapshot.activeSettingsPageId,
 			activeTutorialId: snapshot.activeTutorialId,
+			activeCloudObjectId: snapshot.activeCloudObjectId,
 			tutorialAudience: snapshot.tutorialAudience,
 		}));
 	} catch (error) {
@@ -850,6 +972,7 @@ async function saveExpandedFoldersForRepo(
 			workspaceMode: existing?.workspaceMode,
 			activeSettingsPageId: existing?.activeSettingsPageId ?? null,
 			activeTutorialId: existing?.activeTutorialId ?? null,
+			activeCloudObjectId: existing?.activeCloudObjectId ?? null,
 			tutorialAudience: existing?.tutorialAudience,
 		}));
 	} catch (e) {
@@ -1187,6 +1310,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 							workspaceMode: meta.workspaceMode ?? "editor",
 							activeSettingsPageId: meta.activeSettingsPageId ?? null,
 							activeTutorialId: meta.activeTutorialId ?? "user-readme",
+							activeCloudObjectId: meta.activeCloudObjectId ?? null,
 							tutorialAudience: meta.tutorialAudience ?? "user",
 						});
 
@@ -1253,6 +1377,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 								workspaceMode: "editor",
 								activeSettingsPageId: null,
 								activeTutorialId: "user-readme",
+								activeCloudObjectId: null,
 								tutorialAudience: "user",
 							};
 						});
@@ -1425,7 +1550,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 		set({ enablePlaybackProgressBar: v });
 		void mergeAndSaveWorkspacePreferences({ enablePlaybackProgressBar: v });
 	},
-	enablePlaybackProgressSeek: true,
+	enablePlaybackProgressSeek: false,
 	setEnablePlaybackProgressSeek: (v) => {
 		set({ enablePlaybackProgressSeek: v });
 		void mergeAndSaveWorkspacePreferences({ enablePlaybackProgressSeek: v });
@@ -1524,7 +1649,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 		})),
 	workspaceMode: "editor",
 	setWorkspaceMode: (
-		mode: "editor" | "enjoy" | "tutorial" | "settings" | "git",
+		mode: "editor" | "enjoy" | "tutorial" | "settings" | "git" | "cloud",
 	) => {
 		set({ workspaceMode: mode });
 		scheduleSaveAppState();
@@ -1559,63 +1684,100 @@ export const useAppStore = create<AppState>((set, get) => ({
 			return;
 		}
 
-		set({ gitStatusLoading: true, gitStatusError: null });
+		if (
+			gitStatusRefreshInFlight?.repoId === activeRepo.id &&
+			gitStatusRefreshInFlight.repoPath === activeRepo.path
+		) {
+			await gitStatusRefreshInFlight.promise;
+			return;
+		}
+
+		const refreshRequest = {
+			repoId: activeRepo.id,
+			repoPath: activeRepo.path,
+			promise: (async () => {
+				set({ gitStatusLoading: true, gitStatusError: null });
+				try {
+					const result = await window.desktopAPI.getGitStatus(activeRepo.path);
+					const currentState = get();
+					const currentRepo = currentState.repos.find(
+						(repo) => repo.id === currentState.activeRepoId,
+					);
+					if (
+						!currentRepo ||
+						currentRepo.id !== activeRepo.id ||
+						currentRepo.path !== activeRepo.path
+					) {
+						return;
+					}
+
+					if (!result.success || !result.data) {
+						set({
+							gitStatusLoading: false,
+							gitStatus: null,
+							gitStatusError: result.error ?? "Failed to load git status",
+							gitSelectedChange: null,
+							gitDiff: null,
+							gitDiffLoading: false,
+							gitDiffError: null,
+							gitActionError: null,
+						});
+						return;
+					}
+
+					const nextStatus = result.data;
+					const selected = get().gitSelectedChange;
+					let selectedStillExists = true;
+					if (selected) {
+						const list =
+							selected.group === "staged"
+								? nextStatus.staged
+								: selected.group === "unstaged"
+									? nextStatus.unstaged
+									: selected.group === "untracked"
+										? nextStatus.untracked
+										: nextStatus.conflicted;
+						selectedStillExists = list.some(
+							(item) =>
+								item.path === selected.path &&
+								(item.fromPath ?? "") === (selected.fromPath ?? ""),
+						);
+					}
+
+					set({
+						gitStatus: nextStatus,
+						gitStatusLoading: false,
+						gitStatusError: null,
+						gitSelectedChange: selectedStillExists ? selected : null,
+						gitDiff: selectedStillExists ? get().gitDiff : null,
+						gitDiffError: selectedStillExists ? get().gitDiffError : null,
+						gitDiffLoading: selectedStillExists ? get().gitDiffLoading : false,
+					});
+				} catch (error) {
+					set({
+						gitStatusLoading: false,
+						gitStatusError:
+							error instanceof Error
+								? error.message
+								: "Failed to load git status",
+						gitStatus: null,
+						gitSelectedChange: null,
+						gitDiff: null,
+						gitDiffError: null,
+						gitDiffLoading: false,
+						gitActionError: null,
+					});
+				}
+			})(),
+		};
+		gitStatusRefreshInFlight = refreshRequest;
+
 		try {
-			const result = await window.desktopAPI.getGitStatus(activeRepo.path);
-			if (!result.success || !result.data) {
-				set({
-					gitStatusLoading: false,
-					gitStatus: null,
-					gitStatusError: result.error ?? "Failed to load git status",
-					gitSelectedChange: null,
-					gitDiff: null,
-					gitDiffLoading: false,
-					gitDiffError: null,
-					gitActionError: null,
-				});
-				return;
+			await refreshRequest.promise;
+		} finally {
+			if (gitStatusRefreshInFlight === refreshRequest) {
+				gitStatusRefreshInFlight = null;
 			}
-
-			const nextStatus = result.data;
-			const selected = get().gitSelectedChange;
-			let selectedStillExists = true;
-			if (selected) {
-				const list =
-					selected.group === "staged"
-						? nextStatus.staged
-						: selected.group === "unstaged"
-							? nextStatus.unstaged
-							: selected.group === "untracked"
-								? nextStatus.untracked
-								: nextStatus.conflicted;
-				selectedStillExists = list.some(
-					(item) =>
-						item.path === selected.path &&
-						(item.fromPath ?? "") === (selected.fromPath ?? ""),
-				);
-			}
-
-			set({
-				gitStatus: nextStatus,
-				gitStatusLoading: false,
-				gitStatusError: null,
-				gitSelectedChange: selectedStillExists ? selected : null,
-				gitDiff: selectedStillExists ? get().gitDiff : null,
-				gitDiffError: selectedStillExists ? get().gitDiffError : null,
-				gitDiffLoading: selectedStillExists ? get().gitDiffLoading : false,
-			});
-		} catch (error) {
-			set({
-				gitStatusLoading: false,
-				gitStatusError:
-					error instanceof Error ? error.message : "Failed to load git status",
-				gitStatus: null,
-				gitSelectedChange: null,
-				gitDiff: null,
-				gitDiffError: null,
-				gitDiffLoading: false,
-				gitActionError: null,
-			});
 		}
 	},
 	selectGitChange: async (change) => {
@@ -1867,6 +2029,33 @@ export const useAppStore = create<AppState>((set, get) => ({
 	activeTutorialId: "user-readme",
 	setActiveTutorialId: (id) => {
 		set({ activeTutorialId: id });
+		scheduleSaveAppState();
+	},
+	activeCloudObjectId: null,
+	setActiveCloudObjectId: (id) => {
+		set({ activeCloudObjectId: id });
+		scheduleSaveAppState();
+	},
+	settingsReturnMode: "editor",
+	openSettingsWorkspace: (pageId = null) => {
+		const state = get();
+		const returnMode =
+			state.workspaceMode === "settings"
+				? state.settingsReturnMode
+				: state.workspaceMode;
+		set({
+			settingsReturnMode: returnMode,
+			workspaceMode: "settings",
+			activeSettingsPageId: pageId,
+		});
+		scheduleSaveAppState();
+	},
+	closeSettingsWorkspace: () => {
+		const state = get();
+		set({
+			workspaceMode: state.settingsReturnMode,
+			activeSettingsPageId: null,
+		});
 		scheduleSaveAppState();
 	},
 	tutorialAudience: "user",
@@ -2491,9 +2680,10 @@ export const useAppStore = create<AppState>((set, get) => ({
 		try {
 			isRestoringAppState = true;
 			setActiveRepoContext(null);
-			const [loadedRepos, legacyAppState] = await Promise.all([
+			const [loadedRepos, legacyAppState, appVersion] = await Promise.all([
 				window.desktopAPI?.loadRepos?.(),
 				window.desktopAPI?.loadAppState?.(),
+				window.desktopAPI?.getAppVersion?.(),
 			]);
 
 			if (!loadedRepos) return;
@@ -2508,6 +2698,15 @@ export const useAppStore = create<AppState>((set, get) => ({
 					} catch (error) {
 						console.error("Failed to persist default sandbox repo:", error);
 					}
+				}
+			}
+
+			if (appVersion === "web") {
+				const sandboxRepo = repos.find(
+					(repo) => repo.name === DEFAULT_SANDBOX_REPO_NAME,
+				);
+				if (sandboxRepo) {
+					await appendCloudPublicScoresToSandboxRepo(sandboxRepo);
 				}
 			}
 

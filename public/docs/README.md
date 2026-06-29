@@ -22,6 +22,9 @@ Write. Play. Share.
 
 Efficiently write alphaTex. Play scores. Share PDF/GP.
 
+- Desktop: browse public Tabst DB scores through a dedicated Cloud workspace without signing in.
+- Web (`play.tabst.app`): append public Tabst DB scores into the Sandbox workspace so they can be browsed with the normal file tree and player flow.
+
 ## Why Tabst
 
 Say no to bulky binaries and XML; the world belongs to plain text.
@@ -30,7 +33,7 @@ While document writing already has a plethora of out-of-the-box Markdown editors
 
 [MusiXTeX](https://ctan.org/pkg/musixtex) and [Lilypond](https://lilypond.org/) have set a publishing-grade example in music notation languages, while [alphaTab.js](https://www.alphatab.net/) has made interactive and playable scores possible. In Tabst, we write alphaTex in a simple, intuitive syntax, and easily share with your friends.
 
-This is just the beginning. My vision is to transform scattered PDFs and images of scores into alphaTex stored in Tabst. Visual language models (OMR Optical Music Recognition) are on the way.
+This is just the beginning. The vision is to make guitar tab writing as effortless as writing markdown.
 
 ## Tech Stack
 
@@ -91,4 +94,11 @@ The desktop runtime cutover is complete and the repository is now Tauri-first.
 
 - Product builds, release commands, and CI desktop validation all target Tauri.
 - The renderer uses a unified `desktopAPI` bridge for desktop capabilities.
+- Desktop now includes a read-only Cloud workspace mode: the left sidebar lists public Tabst DB scores, and the selected score reuses the normal Editor/Preview split in read-only form.
 - Detailed normalization work and follow-up tasks are tracked in [docs/dev/TAURI_MIGRATION_STATUS.md](./docs/dev/TAURI_MIGRATION_STATUS.md).
+
+## Web Runtime Notes
+
+- `play.tabst.app` keeps the existing Sandbox repo model as the primary web workspace.
+- On web initialization, public Tabst DB scores are imported into the Sandbox workspace as `.atex` files and refreshed by `at.meta.source`, so repeated visits update existing imported public objects instead of duplicating them.
+- The web flow is intentionally public-only. There is no sign-in, private-library, or publish flow in the current website adaptation.

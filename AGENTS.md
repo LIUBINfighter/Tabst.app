@@ -14,7 +14,7 @@ Tabst.app/
 ├── src/                     # product renderer/runtime code
 │   └── renderer/            # React UI, alphaTab integration, worker/LSP
 ├── src-tauri/               # Tauri shell, commands, updater, desktop capabilities
-├── scripts/                 # codemix, vendor sync tooling
+├── scripts/                 # codemix, vendor sync
 ├── docs/dev/                # active engineering docs (alphatab/alphatex/ops)
 ├── .github/workflows/       # CI, release, mac release, pages deploy
 ├── public/assets/           # Bravura, soundfont, alphaTab runtime assets
@@ -31,6 +31,7 @@ Tabst.app/
 | AlphaTex parsing/positions | `src/renderer/lib/alphatex-parse-positions.ts` | AST-first parser with fallback path |
 | Completion and hover | `src/renderer/lib/alphatex-completion.ts`, `src/renderer/workers/alphatex.worker.ts` | local command JSON first, upstream fallback |
 | Preview lifecycle | `src/renderer/components/Preview.tsx`, `src/renderer/hooks/usePreview*` | API init/destroy/reinit and telemetry |
+| Cloud public score browsing | `src/renderer/components/CloudSidebar.tsx`, `src/renderer/components/CloudView.tsx`, `src/renderer/lib/cloud-public-scores.ts` | desktop read-only cloud workspace + web public score import path |
 | Print pipeline | `src/renderer/components/PrintPreview.tsx` | dedicated API instance + print CSS/font rules |
 | Git integration | `src-tauri/src/lib.rs`, `src/renderer/components/GitWorkspace.tsx` | porcelain parse + unified diff display |
 
@@ -41,6 +42,8 @@ Tabst.app/
 - Deep alphaTab config changes (theme/colors) require API destroy + recreate; `render()` alone is insufficient.
 - Completion/hover source precedence: `src/renderer/data/alphatex-commands.json` first, upstream docs second.
 - Desktop bridge surface in the renderer is `window.desktopAPI`.
+- Desktop Cloud mode is intentionally public-only and read-only. The selected cloud score should reuse the normal `Editor` / `Preview` workspace experience instead of a parallel viewer stack.
+- Web runtime keeps Sandbox as the primary repo; public Tabst DB scores are appended/imported into that repo and refreshed by `at.meta.source` on initialization.
 
 ## ANTI-PATTERNS (THIS PROJECT)
 - Parsing AlphaTex structure with regex when AST parser is available.

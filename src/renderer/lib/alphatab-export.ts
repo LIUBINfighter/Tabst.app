@@ -5,42 +5,126 @@
 
 import * as alphaTab from "@coderline/alphatab";
 
+export type ExportFormat = "midi" | "wav" | "gp";
+
+const DEFAULT_EXPORT_BASE_NAME = "song";
+
+function normalizePath(path: string): string {
+	return path.replace(/\\/g, "/");
+}
+
+function normalizeExtension(extension: string): string {
+	return extension.trim().replace(/^\./, "").toLowerCase();
+}
+
+function splitPath(path: string): { directory?: string; fileName: string } {
+	const normalized = normalizePath(path);
+	const lastSlashIndex = normalized.lastIndexOf("/");
+
+	if (lastSlashIndex < 0) {
+		return { fileName: normalized };
+	}
+
+	if (lastSlashIndex === normalized.length - 1) {
+		return { directory: normalized.slice(0, -1), fileName: "" };
+	}
+
+	return {
+		directory: normalized.slice(0, lastSlashIndex),
+		fileName: normalized.slice(lastSlashIndex + 1),
+	};
+}
+
+function getFileBaseName(fileName: string): string {
+	const trimmed = fileName.trim();
+	if (!trimmed) {
+		return DEFAULT_EXPORT_BASE_NAME;
+	}
+
+	const lastDotIndex = trimmed.lastIndexOf(".");
+	if (lastDotIndex <= 0) {
+		return trimmed;
+	}
+
+	return trimmed.slice(0, lastDotIndex);
+}
+
+function sanitizeFallbackBaseName(baseName: string): string {
+	const sanitized = baseName
+		.trim()
+		.replace(/[\\/:*?"<>|]/g, "_")
+		.replace(/\s+/g, " ")
+		.replace(/[. ]+$/g, "");
+
+	return sanitized || DEFAULT_EXPORT_BASE_NAME;
+}
+
+function joinPath(directory: string | undefined, fileName: string): string {
+	return directory ? `${directory}/${fileName}` : fileName;
+}
+
+export function buildExportFilePath(
+	sourcePath: string | undefined,
+	extension: string,
+	fallbackBaseName: string = DEFAULT_EXPORT_BASE_NAME,
+): string {
+	const normalizedExtension = normalizeExtension(extension);
+	const safeFallbackBaseName = sanitizeFallbackBaseName(fallbackBaseName);
+
+	if (!sourcePath?.trim()) {
+		return `${safeFallbackBaseName}.${normalizedExtension}`;
+	}
+
+	const normalizedSourcePath = normalizePath(sourcePath.trim());
+	const { directory, fileName } = splitPath(normalizedSourcePath);
+	const baseName = getFileBaseName(fileName);
+	const sourceExtensionIndex = fileName.lastIndexOf(".");
+	const sourceExtension =
+		sourceExtensionIndex > 0
+			? normalizeExtension(fileName.slice(sourceExtensionIndex + 1))
+			: "";
+	const targetBaseName =
+		sourceExtension && sourceExtension === normalizedExtension
+			? `${baseName}.export`
+			: baseName;
+
+	return joinPath(directory, `${targetBaseName}.${normalizedExtension}`);
+}
+
 /**
  * 导出为 Guitar Pro 7 (.gp) 格式
  */
-export function exportToGp7(
-	api: alphaTab.AlphaTabApi,
-	filename: string = "song.gp",
-): void {
+export function exportToGp7(api: alphaTab.AlphaTabApi): Uint8Array {
 	if (!api.score) {
 		throw new Error("No score loaded");
 	}
 
 	const exporter = new alphaTab.exporter.Gp7Exporter();
-	const data = exporter.export(api.score, api.settings);
-
-	const blob = new Blob([data.buffer as ArrayBuffer], {
-		type: "application/octet-stream",
-	});
-	const url = URL.createObjectURL(blob);
-	const a = document.createElement("a");
-	a.href = url;
-	a.download = filename.endsWith(".gp") ? filename : `${filename}.gp`;
-	document.body.appendChild(a);
-	a.click();
-	document.body.removeChild(a);
-	URL.revokeObjectURL(url);
+	return exporter.export(api.score, api.settings);
 }
 
 /**
  * 导出为 MIDI (.mid) 格式
  */
-export function exportToMidi(api: alphaTab.AlphaTabApi): void {
+export function exportToMidi(
+	api: alphaTab.AlphaTabApi,
+	format: alphaTab.midi.MidiFileFormat = alphaTab.midi.MidiFileFormat
+		.SingleTrackMultiChannel,
+): Uint8Array {
 	if (!api.score) {
 		throw new Error("No score loaded");
 	}
 
-	api.downloadMidi();
+	const midiFile = new alphaTab.midi.MidiFile();
+	midiFile.format = format;
+	const handler = new alphaTab.midi.AlphaSynthMidiFileHandler(midiFile, true);
+	const generator = new alphaTab.midi.MidiFileGenerator(
+		api.score,
+		api.settings,
+		handler,
+	);
+	generator.generate();
+	return midiFile.toBinary();
 }
 
 /**
@@ -48,9 +132,8 @@ export function exportToMidi(api: alphaTab.AlphaTabApi): void {
  */
 export async function exportToWav(
 	api: alphaTab.AlphaTabApi,
-	filename: string = "song.wav",
 	onProgress?: (progress: number) => void,
-): Promise<void> {
+): Promise<Uint8Array> {
 	if (!api.score) {
 		throw new Error("No score loaded");
 	}
@@ -96,16 +179,8 @@ export async function exportToWav(
 		}
 
 		const wavData = float32ArrayToWav(audioData, sampleRate);
-
-		const blob = new Blob([wavData], { type: "audio/wav" });
-		const url = URL.createObjectURL(blob);
-		const a = document.createElement("a");
-		a.href = url;
-		a.download = filename.endsWith(".wav") ? filename : `${filename}.wav`;
-		document.body.appendChild(a);
-		a.click();
-		document.body.removeChild(a);
-		URL.revokeObjectURL(url);
+		onProgress?.(1);
+		return new Uint8Array(wavData);
 	} finally {
 		exporter.destroy();
 	}

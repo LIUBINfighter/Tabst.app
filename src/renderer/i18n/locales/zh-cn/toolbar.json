@@ -49,7 +49,8 @@
 	"export": {
 		"midi": "导出 MIDI",
 		"wav": "导出 WAV",
-		"gp": "导出 GP"
+		"gp": "导出 GP",
+		"atex": "生成同名 .atex"
 	},
 	"preview": {
 		"enterEnjoy": "Enjoy 沉浸看谱",

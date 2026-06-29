@@ -32,7 +32,7 @@ export default function SettingsView({
 	onCollapseSidebar,
 }: SettingsViewProps) {
 	const { t } = useTranslation(["settings", "sidebar", "common"]);
-	const setWorkspaceMode = useAppStore((s) => s.setWorkspaceMode);
+	const closeSettingsWorkspace = useAppStore((s) => s.closeSettingsWorkspace);
 	const activeSettingsPageId = useAppStore((s) => s.activeSettingsPageId);
 	const setActiveSettingsPageId = useAppStore((s) => s.setActiveSettingsPageId);
 
@@ -40,13 +40,13 @@ export default function SettingsView({
 	useEffect(() => {
 		const handleKeyDown = (e: KeyboardEvent) => {
 			if (e.key === "Escape") {
-				setWorkspaceMode("editor");
+				closeSettingsWorkspace();
 			}
 		};
 
 		window.addEventListener("keydown", handleKeyDown);
 		return () => window.removeEventListener("keydown", handleKeyDown);
-	}, [setWorkspaceMode]);
+	}, [closeSettingsWorkspace]);
 
 	// 根据 activeSettingsPageId 渲染对应的页面
 	const renderPage = () => {
@@ -116,7 +116,7 @@ export default function SettingsView({
 									<IconButton
 										destructive
 										onClick={() => {
-											setWorkspaceMode("editor");
+											closeSettingsWorkspace();
 											setActiveSettingsPageId(null);
 										}}
 									>

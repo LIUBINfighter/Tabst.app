@@ -4,22 +4,56 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FileItem } from "../../store/appStore";
 import IconButton from "../ui/icon-button";
 import TutorialPlaygroundEditor from "./TutorialPlaygroundEditor";
-import TutorialPlaygroundPreview from "./TutorialPlaygroundPreview";
+import TutorialPlaygroundPreview, {
+	type TutorialPlaygroundRenderStatus,
+} from "./TutorialPlaygroundPreview";
+
+interface TutorialAlphaTexPlaygroundLabels {
+	enableMetronome: string;
+	disableMetronome: string;
+	play: string;
+	pause: string;
+	stop: string;
+	emptyPreview: string;
+	loadingPreview: string;
+}
 
 interface TutorialAlphaTexPlaygroundProps {
 	initialContent: string;
 	fileName?: string;
+	title?: string;
+	className?: string;
+	labels?: Partial<TutorialAlphaTexPlaygroundLabels>;
+	onChange?: (content: string) => void;
+	onRenderStatusChange?: (status: TutorialPlaygroundRenderStatus) => void;
 }
 
 const PLAYER_STATE_PLAYING = 1;
 const TUTORIAL_METRONOME_ON_VOLUME = 0.6;
+const PREVIEW_DEBOUNCE_MS = 300;
+const DEFAULT_LABELS: TutorialAlphaTexPlaygroundLabels = {
+	enableMetronome: "Enable metronome",
+	disableMetronome: "Disable metronome",
+	play: "Play",
+	pause: "Pause",
+	stop: "Stop",
+	emptyPreview: "Enter alphaTex to render a preview.",
+	loadingPreview: "Loading score...",
+};
 
 export function TutorialAlphaTexPlayground({
 	initialContent,
 	fileName = "tutorial.atex",
+	title = "Interactive AlphaTex Playground",
+	className,
+	labels,
+	onChange,
+	onRenderStatusChange,
 }: TutorialAlphaTexPlaygroundProps) {
 	const [content, setContent] = useState(initialContent);
+	const [previewContent, setPreviewContent] = useState(initialContent);
 	const apiRef = useRef<alphaTab.AlphaTabApi | null>(null);
+	const metronomeVolumeRef = useRef(0);
 	const playerStateHandlerRef = useRef<
 		((ev: { state: number; stopped?: boolean }) => void) | null
 	>(null);
@@ -29,7 +63,32 @@ export function TutorialAlphaTexPlayground({
 
 	useEffect(() => {
 		setContent(initialContent);
+		setPreviewContent(initialContent);
 	}, [initialContent]);
+
+	useEffect(() => {
+		const timer = window.setTimeout(() => {
+			setPreviewContent(content);
+		}, PREVIEW_DEBOUNCE_MS);
+		return () => window.clearTimeout(timer);
+	}, [content]);
+
+	useEffect(() => {
+		metronomeVolumeRef.current = metronomeVolume;
+	}, [metronomeVolume]);
+
+	const resolvedLabels = useMemo<TutorialAlphaTexPlaygroundLabels>(
+		() => ({ ...DEFAULT_LABELS, ...labels }),
+		[labels],
+	);
+
+	const handleContentChange = useCallback(
+		(nextContent: string) => {
+			setContent(nextContent);
+			onChange?.(nextContent);
+		},
+		[onChange],
+	);
 
 	const _sandboxFile = useMemo<FileItem>(
 		() => ({
@@ -42,38 +101,35 @@ export function TutorialAlphaTexPlayground({
 		[fileName, content],
 	);
 
-	const handleApiChange = useCallback(
-		(api: alphaTab.AlphaTabApi | null) => {
-			const previousApi = apiRef.current;
-			if (previousApi && playerStateHandlerRef.current) {
-				previousApi.playerStateChanged?.off(playerStateHandlerRef.current);
-				playerStateHandlerRef.current = null;
-			}
+	const handleApiChange = useCallback((api: alphaTab.AlphaTabApi | null) => {
+		const previousApi = apiRef.current;
+		if (previousApi && playerStateHandlerRef.current) {
+			previousApi.playerStateChanged?.off(playerStateHandlerRef.current);
+			playerStateHandlerRef.current = null;
+		}
 
-			apiRef.current = api;
-			setIsPlaying(false);
-			isPlayerStartedRef.current = false;
+		apiRef.current = api;
+		setIsPlaying(false);
+		isPlayerStartedRef.current = false;
 
-			if (api) {
-				api.metronomeVolume = metronomeVolume;
-				const handler = (ev: { state: number; stopped?: boolean }) => {
-					if (ev?.state === PLAYER_STATE_PLAYING) {
-						isPlayerStartedRef.current = true;
-						setIsPlaying(true);
-						return;
-					}
+		if (api) {
+			api.metronomeVolume = metronomeVolumeRef.current;
+			const handler = (ev: { state: number; stopped?: boolean }) => {
+				if (ev?.state === PLAYER_STATE_PLAYING) {
+					isPlayerStartedRef.current = true;
+					setIsPlaying(true);
+					return;
+				}
 
-					setIsPlaying(false);
-					if (ev?.stopped) {
-						isPlayerStartedRef.current = false;
-					}
-				};
-				playerStateHandlerRef.current = handler;
-				api.playerStateChanged?.on(handler);
-			}
-		},
-		[metronomeVolume],
-	);
+				setIsPlaying(false);
+				if (ev?.stopped) {
+					isPlayerStartedRef.current = false;
+				}
+			};
+			playerStateHandlerRef.current = handler;
+			api.playerStateChanged?.on(handler);
+		}
+	}, []);
 
 	useEffect(() => {
 		if (!apiRef.current) return;
@@ -81,18 +137,24 @@ export function TutorialAlphaTexPlayground({
 	}, [metronomeVolume]);
 
 	return (
-		<div className="not-prose my-4 mx-auto w-full max-w-[820px] rounded-lg border border-border overflow-hidden bg-card">
+		<div
+			className={`not-prose my-4 mx-auto w-full max-w-[820px] rounded-lg border border-border overflow-hidden bg-card ${className ?? ""}`}
+		>
 			<div className="flex items-center justify-between px-3 py-2 border-b border-border text-xs text-muted-foreground">
-				<span>Interactive AlphaTex Playground</span>
+				<span>{title}</span>
 				<div className="flex items-center gap-2">
 					<IconButton
 						compact
 						active={metronomeVolume > 0}
 						aria-label={
-							metronomeVolume > 0 ? "Disable metronome" : "Enable metronome"
+							metronomeVolume > 0
+								? resolvedLabels.disableMetronome
+								: resolvedLabels.enableMetronome
 						}
 						title={
-							metronomeVolume > 0 ? "Disable metronome" : "Enable metronome"
+							metronomeVolume > 0
+								? resolvedLabels.disableMetronome
+								: resolvedLabels.enableMetronome
 						}
 						onClick={() => {
 							setMetronomeVolume((prev) =>
@@ -104,8 +166,8 @@ export function TutorialAlphaTexPlayground({
 					</IconButton>
 					<IconButton
 						compact
-						aria-label={isPlaying ? "Pause" : "Play"}
-						title={isPlaying ? "Pause" : "Play"}
+						aria-label={isPlaying ? resolvedLabels.pause : resolvedLabels.play}
+						title={isPlaying ? resolvedLabels.pause : resolvedLabels.play}
 						onClick={() => {
 							apiRef.current?.playPause();
 						}}
@@ -118,8 +180,8 @@ export function TutorialAlphaTexPlayground({
 					</IconButton>
 					<IconButton
 						compact
-						aria-label="Stop"
-						title="Stop"
+						aria-label={resolvedLabels.stop}
+						title={resolvedLabels.stop}
 						onClick={() => {
 							if (isPlayerStartedRef.current) {
 								apiRef.current?.stop();
@@ -139,14 +201,17 @@ export function TutorialAlphaTexPlayground({
 				>
 					<TutorialPlaygroundEditor
 						initialContent={content}
-						onChange={setContent}
+						onChange={handleContentChange}
 					/>
 				</div>
 				<div className="overflow-hidden relative">
 					<TutorialPlaygroundPreview
 						fileName={fileName}
-						content={content}
+						content={previewContent}
+						emptyMessage={resolvedLabels.emptyPreview}
+						loadingMessage={resolvedLabels.loadingPreview}
 						onApiChange={handleApiChange}
+						onRenderStatusChange={onRenderStatusChange}
 						className="h-full"
 					/>
 				</div>

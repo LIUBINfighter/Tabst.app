@@ -6,6 +6,7 @@
 ## DOMAIN SPLIT
 - `Preview*` + `Tracks*`: alphaTab playback/render interaction.
 - `Print*`: print-only API lifecycle and pagination.
+- `Cloud*`: public cloud score browsing surfaces; sidebar object list + read-only workspace reuse.
 - `settings/*`: settings pages (appearance/playback/commands/templates/updates/etc.).
 - `tutorial/*`: tutorial rendering + playground components.
 - `ui/*`: reusable visual primitives.
@@ -14,6 +15,7 @@
 | Task | Location | Notes |
 |------|----------|-------|
 | Preview core lifecycle | `Preview.tsx` | alphaTab API ownership + command events |
+| Cloud list/detail surfaces | `CloudSidebar.tsx`, `CloudView.tsx` | desktop cloud object list + read-only workspace reuse |
 | Print rendering/export | `PrintPreview.tsx`, `PrintTracksPanel.tsx` | dedicated print API + pagination |
 | Bottom control system | `GlobalBottomBar.tsx`, `StaffControls.tsx`, `BpmStepper.tsx` | right-aligned cascade |
 | Editor UI shell | `Editor.tsx`, `InlineEditorCommandBar.tsx` | CodeMirror-facing UI layer |
@@ -22,6 +24,7 @@
 
 ## CONVENTIONS
 - Keep preview and print APIs separate; print preview must not reuse live preview instance.
+- Keep Cloud loaded-state UI aligned with the normal workspace editor/preview structure; avoid introducing extra card/playground wrappers around the reused editor.
 - Preserve print font contract: absolute Bravura URL + `.at` font-size 34.
 - Keep global transport/staff/display controls in bottom bar order.
 - Reuse `ui/*` primitives (`IconButton`, `Tooltip`, `Select`, `Button`) for consistency.

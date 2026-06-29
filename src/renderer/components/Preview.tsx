@@ -1,5 +1,5 @@
 import * as alphaTab from "@coderline/alphatab";
-import { FileText } from "lucide-react";
+import { ChevronRight, FileText } from "lucide-react";
 import {
 	lazy,
 	Suspense,
@@ -17,6 +17,7 @@ import {
 	captureTrackConfigForRebuild,
 	shouldStartThemeRebuild,
 } from "../hooks/preview-session-controller";
+import { useFileOperations } from "../hooks/useFileOperations";
 import {
 	destroyPreviewApi,
 	usePrintPreviewApiLifecycle,
@@ -39,10 +40,11 @@ import {
 import { createPreviewSettings } from "../lib/alphatab-config";
 import { formatFullError } from "../lib/alphatab-error";
 import {
+	buildExportFilePath,
+	type ExportFormat,
 	exportToGp7,
 	exportToMidi,
 	exportToWav,
-	getDefaultExportFilename,
 } from "../lib/alphatab-export";
 import { mapSelectionToCodeRange } from "../lib/alphatex-selection-sync";
 import {
@@ -52,6 +54,7 @@ import {
 import { loadBravuraFont, loadSoundFontFromUrl } from "../lib/assets";
 import { type AtDocConfig, parseAtDoc } from "../lib/atdoc";
 import { applyAtDocColoring } from "../lib/atdoc-coloring";
+import { isGpFilePath } from "../lib/gp-import";
 import {
 	disableNumberedNotationAcrossScore,
 	isNumberedNotationBeatError,
@@ -82,6 +85,7 @@ import {
 import { useAppStore } from "../store/appStore";
 import PreviewToolbar from "./PreviewToolbar";
 import TopBar from "./TopBar";
+import { Button } from "./ui/button";
 import {
 	Tooltip,
 	TooltipContent,
@@ -91,12 +95,15 @@ import {
 
 export interface PreviewProps {
 	fileName?: string;
+	filePath?: string;
 	content?: string;
 	className?: string;
 	onApiChange?: (api: alphaTab.AlphaTabApi | null) => void;
 	onEnjoyToggle?: () => void;
 	isEnjoyMode?: boolean;
 	mobileScoreFit?: boolean;
+	showExpandSidebar?: boolean;
+	onExpandSidebar?: () => void;
 }
 
 type PlaybackProgressSnapshot = {
@@ -115,14 +122,24 @@ const AUDIO_IDLE_REFRESH_THRESHOLD_MS = 2 * 60 * 1000;
 
 const PrintPreview = lazy(() => import("./PrintPreview"));
 
+function getParentDirectory(path: string): string | undefined {
+	const normalized = path.replace(/\\/g, "/");
+	const index = normalized.lastIndexOf("/");
+	if (index <= 0) return undefined;
+	return normalized.slice(0, index);
+}
+
 export default function Preview({
 	fileName,
+	filePath,
 	content,
 	className,
 	onApiChange,
 	onEnjoyToggle,
 	isEnjoyMode = false,
 	mobileScoreFit = false,
+	showExpandSidebar = false,
+	onExpandSidebar,
 }: PreviewProps) {
 	const { t } = useTranslation(["common", "errors", "print", "toolbar"]);
 	const containerRef = useRef<HTMLDivElement | null>(null);
@@ -170,7 +187,59 @@ export default function Preview({
 	const pendingContentRef = useRef<string | null>(null);
 	// Print preview state and reinitialization trigger
 	const [showPrintPreview, setShowPrintPreview] = useState(false);
+	const [exportingFormat, setExportingFormat] = useState<ExportFormat | null>(
+		null,
+	);
+	const [isGeneratingAtex, setIsGeneratingAtex] = useState(false);
 	const [reinitTrigger, setReinitTrigger] = useState(0);
+	const { handleImportGpFile } = useFileOperations();
+	const isGpSourceFile = Boolean(filePath && isGpFilePath(filePath));
+	const exportLockRef = useRef<ExportFormat | null>(null);
+
+	const handleExportScore = useCallback(
+		async (format: ExportFormat) => {
+			const api = apiRef.current;
+			if (!api?.score) return;
+			if (exportLockRef.current) return;
+
+			exportLockRef.current = format;
+			setExportingFormat(format);
+
+			try {
+				let data: Uint8Array;
+				if (format === "midi") {
+					data = exportToMidi(api);
+				} else if (format === "wav") {
+					data = await exportToWav(api);
+				} else {
+					data = exportToGp7(api);
+				}
+
+				const fallbackBaseName = api.score.title?.trim() || "song";
+				const extension = format === "midi" ? "mid" : format;
+				const targetPath = buildExportFilePath(
+					filePath,
+					extension,
+					fallbackBaseName,
+				);
+				const saveResult = await window.desktopAPI.saveBinaryFile(
+					targetPath,
+					data,
+				);
+				if (!saveResult.success) {
+					throw new Error(saveResult.error ?? "Failed to save export file");
+				}
+
+				console.info(`[Preview] Exported ${format} to ${targetPath}`);
+			} catch (error) {
+				console.error(`[Preview] Failed to export ${format}:`, error);
+			} finally {
+				exportLockRef.current = null;
+				setExportingFormat((current) => (current === format ? null : current));
+			}
+		},
+		[filePath],
+	);
 
 	// Subscribe to editor cursor position for reverse sync (editor → score)
 	const editorCursor = useAppStore((s) => s.editorCursor);
@@ -380,25 +449,23 @@ export default function Preview({
 			if (!api?.score) return;
 
 			if (commandId === "preview.export.midi") {
-				exportToMidi(api);
+				void handleExportScore("midi");
 				return;
 			}
 
 			if (commandId === "preview.export.wav") {
-				const filename = getDefaultExportFilename(fileName, "wav");
-				void exportToWav(api, filename);
+				void handleExportScore("wav");
 				return;
 			}
 
 			if (commandId === "preview.export.gp7") {
-				const filename = getDefaultExportFilename(fileName, "gp");
-				exportToGp7(api, filename);
+				void handleExportScore("gp");
 			}
 		};
 
 		window.addEventListener(PREVIEW_COMMAND_EVENT, handler);
 		return () => window.removeEventListener(PREVIEW_COMMAND_EVENT, handler);
-	}, [fileName]);
+	}, [handleExportScore]);
 
 	useEffect(() => {
 		const isTypingTarget = (target: EventTarget | null): boolean => {
@@ -491,6 +558,21 @@ export default function Preview({
 		}
 		return recovery;
 	}, []);
+
+	const handleGenerateAtexFromGp = useCallback(async () => {
+		if (!filePath || !isGpSourceFile) return;
+		const targetDirectory = getParentDirectory(filePath);
+		if (!targetDirectory) return;
+
+		setIsGeneratingAtex(true);
+		try {
+			await handleImportGpFile(filePath, targetDirectory);
+		} catch (error) {
+			console.error("[Preview] Failed to generate .atex from GP:", error);
+		} finally {
+			setIsGeneratingAtex(false);
+		}
+	}, [filePath, handleImportGpFile, isGpSourceFile]);
 
 	useEffect(() => {
 		latestContentRef.current = content ?? "";
@@ -1155,9 +1237,10 @@ export default function Preview({
 			// 3. 播放进度（更新光标位置）
 			subscribe(api.playedBeatChanged, (beat: alphaTab.model.Beat | null) => {
 				if (!beat) {
-					// 播放停止/结束时回到无高亮状态（同时清除黄色小节高亮的来源）
 					useAppStore.getState().clearPlaybackHighlights();
-					setPlayerIsPlayingIfChanged(false);
+					if (!countInPendingRef.current) {
+						setPlayerIsPlayingIfChanged(false);
+					}
 					setPlaybackProgressIfChanged({
 						positionTick: 0,
 						endTick:
@@ -1168,10 +1251,12 @@ export default function Preview({
 					});
 					return;
 				}
+				if (countInPendingRef.current) {
+					return;
+				}
 				const barIndex = beat.voice?.bar?.index ?? 0;
 				const beatIndex = beat.index ?? 0;
 				useAppStore.getState().setPlaybackBeat({ barIndex, beatIndex });
-				// 🆕 同时更新播放器光标位置（暂停后保留）
 				setPlayerCursorIfChanged({ barIndex, beatIndex });
 
 				// 暂时关闭自定义播放器光标更新
@@ -1200,6 +1285,9 @@ export default function Preview({
 					currentTime?: number;
 					endTime?: number;
 				}) => {
+					if (countInPendingRef.current) {
+						return;
+					}
 					const positionTick =
 						typeof args?.currentTick === "number"
 							? args.currentTick
@@ -2143,6 +2231,19 @@ export default function Preview({
 					<>
 						{/* 错误提示已移到底部 */}
 						<TopBar
+							leading={
+								showExpandSidebar ? (
+									<Button
+										variant="ghost"
+										size="icon"
+										className="h-8 w-8"
+										onClick={onExpandSidebar}
+										aria-label={t("common:expandSidebar")}
+									>
+										<ChevronRight className="h-4 w-4" />
+									</Button>
+								) : undefined
+							}
 							icon={
 								<FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
 							}
@@ -2153,10 +2254,15 @@ export default function Preview({
 							}
 							trailing={
 								<PreviewToolbar
-									apiRef={apiRef}
-									fileName={fileName}
 									content={content}
 									onPrintClick={() => setShowPrintPreview(true)}
+									onExportClick={handleExportScore}
+									exportingFormat={exportingFormat}
+									hasScore={Boolean(apiRef.current?.score)}
+									onGenerateAtexClick={
+										isGpSourceFile ? handleGenerateAtexFromGp : undefined
+									}
+									isGeneratingAtex={isGeneratingAtex}
 									onEnjoyToggle={onEnjoyToggle}
 									isEnjoyMode={isEnjoyMode}
 									t={t}

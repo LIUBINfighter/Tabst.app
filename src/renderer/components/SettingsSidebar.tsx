@@ -1,5 +1,6 @@
 import {
 	Command,
+	FlaskConical,
 	Info,
 	Keyboard,
 	Map as MapIcon,
@@ -18,7 +19,7 @@ export function SettingsSidebar() {
 	const { t } = useTranslation("settings");
 	const activeSettingsPageId = useAppStore((s) => s.activeSettingsPageId);
 	const setActiveSettingsPageId = useAppStore((s) => s.setActiveSettingsPageId);
-	const setWorkspaceMode = useAppStore((s) => s.setWorkspaceMode);
+	const openSettingsWorkspace = useAppStore((s) => s.openSettingsWorkspace);
 
 	useEffect(() => {
 		// Initialize to first page if none selected
@@ -35,7 +36,7 @@ export function SettingsSidebar() {
 					type="button"
 					onClick={() => {
 						setActiveSettingsPageId(p.id);
-						setWorkspaceMode("settings");
+						openSettingsWorkspace(p.id);
 					}}
 					className={`w-full group flex items-center gap-2 px-3 py-1.5 cursor-pointer text-xs transition-colors text-left ${
 						activeSettingsPageId === p.id
@@ -88,6 +89,16 @@ export function SettingsSidebar() {
 							case "about":
 								return (
 									<Info
+										className={`flex-none h-3.5 w-3.5 ${
+											activeSettingsPageId === p.id
+												? "text-[var(--highlight-text)]"
+												: "text-muted-foreground hover:text-[var(--hover-text)]"
+										}`}
+									/>
+								);
+							case "lab":
+								return (
+									<FlaskConical
 										className={`flex-none h-3.5 w-3.5 ${
 											activeSettingsPageId === p.id
 												? "text-[var(--highlight-text)]"

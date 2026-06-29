@@ -18,6 +18,7 @@ import {
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { TutorialMetadata } from "../data/tutorials";
+import { isGpFilePath } from "../lib/gp-import";
 import {
 	getNextTutorial,
 	getPrevTutorial,
@@ -187,7 +188,6 @@ function EditorBottomBar({
 	playerIsPlaying,
 	isTracksPanelOpen,
 	toggleTracksPanel,
-	setWorkspaceMode,
 	setActiveSettingsPageId,
 	workspaceMode,
 	activeSettingsPageId,
@@ -222,11 +222,8 @@ function EditorBottomBar({
 	playerIsPlaying: boolean;
 	isTracksPanelOpen: boolean;
 	toggleTracksPanel: () => void;
-	setWorkspaceMode: (
-		mode: "editor" | "enjoy" | "tutorial" | "settings" | "git",
-	) => void;
 	setActiveSettingsPageId: (id: string | null) => void;
-	workspaceMode: "editor" | "enjoy" | "tutorial" | "settings" | "git";
+	workspaceMode: "editor" | "enjoy" | "tutorial" | "settings" | "git" | "cloud";
 	activeSettingsPageId: string | null;
 	transportOnly?: boolean;
 	t: (key: string, opts?: Record<string, string | number>) => string;
@@ -595,11 +592,11 @@ function EditorBottomBar({
 								workspaceMode === "settings" &&
 								activeSettingsPageId === "playback"
 							) {
-								setWorkspaceMode("editor");
+								useAppStore.getState().closeSettingsWorkspace();
 								return;
 							}
 							setActiveSettingsPageId("playback");
-							setWorkspaceMode("settings");
+							useAppStore.getState().openSettingsWorkspace("playback");
 						}}
 						aria-label={t("common:settings")}
 					>
@@ -699,7 +696,10 @@ export default function GlobalBottomBar() {
 	const activeFile = useAppStore((state) => state.getActiveFile());
 	const firstStaffOptions = useAppStore((state) => state.firstStaffOptions);
 	const requestStaffToggle = useAppStore((state) => state.requestStaffToggle);
-	const isAtexFile = activeFile?.path.endsWith(".atex") ?? false;
+	const isAtexFile =
+		activeFile?.path.endsWith(".atex") ||
+		(activeFile?.path && isGpFilePath(activeFile.path)) ||
+		false;
 
 	const playerIsPlaying = useAppStore((s) => s.playerIsPlaying);
 	const playerControls = useAppStore((s) => s.playerControls);
@@ -733,7 +733,6 @@ export default function GlobalBottomBar() {
 	const tutorialAudience = useAppStore((s) => s.tutorialAudience);
 	const activeSettingsPageId = useAppStore((s) => s.activeSettingsPageId);
 	const setActiveSettingsPageId = useAppStore((s) => s.setActiveSettingsPageId);
-	const setWorkspaceMode = useAppStore((s) => s.setWorkspaceMode);
 	const isTutorialMode = workspaceMode === "tutorial";
 	const isSettingsMode = workspaceMode === "settings";
 
@@ -809,7 +808,6 @@ export default function GlobalBottomBar() {
 				playerIsPlaying={playerIsPlaying}
 				isTracksPanelOpen={isTracksPanelOpen}
 				toggleTracksPanel={toggleTracksPanel}
-				setWorkspaceMode={setWorkspaceMode}
 				setActiveSettingsPageId={setActiveSettingsPageId}
 				workspaceMode={workspaceMode}
 				activeSettingsPageId={activeSettingsPageId}
@@ -844,7 +842,6 @@ export default function GlobalBottomBar() {
 				playerIsPlaying={playerIsPlaying}
 				isTracksPanelOpen={isTracksPanelOpen}
 				toggleTracksPanel={toggleTracksPanel}
-				setWorkspaceMode={setWorkspaceMode}
 				setActiveSettingsPageId={setActiveSettingsPageId}
 				workspaceMode={workspaceMode}
 				activeSettingsPageId={activeSettingsPageId}

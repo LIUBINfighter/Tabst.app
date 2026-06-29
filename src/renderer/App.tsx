@@ -5,6 +5,7 @@ import type { GlobalCommandId } from "./lib/command-registry";
 
 const SettingsView = lazy(() => import("./components/SettingsView"));
 const GitWorkspace = lazy(() => import("./components/GitWorkspace"));
+const CloudView = lazy(() => import("./components/CloudView"));
 
 import { Sidebar } from "./components/Sidebar";
 import {
@@ -57,7 +58,7 @@ function App() {
 	const editorRefreshVersion = useAppStore((s) => s.editorRefreshVersion);
 	const bottomBarRefreshVersion = useAppStore((s) => s.bottomBarRefreshVersion);
 	const prevWorkspaceModeRef = useRef<
-		"editor" | "enjoy" | "tutorial" | "settings" | "git"
+		"editor" | "enjoy" | "tutorial" | "settings" | "git" | "cloud"
 	>("editor");
 
 	// 初始化 store：从主进程恢复上次打开的文件和选中项
@@ -337,6 +338,7 @@ function App() {
 			case "workspace.mode.tutorial":
 			case "workspace.mode.settings":
 			case "workspace.mode.git":
+			case "workspace.mode.cloud":
 			case "template.insert.open-picker":
 			case "template.new-from.open-picker":
 			case "template.toggle-active-file":
@@ -393,6 +395,16 @@ function App() {
 		};
 
 		const importGpFiles = (files: File[]) => {
+			const gpImportAcknowledgedKey = "tabst:gp-import-acknowledged";
+			const acknowledged = window.localStorage.getItem(gpImportAcknowledgedKey);
+			if (!acknowledged) {
+				const proceed = window.confirm(
+					"GP file import is experimental. Results may vary for complex scores. Continue?",
+				);
+				if (!proceed) return;
+				window.localStorage.setItem(gpImportAcknowledgedKey, "1");
+			}
+
 			const state = useAppStore.getState();
 			const activeRepo = state.repos.find((r) => r.id === state.activeRepoId);
 			const targetDir = activeRepo?.path;
@@ -456,6 +468,9 @@ function App() {
 		const shouldProcessChange = (changedPath?: string) => {
 			if (!changedPath) return true;
 			const normalized = changedPath.replace(/\\/g, "/");
+			if (normalized.endsWith("/.git") || normalized.includes("/.git/")) {
+				return false;
+			}
 			if (normalized.includes("/.tabst/")) return false;
 			const base = normalized.split("/").pop() ?? "";
 			if (!base) return true;
@@ -527,9 +542,11 @@ function App() {
 		const prevMode = prevWorkspaceModeRef.current;
 		prevWorkspaceModeRef.current = workspaceMode;
 
-		// 如果从 tutorial 或 settings 切换到 editor，且侧边栏是收起的，则展开侧边栏
+		// 如果从 tutorial / settings / cloud 切换到 editor，且侧边栏是收起的，则展开侧边栏
 		if (
-			(prevMode === "tutorial" || prevMode === "settings") &&
+			(prevMode === "tutorial" ||
+				prevMode === "settings" ||
+				prevMode === "cloud") &&
 			workspaceMode === "editor" &&
 			sidebarCollapsed &&
 			!websiteMobileLayout
@@ -629,6 +646,17 @@ function App() {
 						fallback={<div className="flex-1 bg-background" aria-busy="true" />}
 					>
 						<GitWorkspace
+							showExpandSidebar={sidebarCollapsed}
+							onExpandSidebar={() => setSidebarCollapsed(false)}
+							onCollapseSidebar={() => setSidebarCollapsed(true)}
+						/>
+					</Suspense>
+				)}
+				{workspaceMode === "cloud" && (
+					<Suspense
+						fallback={<div className="flex-1 bg-background" aria-busy="true" />}
+					>
+						<CloudView
 							showExpandSidebar={sidebarCollapsed}
 							onExpandSidebar={() => setSidebarCollapsed(false)}
 							onCollapseSidebar={() => setSidebarCollapsed(true)}

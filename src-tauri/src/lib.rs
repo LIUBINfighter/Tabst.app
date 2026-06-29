@@ -9,8 +9,8 @@ mod updater_commands;
 
 use fs_commands::{
     create_file, create_folder, load_app_state, move_path, open_external, open_file, read_asset,
-    read_file, read_file_bytes, rename_file, reveal_in_folder, save_app_state, save_file,
-    select_folder,
+    read_file, read_file_bytes, rename_file, reveal_in_folder, save_app_state, save_binary_file,
+    save_file, select_folder,
 };
 use git_commands::{
     commit_git_changes, get_git_diff, get_git_status, stage_all_git_changes, stage_git_file,
@@ -48,6 +48,7 @@ pub fn run() {
             read_asset,
             read_file,
             read_file_bytes,
+            save_binary_file,
             scan_directory,
             load_repos,
             save_repos,
@@ -71,8 +72,9 @@ pub fn run() {
             save_global_settings,
             set_keep_awake
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|_, _| {});
 }
 
 #[cfg(not(debug_assertions))]
@@ -146,13 +148,14 @@ mod tests {
 
         let result = run(home_dir.clone());
 
-        match previous_home {
-            Some(value) => unsafe {
+        if let Some(value) = previous_home {
+            unsafe {
                 env::set_var("HOME", value);
-            },
-            None => unsafe {
+            }
+        } else {
+            unsafe {
                 env::remove_var("HOME");
-            },
+            }
         }
 
         let _ = fs::remove_dir_all(&home_dir);

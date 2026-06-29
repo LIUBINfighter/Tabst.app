@@ -1,9 +1,11 @@
 import {
 	ChevronDown,
 	ChevronLeft,
+	Cloud,
 	FileMusic,
 	FileQuestion,
 	FolderOpen,
+	FolderPlus,
 	GitBranch,
 	Monitor,
 	Moon,
@@ -32,6 +34,7 @@ export function SidebarCommands({
 	onCollapse,
 	onOpenFile,
 	onNewFile,
+	onNewFolder,
 	onToggleTheme,
 	themeMode,
 }: SidebarCommandsProps) {
@@ -130,6 +133,23 @@ export function SidebarCommands({
 							<p>{t("newAtex")}</p>
 						</TooltipContent>
 					</Tooltip>
+
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<Button
+								variant="ghost"
+								size="icon"
+								className="h-8 w-8 hover:bg-[var(--hover-bg)] hover:text-[var(--hover-text)]"
+								onClick={onNewFolder}
+							>
+								<span className="sr-only">{t("newFolder")}</span>
+								<FolderPlus className="h-4 w-4" />
+							</Button>
+						</TooltipTrigger>
+						<TooltipContent side="bottom">
+							<p>{t("newFolder")}</p>
+						</TooltipContent>
+					</Tooltip>
 				</>
 			)}
 
@@ -186,12 +206,16 @@ export function SidebarBottomBar() {
 
 	const handleOpenSettings = () => {
 		try {
-			const newMode = workspaceMode === "settings" ? "editor" : "settings";
-			setWorkspaceMode(newMode);
+			const openingSettings = workspaceMode !== "settings";
+			if (openingSettings) {
+				useAppStore.getState().openSettingsWorkspace();
+			} else {
+				useAppStore.getState().closeSettingsWorkspace();
+			}
 			const api = (
 				window as unknown as { desktopAPI?: { openSettings?: () => void } }
 			).desktopAPI;
-			if (newMode === "settings" && api?.openSettings) {
+			if (openingSettings && api?.openSettings) {
 				api.openSettings();
 			}
 		} catch (err) {
@@ -248,6 +272,23 @@ export function SidebarBottomBar() {
 
 			<div className="flex-1" />
 
+			<Tooltip>
+				<TooltipTrigger asChild>
+					<IconButton
+						active={workspaceMode === "cloud"}
+						onClick={() => {
+							const newMode = workspaceMode === "cloud" ? "editor" : "cloud";
+							setWorkspaceMode(newMode);
+						}}
+						aria-label={t("cloud")}
+					>
+						<Cloud className="h-4 w-4" />
+					</IconButton>
+				</TooltipTrigger>
+				<TooltipContent side="top">
+					<p>{workspaceMode === "cloud" ? t("exitCloud") : t("enterCloud")}</p>
+				</TooltipContent>
+			</Tooltip>
 			<Tooltip>
 				<TooltipTrigger asChild>
 					<IconButton

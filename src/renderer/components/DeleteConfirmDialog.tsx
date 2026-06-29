@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { loadGlobalSettings, saveGlobalSettings } from "../lib/global-settings";
+import { saveGlobalSettings } from "../lib/global-settings";
 import type { DeleteBehavior } from "../types/repo";
 import {
 	Dialog,
@@ -25,19 +25,7 @@ export function DeleteConfirmDialog({
 	fileName,
 }: DeleteConfirmDialogProps) {
 	const { t } = useTranslation("sidebar");
-	const [_selectedBehavior, _setSelectedBehavior] =
-		useState<DeleteBehavior>("ask-every-time");
 	const [rememberChoice, setRememberChoice] = useState(false);
-
-	useEffect(() => {
-		// Load current preference to reflect existing setting
-		void (async () => {
-			const s = await loadGlobalSettings();
-			if (s.deleteBehavior && s.deleteBehavior !== "ask-every-time") {
-				_setSelectedBehavior(s.deleteBehavior);
-			}
-		})();
-	}, []);
 
 	const handleConfirm = (behavior: DeleteBehavior) => {
 		onConfirm(behavior);
@@ -47,7 +35,12 @@ export function DeleteConfirmDialog({
 	};
 
 	return (
-		<Dialog open={isOpen} onOpenChange={onClose}>
+		<Dialog
+			open={isOpen}
+			onOpenChange={(open) => {
+				if (!open) onClose();
+			}}
+		>
 			<DialogContent className="sm:max-w-[425px]">
 				<DialogHeader>
 					<DialogTitle>{t("deleteConfirmTitle")}</DialogTitle>
@@ -99,13 +92,6 @@ export function DeleteConfirmDialog({
 						className="px-4 py-2 text-sm border rounded hover:bg-accent"
 					>
 						{t("cancel")}
-					</button>
-					<button
-						type="button"
-						onClick={() => handleConfirm("ask-every-time")}
-						className="px-4 py-2 text-sm border rounded hover:bg-accent"
-					>
-						{t("askEveryTime")}
 					</button>
 				</DialogFooter>
 			</DialogContent>

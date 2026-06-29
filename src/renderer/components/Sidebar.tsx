@@ -2,9 +2,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useFileOperations } from "../hooks/useFileOperations";
 import { extractAtDocFileMeta } from "../lib/atdoc";
+import { isGpFilePath } from "../lib/gp-import";
 import { useTheme } from "../lib/theme-system/use-theme";
 import { useAppStore } from "../store/appStore";
 import type { DeleteBehavior, FileNode } from "../types/repo";
+import { CloudSidebar } from "./CloudSidebar";
 import { DeleteConfirmDialog } from "./DeleteConfirmDialog";
 import { FileTree } from "./FileTree";
 import { GitSidebar } from "./GitSidebar";
@@ -36,7 +38,32 @@ function flattenNodes(nodes: FileNode[]): FileNode[] {
 	return out;
 }
 
-const SIDEBAR_VISIBLE_EXTENSIONS = new Set([".atex", ".md"]);
+const SIDEBAR_VISIBLE_EXTENSIONS = new Set([
+	".atex",
+	".md",
+	".gp",
+	".gp3",
+	".gp4",
+	".gp5",
+	".gpx",
+]);
+
+const NEW_FOLDER_README_NAME = "README.md";
+
+function getNewFolderReadmePath(folderPath: string): string {
+	return `${folderPath.replace(/[\\/]+$/, "")}/${NEW_FOLDER_README_NAME}`;
+}
+
+function createNewFolderReadmeNode(folderPath: string): FileNode {
+	const readmePath = getNewFolderReadmePath(folderPath);
+	return {
+		id: readmePath,
+		name: NEW_FOLDER_README_NAME,
+		path: readmePath,
+		type: "file",
+		mtimeMs: Date.now(),
+	};
+}
 
 function getFileExtension(fileName: string): string {
 	const lastDotIndex = fileName.lastIndexOf(".");
@@ -196,6 +223,8 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 
 	const sortTreeNodes = (nodes: FileNode[]) => {
 		nodes.sort((a, b) => {
+			if (a.type === "folder" && b.type === "file") return -1;
+			if (a.type === "file" && b.type === "folder") return 1;
 			const timeA = a.mtimeMs ?? 0;
 			const timeB = b.mtimeMs ?? 0;
 			if (timeA !== timeB) return timeB - timeA;
@@ -207,17 +236,29 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 		nodes: FileNode[],
 		targetDirPath: string,
 		nodeToAdd: FileNode,
+		rootDirPath?: string,
 	): FileNode[] => {
+		const addToChildren = (children: FileNode[]) => {
+			if (children.some((child) => child.path === nodeToAdd.path)) {
+				return children;
+			}
+			const nextChildren = [...children, nodeToAdd];
+			sortTreeNodes(nextChildren);
+			return nextChildren;
+		};
+		if (
+			rootDirPath &&
+			normalizePath(targetDirPath) === normalizePath(rootDirPath)
+		) {
+			return addToChildren(nodes);
+		}
+
 		const walk = (items: FileNode[]): FileNode[] => {
 			let changed = false;
 			const next = items.map((item) => {
 				if (item.type === "folder") {
-					if (item.path === targetDirPath) {
-						const children = [...(item.children ?? [])];
-						if (!children.some((c) => c.path === nodeToAdd.path)) {
-							children.push(nodeToAdd);
-							sortTreeNodes(children);
-						}
+					if (normalizePath(item.path) === normalizePath(targetDirPath)) {
+						const children = addToChildren(item.children ?? []);
 						changed = true;
 						return { ...item, children, isExpanded: true };
 					}
@@ -554,8 +595,33 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 				setActiveFile(null);
 			} else {
 				try {
-					// If this file came from a directory scan, it's likely a placeholder with empty content.
-					// Hydrate from disk on first open to avoid Editor/Preview rendering blank.
+					if (isGpFilePath(node.path)) {
+						const readResult = await window.desktopAPI.readFileBytes(node.path);
+						if (readResult.error || !readResult.data) {
+							console.error(
+								"[Sidebar] Failed to read GP file:",
+								readResult.error,
+							);
+							showSidebarToast(t("gpReadFailed", { name: node.name }));
+							return;
+						}
+						const { convertGpBytesToAlphaTex } = await import(
+							"../lib/gp-import"
+						);
+						const alphaTex = convertGpBytesToAlphaTex(readResult.data);
+						const gpFileId = existingFile?.id ?? node.id;
+						addFile({
+							id: gpFileId,
+							name: node.name,
+							path: node.path,
+							content: alphaTex,
+							contentLoaded: true,
+						});
+						setActiveFile(gpFileId);
+						setWorkspaceMode("editor");
+						return;
+					}
+
 					const shouldHydrate = !existingFile?.contentLoaded;
 					let content = existingFile?.content ?? "";
 					let contentLoaded = existingFile?.contentLoaded ?? false;
@@ -706,6 +772,10 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 	const renderContent = () => {
 		if (workspaceMode === "git") {
 			return <GitSidebar />;
+		}
+
+		if (workspaceMode === "cloud") {
+			return <CloudSidebar />;
 		}
 
 		if (workspaceMode === "tutorial") {
@@ -887,7 +957,7 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 										path: createdPath,
 										type: "folder",
 										mtimeMs: Date.now(),
-										children: [],
+										children: [createNewFolderReadmeNode(createdPath)],
 										isExpanded: true,
 									};
 									useAppStore.setState((state) => ({
@@ -925,8 +995,6 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 					}}
 					onNewFile={(ext) =>
 						void (async () => {
-							const createdPath = await handleNewFile(ext, createTargetDir);
-							if (!createdPath) return;
 							const state = useAppStore.getState();
 							const activeRepo = state.repos.find(
 								(r) => r.id === state.activeRepoId,
@@ -935,7 +1003,12 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 								createTargetDir && createTargetDir.trim().length > 0
 									? createTargetDir
 									: activeRepo?.path;
-							if (!targetDir) return;
+							if (!targetDir) {
+								showSidebarToast(t("noRepoSelected"));
+								return;
+							}
+							const createdPath = await handleNewFile(ext, targetDir);
+							if (!createdPath) return;
 							const name = createdPath.split(/[\\/]/).pop() ?? createdPath;
 							const newNode: FileNode = {
 								id: createdPath,
@@ -949,6 +1022,7 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 									storeState.fileTree,
 									targetDir,
 									newNode,
+									activeRepo?.path,
 								),
 							}));
 							setPendingRenamePath(createdPath);
@@ -957,8 +1031,6 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 					}
 					onNewFolder={() =>
 						void (async () => {
-							const createdPath = await handleNewFolder(createTargetDir);
-							if (!createdPath) return;
 							const state = useAppStore.getState();
 							const activeRepo = state.repos.find(
 								(r) => r.id === state.activeRepoId,
@@ -967,7 +1039,12 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 								createTargetDir && createTargetDir.trim().length > 0
 									? createTargetDir
 									: activeRepo?.path;
-							if (!targetDir) return;
+							if (!targetDir) {
+								showSidebarToast(t("noRepoSelected"));
+								return;
+							}
+							const createdPath = await handleNewFolder(targetDir);
+							if (!createdPath) return;
 							const name = createdPath.split(/[\\/]/).pop() ?? createdPath;
 							const newNode: FileNode = {
 								id: createdPath,
@@ -975,7 +1052,7 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 								path: createdPath,
 								type: "folder",
 								mtimeMs: Date.now(),
-								children: [],
+								children: [createNewFolderReadmeNode(createdPath)],
 								isExpanded: true,
 							};
 							useAppStore.setState((storeState) => ({
@@ -983,6 +1060,7 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 									storeState.fileTree,
 									targetDir,
 									newNode,
+									activeRepo?.path,
 								),
 							}));
 							setPendingRenamePath(createdPath);

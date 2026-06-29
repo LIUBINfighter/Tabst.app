@@ -35,6 +35,7 @@ export interface DesktopAPI {
 		preferredDir?: string,
 	) => Promise<{ path: string; name: string } | null>;
 	saveFile: (filePath: string, content: string) => Promise<SaveResult>;
+	saveBinaryFile: (filePath: string, data: Uint8Array) => Promise<SaveResult>;
 
 	loadAppState: () => Promise<{
 		files: FileResult[];

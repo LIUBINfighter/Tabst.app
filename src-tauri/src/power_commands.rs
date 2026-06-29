@@ -1,3 +1,4 @@
+#[cfg(target_os = "macos")]
 use std::io::ErrorKind;
 
 #[cfg(target_os = "macos")]
@@ -92,10 +93,10 @@ pub(crate) fn set_keep_awake(
 
         *guard = Some(child);
 
-        return BasicResult {
+        BasicResult {
             success: true,
             error: None,
-        };
+        }
     }
 
     #[cfg(not(target_os = "macos"))]

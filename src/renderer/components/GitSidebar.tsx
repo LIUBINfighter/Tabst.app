@@ -12,6 +12,8 @@ import type { GitChangeEntry, GitChangeGroup } from "../types/git";
 import { Button } from "./ui/button";
 import { ScrollArea } from "./ui/scroll-area";
 
+const GIT_STATUS_REFRESH_INTERVAL_MS = 10_000;
+
 function shortStatus(entry: GitChangeEntry): string {
 	return `${entry.x}${entry.y}`.trim() || "--";
 }
@@ -93,7 +95,7 @@ export function GitSidebar() {
 
 		const timer = window.setInterval(() => {
 			void refreshGitStatus();
-		}, 2500);
+		}, GIT_STATUS_REFRESH_INTERVAL_MS);
 
 		return () => {
 			window.clearInterval(timer);

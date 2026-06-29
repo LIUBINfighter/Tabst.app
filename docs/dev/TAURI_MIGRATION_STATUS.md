@@ -1,8 +1,8 @@
 # Tauri Migration Status
 
-Last updated: 2026-03-10
-Current branch: `refactor/tauri`
-Reference commit: `6892d6d`
+Last updated: 2026-05-11
+Current branch: `vibe`
+Reference commit: `cfc9fbe`
 
 ## Summary
 
@@ -30,13 +30,13 @@ The product build, desktop release entrypoints, renderer desktop bridge naming, 
 ## Intentionally Deferred
 
 - Documentation cleanup outside the highest-signal files
+- Provider-specific production deployment remains deferred; the app validates the HTTP integration path only.
 
 ## Verification Performed
 
 - `pnpm check`
-- `pnpm exec vitest run src/renderer/lib/desktop-api.test.ts src/renderer/lib/tauri-invoke-args.test.ts src/renderer/lib/global-settings.test.ts src/renderer/lib/print-window.test.ts src/renderer/lib/workspace-metadata-store.test.ts`
-
-Both passed after the Phase 1 cutover.
+- `pnpm verify:tauri`
+- `pnpm build:tauri:ci`
 
 ## Current Repository Shape
 
@@ -53,12 +53,13 @@ Both passed after the Phase 1 cutover.
 
 ## Recommended Next Phase
 
-Phase 2 should focus on Tauri normalization rather than more feature work.
+The next phase should focus on Tauri normalization.
 
 Suggested order:
 
-1. Extend the Tauri performance baseline beyond build metrics if we need runtime-interaction sampling again.
+1. Extend the Tauri performance baseline beyond build metrics if runtime-interaction sampling is needed again.
 2. Extend `pnpm verify:tauri` with additional desktop-safety assertions if the command surface grows.
+3. Incrementally update historical engineering docs to reflect the current Tauri-first architecture.
 
 ## Collaboration Notes
 

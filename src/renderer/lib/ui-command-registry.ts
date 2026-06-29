@@ -20,7 +20,13 @@ import {
 	type UiShellCommandId,
 } from "./ui-shell-events";
 
-type WorkspaceMode = "editor" | "enjoy" | "tutorial" | "settings" | "git";
+type WorkspaceMode =
+	| "editor"
+	| "enjoy"
+	| "tutorial"
+	| "settings"
+	| "git"
+	| "cloud";
 
 export type UiCommandId = GlobalCommandId;
 
@@ -359,9 +365,13 @@ export function runUiCommand(commandId: UiCommandId): UiCommandRunResult {
 	const workspaceModes: Record<string, WorkspaceMode> = {
 		"workspace.mode.editor": "editor",
 		"workspace.mode.tutorial": "tutorial",
-		"workspace.mode.settings": "settings",
 		"workspace.mode.git": "git",
+		"workspace.mode.cloud": "cloud",
 	};
+	if (commandId === "workspace.mode.settings") {
+		useAppStore.getState().openSettingsWorkspace();
+		return success("Open settings workspace");
+	}
 	if (workspaceModes[commandId]) {
 		const mode = workspaceModes[commandId];
 		useAppStore.getState().setWorkspaceMode(mode);

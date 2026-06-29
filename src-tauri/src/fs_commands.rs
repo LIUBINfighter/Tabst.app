@@ -234,6 +234,79 @@ pub(crate) fn save_file(file_path: String, content: String) -> SaveResult {
 }
 
 #[tauri::command]
+pub(crate) fn save_binary_file(file_path: String, data: Vec<u8>) -> SaveResult {
+    let normalized_path = match normalize_non_empty_path(&file_path) {
+        Some(value) => value,
+        None => {
+            return SaveResult {
+                success: false,
+                error: Some("invalid-file-path".to_string()),
+            };
+        }
+    };
+
+    let authorized_path = if normalized_path.exists() {
+        match authorize_existing_workspace_path(&normalized_path) {
+            Ok((value, _)) => value,
+            Err(error) => {
+                return SaveResult {
+                    success: false,
+                    error: Some(error),
+                };
+            }
+        }
+    } else {
+        let parent = match normalized_path.parent() {
+            Some(value) => value,
+            None => {
+                return SaveResult {
+                    success: false,
+                    error: Some("invalid-file-path".to_string()),
+                };
+            }
+        };
+
+        let scope = match authorize_existing_workspace_path(parent) {
+            Ok((_, scope)) => scope,
+            Err(error) => {
+                return SaveResult {
+                    success: false,
+                    error: Some(error),
+                };
+            }
+        };
+
+        match authorize_target_path_in_scope(&scope, &normalized_path) {
+            Ok(value) => value,
+            Err(error) => {
+                return SaveResult {
+                    success: false,
+                    error: Some(error),
+                };
+            }
+        }
+    };
+
+    if let Err(error) = crate::ensure_parent(&authorized_path) {
+        return SaveResult {
+            success: false,
+            error: Some(error),
+        };
+    }
+
+    match fs::write(&authorized_path, data) {
+        Ok(()) => SaveResult {
+            success: true,
+            error: None,
+        },
+        Err(error) => SaveResult {
+            success: false,
+            error: Some(to_error(error)),
+        },
+    }
+}
+
+#[tauri::command]
 pub(crate) fn load_app_state(app: tauri::AppHandle) -> AppStateWithContent {
     load_app_state_with_handle(&app)
 }

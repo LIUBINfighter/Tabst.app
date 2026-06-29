@@ -22,7 +22,7 @@ Write. Play. Share.
 
 MusiXTeX, Lilypond 在乐谱标记语言上做出了出版级的表率，而 alphaTab.js 让可交互可播放的乐谱成为可能。在 Tabst 中，我们以简单直观的语法书写 alphaTex，并轻松与朋友分享。
 
-这只是一个开始，我的愿景是将散落为pdf/图片的曲谱们都转化为 Tabst 中存储的alphaTex. 视觉大模型（OMR光学音符识别）正在路上。
+这只是一个开始。愿景是让吉他谱写作像写 Markdown 一样轻松。
 
 ## Tech Stack 技术栈
 

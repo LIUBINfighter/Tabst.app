@@ -1,5 +1,5 @@
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
 use std::time::UNIX_EPOCH;
 
@@ -29,6 +29,15 @@ pub(crate) fn map_notify_event_type(kind: &EventKind) -> &'static str {
     }
 }
 
+fn is_ignored_repo_watch_path(path: &Path) -> bool {
+    path.components().any(|component| {
+        matches!(
+            component,
+            Component::Normal(value) if value == ".git" || value == ".tabst"
+        )
+    })
+}
+
 pub(crate) fn create_repo_watcher<F>(
     repo_path: PathBuf,
     on_event: F,
@@ -44,10 +53,18 @@ where
     let mut watcher =
         notify::recommended_watcher(move |result: notify::Result<notify::Event>| match result {
             Ok(event) => {
+                if matches!(event.kind, EventKind::Access(_)) {
+                    return;
+                }
+
                 let changed_path = event
                     .paths
-                    .first()
+                    .iter()
+                    .find(|path| !is_ignored_repo_watch_path(path))
                     .map(|value| value.to_string_lossy().to_string());
+                if !event.paths.is_empty() && changed_path.is_none() {
+                    return;
+                }
 
                 callback_for_watcher(RepoFsChangedEvent {
                     repo_path: repo_path_for_watcher.clone(),
@@ -92,6 +109,14 @@ fn has_supported_extension(path: &Path) -> bool {
 
 fn sort_file_nodes(nodes: &mut [FileNode]) {
     nodes.sort_by(|left, right| {
+        let left_is_folder = left.node_type == "folder";
+        let right_is_folder = right.node_type == "folder";
+        if left_is_folder && !right_is_folder {
+            return std::cmp::Ordering::Less;
+        }
+        if !left_is_folder && right_is_folder {
+            return std::cmp::Ordering::Greater;
+        }
         let left_time = left.mtime_ms.unwrap_or(0);
         let right_time = right.mtime_ms.unwrap_or(0);
         right_time

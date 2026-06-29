@@ -100,12 +100,10 @@ export async function getResourceUrls(
 				: "/";
 
 		try {
-			// 例如：file:///C:/Users/.../resources/app.asar/dist/src/renderer/index.html
-			// 此时需要向上遍历到 dist/ 目录，然后再访问 assets/
-			// 所以相对路径应该是：../../assets/alphaTab.min.js
+			// Tauri production builds serve from dist/index.html (not dist/src/renderer/)
+			// assets/ lives alongside index.html, so use a same-dir relative path.
 			if (href.startsWith("file:")) {
-				// 方案 1：相对路径向上两级（从 dist/src/renderer/ → dist/）
-				const url = new URL(`../../${assetPath}`, href).toString();
+				const url = new URL(`./${assetPath}`, href).toString();
 				return url;
 			}
 
