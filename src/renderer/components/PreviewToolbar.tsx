@@ -4,8 +4,6 @@ import {
 	FileMusic,
 	FilePlus2,
 	Loader2,
-	Maximize2,
-	Minimize2,
 	Music,
 	Printer,
 } from "lucide-react";
@@ -35,8 +33,8 @@ export default function PreviewToolbar({
 	hasScore = false,
 	onGenerateAtexClick,
 	isGeneratingAtex = false,
-	onEnjoyToggle,
-	isEnjoyMode = false,
+	onEnjoyToggle: _onEnjoyToggle,
+	isEnjoyMode: _isEnjoyMode = false,
 	t,
 }: PreviewToolbarProps) {
 	const isExporting = exportingFormat !== null;
@@ -53,26 +51,6 @@ export default function PreviewToolbar({
 
 	return (
 		<div className="ml-2 flex items-center gap-1">
-			{onEnjoyToggle && (
-				<Tooltip>
-					<TooltipTrigger asChild>
-						<IconButton onClick={onEnjoyToggle}>
-							{isEnjoyMode ? (
-								<Minimize2 className="h-4 w-4" />
-							) : (
-								<Maximize2 className="h-4 w-4" />
-							)}
-						</IconButton>
-					</TooltipTrigger>
-					<TooltipContent side="bottom">
-						<p>
-							{isEnjoyMode
-								? t("toolbar:preview.exitEnjoy")
-								: t("toolbar:preview.enterEnjoy")}
-						</p>
-					</TooltipContent>
-				</Tooltip>
-			)}
 			<Tooltip>
 				<TooltipTrigger asChild>
 					<IconButton

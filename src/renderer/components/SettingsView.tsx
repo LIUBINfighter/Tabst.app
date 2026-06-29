@@ -5,7 +5,6 @@ import { useAppStore } from "../store/appStore";
 import { AboutPage } from "./settings/AboutPage";
 import { AppearancePage } from "./settings/AppearancePage";
 import { CommandsPage } from "./settings/CommandsPage";
-import { LabPage } from "./settings/LabPage";
 import { PlaybackPage } from "./settings/PlaybackPage";
 import { RoadmapPage } from "./settings/RoadmapPage";
 import { ShortcutsPage } from "./settings/ShortcutsPage";
@@ -70,8 +69,6 @@ export default function SettingsView({
 				return <RoadmapPage />;
 			case "about":
 				return <AboutPage />;
-			case "lab":
-				return <LabPage />;
 			default:
 				return <AppearancePage />;
 		}

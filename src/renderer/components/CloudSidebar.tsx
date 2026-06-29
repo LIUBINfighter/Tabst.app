@@ -108,6 +108,9 @@ export function CloudSidebar() {
 					<div className="flex items-center justify-center gap-1 rounded-md bg-[var(--highlight-bg)] px-2 py-1.5 text-[var(--highlight-text)]">
 						<Globe className="h-3.5 w-3.5" />
 						<span>{t("cloudPublic")}</span>
+						<span className="ml-0.5 rounded bg-amber-100 px-1 py-px text-[9px] font-semibold uppercase text-amber-700 dark:bg-amber-900/40 dark:text-amber-400">
+							Beta
+						</span>
 					</div>
 					<div className="flex items-center justify-center gap-1 rounded-md border border-dashed border-border px-2 py-1.5 text-muted-foreground opacity-70">
 						<Lock className="h-3.5 w-3.5" />

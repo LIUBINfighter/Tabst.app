@@ -25,7 +25,6 @@ This file now tracks roadmap items with checkboxes.
 ### C. Import/Export & Sharing / 导入导出与分享
 - [ ] [Next] GP File Import (Guitar Pro -> alphaTex) / GP 文件导入（Guitar Pro -> alphaTex）
 - [ ] [Next] Image/Card Export for Sharing / 图片/卡片导出（分享功能）
-- [ ] [Later] OMR Import (Image -> alphaTex) / OMR 导入（图片 -> alphaTex）
 
 ### D. Audio & Rendering Customization / 音频与渲染自定义
 - [ ] [Next] Custom SoundFont (.sf*) / 自定义 SoundFont（.sf* 文件）

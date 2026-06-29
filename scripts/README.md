@@ -117,30 +117,3 @@ pnpm mix --out ./dist/share.md   # 指定输出文件
 说明：Tauri 构建时长阈值按 `tauri-performance-baseline-summary.json` 中的 `platform` 选择。CI 上的 `darwin` / `linux` 冷 `release` 构建使用独立阈值，避免误用本地开发机基线。
 
 迁移前的 multi-baseline / long-stress 数据仍保留在 `docs/dev/ops/` 作为历史记录，但当前主线 CI 不再依赖它们。
-
-## OMR HTTP Provider 脚本
-
-OMR Lab 当前通过外部 HTTP Provider 完成推理，Tabst 不再下载、打包或启动本地推理二进制。用于当前 ONNX 通路验证的开发脚本是：
-
-```bash
-python scripts/omr_onnx_provider.py \
-  --onnx-export-dir tmp/onnx_export \
-  --weights-dir tmp/onnx_export/weights/omr-stage2-815-93x-r03-seq768-frozen-from-top2 \
-  --port 18089
-```
-
-`--weights-dir` 用来切换当前加载的 ONNX 权重目录；`/health` 返回中的 `activeModel` 会使用这个目录的 basename，例如 `omr-stage2-815-93x-r03-seq768-frozen-from-top2`。
-
-Tabst 通过环境变量连接 Provider：
-
-```bash
-TABST_OMR_ENDPOINT=http://127.0.0.1:18089 TABST_OMR_API_KIND=tabst pnpm dev
-```
-
-支持的 Provider 类型：
-
-- `tabst`：轻量 `/health` + `/transcribe` 协议，适合 `scripts/omr_onnx_provider.py`；`/health` 会返回 `activeModel` 供 Lab UI 显示当前模型。
-- `openai` / `lm-studio`：OpenAI-compatible `/v1/chat/completions`。
-- `llamacpp`：外部自行启动的 llama.cpp HTTP server。
-
-注意：`src-tauri/binaries/` 当前只保留 `.gitignore` 和 `README.md`，不要提交模型文件或 Provider 二进制；除非产品重新决定回到 bundled runtime 方案。

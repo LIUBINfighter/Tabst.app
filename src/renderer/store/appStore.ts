@@ -704,9 +704,6 @@ interface AppState {
 	// 设置页选择（用于侧边栏与设置视图间同步）
 	activeSettingsPageId: string | null;
 	setActiveSettingsPageId: (id: string | null) => void;
-	pendingOmrInsert: string | null;
-	setPendingOmrInsert: (text: string | null) => void;
-
 	// i18n 语言
 	locale: "en" | "zh-cn";
 	setLocale: (locale: "en" | "zh-cn") => void;
@@ -1553,7 +1550,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 		set({ enablePlaybackProgressBar: v });
 		void mergeAndSaveWorkspacePreferences({ enablePlaybackProgressBar: v });
 	},
-	enablePlaybackProgressSeek: true,
+	enablePlaybackProgressSeek: false,
 	setEnablePlaybackProgressSeek: (v) => {
 		set({ enablePlaybackProgressSeek: v });
 		void mergeAndSaveWorkspacePreferences({ enablePlaybackProgressSeek: v });
@@ -2072,8 +2069,6 @@ export const useAppStore = create<AppState>((set, get) => ({
 		set({ activeSettingsPageId: id });
 		scheduleSaveAppState();
 	},
-	pendingOmrInsert: null,
-	setPendingOmrInsert: (text) => set({ pendingOmrInsert: text }),
 
 	// 使用 getInitialLocale() 确保与 i18n.language 同步
 	locale: getInitialLocale(),

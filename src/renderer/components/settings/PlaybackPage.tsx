@@ -26,15 +26,6 @@ export function PlaybackPage() {
 
 	return (
 		<section className="bg-card border border-border rounded p-4 space-y-4">
-			<div>
-				<h3 className="text-sm font-medium mb-2">{t("playback")}</h3>
-				<div className="flex items-center gap-3">
-					<p className="text-xs text-muted-foreground">
-						{t("playbackPlaceholder")}
-					</p>
-				</div>
-			</div>
-
 			<div
 				className="bg-card border border-border rounded-lg p-3 hover:bg-accent/50 transition-colors cursor-pointer"
 				onClick={() =>

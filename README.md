@@ -33,7 +33,7 @@ While document writing already has a plethora of out-of-the-box Markdown editors
 
 [MusiXTeX](https://ctan.org/pkg/musixtex) and [Lilypond](https://lilypond.org/) have set a publishing-grade example in music notation languages, while [alphaTab.js](https://www.alphatab.net/) has made interactive and playable scores possible. In Tabst, we write alphaTex in a simple, intuitive syntax, and easily share with your friends.
 
-This is just the beginning. My vision is to transform scattered PDFs and images of scores into alphaTex stored in Tabst. The desktop Lab now includes an experimental OMR flow that talks to an external HTTP provider, so models and runtimes can be swapped without repackaging the app.
+This is just the beginning. The vision is to make guitar tab writing as effortless as writing markdown.
 
 ## Tech Stack
 
@@ -71,12 +71,6 @@ pnpm run dev  # Run React development server + Tauri shell
 pnpm run dev:react # Run renderer only
 ```
 
-For OMR Lab, start a compatible provider separately and point Tabst at it, for example:
-
-```powershell
-TABST_OMR_ENDPOINT=http://127.0.0.1:18089 TABST_OMR_API_KIND=tabst pnpm run dev
-```
-
 ## Build Targets
 
 ```powershell
@@ -84,8 +78,6 @@ pnpm run build        # Default desktop build (Tauri)
 pnpm run build:web    # Website target (static dist)
 pnpm run build:tauri  # Explicit Tauri desktop build
 ```
-
-OMR inference is provider-managed and no longer tied to a platform-specific bundled runtime.
 
 ## Release
 
@@ -103,8 +95,6 @@ The desktop runtime cutover is complete and the repository is now Tauri-first.
 - Product builds, release commands, and CI desktop validation all target Tauri.
 - The renderer uses a unified `desktopAPI` bridge for desktop capabilities.
 - Desktop now includes a read-only Cloud workspace mode: the left sidebar lists public Tabst DB scores, and the selected score reuses the normal Editor/Preview split in read-only form.
-- OMR Lab desktop calls live under `window.desktopAPI.ai`; the web runtime shows a desktop-only Lab fallback.
-- OMR Lab sends images to an external HTTP provider configured with `TABST_OMR_ENDPOINT` / `TABST_OMR_API_KIND`; Tabst does not bundle inference binaries.
 - Detailed normalization work and follow-up tasks are tracked in [docs/dev/TAURI_MIGRATION_STATUS.md](./docs/dev/TAURI_MIGRATION_STATUS.md).
 
 ## Web Runtime Notes

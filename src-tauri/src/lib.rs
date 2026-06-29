@@ -1,6 +1,3 @@
-mod ai_job_manager;
-mod ai_ocr_commands;
-mod ai_provider;
 mod fs_commands;
 mod git_commands;
 mod models;
@@ -10,11 +7,6 @@ mod settings_commands;
 mod support;
 mod updater_commands;
 
-use ai_job_manager::OmrJobManager;
-use ai_ocr_commands::{
-    cancel_omr_job, download_model, get_model_status, get_omr_result, get_sidecar_status,
-    omr_transcribe, restart_sidecar, stop_sidecar,
-};
 use fs_commands::{
     create_file, create_folder, load_app_state, move_path, open_external, open_file, read_asset,
     read_file, read_file_bytes, rename_file, reveal_in_folder, save_app_state, save_binary_file,
@@ -41,16 +33,7 @@ pub fn run() {
     with_debug_plugins(with_optional_updater_plugin(tauri::Builder::default()))
         .manage(RepoWatchManager::default())
         .manage(KeepAwakeManager::default())
-        .manage(OmrJobManager::default())
         .invoke_handler(tauri::generate_handler![
-            get_model_status,
-            download_model,
-            omr_transcribe,
-            get_omr_result,
-            cancel_omr_job,
-            get_sidecar_status,
-            stop_sidecar,
-            restart_sidecar,
             open_file,
             select_folder,
             create_file,

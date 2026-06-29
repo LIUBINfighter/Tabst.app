@@ -1,4 +1,3 @@
-import type { AiDesktopAPI } from "./ai";
 import type { GitChangeGroup, GitDiffResult, GitStatusSummary } from "./git";
 import type { FileNode, Repo, RepoMetadata } from "./repo";
 
@@ -26,7 +25,6 @@ export interface RepoFsChangedEvent {
 }
 
 export interface DesktopAPI {
-	ai: AiDesktopAPI;
 	openFile: (extensions: string[]) => Promise<FileResult | null>;
 	createFile: (
 		ext?: string,

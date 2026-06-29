@@ -395,6 +395,16 @@ function App() {
 		};
 
 		const importGpFiles = (files: File[]) => {
+			const gpImportAcknowledgedKey = "tabst:gp-import-acknowledged";
+			const acknowledged = window.localStorage.getItem(gpImportAcknowledgedKey);
+			if (!acknowledged) {
+				const proceed = window.confirm(
+					"GP file import is experimental. Results may vary for complex scores. Continue?",
+				);
+				if (!proceed) return;
+				window.localStorage.setItem(gpImportAcknowledgedKey, "1");
+			}
+
 			const state = useAppStore.getState();
 			const activeRepo = state.repos.find((r) => r.id === state.activeRepoId);
 			const targetDir = activeRepo?.path;

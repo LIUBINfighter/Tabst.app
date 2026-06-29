@@ -112,7 +112,6 @@ export function Editor({
 	const setWorkspaceMode = useAppStore((s) => s.setWorkspaceMode);
 	const openSettingsWorkspace = useAppStore((s) => s.openSettingsWorkspace);
 	const workspaceMode = useAppStore((s) => s.workspaceMode);
-	const pendingOmrInsert = useAppStore((s) => s.pendingOmrInsert);
 	const isTracksPanelOpen = useAppStore((s) => s.isTracksPanelOpen);
 	const setTracksPanelOpen = useAppStore((s) => s.setTracksPanelOpen);
 
@@ -447,22 +446,6 @@ export function Editor({
 			),
 		});
 	}, [readOnly]);
-
-	useEffect(() => {
-		if (!pendingOmrInsert || !viewRef.current || !activeFile?.id || enjoyMode) {
-			return;
-		}
-
-		const view = viewRef.current;
-		const changes = view.state.selection.ranges.map((range) => ({
-			from: range.from,
-			to: range.to,
-			insert: pendingOmrInsert,
-		}));
-		view.dispatch({ changes });
-		view.focus();
-		useAppStore.getState().setPendingOmrInsert(null);
-	}, [activeFile?.id, enjoyMode, pendingOmrInsert]);
 
 	// ✅ 统一滚动缓冲：不使用 vh，按容器高度的 60% 计算底部留白（px）
 	useEffect(() => {

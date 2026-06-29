@@ -1,6 +1,5 @@
-import { Channel, invoke } from "@tauri-apps/api/core";
+import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import type { DownloadProgress, OmrOptions } from "../types/ai";
 import type {
 	DesktopAPI,
 	FileResult,
@@ -61,34 +60,6 @@ async function invokeCommand<T>(
 
 export function createTauriDesktopAPI(): DesktopAPI {
 	const api: DesktopAPI = {
-		ai: {
-			getModelStatus: async () => invokeCommand("get_model_status"),
-			downloadModel: async (version, onProgress) => {
-				const onProgressChannel = new Channel<DownloadProgress>(onProgress);
-				await invokeCommand<void>("download_model", {
-					version,
-					on_progress: onProgressChannel,
-				});
-			},
-			transcribe: async (imageBase64: string, options?: OmrOptions) =>
-				invokeCommand<string>("omr_transcribe", {
-					image_base64: imageBase64,
-					options,
-				}),
-			getOmrResult: async (jobId: string) =>
-				invokeCommand("get_omr_result", { job_id: jobId }),
-			cancelOmrJob: async (jobId: string) => {
-				await invokeCommand<void>("cancel_omr_job", { job_id: jobId });
-			},
-			getSidecarStatus: async () => invokeCommand("get_sidecar_status"),
-			stopSidecar: async () => {
-				await invokeCommand<void>("stop_sidecar");
-			},
-			restartSidecar: async () => {
-				await invokeCommand<void>("restart_sidecar");
-			},
-		},
-
 		openFile: async (extensions: string[]): Promise<FileResult | null> => {
 			try {
 				return await invokeCommand<FileResult | null>("open_file", {
