@@ -271,8 +271,8 @@ export default function PrintWindow() {
 							: t("printPreparing")}
 					</div>
 				</div>
+				<div className="print-status">{status}</div>
 				<div className="print-toolbar-actions">
-					<div className="print-status">{status}</div>
 					<Button size="sm" onClick={() => window.print()}>
 						<Printer className="h-4 w-4" />
 						{t("print")}
