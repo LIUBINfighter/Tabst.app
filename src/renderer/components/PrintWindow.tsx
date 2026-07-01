@@ -222,6 +222,9 @@ export default function PrintWindow() {
 					-webkit-print-color-adjust: exact;
 					print-color-adjust: exact;
 				}
+				@page {
+					margin: 0;
+				}
 				.print-window-root,
 				.print-shell,
 				.print-stack {
@@ -234,7 +237,7 @@ export default function PrintWindow() {
 					display: none !important;
 				}
 				.print-shell {
-					padding: 0;
+					padding: ${payload.marginMm}mm;
 				}
 				.print-stack {
 					width: auto;
