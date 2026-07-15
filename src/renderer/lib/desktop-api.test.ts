@@ -130,6 +130,23 @@ describe("tauri runtime detection", () => {
 		);
 	});
 
+	it("reports MuseScore integration as desktop-only in web runtime", async () => {
+		const api = createWebDesktopAPI();
+
+		expect(await api.loadMuseScoreSettings()).toEqual({
+			success: false,
+			error: "Unsupported in web runtime",
+		});
+		expect(await api.validateMuseScoreExecutable("/usr/bin/mscore")).toEqual({
+			success: false,
+			error: "Unsupported in web runtime",
+		});
+		expect(await api.convertGpToMxl("web://repo/song.gp")).toEqual({
+			success: false,
+			error: "Unsupported in web runtime",
+		});
+	});
+
 	it("preserves binary gp bytes when importing through openFile", async () => {
 		const api = createWebDesktopAPI();
 		const originalBytes = Uint8Array.from([0, 255, 254, 65, 0, 66, 67]);

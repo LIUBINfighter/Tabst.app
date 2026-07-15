@@ -1,6 +1,7 @@
 mod fs_commands;
 mod git_commands;
 mod models;
+mod musicxml_commands;
 mod power_commands;
 mod repo_commands;
 mod settings_commands;
@@ -17,6 +18,10 @@ use git_commands::{
     sync_git_pull, unstage_git_file,
 };
 pub(crate) use models::*;
+use musicxml_commands::{
+    convert_gp_to_mxl, load_musescore_settings, save_musescore_executable_path,
+    validate_musescore_executable,
+};
 use power_commands::set_keep_awake;
 #[cfg(test)]
 pub(crate) use repo_commands::{create_repo_watcher, map_notify_event_type};
@@ -70,6 +75,10 @@ pub fn run() {
             fetch_releases_feed,
             load_global_settings,
             save_global_settings,
+            load_musescore_settings,
+            validate_musescore_executable,
+            save_musescore_executable_path,
+            convert_gp_to_mxl,
             set_keep_awake
         ])
         .build(tauri::generate_context!())

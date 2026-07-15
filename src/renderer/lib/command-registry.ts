@@ -44,6 +44,7 @@ export type GlobalOnlyCommandId =
 	| "preview.export.midi"
 	| "preview.export.wav"
 	| "preview.export.gp7"
+	| "preview.export.musicxml"
 	| "preview.print-preview.open"
 	| "playback.play"
 	| "playback.pause"
@@ -242,6 +243,15 @@ const GLOBAL_ONLY_COMMANDS: RegisteredCommand<GlobalOnlyCommandId>[] = [
 			"settings:commandRegistry.preview_export_gp7.description",
 		),
 		keywords: ["preview", "export", "gp7", "guitar pro"],
+		icon: "music",
+	},
+	{
+		id: "preview.export.musicxml",
+		label: i18n.t("settings:commandRegistry.preview_export_musicxml.label"),
+		description: i18n.t(
+			"settings:commandRegistry.preview_export_musicxml.description",
+		),
+		keywords: ["preview", "export", "musicxml", "mxl", "musescore"],
 		icon: "music",
 	},
 	{

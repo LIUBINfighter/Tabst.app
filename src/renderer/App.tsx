@@ -356,6 +356,7 @@ function App() {
 			case "preview.export.midi":
 			case "preview.export.wav":
 			case "preview.export.gp7":
+			case "preview.export.musicxml":
 			case "preview.print-preview.open":
 			case "playback.play":
 			case "playback.pause":

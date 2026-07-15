@@ -38,6 +38,8 @@
 	"shortcutsDefault": "默认",
 	"shortcutsCustom": "自定义",
 	"shortcutsConflict": "冲突",
+	"externalTools": "外部工具",
+	"externalToolsDesc": "配置 MuseScore 等本机转换工具",
 	"commandsEnable": "启用",
 	"commandsPinTop": "置顶",
 	"commandsPinned": "置顶",
@@ -137,6 +139,10 @@
 			"label": "导出 GP7",
 			"description": "将当前乐谱导出为 GP7"
 		},
+		"preview_export_musicxml": {
+			"label": "导出 MusicXML",
+			"description": "使用 MuseScore 将当前 Guitar Pro 文件转换为 MXL"
+		},
 		"preview_print_preview_open": {
 			"label": "打开打印预览",
 			"description": "打开当前乐谱的打印预览弹窗"
@@ -217,6 +223,34 @@
 	"aboutHeader": "关于 v{{version}}",
 	"aboutTagline1": "Tabst。像 Markdown 一样编写吉他谱。",
 	"aboutTagline2": "高效编写 AlphaTex、播放乐谱，并分享 PDF/GP。",
+	"externalToolsSection": {
+		"museScoreTitle": "MuseScore 4",
+		"museScoreHint": "Tabst 可以调用本机安装的 MuseScore 4，将 Guitar Pro 文件转换为 MusicXML（.mxl）。",
+		"executablePath": "可执行文件路径",
+		"pathPlaceholder": "C:\\Program Files\\MuseScore 4\\bin\\MuseScore4.exe",
+		"test": "测试路径",
+		"save": "保存",
+		"clear": "清空",
+		"notValidated": "当前路径尚未验证。",
+		"savedNotValidated": "已保存路径，可点击测试确认当前安装仍然可用。",
+		"notConfigured": "尚未配置 MuseScore。",
+		"valid": "MuseScore 启动验证成功。",
+		"validVersion": "MuseScore 启动验证成功：{{version}}",
+		"saved": "MuseScore 路径已验证并保存。",
+		"cleared": "MuseScore 路径已清除。",
+		"saveToClear": "点击保存以清除已存储路径。",
+		"licenseHint": "MuseScore 是第三方软件，不随 Tabst 分发。请单独安装，并在使用前查看其许可协议。",
+		"errors": {
+			"invalid-musescore-path": "请输入有效的 MuseScore 可执行文件路径。",
+			"musescore-not-found": "MuseScore 可执行文件不存在。",
+			"musescore-not-a-file": "配置的路径不是文件。",
+			"musescore-launch-failed": "无法启动 MuseScore。",
+			"musescore-validation-timeout": "MuseScore 路径验证超时。",
+			"musescore-validation-failed": "MuseScore 在验证路径时返回错误。",
+			"Unsupported in web runtime": "外部工具仅在桌面版中可用。",
+			"unknown": "无法访问 MuseScore 配置。"
+		}
+	},
 	"githubLink": "GitHub →",
 	"readmeTitle": "README",
 	"alphatabLogoAlt": "alphaTab 徽标",

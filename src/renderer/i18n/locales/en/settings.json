@@ -38,6 +38,8 @@
 	"shortcutsDefault": "Default",
 	"shortcutsCustom": "Custom",
 	"shortcutsConflict": "Conflict",
+	"externalTools": "External Tools",
+	"externalToolsDesc": "Configure local conversion tools such as MuseScore",
 	"commandsEnable": "Enable",
 	"commandsPinTop": "Pin to top",
 	"commandsPinned": "Pinned",
@@ -137,6 +139,10 @@
 			"label": "Export GP7",
 			"description": "Export current score as GP7"
 		},
+		"preview_export_musicxml": {
+			"label": "Export MusicXML",
+			"description": "Convert the active Guitar Pro file to MXL with MuseScore"
+		},
 		"preview_print_preview_open": {
 			"label": "Open Print Preview",
 			"description": "Open print preview modal"
@@ -217,6 +223,34 @@
 	"aboutHeader": "About v{{version}}",
 	"aboutTagline1": "Tabst. Write guitar tabs like markdown.",
 	"aboutTagline2": "Efficiently write alphaTex, play scores, and share PDF/GP.",
+	"externalToolsSection": {
+		"museScoreTitle": "MuseScore 4",
+		"museScoreHint": "Tabst can call a locally installed MuseScore 4 executable to convert Guitar Pro files to MusicXML (.mxl).",
+		"executablePath": "Executable path",
+		"pathPlaceholder": "C:\\Program Files\\MuseScore 4\\bin\\MuseScore4.exe",
+		"test": "Test Path",
+		"save": "Save",
+		"clear": "Clear",
+		"notValidated": "The path has not been validated.",
+		"savedNotValidated": "A path is saved. Test it to verify the current installation.",
+		"notConfigured": "MuseScore is not configured.",
+		"valid": "MuseScore started successfully.",
+		"validVersion": "MuseScore started successfully: {{version}}",
+		"saved": "MuseScore path validated and saved.",
+		"cleared": "MuseScore path cleared.",
+		"saveToClear": "Click Save to clear the stored path.",
+		"licenseHint": "MuseScore is third-party software and is not bundled with Tabst. Install it separately and review its license before use.",
+		"errors": {
+			"invalid-musescore-path": "Enter a valid MuseScore executable path.",
+			"musescore-not-found": "The MuseScore executable does not exist.",
+			"musescore-not-a-file": "The configured path is not a file.",
+			"musescore-launch-failed": "MuseScore could not be started.",
+			"musescore-validation-timeout": "MuseScore path validation timed out.",
+			"musescore-validation-failed": "MuseScore returned an error while validating the path.",
+			"Unsupported in web runtime": "External tools are available only in the desktop app.",
+			"unknown": "Unable to access the MuseScore configuration."
+		}
+	},
 	"githubLink": "GitHub →",
 	"readmeTitle": "README",
 	"alphatabLogoAlt": "alphaTab logo",

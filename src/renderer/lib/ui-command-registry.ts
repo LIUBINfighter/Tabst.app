@@ -10,6 +10,7 @@ import {
 	type InlineCommandId,
 	type StaticEditorCommandId,
 } from "./command-registry";
+import { isGpFilePath } from "./gp-import";
 import {
 	dispatchPreviewCommand,
 	type PreviewCommandId,
@@ -119,12 +120,23 @@ export function getCommandAvailability(
 		commandId === "preview.export.midi" ||
 		commandId === "preview.export.wav" ||
 		commandId === "preview.export.gp7" ||
+		commandId === "preview.export.musicxml" ||
 		commandId === "preview.print-preview.open"
 	) {
 		if (!hasActiveFile()) {
 			return {
 				enabled: false,
 				reason: "No active score file.",
+			};
+		}
+	}
+
+	if (commandId === "preview.export.musicxml") {
+		const activeFilePath = getActiveFilePath();
+		if (!activeFilePath || !isGpFilePath(activeFilePath)) {
+			return {
+				enabled: false,
+				reason: "MusicXML export requires an active Guitar Pro file.",
 			};
 		}
 	}

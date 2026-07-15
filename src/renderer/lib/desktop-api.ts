@@ -568,6 +568,26 @@ export function createWebDesktopAPI(): DesktopAPI {
 			return { success: true };
 		},
 
+		loadMuseScoreSettings: async () => ({
+			success: false,
+			error: "Unsupported in web runtime",
+		}),
+
+		validateMuseScoreExecutable: async () => ({
+			success: false,
+			error: "Unsupported in web runtime",
+		}),
+
+		saveMuseScoreExecutablePath: async () => ({
+			success: false,
+			error: "Unsupported in web runtime",
+		}),
+
+		convertGpToMxl: async () => ({
+			success: false,
+			error: "Unsupported in web runtime",
+		}),
+
 		setKeepAwake: async (_enabled: boolean) => ({ success: true }),
 	};
 

@@ -1,5 +1,6 @@
 import type { TFunction } from "i18next";
 import {
+	FileCode2,
 	FileDown,
 	FileMusic,
 	FilePlus2,
@@ -20,6 +21,8 @@ export interface PreviewToolbarProps {
 	hasScore?: boolean;
 	onGenerateAtexClick?: () => void;
 	isGeneratingAtex?: boolean;
+	onExportMxlClick?: () => void;
+	isExportingMxl?: boolean;
 	onEnjoyToggle?: () => void;
 	isEnjoyMode?: boolean;
 	t: TFunction;
@@ -33,11 +36,13 @@ export default function PreviewToolbar({
 	hasScore = false,
 	onGenerateAtexClick,
 	isGeneratingAtex = false,
+	onExportMxlClick,
+	isExportingMxl = false,
 	onEnjoyToggle: _onEnjoyToggle,
 	isEnjoyMode: _isEnjoyMode = false,
 	t,
 }: PreviewToolbarProps) {
-	const isExporting = exportingFormat !== null;
+	const isExporting = exportingFormat !== null || isExportingMxl;
 
 	const renderExportIcon = (
 		format: ExportFormat,
@@ -90,12 +95,32 @@ export default function PreviewToolbar({
 					<p>{t("toolbar:export.gp")}</p>
 				</TooltipContent>
 			</Tooltip>
+			{onExportMxlClick && (
+				<Tooltip>
+					<TooltipTrigger asChild>
+						<IconButton
+							onClick={onExportMxlClick}
+							disabled={isExporting || isGeneratingAtex}
+							aria-label={t("toolbar:export.mxl")}
+						>
+							{isExportingMxl ? (
+								<Loader2 className="h-4 w-4 animate-spin" />
+							) : (
+								<FileCode2 className="h-4 w-4" />
+							)}
+						</IconButton>
+					</TooltipTrigger>
+					<TooltipContent side="bottom">
+						<p>{t("toolbar:export.mxl")}</p>
+					</TooltipContent>
+				</Tooltip>
+			)}
 			{onGenerateAtexClick && (
 				<Tooltip>
 					<TooltipTrigger asChild>
 						<IconButton
 							onClick={onGenerateAtexClick}
-							disabled={isGeneratingAtex}
+							disabled={isGeneratingAtex || isExporting}
 							aria-label={t("toolbar:export.atex")}
 						>
 							{isGeneratingAtex ? (
