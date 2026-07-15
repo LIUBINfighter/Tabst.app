@@ -105,6 +105,15 @@ export default defineConfig({
 	worker: {
 		format: "es",
 	},
+	// esbuild 0.28 no longer lowers destructuring; Safari 13 supports it natively.
+	esbuild:
+		isTauriBuild && tauriBuildTarget === "safari13"
+			? {
+					supported: {
+						destructuring: true,
+					},
+				}
+			: undefined,
 	envPrefix: ["VITE_", "TAURI_ENV_"],
 	resolve: {
 		alias: {
