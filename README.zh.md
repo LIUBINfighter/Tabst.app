@@ -83,7 +83,7 @@ pnpm run release:win
 
 - 产品构建、发布命令与 CI 桌面校验均以 Tauri 为准。
 - 渲染层统一通过 `desktopAPI` bridge 接入桌面能力。
-- 后续的规范化收尾工作见 [docs/dev/TAURI_MIGRATION_STATUS.md](./docs/dev/TAURI_MIGRATION_STATUS.md)。
+- 当前运行时边界和后续开发入口见[架构总览](./docs/dev/architecture/OVERVIEW.md)。
 
 ## CI
 
@@ -92,4 +92,4 @@ pnpm run release:win
 
 ## 许可证
 
-此项目采用 [MPL 2.0 license](LICENSE)。
+Tabst 采用 [Mozilla Public License 2.0](./LICENSE) 许可。

@@ -3,7 +3,7 @@ name = "tabst-tauri"
 version = "0.7.0-rc"
 description = "Tabst Tauri runtime"
 authors = ["Jay Bridge"]
-license = "ISC"
+license = "MPL-2.0"
 edition = "2021"
 
 [build-dependencies]

@@ -11,6 +11,8 @@
 		"lint": "biome ci --linter-enabled=true --formatter-enabled=false --error-on-warnings src",
 		"format": "biome check --write --formatter-enabled=true --linter-enabled=false --assist-enabled=true src",
 		"format:check": "biome ci --formatter-enabled=true --linter-enabled=false --assist-enabled=true --enforce-assist=true --error-on-warnings src",
+		"docs:check": "node scripts/check-docs.mjs",
+		"test": "vitest run",
 		"build": "pnpm build:tauri",
 		"build:react": "vite build",
 		"build:web": "pnpm type-check && pnpm build:react",
@@ -41,7 +43,7 @@
 	},
 	"keywords": [],
 	"author": "Jay Bridge huajie8848@foxmail.com",
-	"license": "ISC",
+	"license": "MPL-2.0",
 	"packageManager": "pnpm@11.5.2",
 	"dependencies": {
 		"@codemirror/autocomplete": "^6.20.2",
@@ -119,19 +121,5 @@
 		"typescript-eslint": "^8.60.1",
 		"vite": "^8.0.14",
 		"vitest": "^4.0.18"
-	},
-	"pnpm": {
-		"overrides": {
-			"@lezer/common": "1.5.2"
-		},
-		"onlyBuiltDependencies": [
-			"esbuild"
-		],
-		"ignoredBuiltDependencies": [
-			"esbuild",
-			"fs-xattr",
-			"macos-alias",
-			"msw"
-		]
 	}
 }

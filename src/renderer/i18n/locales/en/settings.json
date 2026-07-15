@@ -218,6 +218,8 @@
 	"aboutTagline1": "Tabst. Write guitar tabs like markdown.",
 	"aboutTagline2": "Efficiently write alphaTex, play scores, and share PDF/GP.",
 	"githubLink": "GitHub →",
+	"licenseLabel": "License",
+	"licenseName": "Mozilla Public License 2.0",
 	"readmeTitle": "README",
 	"alphatabLogoAlt": "alphaTab logo",
 	"specialThanks": "Special Thanks",
