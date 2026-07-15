@@ -47,13 +47,13 @@ describe("repo link resolution", () => {
 	it("preserves query and hash suffixes on rewritten links", () => {
 		expect(
 			resolveRepoRelativeHref(
-				"./docs/dev/TAURI_MIGRATION_STATUS.md?plain=1#next",
+				"./docs/dev/archived/tauri/PHASE_1_MIGRATION_REPORT.md?plain=1#next",
 				{
 					sourcePath: "README.md",
 				},
 			),
 		).toBe(
-			"https://github.com/LIUBINfighter/Tabst.app/blob/dev/docs/dev/TAURI_MIGRATION_STATUS.md?plain=1#next",
+			"https://github.com/LIUBINfighter/Tabst.app/blob/dev/docs/dev/archived/tauri/PHASE_1_MIGRATION_REPORT.md?plain=1#next",
 		);
 	});
 

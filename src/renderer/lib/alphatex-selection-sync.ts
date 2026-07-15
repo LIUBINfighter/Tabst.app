@@ -4,7 +4,7 @@
  * Bidirectional sync between score selection and code editor; beat-level positioning.
  * Parsing lives in alphatex-parse-positions; cursor/playback extensions are in separate files.
  *
- * @see docs/dev/SelectionAPI.md
+ * @see docs/dev/architecture/EDITOR_PREVIEW_SYNC.md
  */
 
 import {

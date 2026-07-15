@@ -1,5 +1,8 @@
 # refactor/speed 阶段性优化报告（Phase Summary）
 
+> **Status:** Historical — 已完成阶段的性能与稳定性报告。指标、分支状态和实现细节可能已变化；
+> 当前实现请参阅[架构总览](../architecture/OVERVIEW.md)。
+
 更新时间：2026-02-27
 
 ---
