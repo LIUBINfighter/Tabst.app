@@ -1,0 +1,30 @@
+diff --git a/dist/alphaTab.core.mjs b/dist/alphaTab.core.mjs
+index a16d1401ff2f9f2f6fec0da10c4cac1e15e50408..654ca89506ef17c1353c14303cc9a64f5c1e8038 100644
+--- a/dist/alphaTab.core.mjs
++++ b/dist/alphaTab.core.mjs
+@@ -52711,7 +52711,9 @@ class EffectBandSlot {
+ 	canBeUsed(band) {
+ 		if (!(!this.shared.uniqueEffectId && band.info.canShareBand || band.info.effectId === this.shared.uniqueEffectId)) return false;
+ 		if (!this.shared.firstBeat) return true;
+-		if (this.shared.lastBeat === band.firstBeat) return true;
++		if (this.shared.lastBeat === band.firstBeat) {
++			return this.bands.some((existingBand) => existingBand.info.effectId === band.info.effectId && existingBand.lastBeat === band.firstBeat);
++		}
+ 		if (this.shared.lastBeat.isBefore(band.firstBeat)) return true;
+ 		if (this.shared.lastBeat.isBefore(this.shared.firstBeat)) return true;
+ 		return false;
+diff --git a/dist/alphaTab.js b/dist/alphaTab.js
+index 4e6be2fc3e04ed3a241d5060e6c1c7e9a3da4f27..7ae9cd777781a38984ea690f3d82760943306667 100644
+--- a/dist/alphaTab.js
++++ b/dist/alphaTab.js
+@@ -52715,7 +52715,9 @@
+ 		canBeUsed(band) {
+ 			if (!(!this.shared.uniqueEffectId && band.info.canShareBand || band.info.effectId === this.shared.uniqueEffectId)) return false;
+ 			if (!this.shared.firstBeat) return true;
+-			if (this.shared.lastBeat === band.firstBeat) return true;
++			if (this.shared.lastBeat === band.firstBeat) {
++				return this.bands.some((existingBand) => existingBand.info.effectId === band.info.effectId && existingBand.lastBeat === band.firstBeat);
++			}
+ 			if (this.shared.lastBeat.isBefore(band.firstBeat)) return true;
+ 			if (this.shared.lastBeat.isBefore(this.shared.firstBeat)) return true;
+ 			return false;

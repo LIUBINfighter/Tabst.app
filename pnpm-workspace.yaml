@@ -4,3 +4,6 @@ allowBuilds:
   esbuild: false
   msw: false
   puppeteer: false
+
+patchedDependencies:
+  '@coderline/alphatab@1.8.3': patches/@coderline__alphatab@1.8.3.patch
