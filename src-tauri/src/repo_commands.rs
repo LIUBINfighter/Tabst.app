@@ -15,7 +15,9 @@ use crate::{
     RepoFsChangedEvent, RepoMetadata, RepoWatchManager, RepoWatcherState, ScanDirectoryResult,
 };
 
-const SUPPORTED_EXTENSIONS: [&str; 7] = [".md", ".atex", ".gp", ".gp3", ".gp4", ".gp5", ".gpx"];
+const SUPPORTED_EXTENSIONS: [&str; 8] = [
+    ".md", ".atex", ".gp", ".gp3", ".gp4", ".gp5", ".gpx", ".mxl",
+];
 
 pub(crate) fn map_notify_event_type(kind: &EventKind) -> &'static str {
     match kind {

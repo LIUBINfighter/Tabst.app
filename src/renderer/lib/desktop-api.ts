@@ -6,7 +6,7 @@ import type {
 } from "../types/desktop";
 import type { GitChangeGroup } from "../types/git";
 import type { FileNode, Repo, RepoMetadata } from "../types/repo";
-import { isGpFilePath } from "./gp-import";
+import { isImportableScoreFilePath } from "./gp-import";
 import { createTauriDesktopAPI } from "./tauri-desktop-api";
 
 interface BrowserStoredFile {
@@ -164,13 +164,13 @@ async function createBrowserStoredFile(
 	path: string,
 	repoPath: string,
 ): Promise<BrowserStoredFile> {
-	const isBinaryGpFile = isGpFilePath(file.name);
+	const isBinaryScoreFile = isImportableScoreFilePath(file.name);
 
 	return {
 		path,
 		name: file.name,
-		content: isBinaryGpFile ? "" : await file.text(),
-		binaryData: isBinaryGpFile
+		content: isBinaryScoreFile ? "" : await file.text(),
+		binaryData: isBinaryScoreFile
 			? Array.from(new Uint8Array(await file.arrayBuffer()))
 			: undefined,
 		repoPath,

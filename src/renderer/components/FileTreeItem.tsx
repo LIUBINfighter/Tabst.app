@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { isGpFilePath } from "../lib/gp-import";
+import { isImportableScoreFilePath } from "../lib/gp-import";
 import { isTemplateCandidateName } from "../lib/template-utils";
 import { useAppStore } from "../store/appStore";
 import type { FileNode } from "../types/repo";
@@ -427,7 +427,7 @@ export function FileTreeItem({
 				<FileMusic className={iconClass} />
 			) : fileExt === "md" ? (
 				<FileDown className={iconClass} />
-			) : isGpFilePath(node.name) ? (
+			) : isImportableScoreFilePath(node.name) ? (
 				<FileAudio className={iconClass} />
 			) : (
 				<FileText className={iconClass} />
@@ -542,15 +542,18 @@ export function FileTreeItem({
 				</div>
 			)}
 
-			{!isFolder && (fileExt === "md" || isGpFilePath(node.name)) && (
-				<code
-					className={`shrink-0 font-mono bg-muted/50 px-1 rounded text-xs h-6 leading-6 select-none ${
-						isActive ? "text-[var(--highlight-text)]" : "text-muted-foreground"
-					}`}
-				>
-					{fileExt}
-				</code>
-			)}
+			{!isFolder &&
+				(fileExt === "md" || isImportableScoreFilePath(node.name)) && (
+					<code
+						className={`shrink-0 font-mono bg-muted/50 px-1 rounded text-xs h-6 leading-6 select-none ${
+							isActive
+								? "text-[var(--highlight-text)]"
+								: "text-muted-foreground"
+						}`}
+					>
+						{fileExt}
+					</code>
+				)}
 		</div>
 	);
 

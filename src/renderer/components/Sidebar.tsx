@@ -2,7 +2,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useFileOperations } from "../hooks/useFileOperations";
 import { extractAtDocFileMeta } from "../lib/atdoc";
-import { isGpFilePath } from "../lib/gp-import";
+import {
+	convertScoreBytesToAlphaTex,
+	IMPORTABLE_SCORE_EXTENSIONS,
+	isImportableScoreFilePath,
+} from "../lib/gp-import";
 import { useTheme } from "../lib/theme-system/use-theme";
 import { useAppStore } from "../store/appStore";
 import type { DeleteBehavior, FileNode } from "../types/repo";
@@ -41,11 +45,7 @@ function flattenNodes(nodes: FileNode[]): FileNode[] {
 const SIDEBAR_VISIBLE_EXTENSIONS = new Set([
 	".atex",
 	".md",
-	".gp",
-	".gp3",
-	".gp4",
-	".gp5",
-	".gpx",
+	...IMPORTABLE_SCORE_EXTENSIONS,
 ]);
 
 const NEW_FOLDER_README_NAME = "README.md";
@@ -595,29 +595,26 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 				setActiveFile(null);
 			} else {
 				try {
-					if (isGpFilePath(node.path)) {
+					if (isImportableScoreFilePath(node.path)) {
 						const readResult = await window.desktopAPI.readFileBytes(node.path);
 						if (readResult.error || !readResult.data) {
 							console.error(
-								"[Sidebar] Failed to read GP file:",
+								"[Sidebar] Failed to read score file:",
 								readResult.error,
 							);
-							showSidebarToast(t("gpReadFailed", { name: node.name }));
+							showSidebarToast(t("scoreReadFailed", { name: node.name }));
 							return;
 						}
-						const { convertGpBytesToAlphaTex } = await import(
-							"../lib/gp-import"
-						);
-						const alphaTex = convertGpBytesToAlphaTex(readResult.data);
-						const gpFileId = existingFile?.id ?? node.id;
+						const alphaTex = convertScoreBytesToAlphaTex(readResult.data);
+						const scoreFileId = existingFile?.id ?? node.id;
 						addFile({
-							id: gpFileId,
+							id: scoreFileId,
 							name: node.name,
 							path: node.path,
 							content: alphaTex,
 							contentLoaded: true,
 						});
-						setActiveFile(gpFileId);
+						setActiveFile(scoreFileId);
 						setWorkspaceMode("editor");
 						return;
 					}

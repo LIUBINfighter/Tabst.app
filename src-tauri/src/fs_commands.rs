@@ -42,7 +42,7 @@ pub(crate) fn open_file(extensions: Vec<String>) -> Option<FileResult> {
     }
 
     let selected = dialog.pick_file()?;
-    let content = fs::read_to_string(&selected).ok()?;
+    let content = fs::read_to_string(&selected).unwrap_or_default();
     let name = selected.file_name()?.to_string_lossy().to_string();
 
     let registered_path = register_allowed_file(&selected).ok()?;

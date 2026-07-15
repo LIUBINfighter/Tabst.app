@@ -148,6 +148,24 @@ describe("tauri runtime detection", () => {
 		);
 	});
 
+	it("preserves compressed MusicXML bytes when importing through openFile", async () => {
+		const api = createWebDesktopAPI();
+		const originalBytes = Uint8Array.from([80, 75, 3, 4, 0, 255, 10, 13]);
+		nextPickedFiles = [
+			new File([originalBytes], "score.mxl", {
+				type: "application/vnd.recordare.musicxml",
+			}),
+		];
+
+		const result = await api.openFile([".mxl"]);
+		expect(result).not.toBeNull();
+
+		const readResult = await api.readFileBytes(result?.path ?? "");
+		expect(Array.from(readResult.data ?? [])).toEqual(
+			Array.from(originalBytes),
+		);
+	});
+
 	it("preserves binary gp bytes when importing a directory in web runtime", async () => {
 		const api = createWebDesktopAPI();
 		const originalBytes = Uint8Array.from([71, 80, 53, 0, 255, 10, 13]);

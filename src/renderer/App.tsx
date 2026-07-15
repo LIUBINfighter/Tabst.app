@@ -77,7 +77,7 @@ function App() {
 	const wasWebsiteMobileRef = useRef(false);
 
 	const SUPPORTED_EXTENSIONS = useRef(
-		new Set([".md", ".atex", ".gp", ".gp3", ".gp4", ".gp5", ".gpx"]),
+		new Set([".md", ".atex", ".gp", ".gp3", ".gp4", ".gp5", ".gpx", ".mxl"]),
 	);
 	const websiteMobileLayout = isWebsiteMobileLayout({
 		isWebRuntime,
@@ -383,23 +383,24 @@ function App() {
 			event.preventDefault();
 		};
 
-		const isGpFileName = (fileName: string) => {
+		const isImportableScoreFileName = (fileName: string) => {
 			const lower = fileName.toLowerCase();
 			return (
 				lower.endsWith(".gp") ||
 				lower.endsWith(".gp3") ||
 				lower.endsWith(".gp4") ||
 				lower.endsWith(".gp5") ||
-				lower.endsWith(".gpx")
+				lower.endsWith(".gpx") ||
+				lower.endsWith(".mxl")
 			);
 		};
 
-		const importGpFiles = (files: File[]) => {
+		const importScoreFiles = (files: File[]) => {
 			const gpImportAcknowledgedKey = "tabst:gp-import-acknowledged";
 			const acknowledged = window.localStorage.getItem(gpImportAcknowledgedKey);
 			if (!acknowledged) {
 				const proceed = window.confirm(
-					"GP file import is experimental. Results may vary for complex scores. Continue?",
+					"Score file import is experimental. Results may vary for complex scores. Continue?",
 				);
 				if (!proceed) return;
 				window.localStorage.setItem(gpImportAcknowledgedKey, "1");
@@ -410,14 +411,14 @@ function App() {
 			const targetDir = activeRepo?.path;
 
 			for (const file of files) {
-				if (!isGpFileName(file.name)) continue;
+				if (!isImportableScoreFileName(file.name)) continue;
 
 				void (async () => {
 					try {
 						const bytes = new Uint8Array(await file.arrayBuffer());
 						await handleImportGpBytes(bytes, targetDir, file.name);
 					} catch (error) {
-						console.error("导入 GP 文件转换失败:", error);
+						console.error("导入乐谱文件转换失败:", error);
 					}
 				})();
 			}
@@ -426,7 +427,7 @@ function App() {
 		const handleWindowDrop = (event: DragEvent) => {
 			if (!event.dataTransfer?.files?.length) return;
 			event.preventDefault();
-			importGpFiles(Array.from(event.dataTransfer.files));
+			importScoreFiles(Array.from(event.dataTransfer.files));
 		};
 
 		const shouldIgnorePaste = (target: EventTarget | null) => {
@@ -443,11 +444,13 @@ function App() {
 			if (!clipboardData?.files?.length) return;
 
 			const files = Array.from(clipboardData.files);
-			const gpFiles = files.filter((file) => isGpFileName(file.name));
-			if (gpFiles.length === 0) return;
+			const scoreFiles = files.filter((file) =>
+				isImportableScoreFileName(file.name),
+			);
+			if (scoreFiles.length === 0) return;
 
 			event.preventDefault();
-			importGpFiles(gpFiles);
+			importScoreFiles(scoreFiles);
 		};
 
 		window.addEventListener("dragover", preventWindowDropDefault);

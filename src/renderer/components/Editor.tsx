@@ -33,7 +33,7 @@ import {
 	planEditorAutosaveTransition,
 	rebindEditorAutosaveRequest,
 } from "../lib/editor-autosave";
-import { isGpFilePath } from "../lib/gp-import";
+import { isImportableScoreFilePath } from "../lib/gp-import";
 import { runUiCommand } from "../lib/ui-command-registry";
 import {
 	isWebsiteMobileLayout,
@@ -861,11 +861,11 @@ export function Editor({
 
 	// Determine language to optionally enable preview layout for .atex
 	const languageForActive = getLanguageForFile(activeFile.path);
-	const isGpFile = isGpFilePath(activeFile.path);
+	const isImportedScoreFile = isImportableScoreFilePath(activeFile.path);
 
 	return (
 		<div className="flex-1 flex flex-col h-full overflow-hidden">
-			{isGpFile && !hidePreview ? (
+			{isImportedScoreFile && !hidePreview ? (
 				<div className="flex-1 overflow-hidden flex">
 					<div className="w-full relative flex flex-col bg-card min-h-0 overflow-y-auto overflow-x-hidden">
 						<Preview

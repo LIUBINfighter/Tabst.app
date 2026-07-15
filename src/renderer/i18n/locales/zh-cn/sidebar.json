@@ -2,6 +2,7 @@
 	"collapseSidebar": "收起侧边栏",
 	"expandSidebar": "展开侧边栏",
 	"openFile": "打开文件",
+	"scoreReadFailed": "无法读取乐谱文件“{{name}}”。",
 	"newAtex": "新建 .atex",
 	"newMd": "新建 .md",
 	"newFolder": "新建文件夹",
