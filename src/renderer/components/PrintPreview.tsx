@@ -706,6 +706,23 @@ export default function PrintPreview({
 								</div>
 							)}
 
+							{printStatus && (
+								<span
+									className="max-w-[20rem] truncate text-xs text-amber-700"
+									title={printStatus}
+								>
+									{printStatus}
+								</span>
+							)}
+							{fontError && (
+								<span
+									className="text-xs text-amber-600"
+									title={t("fontLoadFailed")}
+								>
+									⚠️ 字体
+								</span>
+							)}
+
 							<Button
 								size="sm"
 								className="px-2 print-btn h-8 text-xs"
@@ -715,22 +732,6 @@ export default function PrintPreview({
 							>
 								<Printer className="h-3 w-3 mr-1" /> {t("printExport")}
 							</Button>
-							{fontError && (
-								<span
-									className="text-xs text-amber-600"
-									title={t("fontLoadFailed")}
-								>
-									⚠️ 字体
-								</span>
-							)}
-							{printStatus && (
-								<span
-									className="max-w-[20rem] truncate text-xs text-amber-700"
-									title={printStatus}
-								>
-									{printStatus}
-								</span>
-							)}
 							{/* 音轨选择按钮（使用 IconButton 与主预览一致） */}
 							<Tooltip>
 								<TooltipTrigger asChild>
