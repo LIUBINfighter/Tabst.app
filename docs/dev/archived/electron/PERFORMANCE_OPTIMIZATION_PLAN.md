@@ -3,7 +3,8 @@
 > **已归档 / Electron 时代文档**
 >
 > 本文基于迁移前的桌面运行时架构撰写，不再代表当前 Tauri-first 主线实现。
-> 如需开展新的性能工作，请以当前 `src-tauri/`、`src/renderer/` 与 `docs/dev/TAURI_MIGRATION_STATUS.md` 为准重新建立基线。
+> 如需开展新的性能工作，请以当前 `src-tauri/`、`src/renderer/` 与
+> [架构总览](../../architecture/OVERVIEW.md)为准重新建立基线。
 
 > 更新时间：2026-02-27  
 > 目标：解决“轻微迟滞感”，从**内存占用、事件处理、渲染链路、打包体积与启动速度**四个维度系统优化。

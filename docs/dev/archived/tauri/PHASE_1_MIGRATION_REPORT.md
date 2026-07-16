@@ -1,5 +1,9 @@
 # Tauri Migration Status
 
+> **Status:** Historical — completed Tauri migration report. The branch,
+> commit, and verification details below describe the migration snapshot, not
+> the current repository. See the [current architecture overview](../../architecture/OVERVIEW.md).
+
 Last updated: 2026-05-11
 Current branch: `vibe`
 Reference commit: `cfc9fbe`

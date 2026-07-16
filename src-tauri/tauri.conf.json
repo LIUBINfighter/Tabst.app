@@ -53,6 +53,7 @@
 		"active": true,
 		"createUpdaterArtifacts": true,
 		"resources": {
+			"../LICENSE": "LICENSE",
 			"../README.md": "README.md",
 			"../ROADMAP.md": "ROADMAP.md"
 		},

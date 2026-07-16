@@ -1,82 +1,197 @@
-# PROJECT KNOWLEDGE BASE
+# TABST REPOSITORY INSTRUCTIONS
 
-**Generated:** 2026-03-10 00:40:00 +0800
-**Commit:** 6892d6d
-**Branch:** refactor/tauri
+## SCOPE
 
-## OVERVIEW
-Tabst is a Tauri desktop app for writing and playing AlphaTex guitar tabs.
-Runtime is split across the Tauri Rust shell (`src-tauri`), React renderer (`src/renderer`), and a worker-based AlphaTex LSP pipeline.
+These instructions apply to the whole repository. Before editing a deeper
+source directory, read the nearest child `AGENTS.md`; child instructions refine
+this file for their subtree.
 
-## STRUCTURE
+Tabst is a Tauri-first workspace for writing and playing AlphaTex guitar tabs.
+AlphaTex files are the product source of truth. The React renderer owns the
+editor, preview, commands, and shared session state; the Rust runtime owns
+filesystem, Git, updater, settings, and operating-system capabilities.
+
+## SOURCES OF TRUTH
+
+Do not copy dynamic repository facts into this file. Verify them at their
+authoritative source:
+
+| Fact | Source of truth |
+| --- | --- |
+| Package manager, scripts, JS dependencies | `package.json` |
+| Product version | `package.json`, `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml` |
+| Rust dependencies | `src-tauri/Cargo.toml` |
+| Desktop command registration | `src-tauri/src/lib.rs` |
+| Renderer desktop contract | `src/renderer/types/desktop.d.ts` |
+| CI and release availability | `.github/workflows/` |
+| Current architecture | `docs/dev/architecture/OVERVIEW.md` and implementation |
+
+Branch names, commits, generated timestamps, exact dependency versions, and
+recent verification results become stale quickly and should not be maintained
+manually in `AGENTS.md`.
+
+## REPOSITORY BOUNDARIES
+
 ```text
 Tabst.app/
-├── src/                     # product renderer/runtime code
-│   └── renderer/            # React UI, alphaTab integration, worker/LSP
-├── src-tauri/               # Tauri shell, commands, updater, desktop capabilities
-├── scripts/                 # codemix, vendor sync
-├── docs/dev/                # active engineering docs (alphatab/alphatex/ops)
-├── .github/workflows/       # CI, release, mac release, pages deploy
-├── public/assets/           # Bravura, soundfont, alphaTab runtime assets
-└── .tmp/notebook-navigator/ # unrelated sandbox project (exclude from product work)
+├── src/renderer/       # React UI, CodeMirror, alphaTab, worker/LSP, stores
+├── src-tauri/          # Tauri shell, commands, security checks, updater
+├── public/assets/      # Bravura, soundfonts, and alphaTab runtime assets
+├── docs/dev/           # Active engineering documentation and historical notes
+├── scripts/            # Verification, release, codemix, and vendor-sync tools
+├── .github/workflows/  # CI, Web deployment, desktop release workflows
+└── .tmp/               # Local/sandbox work; not part of the product runtime
 ```
 
-## WHERE TO LOOK
-| Task | Location | Notes |
-|------|----------|-------|
-| Desktop boot and command wiring | `src-tauri/src/lib.rs` | registers Tauri commands and plugins |
-| Renderer bootstrap | `src/renderer/main.tsx` | mounts App + i18n + ThemeProvider |
-| Shared app state | `src/renderer/store/appStore.ts` | highest fan-in module in renderer |
-| Theme logic | `src/renderer/lib/theme-system/`, `src/renderer/store/themeStore.ts` | CSS variables + persisted preferences |
-| AlphaTex parsing/positions | `src/renderer/lib/alphatex-parse-positions.ts` | AST-first parser with fallback path |
-| Completion and hover | `src/renderer/lib/alphatex-completion.ts`, `src/renderer/workers/alphatex.worker.ts` | local command JSON first, upstream fallback |
-| Preview lifecycle | `src/renderer/components/Preview.tsx`, `src/renderer/hooks/usePreview*` | API init/destroy/reinit and telemetry |
-| Cloud public score browsing | `src/renderer/components/CloudSidebar.tsx`, `src/renderer/components/CloudView.tsx`, `src/renderer/lib/cloud-public-scores.ts` | desktop read-only cloud workspace + web public score import path |
-| Print pipeline | `src/renderer/components/PrintPreview.tsx` | dedicated API instance + print CSS/font rules |
-| Git integration | `src-tauri/src/lib.rs`, `src/renderer/components/GitWorkspace.tsx` | porcelain parse + unified diff display |
+Do not treat `.tmp/notebook-navigator` as Tabst product code.
 
-## CONVENTIONS
-- Formatter/linter is **Biome** (`biome.json`): tab indentation, double quotes, organize imports enabled.
-- Package manager is **pnpm** (`packageManager: pnpm@10.28.0`).
-- Shared playback/file/selection/UI state belongs in Zustand (`useAppStore`), not scattered component state.
-- Deep alphaTab config changes (theme/colors) require API destroy + recreate; `render()` alone is insufficient.
-- Completion/hover source precedence: `src/renderer/data/alphatex-commands.json` first, upstream docs second.
-- Desktop bridge surface in the renderer is `window.desktopAPI`.
-- Desktop Cloud mode is intentionally public-only and read-only. The selected cloud score should reuse the normal `Editor` / `Preview` workspace experience instead of a parallel viewer stack.
-- Web runtime keeps Sandbox as the primary repo; public Tabst DB scores are appended/imported into that repo and refreshed by `at.meta.source` on initialization.
+## OWNERSHIP MAP
 
-## ANTI-PATTERNS (THIS PROJECT)
-- Parsing AlphaTex structure with regex when AST parser is available.
+| Concern | Primary owner | Important collaborators |
+| --- | --- | --- |
+| Renderer bootstrap | `src/renderer/main.tsx` | i18n, `ThemeProvider`, desktop API installation |
+| App shell and workspace modes | `src/renderer/App.tsx` | `store/appStore.ts`, Sidebar, bottom bar |
+| Shared workspace/session state | `src/renderer/store/appStore.ts` | persistence helpers and desktop bridge |
+| Theme preferences | `src/renderer/store/themeStore.ts` | `lib/theme-system/`, CSS variables |
+| Editor workspace | `src/renderer/components/Editor.tsx` | CodeMirror extensions, autosave, LSP hook |
+| Live score and playback | `src/renderer/components/Preview.tsx` | `hooks/usePreview*`, alphaTab helpers |
+| AlphaTex language worker | `src/renderer/workers/alphatex.worker.ts` | `lib/alphatex-lsp.ts`, local command data |
+| AlphaTex positions and selection | `src/renderer/lib/alphatex-parse-positions.ts` | cursor/playback/selection sync modules |
+| Commands and palettes | `src/renderer/lib/command-registry.ts` | `ui-command-registry.ts`, command events |
+| Print pipeline | `src/renderer/components/PrintPreview.tsx` | PrintWindow, print helpers, print track panel |
+| Desktop renderer bridge | `src/renderer/lib/desktop-api.ts` | `tauri-desktop-api.ts`, `types/desktop.d.ts` |
+| Desktop command wiring | `src-tauri/src/lib.rs` | domain-specific Rust command modules |
+| Cloud public scores | `src/renderer/lib/cloud-public-scores.ts` | CloudSidebar, CloudView, appStore Web import |
+| Git integration | `src-tauri/src/git_commands.rs` | appStore Git actions, GitWorkspace |
+
+## CORE INVARIANTS
+
+- Shared repository, file, selection, playback, command, and workspace-mode
+  state belongs in Zustand. Component-local state is for local presentation and
+  transient UI only.
+- Store `AlphaTabApi` in refs. Do not put the mutable API instance in React
+  state or Zustand.
+- Deep alphaTab configuration changes, including theme resource colors, require
+  API destroy and recreate. Calling `render()` alone is insufficient.
+- Preserve and restore track, staff, mix, playback, and relevant selection
+  state around preview rebuilds.
+- Live preview and print preview own separate alphaTab API instances.
+- Prefer `AlphaTexParser`/AST semantics for AlphaTex structure and source
+  positions. Regex is a guarded fallback, not the primary parser.
+- AlphaTex completion and hover use local command data first and upstream
+  documentation second. Preserve this precedence.
+- Build static registries once and reuse them in completion, hover, cursor, and
+  playback hot paths.
+- Renderer desktop access goes through `window.desktopAPI`. Do not call Tauri,
+  filesystem, process, or platform APIs directly from unrelated components.
+- Execute UI actions through the command registry and availability checks.
+  Avoid bespoke command paths that bypass disabled-state and context rules.
+- Pair every global, DOM, alphaTab, worker, watcher, timer, and async lifecycle
+  registration with explicit cleanup and stale-instance guards.
+- Desktop Cloud is public-only and read-only, and should reuse the normal
+  Editor/Preview workspace. Web public scores are imported into Sandbox and
+  refreshed by `at.meta.source`.
+- Preserve the global bottom-bar interaction order: staff/display context,
+  playback parameters, progress, then transport actions.
+- Preserve the print font contract: the `.at` font size remains `34px`, and
+  Bravura loading must work from the independent print context.
+- Keep user-visible strings in the existing i18n system.
+
+## CROSS-BOUNDARY CHANGE CHECKLISTS
+
+### New or changed desktop API
+
+1. Define or update shared payload types in `src/renderer/types/`.
+2. Implement the Rust command in the appropriate `src-tauri/src/*_commands.rs`
+   module.
+3. Validate every renderer-provided path or external input in Rust.
+4. Register the command in `src-tauri/src/lib.rs`.
+5. Update `src/renderer/lib/tauri-desktop-api.ts`.
+6. Update `src/renderer/types/desktop.d.ts`.
+7. Update the Web fallback in `src/renderer/lib/desktop-api.ts` when the method
+   is part of the shared runtime surface.
+8. Add or update invoke-argument, adapter, and Rust behavior tests.
+
+### Preview or playback lifecycle change
+
+1. Identify which component or hook owns the API, listener, timer, or async
+   operation.
+2. Preserve track and playback configuration before any rebuild.
+3. Guard callbacks against stale API instances and bind tokens.
+4. Unbind listeners and clear timers before destroying the API.
+5. Keep print-preview suspension/resume behavior intact.
+6. Verify empty content, parse failure, audio recovery, theme switching, and
+   repeated file changes as applicable.
+
+### AlphaTex language or position change
+
+1. Use the AST parser for structural semantics where available.
+2. Preserve local-command-over-upstream precedence.
+3. Avoid rebuilding lookup maps per completion or hover request.
+4. Keep LSP ranges and CodeMirror offsets clamped and zero-based.
+5. Check both Editor-to-Preview and Preview-to-Editor synchronization.
+6. Add focused regression tests for the changed syntax or mapping.
+
+### Workspace persistence change
+
+1. Decide whether the value is global, repository-scoped, session-only, or
+   derived.
+2. Keep global preferences in global settings and repository state in
+   `.tabst/workspace.json`.
+3. Preserve migration and sanitization for existing settings.
+4. Avoid introducing a second persistence backend for an existing domain.
+5. Verify repository switching, unavailable repositories, and Web Sandbox
+   initialization.
+
+### Command or control change
+
+1. Add or update the command registry definition.
+2. Define availability and disabled reasons.
+3. Route execution through `runUiCommand` or the established command event.
+4. Keep shortcuts, command palette, inline commands, and buttons consistent.
+5. Preserve the bottom-bar ordering contract for playback controls.
+
+## VALIDATION
+
+Select checks based on the touched area and confirm the current command
+definitions in `package.json`:
+
+```powershell
+pnpm check             # Biome format/lint checks and TypeScript
+pnpm test              # Renderer unit tests
+pnpm build:web         # Type-check and static Web build
+pnpm verify:tauri      # Web build, Rust checks/tests, bundle/config validation
+```
+
+For documentation-only work, at minimum verify Markdown links, referenced file
+paths, command names, and `git diff --check`. Documentation changes must not
+claim that a check passed unless it was run in the current worktree.
+
+## PROJECT-SPECIFIC ANTI-PATTERNS
+
+- Duplicating source-of-truth state across components and stores.
+- Parsing AlphaTex structure with regex when AST data is available.
 - Storing `AlphaTabApi` in React state.
-- Theme switching without track-config save/restore around API rebuild.
-- Changing print rendering without preserving `.at` font-size `34px` and absolute Bravura URL loading.
-- Reintroducing legacy desktop-runtime assumptions into renderer code or scripts.
-- Treating `.tmp/notebook-navigator` as part of Tabst runtime.
+- Applying deep theme changes without destroy/recreate and state restoration.
+- Reusing the live Preview API for printing.
+- Binding alphaTab or global events without deterministic teardown.
+- Executing commands without registry availability checks.
+- Rebuilding command/property registries on every editor request.
+- Adding platform-specific filesystem or process logic directly to renderer UI.
+- Trusting renderer-provided paths in Rust without normalization and scope
+  authorization.
+- Reintroducing assumptions from the archived Electron runtime.
+- Describing historical reports or plans as the current architecture.
 
-## UNIQUE STYLES
-- Interaction zoning: top/left for navigation context; bottom/right for command actions.
-- Global bottom bar is right-aligned with strict cascade: staff → display → playback params → transport.
-- Tauri-first desktop packaging and updater flow with per-platform release workflows.
-- Ops docs are weekly/report style under `docs/dev/ops/`.
+## DOCUMENTATION POLICY
 
-## COMMANDS
-```bash
-pnpm dev
-pnpm format
-pnpm check
-pnpm build
-pnpm release
-pnpm release:mac
-pnpm release:linux
-pnpm release:win
-pnpm mix
-pnpm mix:main
-pnpm mix:render
-pnpm mix:doc
-pnpm mix:config
-```
-
-## NOTES
-- CI/release workflows: `.github/workflows/{ci,release,release-linux,release-mac,website-pages}.yml`.
-- Migration state and next steps are tracked in `docs/dev/TAURI_MIGRATION_STATUS.md`.
-- Read nearest child `AGENTS.md` before editing deeper directories.
+- `README.md` is the product and contributor entry point.
+- `docs/dev/architecture/` describes the current implementation.
+- Guides and runbooks explain how to operate or debug the system.
+- Plans, migration notes, and reports must state whether they are active,
+  completed, superseded, or historical.
+- Prefer links to source-of-truth files over copied versions, branch names,
+  command lists, or workflow status.
+- Update architecture documentation when a runtime boundary, state owner,
+  lifecycle, persistence format, security rule, or operational procedure
+  changes. Routine local refactors do not require a new architecture document.

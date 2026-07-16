@@ -1,5 +1,10 @@
 # Workspace Persistence Unification Plan (Legacy Cutover + Tauri)
 
+> **Status:** Historical plan — portions were implemented or superseded during
+> the Tauri cutover. Do not treat the storage claims below as the current
+> persistence contract. See the [current architecture overview](../../architecture/OVERVIEW.md)
+> and the current settings/workspace metadata implementation.
+
 ## 1. 目标与约束
 
 ### 目标

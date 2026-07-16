@@ -11,7 +11,7 @@ on:
 
 jobs:
   lint:
-    name: Lint (pnpm lint)
+    name: Documentation and lint
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -38,13 +38,46 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Check documentation and repository metadata
+        run: pnpm docs:check
+
       - name: Run lint
         run: pnpm lint
+
+  renderer-tests:
+    name: Renderer tests (pnpm test)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "22.x"
+          cache: "pnpm"
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Force git to use HTTPS for GitHub
+        run: |
+          git config --global url."https://github.com/".insteadOf "git@github.com:"
+          git config --global url."https://github.com/".insteadOf "ssh://git@github.com/"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run renderer unit tests
+        run: pnpm test
 
   tauri-build:
     name: Desktop Build (unsigned macOS CI bundle)
     runs-on: macos-latest
-    needs: lint
+    needs:
+      - lint
+      - renderer-tests
     timeout-minutes: 45
     steps:
       - name: Checkout code

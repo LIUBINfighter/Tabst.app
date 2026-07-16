@@ -1,6 +1,11 @@
 nodeLinker: hoisted
 
+overrides:
+  "@lezer/common": 1.5.2
+
 allowBuilds:
-  esbuild: false
+  esbuild: true
+  fs-xattr: false
+  macos-alias: false
   msw: false
   puppeteer: false

@@ -1,5 +1,11 @@
 # 文档 Grounding 检查报告
 
+> **Status:** Historical — 这是 2026-02 的文档与实现一致性审计快照，不代表当前代码状态。
+> 当前实现请参阅[架构总览](../architecture/OVERVIEW.md)、
+> [Preview 生命周期](../architecture/PREVIEW_LIFECYCLE.md)和
+> [Editor 与 Preview 同步](../architecture/EDITOR_PREVIEW_SYNC.md)。
+> 本报告中列出的旧 alphaTab 文件名和当时结论仅保留为审计历史。
+
 **检查日期**: 2026-02-09  
 **检查范围**: docs/dev/ 下的技术文档与代码实现的一致性  
 **检查方法**: 代码级比对验证

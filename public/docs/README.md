@@ -2,103 +2,178 @@
   <samp>Tabst</samp>
 </h1>
 
-<h3 align="center">Write guitar tabs like markdown.</h3>
+<h3 align="center">Write guitar tabs like Markdown.</h3>
 
-[中文README](./README.zh.md)
+<p align="center">
+  <a href="./README.zh.md">中文 README</a>
+  ·
+  <a href="https://play.tabst.app">Web app</a>
+  ·
+  <a href="https://github.com/LIUBINfighter/Tabst.app/releases">Releases</a>
+</p>
 
-[![DOI](https://zenodo.org/badge/1133258569.svg)](https://doi.org/10.5281/zenodo.18447447)
-![CI](https://img.shields.io/github/actions/workflow/status/LIUBINfighter/Tabst.app/ci.yml?branch=main)
-![Release](https://img.shields.io/github/v/release/LIUBINfighter/Tabst.app)
-![Downloads (Total)](https://img.shields.io/github/downloads/LIUBINfighter/Tabst.app/total)
-![Downloads (Latest)](https://img.shields.io/github/downloads/LIUBINfighter/Tabst.app/latest/total)
+<p align="center">
+  <a href="https://doi.org/10.5281/zenodo.18447447"><img alt="DOI" src="https://zenodo.org/badge/1133258569.svg" /></a>
+  <img alt="CI" src="https://img.shields.io/github/actions/workflow/status/LIUBINfighter/Tabst.app/ci.yml?branch=main" />
+  <img alt="Release" src="https://img.shields.io/github/v/release/LIUBINfighter/Tabst.app" />
+  <img alt="Downloads" src="https://img.shields.io/github/downloads/LIUBINfighter/Tabst.app/total" />
+</p>
 
 <div align="center">
-<img width="2560" height="1406" alt="image" src="https://github.com/user-attachments/assets/d58323a0-44bb-4468-87c7-281c898a5ab6" />
+  <img width="1280" alt="Tabst editor and score preview" src="https://github.com/user-attachments/assets/d58323a0-44bb-4468-87c7-281c898a5ab6" />
 </div>
-  
-## Features
 
-Write. Play. Share.
+## What is Tabst?
 
-Efficiently write alphaTex. Play scores. Share PDF/GP.
+Tabst is a plain-text guitar-tab workspace built around
+[AlphaTex](https://www.alphatab.net/docs/alphatex/introduction). Write a score
+in CodeMirror, see it rendered by [alphaTab](https://www.alphatab.net/), play it
+back, keep it in an ordinary folder, and use Git when you want version history.
 
-- Desktop: browse public Tabst DB scores through a dedicated Cloud workspace without signing in.
-- Web (`play.tabst.app`): append public Tabst DB scores into the Sandbox workspace so they can be browsed with the normal file tree and player flow.
+The project follows a simple idea:
 
-## Why Tabst
+> Guitar-tab writing should feel as direct and portable as writing Markdown.
 
-Say no to bulky binaries and XML; the world belongs to plain text.
+AlphaTex files remain the source of truth. Tabst adds the editor, language
+assistance, workspace management, playback controls, printing, export, Git,
+tutorials, and desktop integration around them.
 
-While document writing already has a plethora of out-of-the-box Markdown editors, precise typesetting tools like LaTeX, and innovative tools like Typst, why in the realm of guitar tabs are we still connecting notes on scores like in Word?
+## Highlights
 
-[MusiXTeX](https://ctan.org/pkg/musixtex) and [Lilypond](https://lilypond.org/) have set a publishing-grade example in music notation languages, while [alphaTab.js](https://www.alphatab.net/) has made interactive and playable scores possible. In Tabst, we write alphaTex in a simple, intuitive syntax, and easily share with your friends.
+- AlphaTex editing with syntax highlighting, completion, hover, diagnostics,
+  abbreviations, and ATDOC assistance.
+- Live score rendering and playback powered by alphaTab.
+- Editor-to-score and score-to-editor selection synchronization.
+- Local repository workspaces with a file tree, templates, autosave, and
+  workspace restoration.
+- Configurable staff, track, zoom, tempo, volume, metronome, count-in, progress,
+  and transport controls.
+- Dedicated print preview plus MIDI, WAV, GP, and PDF-oriented workflows.
+- Optional Git status, diff, staging, pull, and commit support for local
+  workspaces.
+- Built-in bilingual tutorials and interactive AlphaTex playgrounds.
+- Public Tabst DB browsing without requiring an account.
+- Tauri desktop application and a static Web build from the same renderer.
 
-This is just the beginning. The vision is to make guitar tab writing as effortless as writing markdown.
+## Runtime model
 
-## Tech Stack
+Tabst uses two related runtime modes:
 
-- [alphaTex](https://www.alphatab.net/docs/alphatex/introduction)
-- [alphaTab.js](https://www.alphatab.net/)
-- [CodeMirror](https://codemirror.net/)
-- pnpm
-- TypeScript
-- Vite
-- [Tauri 2](https://tauri.app/)
-- [React 19](https://react.dev/)
-- [shadcn/ui](https://ui.shadcn.com/)
-- [Tailwindcss 3](https://tailwindcss.com/docs/installation) (Ultimately decided to revert to v3 as v4 is not stable enough)
-- [biome](https://biomejs.dev/guides/getting-started/)
-- [Zustand](https://github.com/pmndrs/zustand)
-- [Lucide Icon](https://lucide.dev/guide/packages/lucide-react)
+- **Desktop:** Tauri provides filesystem, repository watching, Git, updater,
+  settings, and operating-system capabilities. Public cloud scores are shown in
+  a dedicated read-only Cloud workspace that reuses the normal Editor/Preview
+  experience.
+- **Web:** Sandbox remains the primary workspace. Public Tabst DB scores are
+  imported into Sandbox as regular `.atex` files and refreshed by
+  `at.meta.source` when the app initializes.
 
-## Development Environment
+Cloud support is currently public-only. Sign-in, private libraries, and score
+publishing are not part of the current runtime.
 
-MCP Server
+## Platform and delivery status
 
-- [context7](https://context7.com/)
-- [shadcn/ui](https://ui.shadcn.com/)
+| Target | Local build | Repository automation |
+| --- | --- | --- |
+| Web | Supported | Deployed through GitHub Pages |
+| macOS desktop | Supported | CI bundle validation and release workflow enabled |
+| Windows desktop | Tauri build command available | Release workflow currently paused |
+| Linux desktop | Tauri build command available | Release workflow currently paused |
 
-## Install Deps
+The workflow files under `.github/workflows/` are the source of truth for
+current CI and release availability.
+
+## Technology
+
+- [Tauri 2](https://tauri.app/) and Rust for the desktop runtime.
+- [React 19](https://react.dev/), TypeScript, and Vite for the renderer.
+- [CodeMirror 6](https://codemirror.net/) for text editing.
+- [alphaTab](https://www.alphatab.net/) for score parsing, rendering, playback,
+  and export.
+- A Web Worker-based AlphaTex language pipeline for completion, hover, and
+  diagnostics.
+- Zustand for shared workspace and playback state.
+- Tailwind CSS, Radix UI, and Lucide for the interface.
+- Biome for formatting and linting, and Vitest for renderer unit tests.
+
+Exact package versions and available scripts are defined in
+[`package.json`](./package.json). Rust dependencies are defined in
+[`src-tauri/Cargo.toml`](./src-tauri/Cargo.toml).
+
+## Development
+
+### Prerequisites
+
+- Node.js 22 or a compatible current Node.js release.
+- The pnpm version declared by `package.json#packageManager`.
+- Rust stable and the platform prerequisites required by Tauri 2.
+- Git for the optional in-app Git workspace and normal repository development.
+
+### Install
 
 ```powershell
 pnpm install
 ```
 
-## Development
+### Run
 
 ```powershell
-pnpm run dev  # Run React development server + Tauri shell
-pnpm run dev:react # Run renderer only
+pnpm dev        # Vite renderer plus the Tauri desktop shell
+pnpm dev:react  # Renderer only, using the Web runtime adapter
 ```
 
-## Build Targets
+The Vite development server listens on `127.0.0.1:7777` by default.
+
+### Validate
 
 ```powershell
-pnpm run build        # Default desktop build (Tauri)
-pnpm run build:web    # Website target (static dist)
-pnpm run build:tauri  # Explicit Tauri desktop build
+pnpm check             # Biome format/lint checks plus TypeScript
+pnpm test              # Renderer unit tests
+pnpm build:web         # Type-check and build the static Web target
+pnpm verify:tauri      # Web build, Rust checks/tests, bundle and config checks
 ```
 
-## Release
+Run the checks relevant to the area you changed. `pnpm verify:tauri` includes
+Rust validation but does not replace the renderer Vitest suite.
+
+### Build
 
 ```powershell
-pnpm run release
-pnpm run release:mac
-pnpm run release:linux
-pnpm run release:win
+pnpm build        # Default Tauri desktop build
+pnpm build:web    # Static Web build in dist/
+pnpm build:tauri  # Explicit Tauri desktop build
 ```
 
-## Desktop Runtime
+Local release aliases are defined in `package.json`; official publishing
+availability is controlled by the workflows in `.github/workflows/`.
 
-The desktop runtime cutover is complete and the repository is now Tauri-first.
+## Architecture and contributor guidance
 
-- Product builds, release commands, and CI desktop validation all target Tauri.
-- The renderer uses a unified `desktopAPI` bridge for desktop capabilities.
-- Desktop now includes a read-only Cloud workspace mode: the left sidebar lists public Tabst DB scores, and the selected score reuses the normal Editor/Preview split in read-only form.
-- Detailed normalization work and follow-up tasks are tracked in [docs/dev/TAURI_MIGRATION_STATUS.md](./docs/dev/TAURI_MIGRATION_STATUS.md).
+- [Architecture overview](./docs/dev/architecture/OVERVIEW.md) — runtime
+  boundaries, state ownership, editing and preview flows, persistence, Cloud,
+  printing, Git, and build topology.
+- [Development documentation](./docs/dev/README.md) — deeper AlphaTex,
+  alphaTab, operations, roadmap, and historical notes.
+- [Repository instructions](./AGENTS.md) — stable invariants, ownership maps,
+  cross-boundary change checklists, and validation expectations.
 
-## Web Runtime Notes
+Read the nearest `AGENTS.md` before editing a deeper source directory.
 
-- `play.tabst.app` keeps the existing Sandbox repo model as the primary web workspace.
-- On web initialization, public Tabst DB scores are imported into the Sandbox workspace as `.atex` files and refreshed by `at.meta.source`, so repeated visits update existing imported public objects instead of duplicating them.
-- The web flow is intentionally public-only. There is no sign-in, private-library, or publish flow in the current website adaptation.
+## Project layout
+
+```text
+Tabst.app/
+├── src/renderer/       # React app, CodeMirror, alphaTab, stores, worker/LSP
+├── src-tauri/          # Rust desktop runtime and Tauri commands
+├── public/assets/      # Runtime fonts, soundfonts, and alphaTab assets
+├── docs/dev/           # Engineering architecture, guides, plans, and reports
+├── scripts/            # Build verification, vendor sync, and release helpers
+└── .github/workflows/  # CI, Web deployment, and desktop release workflows
+```
+
+The `.tmp/notebook-navigator` directory is an unrelated sandbox and is not part
+of the Tabst product runtime.
+
+## License
+
+Tabst is licensed under the
+[Mozilla Public License 2.0](./LICENSE).

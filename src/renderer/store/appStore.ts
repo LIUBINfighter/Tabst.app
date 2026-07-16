@@ -275,7 +275,7 @@ export interface FileItem {
 
 /**
  * Score selection information - for synchronizing selection between Preview and Editor
- * Uses alphaTab 1.8.0 Selection API
+ * Uses the public Selection API introduced in alphaTab 1.8
  */
 export interface ScoreSelectionInfo {
 	/** Start beat's bar index (0-based) */

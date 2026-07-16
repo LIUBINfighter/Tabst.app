@@ -6,7 +6,7 @@ Fixes #
 <!-- Describe the proposed changes -->
 
 ## Checklist
-- [ ] I consent that this change becomes part of Tabst under its current or any future open source license
+- [ ] I have the right to submit this contribution and agree that it is licensed under the Mozilla Public License 2.0 (MPL-2.0)
 - [ ] Changes are implemented
 - [ ] New tests were added <!-- Strongly recommended. If no tests were added, explain why. -->
 

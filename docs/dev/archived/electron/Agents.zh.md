@@ -7,5 +7,5 @@
 ## 当前应以这些文件为准
 
 - `AGENTS.md`：当前项目知识库（Tauri-first）
-- `docs/dev/TAURI_MIGRATION_STATUS.md`：桌面运行时迁移与后续规范化状态
+- `docs/dev/architecture/OVERVIEW.md`：当前桌面运行时与跨层架构
 - `docs/dev/README.md`：当前开发文档目录
