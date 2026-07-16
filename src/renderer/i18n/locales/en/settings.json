@@ -252,6 +252,8 @@
 		}
 	},
 	"githubLink": "GitHub →",
+	"licenseLabel": "License",
+	"licenseName": "Mozilla Public License 2.0",
 	"readmeTitle": "README",
 	"alphatabLogoAlt": "alphaTab logo",
 	"specialThanks": "Special Thanks",

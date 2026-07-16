@@ -1,5 +1,9 @@
 # Tabst Information Architecture Archive
 
+> **Status:** Historical archive snapshot / 历史归档快照。 This file records
+> observed UI structure at a past point in time and is not the current product
+> specification. See the [current architecture overview](../../architecture/OVERVIEW.md).
+
 **Date / 日期**: 2026-03-22  
 **Status / 状态**: Archive snapshot based on Tauri MCP interaction test / 基于 Tauri MCP 交互测试的归档快照
 

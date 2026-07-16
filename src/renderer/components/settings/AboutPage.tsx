@@ -67,6 +67,15 @@ export function AboutPage() {
 					>
 						{t("settings:githubLink")}
 					</AppLink>
+					<p className="text-xs text-muted-foreground">
+						{t("settings:licenseLabel")}:{" "}
+						<AppLink
+							href="https://github.com/LIUBINfighter/Tabst.app/blob/main/LICENSE"
+							className="text-xs text-primary hover:underline"
+						>
+							{t("settings:licenseName")}
+						</AppLink>
+					</p>
 				</div>
 			</section>
 

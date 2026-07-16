@@ -12,7 +12,8 @@
 ## WHERE TO LOOK
 | Task | Location | Notes |
 |------|----------|-------|
-| Core alphaTab bootstrap | `useAlphaTab.ts` | init, tab-probe, reinit, theme observer |
+| Production live Preview lifecycle | `../components/Preview.tsx` + `usePreview*` | Preview owns orchestration; hooks own focused lifecycle responsibilities |
+| Unused lifecycle abstraction | `useAlphaTab.ts` | currently has no production importer; do not treat as the live Preview contract |
 | Print-preview lifecycle split | `usePreviewApiLifecycle.ts` | destroy/reinit around print mode |
 | Listener ownership | `usePreviewEventBindings.ts` | bind token + teardown discipline |
 | Recovery path | `usePreviewErrorRecovery.ts` | parse timeout + fallback restore |
@@ -23,6 +24,8 @@
 - Pair every listener/timer with teardown in cleanup.
 - Use shared destroy helper paths (`destroyPreviewApi`) for consistent cleanup.
 - Gate store writes to changed values where possible to reduce churn.
+- Keep current lifecycle documentation aligned with
+  `docs/dev/architecture/PREVIEW_LIFECYCLE.md`.
 
 ## INTER-HOOK CONTRACTS
 - `usePreviewApiLifecycle` controls destroy/reinit around print mode.
