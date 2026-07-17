@@ -33,7 +33,7 @@ function includesToken(value, token) {
 	return tokenize(value).includes(token);
 }
 
-function verifyCspObject(name, csp, { allowDevEval = false, requireDevHost = false } = {}) {
+function verifyCspObject(name, csp, { allowDevEval = false, devServerUrl } = {}) {
 	ensure(csp && typeof csp === "object" && !Array.isArray(csp), `${name} must be a CSP object`);
 	ensure(csp["default-src"], `${name} must define default-src`);
 	ensure(csp["script-src"], `${name} must define script-src`);
@@ -60,10 +60,13 @@ function verifyCspObject(name, csp, { allowDevEval = false, requireDevHost = fal
 	}
 	ensure(!includesToken(csp["script-src"], "'unsafe-inline'"), `${name} script-src must not allow unsafe-inline`);
 
-	if (requireDevHost) {
+	if (devServerUrl) {
+		const devServerOrigin = new URL(devServerUrl).origin;
+		const devServerWebSocketUrl = new URL(devServerOrigin);
+		devServerWebSocketUrl.protocol = devServerWebSocketUrl.protocol === "https:" ? "wss:" : "ws:";
 		ensure(
-			includesToken(csp["connect-src"], "http://127.0.0.1:7777") &&
-				includesToken(csp["connect-src"], "ws://127.0.0.1:7777"),
+			includesToken(csp["connect-src"], devServerOrigin) &&
+				includesToken(csp["connect-src"], devServerWebSocketUrl.origin),
 			`${name} connect-src must allow the local Vite dev server`,
 		);
 	}
@@ -95,7 +98,7 @@ function main() {
 	verifyCspObject("app.security.csp", tauriConfig.app?.security?.csp);
 	verifyCspObject("app.security.devCsp", tauriConfig.app?.security?.devCsp, {
 		allowDevEval: true,
-		requireDevHost: true,
+		devServerUrl: tauriConfig.build?.devUrl,
 	});
 	ensure(tauriConfig.app?.withGlobalTauri === true, "app.withGlobalTauri must be enabled for Tauri MCP bridge");
 
