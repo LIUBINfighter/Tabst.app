@@ -121,7 +121,7 @@ pnpm dev        # Vite renderer plus the Tauri desktop shell
 pnpm dev:react  # Renderer only, using the Web runtime adapter
 ```
 
-The Vite development server listens on `127.0.0.1:7777` by default.
+The Vite development server listens on `127.0.0.1:1420` by default.
 
 ### Validate
 

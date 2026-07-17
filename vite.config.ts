@@ -164,7 +164,7 @@ export default defineConfig({
 	},
 	server: {
 		host: tauriDevHost || "127.0.0.1",
-		port: 7777,
+		port: 1420,
 		strictPort: true,
 		hmr: tauriDevHost
 			? {
