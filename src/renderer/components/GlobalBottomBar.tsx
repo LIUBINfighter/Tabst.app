@@ -18,7 +18,7 @@ import {
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { TutorialMetadata } from "../data/tutorials";
-import { isGpFilePath } from "../lib/gp-import";
+import { isImportableScoreFilePath } from "../lib/gp-import";
 import {
 	getNextTutorial,
 	getPrevTutorial,
@@ -698,7 +698,7 @@ export default function GlobalBottomBar() {
 	const requestStaffToggle = useAppStore((state) => state.requestStaffToggle);
 	const isAtexFile =
 		activeFile?.path.endsWith(".atex") ||
-		(activeFile?.path && isGpFilePath(activeFile.path)) ||
+		(activeFile?.path && isImportableScoreFilePath(activeFile.path)) ||
 		false;
 
 	const playerIsPlaying = useAppStore((s) => s.playerIsPlaying);

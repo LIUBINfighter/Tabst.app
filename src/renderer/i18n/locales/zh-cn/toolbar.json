@@ -50,6 +50,23 @@
 		"midi": "导出 MIDI",
 		"wav": "导出 WAV",
 		"gp": "导出 GP",
+		"mxl": "导出 MusicXML（.mxl）",
+		"mxlOverwrite": "目标 MusicXML 文件已存在：\n{{path}}\n\n是否覆盖？",
+		"mxlSuccess": "MusicXML 导出成功：\n{{path}}",
+		"mxlErrors": {
+			"musescore-not-configured": "请先在“设置 > 外部工具”中配置 MuseScore 可执行文件路径。",
+			"musescore-not-found": "已配置的 MuseScore 可执行文件不存在。",
+			"musescore-launch-failed": "无法启动 MuseScore，请检查配置的可执行文件路径。",
+			"musescore-conversion-timeout": "MuseScore 转换超过 120 秒，已终止。",
+			"musescore-conversion-failed": "MuseScore 无法转换这个 Guitar Pro 文件。",
+			"mxl-not-generated": "MuseScore 已退出，但没有生成 MXL 文件。",
+			"invalid-mxl-output": "MuseScore 生成的文件不是有效的 MXL 压缩包。",
+			"target-replace-failed": "无法替换已有的 MXL 文件。",
+			"path-outside-workspace": "只能转换当前工作区中的 Guitar Pro 文件。",
+			"unsupported-source-format": "MusicXML 导出需要 Guitar Pro 源文件。",
+			"Unsupported in web runtime": "通过 MuseScore 导出 MusicXML 仅在桌面版中可用。",
+			"unknown": "MusicXML 导出失败：{{error}}"
+		},
 		"atex": "生成同名 .atex"
 	},
 	"preview": {

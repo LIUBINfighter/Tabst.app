@@ -191,10 +191,58 @@ export default function Preview({
 		null,
 	);
 	const [isGeneratingAtex, setIsGeneratingAtex] = useState(false);
+	const [isExportingMxl, setIsExportingMxl] = useState(false);
 	const [reinitTrigger, setReinitTrigger] = useState(0);
 	const { handleImportGpFile } = useFileOperations();
 	const isGpSourceFile = Boolean(filePath && isGpFilePath(filePath));
 	const exportLockRef = useRef<ExportFormat | null>(null);
+	const mxlExportLockRef = useRef(false);
+
+	const handleExportMxlFromGp = useCallback(async () => {
+		if (!filePath || !isGpSourceFile || mxlExportLockRef.current) return;
+		if (exportLockRef.current || isGeneratingAtex) return;
+
+		mxlExportLockRef.current = true;
+		setIsExportingMxl(true);
+		try {
+			let result = await window.desktopAPI.convertGpToMxl(filePath, false);
+			if (result.error === "target-exists") {
+				const shouldOverwrite = window.confirm(
+					t("toolbar:export.mxlOverwrite", {
+						path: result.outputPath ?? "",
+					}),
+				);
+				if (!shouldOverwrite) return;
+				result = await window.desktopAPI.convertGpToMxl(filePath, true);
+			}
+
+			if (!result.success) {
+				const errorKey = `toolbar:export.mxlErrors.${result.error ?? "unknown"}`;
+				const translated = t(errorKey);
+				const message =
+					translated === errorKey
+						? t("toolbar:export.mxlErrors.unknown", {
+								error: result.error ?? "unknown",
+							})
+						: translated;
+				window.alert(message);
+				return;
+			}
+
+			console.info(`[Preview] Exported MXL to ${result.outputPath}`);
+			window.alert(
+				t("toolbar:export.mxlSuccess", { path: result.outputPath ?? "" }),
+			);
+		} catch (error) {
+			console.error("[Preview] Failed to export MXL:", error);
+			window.alert(
+				t("toolbar:export.mxlErrors.unknown", { error: String(error) }),
+			);
+		} finally {
+			mxlExportLockRef.current = false;
+			setIsExportingMxl(false);
+		}
+	}, [filePath, isGeneratingAtex, isGpSourceFile, t]);
 
 	const handleExportScore = useCallback(
 		async (format: ExportFormat) => {
@@ -460,12 +508,17 @@ export default function Preview({
 
 			if (commandId === "preview.export.gp7") {
 				void handleExportScore("gp");
+				return;
+			}
+
+			if (commandId === "preview.export.musicxml") {
+				void handleExportMxlFromGp();
 			}
 		};
 
 		window.addEventListener(PREVIEW_COMMAND_EVENT, handler);
 		return () => window.removeEventListener(PREVIEW_COMMAND_EVENT, handler);
-	}, [handleExportScore]);
+	}, [handleExportMxlFromGp, handleExportScore]);
 
 	useEffect(() => {
 		const isTypingTarget = (target: EventTarget | null): boolean => {
@@ -2263,6 +2316,10 @@ export default function Preview({
 										isGpSourceFile ? handleGenerateAtexFromGp : undefined
 									}
 									isGeneratingAtex={isGeneratingAtex}
+									onExportMxlClick={
+										isGpSourceFile ? handleExportMxlFromGp : undefined
+									}
+									isExportingMxl={isExportingMxl}
 									onEnjoyToggle={onEnjoyToggle}
 									isEnjoyMode={isEnjoyMode}
 									t={t}

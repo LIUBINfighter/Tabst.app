@@ -2,6 +2,7 @@
 	"collapseSidebar": "Collapse sidebar",
 	"expandSidebar": "Expand sidebar",
 	"openFile": "Open file",
+	"scoreReadFailed": "Failed to read score file \"{{name}}\".",
 	"newAtex": "New .atex",
 	"newMd": "New .md",
 	"newFolder": "New folder",

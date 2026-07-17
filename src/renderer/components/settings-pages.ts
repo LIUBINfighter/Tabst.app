@@ -36,6 +36,11 @@ export const defaultSettingsPages: SettingsPage[] = [
 		description: "快捷键绑定与冲突管理",
 	},
 	{
+		id: "externalTools",
+		title: "外部工具",
+		description: "配置 MuseScore 等本机转换工具",
+	},
+	{
 		id: "updates",
 		title: "更新", // 后备值，实际使用 t("settings:updates")
 		description: "版本检查与更新相关功能",

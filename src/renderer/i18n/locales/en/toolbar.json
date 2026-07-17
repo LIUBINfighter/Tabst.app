@@ -50,6 +50,23 @@
 		"midi": "Export MIDI",
 		"wav": "Export WAV",
 		"gp": "Export GP",
+		"mxl": "Export MusicXML (.mxl)",
+		"mxlOverwrite": "The target MusicXML file already exists:\n{{path}}\n\nOverwrite it?",
+		"mxlSuccess": "MusicXML exported successfully:\n{{path}}",
+		"mxlErrors": {
+			"musescore-not-configured": "Configure the MuseScore executable path in Settings > External Tools first.",
+			"musescore-not-found": "The configured MuseScore executable no longer exists.",
+			"musescore-launch-failed": "MuseScore could not be started. Check the configured executable path.",
+			"musescore-conversion-timeout": "MuseScore conversion timed out after 120 seconds.",
+			"musescore-conversion-failed": "MuseScore could not convert this Guitar Pro file.",
+			"mxl-not-generated": "MuseScore exited without generating an MXL file.",
+			"invalid-mxl-output": "MuseScore generated a file that is not a valid MXL archive.",
+			"target-replace-failed": "The existing MXL file could not be replaced.",
+			"path-outside-workspace": "Only Guitar Pro files inside the active workspace can be converted.",
+			"unsupported-source-format": "MusicXML export requires a Guitar Pro source file.",
+			"Unsupported in web runtime": "MusicXML export through MuseScore is available only in the desktop app.",
+			"unknown": "MusicXML export failed: {{error}}"
+		},
 		"atex": "Generate .atex"
 	},
 	"preview": {

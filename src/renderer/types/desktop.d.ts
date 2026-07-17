@@ -24,6 +24,23 @@ export interface RepoFsChangedEvent {
 	changedPath?: string;
 }
 
+export interface MuseScoreSettingsResult {
+	success: boolean;
+	executablePath?: string;
+	error?: string;
+}
+
+export interface MuseScoreValidationResult extends MuseScoreSettingsResult {
+	version?: string;
+}
+
+export interface MusicXmlExportResult {
+	success: boolean;
+	outputPath?: string;
+	exitCode?: number;
+	error?: string;
+}
+
 export interface DesktopAPI {
 	openFile: (extensions: string[]) => Promise<FileResult | null>;
 	createFile: (
@@ -163,6 +180,17 @@ export interface DesktopAPI {
 		success: boolean;
 		error?: string;
 	}>;
+	loadMuseScoreSettings: () => Promise<MuseScoreSettingsResult>;
+	validateMuseScoreExecutable: (
+		executablePath: string,
+	) => Promise<MuseScoreValidationResult>;
+	saveMuseScoreExecutablePath: (
+		executablePath: string | null,
+	) => Promise<MuseScoreValidationResult>;
+	convertGpToMxl: (
+		sourcePath: string,
+		overwrite?: boolean,
+	) => Promise<MusicXmlExportResult>;
 	setKeepAwake: (enabled: boolean) => Promise<{
 		success: boolean;
 		error?: string;

@@ -258,6 +258,40 @@ pub(crate) struct GlobalSettingsLoadResponse {
     pub(crate) error: Option<String>,
 }
 
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct MuseScoreSettingsResponse {
+    pub(crate) success: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) executable_path: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) error: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct MuseScoreValidationResponse {
+    pub(crate) success: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) executable_path: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) version: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) error: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct MusicXmlExportResponse {
+    pub(crate) success: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) output_path: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) exit_code: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) error: Option<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct RepoFsChangedEvent {

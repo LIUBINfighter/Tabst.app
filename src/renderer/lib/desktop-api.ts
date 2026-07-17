@@ -6,7 +6,7 @@ import type {
 } from "../types/desktop";
 import type { GitChangeGroup } from "../types/git";
 import type { FileNode, Repo, RepoMetadata } from "../types/repo";
-import { isGpFilePath } from "./gp-import";
+import { isImportableScoreFilePath } from "./gp-import";
 import { createTauriDesktopAPI } from "./tauri-desktop-api";
 
 interface BrowserStoredFile {
@@ -164,13 +164,13 @@ async function createBrowserStoredFile(
 	path: string,
 	repoPath: string,
 ): Promise<BrowserStoredFile> {
-	const isBinaryGpFile = isGpFilePath(file.name);
+	const isBinaryScoreFile = isImportableScoreFilePath(file.name);
 
 	return {
 		path,
 		name: file.name,
-		content: isBinaryGpFile ? "" : await file.text(),
-		binaryData: isBinaryGpFile
+		content: isBinaryScoreFile ? "" : await file.text(),
+		binaryData: isBinaryScoreFile
 			? Array.from(new Uint8Array(await file.arrayBuffer()))
 			: undefined,
 		repoPath,
@@ -567,6 +567,26 @@ export function createWebDesktopAPI(): DesktopAPI {
 			safeWriteJson(STORAGE_KEYS.globalSettings, settings);
 			return { success: true };
 		},
+
+		loadMuseScoreSettings: async () => ({
+			success: false,
+			error: "Unsupported in web runtime",
+		}),
+
+		validateMuseScoreExecutable: async () => ({
+			success: false,
+			error: "Unsupported in web runtime",
+		}),
+
+		saveMuseScoreExecutablePath: async () => ({
+			success: false,
+			error: "Unsupported in web runtime",
+		}),
+
+		convertGpToMxl: async () => ({
+			success: false,
+			error: "Unsupported in web runtime",
+		}),
 
 		setKeepAwake: async (_enabled: boolean) => ({ success: true }),
 	};

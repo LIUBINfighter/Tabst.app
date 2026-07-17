@@ -6,7 +6,12 @@
  */
 
 import { useCallback } from "react";
-import { convertGpBytesToAlphaTex, isGpFilePath } from "../lib/gp-import";
+import {
+	convertGpBytesToAlphaTex,
+	convertScoreBytesToAlphaTex,
+	isGpFilePath,
+	isMxlFilePath,
+} from "../lib/gp-import";
 import type { FileItem } from "../store/appStore";
 import { useAppStore } from "../store/appStore";
 
@@ -18,6 +23,7 @@ const ALLOWED_EXTENSIONS = [
 	".gp4",
 	".gp5",
 	".gpx",
+	".mxl",
 ];
 
 const NEW_FOLDER_README_NAME = "README.md";
@@ -176,6 +182,23 @@ export function useFileOperations() {
 			try {
 				const result = await window.desktopAPI.openFile(ALLOWED_EXTENSIONS);
 				if (!result) return;
+				if (isMxlFilePath(result.path)) {
+					const readResult = await window.desktopAPI.readFileBytes(result.path);
+					if (!readResult.data) {
+						console.error("Failed to read MXL file bytes:", readResult.error);
+						return;
+					}
+
+					addFile({
+						id: result.path,
+						name: result.name,
+						path: result.path,
+						content: convertScoreBytesToAlphaTex(readResult.data),
+						contentLoaded: true,
+					});
+					setWorkspaceMode("editor");
+					return;
+				}
 				if (isGpFilePath(result.path)) {
 					await handleImportGpFile(result.path, targetDirectory);
 					return;
@@ -192,7 +215,7 @@ export function useFileOperations() {
 				console.error("打开文件失败:", error);
 			}
 		},
-		[addFile, handleImportGpFile],
+		[addFile, handleImportGpFile, setWorkspaceMode],
 	);
 
 	const handleNewFile = useCallback(

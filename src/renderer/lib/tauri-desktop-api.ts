@@ -575,6 +575,53 @@ export function createTauriDesktopAPI(): DesktopAPI {
 			}
 		},
 
+		loadMuseScoreSettings: async () => {
+			try {
+				return await invokeCommand<
+					Awaited<ReturnType<DesktopAPI["loadMuseScoreSettings"]>>
+				>("load_musescore_settings");
+			} catch (error) {
+				return { success: false, error: toErrorMessage(error) };
+			}
+		},
+
+		validateMuseScoreExecutable: async (executablePath: string) => {
+			try {
+				return await invokeCommand<
+					Awaited<ReturnType<DesktopAPI["validateMuseScoreExecutable"]>>
+				>("validate_musescore_executable", {
+					executable_path: executablePath,
+				});
+			} catch (error) {
+				return { success: false, error: toErrorMessage(error) };
+			}
+		},
+
+		saveMuseScoreExecutablePath: async (executablePath: string | null) => {
+			try {
+				return await invokeCommand<
+					Awaited<ReturnType<DesktopAPI["saveMuseScoreExecutablePath"]>>
+				>("save_musescore_executable_path", {
+					executable_path: executablePath,
+				});
+			} catch (error) {
+				return { success: false, error: toErrorMessage(error) };
+			}
+		},
+
+		convertGpToMxl: async (sourcePath: string, overwrite = false) => {
+			try {
+				return await invokeCommand<
+					Awaited<ReturnType<DesktopAPI["convertGpToMxl"]>>
+				>("convert_gp_to_mxl", {
+					source_path: sourcePath,
+					overwrite,
+				});
+			} catch (error) {
+				return { success: false, error: toErrorMessage(error) };
+			}
+		},
+
 		setKeepAwake: async (
 			enabled: boolean,
 		): Promise<{ success: boolean; error?: string }> => {

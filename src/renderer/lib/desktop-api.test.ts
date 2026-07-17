@@ -130,6 +130,23 @@ describe("tauri runtime detection", () => {
 		);
 	});
 
+	it("reports MuseScore integration as desktop-only in web runtime", async () => {
+		const api = createWebDesktopAPI();
+
+		expect(await api.loadMuseScoreSettings()).toEqual({
+			success: false,
+			error: "Unsupported in web runtime",
+		});
+		expect(await api.validateMuseScoreExecutable("/usr/bin/mscore")).toEqual({
+			success: false,
+			error: "Unsupported in web runtime",
+		});
+		expect(await api.convertGpToMxl("web://repo/song.gp")).toEqual({
+			success: false,
+			error: "Unsupported in web runtime",
+		});
+	});
+
 	it("preserves binary gp bytes when importing through openFile", async () => {
 		const api = createWebDesktopAPI();
 		const originalBytes = Uint8Array.from([0, 255, 254, 65, 0, 66, 67]);
@@ -140,6 +157,24 @@ describe("tauri runtime detection", () => {
 		];
 
 		const result = await api.openFile([".gp5"]);
+		expect(result).not.toBeNull();
+
+		const readResult = await api.readFileBytes(result?.path ?? "");
+		expect(Array.from(readResult.data ?? [])).toEqual(
+			Array.from(originalBytes),
+		);
+	});
+
+	it("preserves compressed MusicXML bytes when importing through openFile", async () => {
+		const api = createWebDesktopAPI();
+		const originalBytes = Uint8Array.from([80, 75, 3, 4, 0, 255, 10, 13]);
+		nextPickedFiles = [
+			new File([originalBytes], "score.mxl", {
+				type: "application/vnd.recordare.musicxml",
+			}),
+		];
+
+		const result = await api.openFile([".mxl"]);
 		expect(result).not.toBeNull();
 
 		const readResult = await api.readFileBytes(result?.path ?? "");
