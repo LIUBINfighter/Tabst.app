@@ -10,4 +10,5 @@ export interface GlobalSettings {
 	locale?: "en" | "zh-cn";
 	deleteBehavior?: "system-trash" | "repo-trash" | "ask-every-time";
 	theme?: ThemePreference;
+	showButtonTooltips?: boolean;
 }

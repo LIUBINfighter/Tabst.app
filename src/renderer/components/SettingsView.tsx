@@ -7,6 +7,7 @@ import { AppearancePage } from "./settings/AppearancePage";
 import { CommandsPage } from "./settings/CommandsPage";
 import { ExternalToolsPage } from "./settings/ExternalToolsPage";
 import { PlaybackPage } from "./settings/PlaybackPage";
+import { RecordPage } from "./settings/RecordPage";
 import { RoadmapPage } from "./settings/RoadmapPage";
 import { ShortcutsPage } from "./settings/ShortcutsPage";
 import { TemplatesPage } from "./settings/TemplatesPage";
@@ -56,6 +57,8 @@ export default function SettingsView({
 		switch (pageId) {
 			case "appearance":
 				return <AppearancePage />;
+			case "record":
+				return <RecordPage />;
 			case "playback":
 				return <PlaybackPage />;
 			case "commands":

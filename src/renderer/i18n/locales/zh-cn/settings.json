@@ -3,6 +3,8 @@
 	"backToEditor": "返回编辑器",
 	"appearance": "外观",
 	"appearanceDesc": "主题与界面显示相关设置",
+	"record": "录制",
+	"recordDesc": "适合视频录制的界面显示设置",
 	"light": "浅色",
 	"dark": "深色",
 	"system": "跟随系统",
@@ -279,6 +281,10 @@
 		"uiTheme": "界面主题",
 		"editorTheme": "编辑器高亮",
 		"preview": "当前选择"
+	},
+	"recordSection": {
+		"showButtonTooltips": "显示按钮提示",
+		"showButtonTooltipsHint": "录制视频时可关闭此项，避免按钮提示遮挡内容；按钮的无障碍标签仍会保留。"
 	},
 	"playbackSection": {
 		"experimental": "试验性",

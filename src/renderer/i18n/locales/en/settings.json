@@ -3,6 +3,8 @@
 	"backToEditor": "Back to editor",
 	"appearance": "Appearance",
 	"appearanceDesc": "Theme and display",
+	"record": "Record",
+	"recordDesc": "Recording-friendly interface options",
 	"light": "Light",
 	"dark": "Dark",
 	"system": "System",
@@ -279,6 +281,10 @@
 		"uiTheme": "UI Theme",
 		"editorTheme": "Editor Highlight",
 		"preview": "Current Selection"
+	},
+	"recordSection": {
+		"showButtonTooltips": "Show button tooltips",
+		"showButtonTooltipsHint": "Turn this off while recording to prevent button hints from covering the content. Button accessibility labels remain available."
 	},
 	"playbackSection": {
 		"experimental": "Experimental",
