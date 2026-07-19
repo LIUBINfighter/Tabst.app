@@ -34,6 +34,7 @@ import {
 	rebindEditorAutosaveRequest,
 } from "../lib/editor-autosave";
 import { isImportableScoreFilePath } from "../lib/gp-import";
+import { shouldMountPreviewTracksPanel } from "../lib/score-workspace-layout";
 import { runUiCommand } from "../lib/ui-command-registry";
 import {
 	isWebsiteMobileLayout,
@@ -862,6 +863,10 @@ export function Editor({
 	// Determine language to optionally enable preview layout for .atex
 	const languageForActive = getLanguageForFile(activeFile.path);
 	const isImportedScoreFile = isImportableScoreFilePath(activeFile.path);
+	const mountTracksPanelInPreview = shouldMountPreviewTracksPanel({
+		isImportedScoreFile,
+		enjoyMode,
+	});
 
 	return (
 		<div className="flex-1 flex flex-col h-full overflow-hidden">
@@ -869,7 +874,7 @@ export function Editor({
 				<div className="flex-1 overflow-hidden flex">
 					<div className="w-full relative flex flex-col bg-card min-h-0 overflow-y-auto overflow-x-hidden">
 						<Preview
-							fileName={`${activeFile.name} ${t("common:preview")}`}
+							fileName={activeFile.name}
 							filePath={activeFile.path}
 							content={activeFile.content}
 							onApiChange={setPreviewApi}
@@ -881,7 +886,7 @@ export function Editor({
 							showExpandSidebar={showExpandSidebar}
 							onExpandSidebar={onExpandSidebar}
 						/>
-						{enjoyMode && (
+						{mountTracksPanelInPreview && (
 							<TracksPanel
 								api={previewApi}
 								isOpen={isTracksPanelOpen && previewApi !== null}
@@ -947,7 +952,7 @@ export function Editor({
 						className={`${enjoyMode ? "w-full" : shouldStackWebsitePreview ? "h-1/2 w-full" : "w-1/2"} relative flex flex-col bg-card min-h-0 overflow-y-auto overflow-x-hidden`}
 					>
 						<Preview
-							fileName={`${activeFile.name} ${t("common:preview")}`}
+							fileName={activeFile.name}
 							filePath={activeFile.path}
 							content={activeFile.content}
 							onApiChange={setPreviewApi}
@@ -957,7 +962,7 @@ export function Editor({
 							isEnjoyMode={enjoyMode}
 							mobileScoreFit={websiteMobileLayout}
 						/>
-						{enjoyMode && (
+						{mountTracksPanelInPreview && (
 							<TracksPanel
 								api={previewApi}
 								isOpen={isTracksPanelOpen && previewApi !== null}

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+	buildPrintDocumentTitle,
 	buildPrintWindowUrl,
 	isPrintWindowLocation,
 	PRINT_WINDOW_QUERY_KEY,
@@ -7,6 +8,15 @@ import {
 } from "./print-window";
 
 describe("print-window helpers", () => {
+	it("builds the PDF document title from the source file name", () => {
+		expect(buildPrintDocumentTitle("Canon Rock.atex")).toBe("Canon Rock");
+		expect(buildPrintDocumentTitle("arrangements/song.v2.atex")).toBe(
+			"song.v2",
+		);
+		expect(buildPrintDocumentTitle("C:\\scores\\demo.gp5")).toBe("demo");
+		expect(buildPrintDocumentTitle("Untitled")).toBe("Untitled");
+	});
+
 	it("builds a same-origin app url for the dedicated print window", () => {
 		expect(
 			buildPrintWindowUrl("https://tauri.localhost/index.html?foo=1#section"),
