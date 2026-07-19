@@ -9,6 +9,7 @@ import {
 const DEFAULT_SETTINGS: GlobalSettings = {
 	locale: "zh-cn",
 	deleteBehavior: "ask-every-time",
+	showButtonTooltips: true,
 	theme: {
 		uiThemeId: "github",
 		editorThemeId: "github",
@@ -71,6 +72,11 @@ async function loadLegacyGlobalSettings(): Promise<GlobalSettings | null> {
 				(response.data as GlobalSettings).deleteBehavior ??
 				DEFAULT_SETTINGS.deleteBehavior,
 			theme: (response.data as GlobalSettings).theme ?? DEFAULT_SETTINGS.theme,
+			showButtonTooltips:
+				typeof (response.data as GlobalSettings).showButtonTooltips ===
+				"boolean"
+					? (response.data as GlobalSettings).showButtonTooltips
+					: DEFAULT_SETTINGS.showButtonTooltips,
 		};
 	} catch (error) {
 		console.error("Failed to load legacy global settings:", error);
@@ -107,6 +113,8 @@ export async function loadGlobalSettings(): Promise<GlobalSettings> {
 				workspaceSettings.deleteBehavior,
 			theme:
 				metadata.preferences?.theme ?? legacy?.theme ?? workspaceSettings.theme,
+			showButtonTooltips:
+				legacy?.showButtonTooltips ?? DEFAULT_SETTINGS.showButtonTooltips,
 		};
 	} catch (error) {
 		console.error("Failed to load workspace settings:", error);
@@ -114,9 +122,54 @@ export async function loadGlobalSettings(): Promise<GlobalSettings> {
 	}
 }
 
+async function saveLegacyGlobalSettings(
+	partial: Partial<GlobalSettings>,
+): Promise<boolean> {
+	if (
+		!window.desktopAPI?.loadGlobalSettings ||
+		!window.desktopAPI?.saveGlobalSettings
+	) {
+		return false;
+	}
+
+	try {
+		const response = await window.desktopAPI.loadGlobalSettings();
+		const current =
+			response?.success && response.data && typeof response.data === "object"
+				? (response.data as Record<string, unknown>)
+				: {};
+		const result = await window.desktopAPI.saveGlobalSettings({
+			...current,
+			...partial,
+		});
+		return result.success;
+	} catch (error) {
+		console.error("Failed to save legacy global settings:", error);
+		return false;
+	}
+}
+
 export async function saveGlobalSettings(
 	partial: Partial<GlobalSettings>,
 ): Promise<boolean> {
+	let globalSettingsSaved = true;
+	if (typeof partial.showButtonTooltips === "boolean") {
+		globalSettingsSaved = await saveLegacyGlobalSettings({
+			showButtonTooltips: partial.showButtonTooltips,
+		});
+	}
+
+	const workspacePartial: Partial<GlobalSettings> = {};
+	if (partial.locale !== undefined) workspacePartial.locale = partial.locale;
+	if (partial.deleteBehavior !== undefined) {
+		workspacePartial.deleteBehavior = partial.deleteBehavior;
+	}
+	if (partial.theme !== undefined) workspacePartial.theme = partial.theme;
+
+	if (Object.keys(workspacePartial).length === 0) {
+		return globalSettingsSaved;
+	}
+
 	const activeRepo = getActiveRepoContext();
 	if (!activeRepo) {
 		return false;
@@ -138,7 +191,7 @@ export async function saveGlobalSettings(
 				expandedFolders: existingMetadata?.expandedFolders ?? [],
 				preferences: mergeSettingsIntoPreferences(
 					existingMetadata?.preferences,
-					partial,
+					workspacePartial,
 				),
 				activeFilePath: existingMetadata?.activeFilePath ?? null,
 				workspaceMode: existingMetadata?.workspaceMode,
@@ -149,7 +202,7 @@ export async function saveGlobalSettings(
 
 			return nextMetadata;
 		});
-		return true;
+		return globalSettingsSaved;
 	} catch (error) {
 		console.error("Failed to save workspace settings:", error);
 		return false;

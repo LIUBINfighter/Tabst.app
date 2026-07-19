@@ -7,6 +7,7 @@ interface TestDesktopApi {
 	loadWorkspaceMetadata: ReturnType<typeof vi.fn>;
 	saveWorkspaceMetadata: ReturnType<typeof vi.fn>;
 	loadGlobalSettings: ReturnType<typeof vi.fn>;
+	saveGlobalSettings: ReturnType<typeof vi.fn>;
 }
 
 function installDesktopApi(api: TestDesktopApi) {
@@ -26,6 +27,7 @@ describe("workspace-backed global settings", () => {
 			loadWorkspaceMetadata: vi.fn(),
 			saveWorkspaceMetadata: vi.fn(),
 			loadGlobalSettings: vi.fn(),
+			saveGlobalSettings: vi.fn(),
 		};
 		installDesktopApi(desktopApi);
 		setActiveRepoContext(null);
@@ -59,6 +61,7 @@ describe("workspace-backed global settings", () => {
 		expect(result).toEqual({
 			locale: "en",
 			deleteBehavior: "repo-trash",
+			showButtonTooltips: true,
 			theme: {
 				uiThemeId: "catppuccin",
 				editorThemeId: "catppuccin",
@@ -86,7 +89,42 @@ describe("workspace-backed global settings", () => {
 
 		expect(result.locale).toBe("en");
 		expect(result.deleteBehavior).toBe("system-trash");
+		expect(result.showButtonTooltips).toBe(true);
 		expect(desktopApi.loadGlobalSettings).toHaveBeenCalledTimes(1);
+	});
+
+	it("loads the tooltip preference from global settings", async () => {
+		desktopApi.loadGlobalSettings.mockResolvedValue({
+			success: true,
+			data: {
+				showButtonTooltips: false,
+			},
+		});
+
+		const result = await loadGlobalSettings();
+
+		expect(result.showButtonTooltips).toBe(false);
+	});
+
+	it("saves the tooltip preference globally without dropping other fields", async () => {
+		desktopApi.loadGlobalSettings.mockResolvedValue({
+			success: true,
+			data: {
+				locale: "en",
+				futureSetting: "preserved",
+			},
+		});
+		desktopApi.saveGlobalSettings.mockResolvedValue({ success: true });
+
+		const ok = await saveGlobalSettings({ showButtonTooltips: false });
+
+		expect(ok).toBe(true);
+		expect(desktopApi.saveGlobalSettings).toHaveBeenCalledWith({
+			locale: "en",
+			futureSetting: "preserved",
+			showButtonTooltips: false,
+		});
+		expect(desktopApi.saveWorkspaceMetadata).not.toHaveBeenCalled();
 	});
 
 	it("saves merged settings into workspace metadata", async () => {

@@ -16,6 +16,11 @@ export const defaultSettingsPages: SettingsPage[] = [
 		description: "主题与界面显示相关设置",
 	},
 	{
+		id: "record",
+		title: "录制",
+		description: "录制视频时的界面显示设置",
+	},
+	{
 		id: "playback",
 		title: "播放", // 后备值，实际使用 t("settings:playback")
 		description: "播放速度与模式相关设置",

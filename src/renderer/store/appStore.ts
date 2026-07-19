@@ -707,6 +707,8 @@ interface AppState {
 	// i18n 语言
 	locale: "en" | "zh-cn";
 	setLocale: (locale: "en" | "zh-cn") => void;
+	showButtonTooltips: boolean;
+	setShowButtonTooltips: (show: boolean) => void;
 	disabledCommandIds: string[];
 	setCommandEnabled: (commandId: string, enabled: boolean) => void;
 	pinnedCommandIds: string[];
@@ -2085,6 +2087,11 @@ export const useAppStore = create<AppState>((set, get) => ({
 		});
 		void saveGlobalSettings({ locale });
 	},
+	showButtonTooltips: true,
+	setShowButtonTooltips: (show) => {
+		set({ showButtonTooltips: show });
+		void saveGlobalSettings({ showButtonTooltips: show });
+	},
 
 	disabledCommandIds: [],
 	setCommandEnabled: (commandId, enabled) => {
@@ -2680,11 +2687,17 @@ export const useAppStore = create<AppState>((set, get) => ({
 		try {
 			isRestoringAppState = true;
 			setActiveRepoContext(null);
-			const [loadedRepos, legacyAppState, appVersion] = await Promise.all([
-				window.desktopAPI?.loadRepos?.(),
-				window.desktopAPI?.loadAppState?.(),
-				window.desktopAPI?.getAppVersion?.(),
-			]);
+			const [loadedRepos, legacyAppState, appVersion, globalSettings] =
+				await Promise.all([
+					window.desktopAPI?.loadRepos?.(),
+					window.desktopAPI?.loadAppState?.(),
+					window.desktopAPI?.getAppVersion?.(),
+					loadGlobalSettings(),
+				]);
+
+			set({
+				showButtonTooltips: globalSettings.showButtonTooltips ?? true,
+			});
 
 			if (!loadedRepos) return;
 
@@ -2795,6 +2808,12 @@ void (async () => {
 			settings.deleteBehavior !== store.deleteBehavior
 		) {
 			store.setDeleteBehavior(settings.deleteBehavior);
+		}
+		if (
+			typeof settings.showButtonTooltips === "boolean" &&
+			settings.showButtonTooltips !== store.showButtonTooltips
+		) {
+			store.setShowButtonTooltips(settings.showButtonTooltips);
 		}
 	} catch (error) {
 		console.error("Failed to hydrate initial settings:", error);

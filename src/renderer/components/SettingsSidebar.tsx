@@ -9,6 +9,7 @@ import {
 	RefreshCw,
 	Settings,
 	Sparkles,
+	Video,
 } from "lucide-react";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
@@ -59,6 +60,16 @@ export function SettingsSidebar() {
 							case "playback":
 								return (
 									<Play
+										className={`flex-none h-3.5 w-3.5 ${
+											activeSettingsPageId === p.id
+												? "text-[var(--highlight-text)]"
+												: "text-muted-foreground hover:text-[var(--hover-text)]"
+										}`}
+									/>
+								);
+							case "record":
+								return (
+									<Video
 										className={`flex-none h-3.5 w-3.5 ${
 											activeSettingsPageId === p.id
 												? "text-[var(--highlight-text)]"
