@@ -13,6 +13,17 @@ export interface PrintWindowPayload {
 	pagesHtml: string;
 }
 
+export function buildPrintDocumentTitle(fileName: string): string {
+	const normalizedFileName = fileName.trim().replace(/\\/g, "/");
+	const baseName = normalizedFileName.split("/").pop()?.trim() ?? "";
+	if (!baseName) return "Tabst";
+
+	const extensionIndex = baseName.lastIndexOf(".");
+	if (extensionIndex <= 0) return baseName;
+
+	return baseName.slice(0, extensionIndex).trim() || baseName;
+}
+
 export function buildPrintWindowUrl(currentHref: string): string {
 	const url = new URL(currentHref);
 	url.search = "";

@@ -7,6 +7,7 @@ import {
 	buildPrintFontFamilyCssValue,
 } from "../lib/print-fonts";
 import {
+	buildPrintDocumentTitle,
 	type PrintWindowPayload,
 	readPrintWindowPayload,
 } from "../lib/print-window";
@@ -18,13 +19,19 @@ export default function PrintWindow() {
 	const [status, setStatus] = useState<string>(t("printPreparing"));
 
 	useEffect(() => {
+		const previousTitle = document.title;
 		const nextPayload = readPrintWindowPayload();
 		if (!nextPayload) {
 			setStatus(t("printPrepareFailed"));
 			return;
 		}
+		document.title = buildPrintDocumentTitle(nextPayload.fileName);
 		setPayload(nextPayload);
 		setStatus(t("printWaitingForFonts"));
+
+		return () => {
+			document.title = previousTitle;
+		};
 	}, [t]);
 
 	useEffect(() => {

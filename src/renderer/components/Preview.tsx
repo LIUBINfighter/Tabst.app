@@ -2302,7 +2302,9 @@ export default function Preview({
 							}
 							title={
 								<span className="sr-only">
-									{fileName ?? t("common:preview")}
+									{fileName
+										? `${fileName} ${t("common:preview")}`
+										: t("common:preview")}
 								</span>
 							}
 							trailing={
