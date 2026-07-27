@@ -8,7 +8,7 @@ overrides:
   '@lezer/common': 1.5.2
 
 patchedDependencies:
-  '@coderline/alphatab@1.8.3': c580c43193cbcebb0e187043edc0a62473e530279158264926e1e99edfac8123
+  '@coderline/alphatab@1.8.4': a437674bfc23476dd385efe72541bdc2d490773850152fbcc5e82cf8e45ee86d
 
 importers:
 
@@ -36,11 +36,11 @@ importers:
         specifier: ^6.39.12
         version: 6.39.12
       '@coderline/alphatab':
-        specifier: 1.8.3
-        version: 1.8.3(patch_hash=c580c43193cbcebb0e187043edc0a62473e530279158264926e1e99edfac8123)
+        specifier: 1.8.4
+        version: 1.8.4(patch_hash=a437674bfc23476dd385efe72541bdc2d490773850152fbcc5e82cf8e45ee86d)
       '@coderline/alphatab-language-server':
-        specifier: ^1.8.3
-        version: 1.8.3
+        specifier: ^1.8.4
+        version: 1.8.4
       '@lezer/highlight':
         specifier: ^1.2.3
         version: 1.2.3
@@ -543,12 +543,12 @@ packages:
   '@codemirror/view@6.39.12':
     resolution: {integrity: sha512-f+/VsHVn/kOA9lltk/GFzuYwVVAKmOnNjxbrhkk3tPHntFqjWeI2TbIXx006YkBkqC10wZ4NsnWXCQiFPeAISQ==}
 
-  '@coderline/alphatab-language-server@1.8.3':
-    resolution: {integrity: sha512-NO6UzN2j82Nxunb8yQbkDNSlB7GylMHFUzfTlyEdAz2iN/DsruGvRU3pUrXzZz1ZEnlcTek3VJ2yrOynTP8dWg==}
+  '@coderline/alphatab-language-server@1.8.4':
+    resolution: {integrity: sha512-p7mx5tdFVo4f/BqxppHGYnHldjirneEZMOV98wx5Z6oKG1bxjx/8n5tC20AuYZhLRdEQTQCENCg6CBnfGEpsNA==}
     hasBin: true
 
-  '@coderline/alphatab@1.8.3':
-    resolution: {integrity: sha512-gauoZMBL3yzCNn4jz5qhKSmwnlwFpBG+W+HPowiBmPiD6kTH5Ntk3mCUItGqETN7Vl97REXJK6efGKOa13B4Ng==}
+  '@coderline/alphatab@1.8.4':
+    resolution: {integrity: sha512-VN5rfTZZWgA63Ny1aDKCp02k3Qm9CHhg4Q9AnK0kHm7G+fNDNZo36TeToPDFoJ6VpB9+AHcCrHwHFUP1tKqdsw==}
     engines: {node: '>=6.0.0'}
 
   '@dotenvx/dotenvx@1.52.0':
@@ -5993,13 +5993,13 @@ snapshots:
       style-mod: 4.1.3
       w3c-keyname: 2.2.8
 
-  '@coderline/alphatab-language-server@1.8.3':
+  '@coderline/alphatab-language-server@1.8.4':
     dependencies:
-      '@coderline/alphatab': 1.8.3(patch_hash=c580c43193cbcebb0e187043edc0a62473e530279158264926e1e99edfac8123)
+      '@coderline/alphatab': 1.8.4(patch_hash=a437674bfc23476dd385efe72541bdc2d490773850152fbcc5e82cf8e45ee86d)
       vscode-languageserver: 9.0.1
       vscode-languageserver-textdocument: 1.0.13
 
-  '@coderline/alphatab@1.8.3(patch_hash=c580c43193cbcebb0e187043edc0a62473e530279158264926e1e99edfac8123)': {}
+  '@coderline/alphatab@1.8.4(patch_hash=a437674bfc23476dd385efe72541bdc2d490773850152fbcc5e82cf8e45ee86d)': {}
 
   '@dotenvx/dotenvx@1.52.0':
     dependencies:

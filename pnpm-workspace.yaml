@@ -11,4 +11,4 @@ allowBuilds:
   puppeteer: false
 
 patchedDependencies:
-  '@coderline/alphatab@1.8.3': patches/@coderline__alphatab@1.8.3.patch
+  '@coderline/alphatab@1.8.4': patches/@coderline__alphatab@1.8.4.patch
