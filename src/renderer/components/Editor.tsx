@@ -2,7 +2,7 @@ import type { Extension } from "@codemirror/state";
 import { Compartment, EditorState } from "@codemirror/state";
 import type { ViewUpdate } from "@codemirror/view";
 import { basicSetup, EditorView } from "codemirror";
-import { ChevronRight, Edit, ExternalLink, Github } from "lucide-react";
+import { ChevronRight, Edit, ExternalLink } from "lucide-react";
 import {
 	useCallback,
 	useEffect,
@@ -49,6 +49,7 @@ import TopBar from "./TopBar";
 import { TracksPanel, type TracksPanelProps } from "./TracksPanel";
 import { AppLink } from "./ui/app-link";
 import { Button } from "./ui/button";
+import { GithubIcon } from "./ui/github-icon";
 import IconButton from "./ui/icon-button";
 import {
 	Tooltip,
@@ -794,7 +795,7 @@ export function Editor({
 						>
 							<div className="mb-4 flex items-start justify-between gap-3">
 								<div className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-primary/15 text-primary">
-									<Github className="h-5 w-5" />
+									<GithubIcon className="h-5 w-5" />
 								</div>
 								<ExternalLink className="h-4 w-4 text-muted-foreground" />
 							</div>
