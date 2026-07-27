@@ -80,7 +80,7 @@
 		"dompurify": "^3.4.0",
 		"effect": "^3.21.2",
 		"i18next": "^25.8.18",
-		"lucide-react": "^0.576.0",
+		"lucide-react": "^1.25.0",
 		"moment": "^2.30.1",
 		"react": "^19.2.7",
 		"react-dom": "^19.2.7",
