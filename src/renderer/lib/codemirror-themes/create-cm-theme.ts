@@ -145,15 +145,19 @@ export function createCMThemeFromEditorTheme(
 			},
 		},
 		".cm-panel.cm-search .cm-button": {
-			backgroundColor: "hsl(var(--muted))",
+			backgroundColor: "transparent",
 			color: "hsl(var(--foreground))",
-			border: "1px solid hsl(var(--border))",
+			border: "none",
 			borderRadius: "6px",
-			padding: "2px 10px",
+			padding: "2px 8px",
+			fontFamily: "inherit",
 			fontSize: "12px",
+			fontWeight: "500",
+			transition: "background-color 0.15s, color 0.15s",
 			cursor: "pointer",
 			"&:hover": {
 				backgroundColor: "hsl(var(--accent))",
+				color: "hsl(var(--accent-foreground))",
 			},
 		},
 		".cm-panel.cm-search [name=close]": {
