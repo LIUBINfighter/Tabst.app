@@ -72,6 +72,8 @@ export interface AtDocParseResult {
 	cleanContent: string;
 	config: AtDocConfig;
 	warnings: AtDocWarning[];
+	/** Tags collected from `#tag` tokens inside comment lines. */
+	inlineTags: string[];
 }
 
 export interface AtDocCompletionItem {
@@ -568,16 +570,32 @@ function extractDirectiveFromLine(
 	return { key, value };
 }
 
+const INLINE_TAG_PATTERN = /^#([\p{L}\p{N}_-]+)[\p{P}\p{S}]*$/u;
+
+function collectInlineTagsFromLine(line: string, out: string[]): void {
+	const s = line.trim();
+	if (!s.startsWith("*") && !s.startsWith("//")) return;
+
+	for (const token of s.split(/\s+/)) {
+		const match = INLINE_TAG_PATTERN.exec(token);
+		if (match) out.push(match[1]);
+	}
+}
+
 export function parseAtDoc(content: string | undefined): AtDocParseResult {
 	const text = content ?? "";
 	const lines = text.split(/\r?\n/);
 	const warnings: AtDocWarning[] = [];
 	const config: AtDocConfig = {};
+	const inlineTags: string[] = [];
 
 	for (let i = 0; i < lines.length; i++) {
 		const directive = extractDirectiveFromLine(lines[i]);
-		if (!directive) continue;
-		applyDirective(directive.key, directive.value, i + 1, config, warnings);
+		if (directive) {
+			applyDirective(directive.key, directive.value, i + 1, config, warnings);
+			continue;
+		}
+		collectInlineTagsFromLine(lines[i], inlineTags);
 	}
 
 	const cleanContent = lines
@@ -588,6 +606,7 @@ export function parseAtDoc(content: string | undefined): AtDocParseResult {
 		cleanContent,
 		config,
 		warnings,
+		inlineTags,
 	};
 }
 
@@ -676,7 +695,7 @@ export function extractAtDocFileMeta(
 	const parsed = parseAtDoc(content);
 	return {
 		metaClass: [...(parsed.config.meta?.class ?? [])],
-		metaTags: [...(parsed.config.meta?.tag ?? [])],
+		metaTags: mergeUnique(parsed.config.meta?.tag, parsed.inlineTags),
 		metaStatus: parsed.config.meta?.status,
 		metaTabist: parsed.config.meta?.tabist,
 		metaApp: parsed.config.meta?.app,

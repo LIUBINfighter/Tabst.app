@@ -48,7 +48,8 @@ const DEFAULT_ATDOC_KEY_DEFINITIONS: AtDocKeyDefinition[] = [
 	{
 		key: "at.meta.tag",
 		valueType: "string",
-		description: "Document tags (comma-separated supported)",
+		description:
+			"Document tags (comma-separated); #tags written in comments are also collected",
 		example: 'at.meta.tag="warmup, caged"',
 	},
 	{
