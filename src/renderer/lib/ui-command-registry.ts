@@ -1,16 +1,12 @@
 import i18n from "../i18n";
 import { useAppStore } from "../store/appStore";
-import {
-	dispatchEditorCommand,
-	dispatchOpenInlineEditorCommand,
-} from "./command-palette";
+import { dispatchOpenInlineEditorCommand } from "./command-palette";
 import {
 	type CommandCategory,
 	type GlobalCommandId,
 	getGlobalCommands,
 	getInlineCommands,
 	type InlineCommandId,
-	type StaticEditorCommandId,
 } from "./command-registry";
 import { isGpFilePath } from "./gp-import";
 import {
@@ -426,20 +422,6 @@ export function runUiCommand(commandId: UiCommandId): UiCommandRunResult {
 	if (commandId.startsWith("preview.")) {
 		dispatchPreviewCommand(commandId as PreviewCommandId);
 		return success(`Dispatch preview command: ${commandId}`);
-	}
-
-	if (
-		(
-			[
-				"insert-atdoc-block",
-				"insert-atdoc-directive",
-				"insert-atdoc-meta-preset",
-			] as StaticEditorCommandId[]
-		).includes(commandId as StaticEditorCommandId)
-	) {
-		dispatchEditorCommand(commandId as StaticEditorCommandId);
-		useAppStore.getState().setWorkspaceMode("editor");
-		return success(`Dispatch editor command: ${commandId}`);
 	}
 
 	if (commandId.startsWith("playback.")) {

@@ -1,5 +1,4 @@
 import { describe, expect, it, vi } from "vitest";
-import { ATDOC_KEY_DEFINITIONS } from "../data/atdoc-keys";
 
 // appStore 在模块加载时会尝试读取初始设置（走 window.desktopAPI），
 // node 环境下会抛出并被 console.error 记录。mock 掉 global-settings
@@ -10,14 +9,12 @@ vi.mock("../lib/global-settings", () => ({
 }));
 
 import {
-	ATDOC_INLINE_KEY_COMMAND_PREFIX,
 	COMMAND_CATEGORY_ORDER,
 	type CommandCategory,
 	type CommandIcon,
 	commandCategoryLabel,
 	getGlobalCommands,
 	getInlineCommands,
-	getInlineEditorCommands,
 } from "./command-registry";
 import { getCommandAvailability } from "./ui-command-registry";
 
@@ -87,26 +84,19 @@ describe("command registry integrity", () => {
 	});
 });
 
-describe("inline editor commands", () => {
-	it("contains static editor commands plus one dynamic atdoc command per key", () => {
-		const inline = getInlineEditorCommands();
-		expect(inline.length).toBe(3 + ATDOC_KEY_DEFINITIONS.length);
-
-		const dynamic = inline.filter((command) =>
-			command.id.startsWith(ATDOC_INLINE_KEY_COMMAND_PREFIX),
+describe("inline commands", () => {
+	it("mirrors the global command set after the ATDOC insert family removal", () => {
+		expect(getInlineCommands().map((command) => command.id)).toEqual(
+			getGlobalCommands().map((command) => command.id),
 		);
-		expect(dynamic.length).toBe(ATDOC_KEY_DEFINITIONS.length);
 	});
 
-	it("prefixes dynamic atdoc command ids and marks them as atdoc category", () => {
-		for (const definition of ATDOC_KEY_DEFINITIONS) {
-			const dynamic = getInlineEditorCommands().find(
-				(command) =>
-					command.id === `${ATDOC_INLINE_KEY_COMMAND_PREFIX}${definition.key}`,
-			);
-			expect(dynamic, `dynamic command for ${definition.key}`).toBeDefined();
-			expect(dynamic?.category).toBe("atdoc");
-		}
+	it("does not register any ATDOC insert command", () => {
+		const ids = getGlobalCommands().map((command) => command.id);
+		expect(
+			ids.some((id) => id.startsWith("insert-atdoc")),
+			"ATDOC insert commands must stay deregistered",
+		).toBe(false);
 	});
 });
 

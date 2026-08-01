@@ -49,18 +49,6 @@
 	"commandsPinnedHint": "Pinned commands are prioritized before MRU in command palettes",
 	"commandsRecentRank": "Recent usage rank: #{{rank}}",
 	"commandRegistry": {
-		"insert_atdoc_block": {
-			"label": "Insert ATDOC Block",
-			"description": "Insert /** */ wrapper template"
-		},
-		"insert_atdoc_directive": {
-			"label": "Insert ATDOC Directive",
-			"description": "Insert * at.meta.status=released"
-		},
-		"insert_atdoc_meta_preset": {
-			"label": "Insert ATDOC Meta Preset",
-			"description": "Insert title/tag/status preset lines"
-		},
 		"open_quick_file": {
 			"label": "Quick Open Files",
 			"description": "Open .atex files by name/tag"
@@ -213,8 +201,6 @@
 			"label": "Toggle Tracks Panel",
 			"description": "Toggle tracks panel visibility"
 		},
-		"dynamicAtdocLabel": "Insert {{key}}",
-		"dynamicAtdocDescription": "{{description}} · Example: {{example}}",
 		"category": {
 			"atdoc": "ATDOC",
 			"editor": "Editor",

@@ -1,17 +1,4 @@
-import { ATDOC_KEY_DEFINITIONS } from "../data/atdoc-keys";
 import i18n from "../i18n";
-
-export const ATDOC_INLINE_KEY_COMMAND_PREFIX = "insert-atdoc-key:";
-
-export type StaticEditorCommandId =
-	| "insert-atdoc-block"
-	| "insert-atdoc-directive"
-	| "insert-atdoc-meta-preset";
-
-export type DynamicEditorCommandId =
-	`${typeof ATDOC_INLINE_KEY_COMMAND_PREFIX}${string}`;
-
-export type EditorCommandId = StaticEditorCommandId | DynamicEditorCommandId;
 
 export type GlobalOnlyCommandId =
 	| "open-quick-file"
@@ -53,8 +40,8 @@ export type GlobalOnlyCommandId =
 	| "playback.play-pause"
 	| "playback.tracks-panel.toggle";
 
-export type GlobalCommandId = GlobalOnlyCommandId | StaticEditorCommandId;
-export type InlineCommandId = EditorCommandId | GlobalCommandId;
+export type GlobalCommandId = GlobalOnlyCommandId;
+export type InlineCommandId = GlobalCommandId;
 
 export type CommandIcon =
 	| "command"
@@ -96,39 +83,6 @@ export interface RegisteredCommand<TId extends string> {
 	icon: CommandIcon;
 	category: CommandCategory;
 }
-
-const STATIC_EDITOR_COMMANDS: RegisteredCommand<StaticEditorCommandId>[] = [
-	{
-		id: "insert-atdoc-block",
-		category: "atdoc",
-		label: i18n.t("settings:commandRegistry.insert_atdoc_block.label"),
-		description: i18n.t(
-			"settings:commandRegistry.insert_atdoc_block.description",
-		),
-		keywords: ["atdoc", "comment", "block", "wrapper"],
-		icon: "tree",
-	},
-	{
-		id: "insert-atdoc-directive",
-		category: "atdoc",
-		label: i18n.t("settings:commandRegistry.insert_atdoc_directive.label"),
-		description: i18n.t(
-			"settings:commandRegistry.insert_atdoc_directive.description",
-		),
-		keywords: ["atdoc", "directive", "meta", "status"],
-		icon: "sparkles",
-	},
-	{
-		id: "insert-atdoc-meta-preset",
-		category: "atdoc",
-		label: i18n.t("settings:commandRegistry.insert_atdoc_meta_preset.label"),
-		description: i18n.t(
-			"settings:commandRegistry.insert_atdoc_meta_preset.description",
-		),
-		keywords: ["atdoc", "meta", "preset", "alias", "title"],
-		icon: "sparkles",
-	},
-];
 
 const GLOBAL_ONLY_COMMANDS: RegisteredCommand<GlobalOnlyCommandId>[] = [
 	{
@@ -535,60 +489,10 @@ const GLOBAL_ONLY_COMMANDS: RegisteredCommand<GlobalOnlyCommandId>[] = [
 	},
 ];
 
-const STATIC_EDITOR_COMMAND_SET = new Set<string>(
-	STATIC_EDITOR_COMMANDS.map((command) => command.id),
-);
-
-export function isEditorCommandId(
-	commandId: string,
-): commandId is EditorCommandId {
-	return (
-		STATIC_EDITOR_COMMAND_SET.has(commandId) ||
-		commandId.startsWith(ATDOC_INLINE_KEY_COMMAND_PREFIX)
-	);
-}
-
 export function getGlobalCommands(): RegisteredCommand<GlobalCommandId>[] {
 	return [...GLOBAL_ONLY_COMMANDS];
 }
 
-export function getInlineEditorCommands(): RegisteredCommand<EditorCommandId>[] {
-	const dynamicAtdocCommands: RegisteredCommand<DynamicEditorCommandId>[] =
-		ATDOC_KEY_DEFINITIONS.map((definition) => ({
-			id: `${ATDOC_INLINE_KEY_COMMAND_PREFIX}${definition.key}`,
-			label: i18n.t("settings:commandRegistry.dynamicAtdocLabel", {
-				key: definition.key,
-			}),
-			description: i18n.t("settings:commandRegistry.dynamicAtdocDescription", {
-				description: definition.description,
-				example: definition.example,
-			}),
-			keywords: [
-				"atdoc",
-				"key",
-				definition.key,
-				...definition.key.split("."),
-				definition.valueType,
-			],
-			icon: "key",
-			category: "atdoc",
-		}));
-
-	return [...STATIC_EDITOR_COMMANDS, ...dynamicAtdocCommands];
-}
-
 export function getInlineCommands(): RegisteredCommand<InlineCommandId>[] {
-	const merged = new Map<string, RegisteredCommand<InlineCommandId>>();
-
-	for (const command of getInlineEditorCommands()) {
-		merged.set(command.id, command as RegisteredCommand<InlineCommandId>);
-	}
-
-	for (const command of getGlobalCommands()) {
-		if (!merged.has(command.id)) {
-			merged.set(command.id, command as RegisteredCommand<InlineCommandId>);
-		}
-	}
-
-	return [...merged.values()];
+	return getGlobalCommands();
 }
