@@ -9,12 +9,11 @@ export interface TutorialMetadata {
 	category?: string;
 	icon?: string;
 	/**
-	 * 状态：'release' | 'draft' | 'deprecated'
+	 * 状态：'release' | 'draft'
 	 * - 'release'：公开显示（需要显式标注）
 	 * - 'draft'：草稿（默认），不在教程列表中显示
-	 * - 'deprecated'：过时/被替代，文件保留存档但不在教程列表中显示
 	 */
-	status?: "release" | "draft" | "deprecated";
+	status?: "release" | "draft";
 }
 
 export const tutorialsRegistry: TutorialMetadata[] = [
@@ -182,7 +181,7 @@ export const tutorialsRegistry: TutorialMetadata[] = [
 		order: 4,
 		audience: "power-user",
 		category: "ATDOC",
-		status: "deprecated",
+		status: "release",
 	},
 	{
 		id: "atdoc-guide",
