@@ -24,6 +24,7 @@ import {
 	planEditorAutosaveTransition,
 	rebindEditorAutosaveRequest,
 } from "../lib/editor-autosave";
+import { createEscapeBlurExtension } from "../lib/editor-extensions";
 import { isImportableScoreFilePath } from "../lib/gp-import";
 import { shouldMountPreviewTracksPanel } from "../lib/score-workspace-layout";
 import { runUiCommand } from "../lib/ui-command-registry";
@@ -328,6 +329,7 @@ export function Editor({
 
 					const extensions: Extension[] = [
 						basicSetup,
+						createEscapeBlurExtension(),
 						updateListener,
 						atDocColorSwatch(),
 						whitespaceDecoration(),
