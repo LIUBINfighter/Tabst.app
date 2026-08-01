@@ -366,15 +366,6 @@ function App() {
 			case "playback.tracks-panel.toggle":
 				runUiCommand(commandId);
 				return;
-			case "insert-atdoc-block":
-				runUiCommand("insert-atdoc-block");
-				return;
-			case "insert-atdoc-directive":
-				runUiCommand("insert-atdoc-directive");
-				return;
-			case "insert-atdoc-meta-preset":
-				runUiCommand("insert-atdoc-meta-preset");
-				return;
 		}
 	};
 

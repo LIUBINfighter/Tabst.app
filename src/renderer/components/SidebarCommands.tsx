@@ -1,12 +1,11 @@
 import {
 	ChevronDown,
 	ChevronLeft,
-	Cloud,
 	FileMusic,
 	FileQuestion,
+	FileText,
 	FolderOpen,
 	FolderPlus,
-	GitBranch,
 	Monitor,
 	Moon,
 	Plus,
@@ -40,7 +39,6 @@ export function SidebarCommands({
 }: SidebarCommandsProps) {
 	const { t } = useTranslation("sidebar");
 	const workspaceMode = useAppStore((s) => s.workspaceMode);
-	const setWorkspaceMode = useAppStore((s) => s.setWorkspaceMode);
 
 	const themeIcon = {
 		light: <Sun className="h-4 w-4" />,
@@ -75,28 +73,8 @@ export function SidebarCommands({
 				</Tooltip>
 			)}
 
-			<Tooltip>
-				<TooltipTrigger asChild>
-					<Button
-						variant="ghost"
-						size="icon"
-						className={`h-8 w-8 hover:bg-[var(--hover-bg)] hover:text-[var(--hover-text)] ${
-							workspaceMode === "git"
-								? "bg-[var(--highlight-bg)] text-[var(--highlight-text)]"
-								: ""
-						}`}
-						onClick={() =>
-							setWorkspaceMode(workspaceMode === "git" ? "editor" : "git")
-						}
-					>
-						<span className="sr-only">{t("gitView")}</span>
-						<GitBranch className="h-4 w-4" />
-					</Button>
-				</TooltipTrigger>
-				<TooltipContent side="bottom">
-					<p>{workspaceMode === "git" ? t("exitGitView") : t("openGitView")}</p>
-				</TooltipContent>
-			</Tooltip>
+			{/* Git view entry temporarily hidden: feature not open yet.
+			    Re-enable by restoring the workspace.mode.git toggle button here. */}
 
 			{workspaceMode === "editor" && (
 				<>
@@ -131,6 +109,23 @@ export function SidebarCommands({
 						</TooltipTrigger>
 						<TooltipContent side="bottom">
 							<p>{t("newAtex")}</p>
+						</TooltipContent>
+					</Tooltip>
+
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<Button
+								variant="ghost"
+								size="icon"
+								className="h-8 w-8 hover:bg-[var(--hover-bg)] hover:text-[var(--hover-text)]"
+								onClick={() => onNewFile(".md")}
+							>
+								<span className="sr-only">{t("newMd")}</span>
+								<FileText className="h-4 w-4" />
+							</Button>
+						</TooltipTrigger>
+						<TooltipContent side="bottom">
+							<p>{t("newMd")}</p>
 						</TooltipContent>
 					</Tooltip>
 
@@ -272,23 +267,9 @@ export function SidebarBottomBar() {
 
 			<div className="flex-1" />
 
-			<Tooltip>
-				<TooltipTrigger asChild>
-					<IconButton
-						active={workspaceMode === "cloud"}
-						onClick={() => {
-							const newMode = workspaceMode === "cloud" ? "editor" : "cloud";
-							setWorkspaceMode(newMode);
-						}}
-						aria-label={t("cloud")}
-					>
-						<Cloud className="h-4 w-4" />
-					</IconButton>
-				</TooltipTrigger>
-				<TooltipContent side="top">
-					<p>{workspaceMode === "cloud" ? t("exitCloud") : t("enterCloud")}</p>
-				</TooltipContent>
-			</Tooltip>
+			{/* Cloud library entry temporarily hidden: feature not open yet.
+			    Re-enable by restoring the workspace.mode.cloud toggle button here. */}
+
 			<Tooltip>
 				<TooltipTrigger asChild>
 					<IconButton

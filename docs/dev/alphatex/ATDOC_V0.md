@@ -1,5 +1,9 @@
 # ATDOC v0 规范（Tabst）
 
+> **Status:** SUPERSEDED — 点号写法 `at.<域>.<键>=<值>` 仍完全兼容，但推荐
+> 使用 INI 分节写法；当前规范见 [ATDOC_CURRENT.md](./ATDOC_CURRENT.md)。
+> 本文档保留作为点号语法的历史设计记录。
+
 最后更新：2026-02-24
 
 ## 1. 目标

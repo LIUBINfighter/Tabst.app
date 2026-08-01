@@ -156,6 +156,10 @@ export function formatShortcut(shortcut: string): string {
 
 export function isEditableTarget(target: EventTarget | null): boolean {
 	if (!(target instanceof HTMLElement)) return false;
+	// CodeMirror 的编辑区是 contenteditable，但全局快捷键（命令面板、
+	// 内联命令栏、快速打开等）必须能从中呼出。CodeMirror 自己处理的键
+	// 会调用 preventDefault，由 runShortcutEvent 顶部的检查兜底。
+	if (target.closest(".cm-editor") !== null) return false;
 	if (target.isContentEditable) return true;
 	const tag = target.tagName;
 	return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
