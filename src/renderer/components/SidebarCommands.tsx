@@ -3,6 +3,7 @@ import {
 	ChevronLeft,
 	FileMusic,
 	FileQuestion,
+	FileText,
 	FolderOpen,
 	FolderPlus,
 	Monitor,
@@ -108,6 +109,23 @@ export function SidebarCommands({
 						</TooltipTrigger>
 						<TooltipContent side="bottom">
 							<p>{t("newAtex")}</p>
+						</TooltipContent>
+					</Tooltip>
+
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<Button
+								variant="ghost"
+								size="icon"
+								className="h-8 w-8 hover:bg-[var(--hover-bg)] hover:text-[var(--hover-text)]"
+								onClick={() => onNewFile(".md")}
+							>
+								<span className="sr-only">{t("newMd")}</span>
+								<FileText className="h-4 w-4" />
+							</Button>
+						</TooltipTrigger>
+						<TooltipContent side="bottom">
+							<p>{t("newMd")}</p>
 						</TooltipContent>
 					</Tooltip>
 
