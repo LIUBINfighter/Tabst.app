@@ -95,6 +95,67 @@ export function createThemeExtension(dark: boolean): Extension {
 		},
 		".cm-gutterElement": { color: "hsl(var(--muted-foreground))" },
 		"&.cm-focused": { outline: "none" },
+		// 搜索面板外观适配（功能保持 CodeMirror 原生 Cmd+F 行为不变）
+		"& .cm-panels": {
+			backgroundColor: "hsl(var(--card))",
+			color: "hsl(var(--foreground))",
+			borderBottom: "1px solid hsl(var(--border))",
+		},
+		".cm-panel.cm-search": {
+			padding: "6px 10px",
+			display: "flex",
+			alignItems: "center",
+			gap: "6px",
+			flexWrap: "wrap",
+		},
+		".cm-panel.cm-search input.cm-textfield": {
+			backgroundColor: "hsl(var(--input))",
+			color: "hsl(var(--foreground))",
+			border: "1px solid hsl(var(--border))",
+			borderRadius: "6px",
+			padding: "3px 8px",
+			fontFamily: "inherit",
+			fontSize: "13px",
+			outline: "none",
+			"&:focus": {
+				borderColor: "hsl(var(--primary))",
+			},
+		},
+		".cm-panel.cm-search .cm-button": {
+			backgroundColor: "hsl(var(--muted))",
+			color: "hsl(var(--foreground))",
+			border: "1px solid hsl(var(--border))",
+			borderRadius: "6px",
+			padding: "2px 10px",
+			fontSize: "12px",
+			cursor: "pointer",
+			"&:hover": {
+				backgroundColor: "hsl(var(--accent))",
+			},
+		},
+		".cm-panel.cm-search [name=close]": {
+			position: "static",
+			backgroundColor: "transparent",
+			border: "none",
+			font: "inherit",
+			padding: "0 4px",
+			margin: "0",
+			color: "hsl(var(--muted-foreground))",
+			"&:hover": {
+				color: "hsl(var(--foreground))",
+			},
+		},
+		".cm-panel.cm-search label": {
+			display: "flex",
+			alignItems: "center",
+			gap: "4px",
+			fontSize: "12px",
+			color: "hsl(var(--muted-foreground))",
+			whiteSpace: "nowrap",
+			"& input[type=checkbox]": {
+				accentColor: "hsl(var(--primary))",
+			},
+		},
 	} as const;
 
 	return EditorView.theme(themeStyles, { dark });
