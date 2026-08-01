@@ -61,15 +61,15 @@ alphaTab 当前文档按用途拆为架构说明和故障排查。正式 live Pr
 ## AlphaTex 与 ATDOC
 
 `alphatex/` 同时包含当前实现说明、已完成的版本设计和下一阶段草案。阅读时要关注文件顶部状态
-和代码现实，不要把带有 `DRAFT`、`V0` 或 `V0_1` 的文件自动视为当前完整规范。
+和代码现实，不要把带有 `DRAFT`、`SUPERSEDED`、`V0` 或 `V0_1` 的文件自动视为当前完整规范。
 
 | 文档 | 状态与内容 |
 | --- | --- |
+| [ATDOC_CURRENT.md](./alphatex/ATDOC_CURRENT.md) | 当前规范：INI 分节写法（推荐）、点号兼容写法、#tag、别名、应用分级 |
 | [LSP_INTEGRATION.md](./alphatex/LSP_INTEGRATION.md) | Worker LSP、补全、Hover 和诊断实现背景；部分 roadmap 段落可能已过期 |
 | [ATDOC_HIERARCHICAL_AUTOCOMPLETE_SPEC.md](./alphatex/ATDOC_HIERARCHICAL_AUTOCOMPLETE_SPEC.md) | 已实现的分层补全设计记录 |
-| [ATDOC_INI_SYNTAX.md](./alphatex/ATDOC_INI_SYNTAX.md) | 当前实现的 INI 分节语法（`[player]` + 短键） |
-| [ATDOC_V0.md](./alphatex/ATDOC_V0.md) | ATDOC v0 语法和应用约束记录 |
-| [ATDOC_V0_1.md](./alphatex/ATDOC_V0_1.md) | completion/hover 扩展阶段设计记录 |
+| [ATDOC_V0.md](./alphatex/ATDOC_V0.md) | SUPERSEDED：点号写法的 v0 历史设计记录（语法仍兼容） |
+| [ATDOC_V0_1.md](./alphatex/ATDOC_V0_1.md) | SUPERSEDED：v0.1 completion/hover 阶段设计记录 |
 | [ATDOC_NEXT_PHASE_DRAFT.md](./alphatex/ATDOC_NEXT_PHASE_DRAFT.md) | 下一阶段讨论草案 |
 | [ATDOC_COLORING_DRAFT.md](./alphatex/ATDOC_COLORING_DRAFT.md) | ATDOC 着色草案 |
 

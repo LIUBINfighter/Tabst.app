@@ -25,7 +25,12 @@ import {
 	ATDOC_SCROLL_MODE_VALUES,
 } from "./../data/atdoc-keys";
 import type { AlphaTexLSPClient } from "./alphatex-lsp";
-import { getAtDocSections } from "./atdoc";
+import {
+	getActiveAtDocSection,
+	getAtDocSections,
+	resolveAtDocSectionKey,
+	stripCommentPrefix,
+} from "./atdoc";
 
 // Minimal LSP CompletionItem shape we currently use
 interface LspCompletionItem {
@@ -37,6 +42,7 @@ interface LspCompletionItem {
 
 interface LayeredContext {
 	kind: "section" | "domain" | "key" | "value";
+	bare?: boolean;
 	domainPrefix: string;
 	keyPrefix: string;
 	valuePrefix: string;
@@ -172,6 +178,29 @@ function getAtDocLayeredContext(
 		}
 	}
 
+	// Bare key inside an active INI section (e.g. `vol` or `volume=0.9` under [player]).
+	const stripped = stripCommentPrefix(before);
+	const bareMatch = /^([a-zA-Z][\w-]*)(?:\s*=\s*(.*))?$/.exec(stripped);
+	if (bareMatch) {
+		const docText = context.state.doc.toString();
+		const activeSection = getActiveAtDocSection(docText, line.number);
+		if (activeSection) {
+			const keyName = bareMatch[1];
+			const hasValue = bareMatch[2] !== undefined;
+			return {
+				kind: hasValue ? "value" : "key",
+				bare: true,
+				domainPrefix: activeSection,
+				keyPrefix: keyName,
+				valuePrefix: bareMatch[2] ?? "",
+				replaceFrom: line.from + (before.length - stripped.length),
+				replaceTo: context.pos,
+				domain: activeSection,
+				key: keyName,
+			};
+		}
+	}
+
 	return null;
 }
 
@@ -218,17 +247,24 @@ function buildLayeredCompletions(context: LayeredContext): CompletionResult {
 	if (context.kind === "key") {
 		const domain = context.domain ?? "";
 		const prefix = `at.${domain}.`;
-		const keys = ATDOC_KEY_DEFINITIONS.filter((def) =>
+		const bare = context.bare === true;
+		const entries = ATDOC_KEY_DEFINITIONS.filter((def) =>
 			def.key.startsWith(prefix),
-		)
-			.map((def) => ({
-				name: def.key.slice(prefix.length),
-				detail: def.valueType,
-				doc: `${def.description}\n\nExample: ${def.example}`,
-			}))
-			.filter((item) =>
-				item.name.toLowerCase().startsWith(context.keyPrefix.toLowerCase()),
-			);
+		).flatMap((def) => {
+			const name = def.key.slice(prefix.length);
+			const doc = `${def.description}\n\nExample: ${def.example}`;
+			const canonical = { name, detail: def.valueType, doc };
+			if (!bare) return [canonical];
+			const aliasEntries = (def.aliases ?? []).map((alias) => ({
+				name: alias,
+				detail: `alias for ${name}`,
+				doc,
+			}));
+			return [canonical, ...aliasEntries];
+		});
+		const keys = entries.filter((item) =>
+			item.name.toLowerCase().startsWith(context.keyPrefix.toLowerCase()),
+		);
 
 		return {
 			from: context.replaceFrom,
@@ -238,13 +274,17 @@ function buildLayeredCompletions(context: LayeredContext): CompletionResult {
 				label: item.name,
 				detail: item.detail,
 				info: item.doc,
-				apply: `at.${domain}.${item.name}=`,
+				apply: bare ? `${item.name}=` : `at.${domain}.${item.name}=`,
 			})),
 		};
 	}
 
 	const keyName = context.key ?? "";
-	const fullKey = `at.${context.domain}.${keyName}`;
+	const bare = context.bare === true;
+	const canonicalKeyName = bare
+		? resolveAtDocSectionKey(context.domain ?? "", keyName)
+		: keyName;
+	const fullKey = `at.${context.domain}.${canonicalKeyName}`;
 	const def = ATDOC_KEY_DEFINITIONS.find((item) => item.key === fullKey);
 	if (!def) {
 		return { from: context.replaceFrom, to: context.replaceTo, options: [] };
@@ -274,7 +314,9 @@ function buildLayeredCompletions(context: LayeredContext): CompletionResult {
 		options: filtered.map((value) => ({
 			label: value,
 			detail: `value for ${fullKey}`,
-			apply: `at.${context.domain}.${keyName}=${value}`,
+			apply: bare
+				? `${keyName}=${value}`
+				: `at.${context.domain}.${keyName}=${value}`,
 		})),
 	};
 }

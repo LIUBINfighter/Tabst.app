@@ -1,6 +1,12 @@
 import * as alphaTab from "@coderline/alphatab";
 import { describe, expect, it } from "vitest";
-import { extractAtDocFileMeta, getAtDocSections, parseAtDoc } from "./atdoc";
+import {
+	extractAtDocFileMeta,
+	getActiveAtDocSection,
+	getAtDocSections,
+	parseAtDoc,
+	resolveAtDocSectionKey,
+} from "./atdoc";
 
 describe("parseAtDoc player volume directives", () => {
 	it("parses at.player.volume as overall player volume", () => {
@@ -265,5 +271,111 @@ describe("parseAtDoc INI sections", () => {
 			"print",
 			"staff",
 		]);
+	});
+});
+
+describe("parseAtDoc INI key aliases", () => {
+	it("resolves short aliases to canonical keys inside sections", () => {
+		const result = parseAtDoc(
+			[
+				"[player]",
+				"speed=0.95",
+				"countIn=true",
+				"metronome=0.4",
+				"[display]",
+				"zoom=0.8",
+				"[staff]",
+				"tab=true",
+				"[meta]",
+				'author="JayBridge"',
+				"1.1.1",
+			].join("\n"),
+		);
+
+		expect(result.config.player?.playbackSpeed).toBe(0.95);
+		expect(result.config.player?.countInEnabled).toBe(true);
+		expect(result.config.player?.metronomeVolume).toBe(0.4);
+		expect(result.config.display?.scale).toBe(0.8);
+		expect(result.config.staff?.showTablature).toBe(true);
+		expect(result.config.meta?.tabist).toBe("JayBridge");
+		expect(result.warnings).toEqual([]);
+	});
+
+	it("keeps canonical keys working alongside aliases", () => {
+		const result = parseAtDoc(
+			["[player]", "speed=1.2", "playbackSpeed=0.9", "1.1.1"].join("\n"),
+		);
+
+		expect(result.config.player?.playbackSpeed).toBe(0.9);
+	});
+
+	it("warns on unknown keys that are not aliases in the section", () => {
+		const result = parseAtDoc(["[player]", "speedx=1", "1.1.1"].join("\n"));
+
+		expect(result.config.player?.playbackSpeed).toBeUndefined();
+		expect(result.warnings).toEqual([
+			{ line: 2, message: "Unknown atdoc key: at.player.speedx" },
+		]);
+	});
+
+	it("does not leak aliases across sections", () => {
+		const result = parseAtDoc(["[display]", "speed=1", "1.1.1"].join("\n"));
+
+		expect(result.config.player?.playbackSpeed).toBeUndefined();
+		expect(result.config.display?.scale).toBeUndefined();
+		expect(result.warnings).toEqual([
+			{ line: 2, message: "Unknown atdoc key: at.display.speed" },
+		]);
+	});
+
+	it("resolves aliases through resolveAtDocSectionKey", () => {
+		expect(resolveAtDocSectionKey("player", "speed")).toBe("playbackSpeed");
+		expect(resolveAtDocSectionKey("player", "mute")).toBe("muteTracks");
+		expect(resolveAtDocSectionKey("player", "solo")).toBe("soloTracks");
+		expect(resolveAtDocSectionKey("meta", "author")).toBe("tabist");
+		expect(resolveAtDocSectionKey("player", "volume")).toBe("volume");
+		expect(resolveAtDocSectionKey("player", "nope")).toBe("nope");
+	});
+});
+
+describe("getActiveAtDocSection", () => {
+	const content = [
+		"* [player]",
+		"* volume=0.5",
+		"* 1.1.1",
+		"* [display]",
+		"* scale=0.8",
+		"* [meta]",
+		'* title="X"',
+	].join("\n");
+
+	it("returns the section active before the given line", () => {
+		expect(getActiveAtDocSection(content, 2)).toBe("player");
+		expect(getActiveAtDocSection(content, 5)).toBe("display");
+		expect(getActiveAtDocSection(content, 7)).toBe("meta");
+	});
+
+	it("returns null when no section header precedes the line", () => {
+		expect(getActiveAtDocSection(content, 1)).toBeNull();
+	});
+
+	it("does not treat the queried line itself as a section header", () => {
+		expect(getActiveAtDocSection(content, 4)).toBe("player");
+	});
+
+	it("resets the active section on unknown section headers", () => {
+		const withUnknown = [
+			"* [player]",
+			"* volume=0.5",
+			"* [playr]",
+			"* speed=0.9",
+		].join("\n");
+
+		expect(getActiveAtDocSection(withUnknown, 4)).toBeNull();
+	});
+
+	it("tolerates out-of-range line numbers", () => {
+		expect(getActiveAtDocSection(content, 0)).toBeNull();
+		expect(getActiveAtDocSection(content, 999)).toBe("meta");
 	});
 });

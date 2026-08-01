@@ -79,4 +79,8 @@ Inside an editable AlphaTex line (comment or non-comment):
   names (`[meta]`, `[display]`, `[player]`, `[coloring]`, `[staff]`, `[print]`),
   driven by `getAtDocSections()` from `lib/atdoc.ts`.
 - The replace range includes the leading `[`, so accepting `[meta]` does not duplicate it.
-- Bare-key completion inside a section (e.g. `[player]` + `vol`) is not implemented yet.
+- Bare keys inside an active section complete against that section's keys plus
+  aliases (e.g. `[player]` + `vol` → `volume`), using `getActiveAtDocSection()`
+  to resolve the current section from the document.
+- Typing `键=` after a bare key completes enum/boolean values, alias-aware
+  (e.g. `[player]` + `speed=0.9` resolves `speed` → `playbackSpeed`).

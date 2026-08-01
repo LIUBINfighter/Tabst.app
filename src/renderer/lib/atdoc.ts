@@ -553,7 +553,8 @@ function applyDirective(
 const ATDOC_SECTION_PATTERN = /^\[\s*([a-zA-Z][\w-]*)\s*\]$/;
 const ATDOC_BARE_KEY_PATTERN = /^([a-zA-Z][\w-]*)\s*=\s*(.+)$/;
 
-function stripCommentPrefix(line: string): string {
+/** Trim and strip AlphaTex comment prefixes (`*`, `//`) from a line. */
+export function stripCommentPrefix(line: string): string {
 	let s = line.trim();
 	if (!s) return s;
 	if (s.startsWith("*")) s = s.slice(1).trim();
@@ -608,6 +609,41 @@ export function getAtDocSections(): string[] {
 
 const ATDOC_KNOWN_SECTIONS = new Set(getAtDocSections());
 
+const ATDOC_KEY_ALIAS_MAP = new Map<string, string>();
+for (const def of ATDOC_KEY_DEFINITIONS) {
+	const [, domain, key] = def.key.split(".");
+	if (!domain || !key) continue;
+	for (const alias of def.aliases ?? []) {
+		ATDOC_KEY_ALIAS_MAP.set(`${domain}.${alias}`, key);
+	}
+}
+
+/**
+ * Resolve a bare key inside a section to its canonical key name (alias-aware).
+ */
+export function resolveAtDocSectionKey(section: string, key: string): string {
+	return ATDOC_KEY_ALIAS_MAP.get(`${section}.${key}`) ?? key;
+}
+
+/**
+ * Return the INI section active at the given 1-based line, or null. Unknown
+ * section headers reset the active section, mirroring parseAtDoc semantics.
+ */
+export function getActiveAtDocSection(
+	content: string,
+	lineNumber: number,
+): string | null {
+	const lines = content.split(/\r?\n/);
+	const target = Math.min(Math.max(lineNumber, 1), lines.length);
+	let current = "";
+	for (let i = 0; i < target - 1; i += 1) {
+		const section = extractSectionFromLine(lines[i]);
+		if (section === null) continue;
+		current = ATDOC_KNOWN_SECTIONS.has(section) ? section : "";
+	}
+	return current || null;
+}
+
 const INLINE_TAG_PATTERN = /^#([\p{L}\p{N}_-]+)[\p{P}\p{S}]*$/u;
 
 function collectInlineTagsFromLine(line: string, out: string[]): void {
@@ -654,7 +690,10 @@ export function parseAtDoc(content: string | undefined): AtDocParseResult {
 			const bare = extractBareKeyFromLine(lines[i]);
 			if (bare) {
 				applyDirective(
-					`at.${currentSection}.${bare.key}`,
+					`at.${currentSection}.${resolveAtDocSectionKey(
+						currentSection,
+						bare.key,
+					)}`,
 					bare.value,
 					i + 1,
 					config,

@@ -15,6 +15,8 @@ export interface AtDocKeyDefinition {
 	valueType: AtDocValueType;
 	description: string;
 	example: string;
+	/** Short aliases usable inside INI sections (e.g. `speed` -> at.player.playbackSpeed). */
+	aliases?: string[];
 }
 
 type CommandsJsonAtDocKey = {
@@ -63,6 +65,7 @@ const DEFAULT_ATDOC_KEY_DEFINITIONS: AtDocKeyDefinition[] = [
 		valueType: "string",
 		description: "Tab score author name",
 		example: 'at.meta.tabist="Your Name"',
+		aliases: ["author"],
 	},
 	{
 		key: "at.meta.app",
@@ -111,12 +114,14 @@ const DEFAULT_ATDOC_KEY_DEFINITIONS: AtDocKeyDefinition[] = [
 		valueType: "number",
 		description: "Preview display scale (>0)",
 		example: "at.display.scale=0.75",
+		aliases: ["zoom"],
 	},
 	{
 		key: "at.display.layoutMode",
 		valueType: "enum:layoutMode",
 		description: "Layout mode: Page | Horizontal | Parchment",
 		example: "at.display.layoutMode=Page",
+		aliases: ["layout"],
 	},
 	{
 		key: "at.player.scrollMode",
@@ -135,6 +140,7 @@ const DEFAULT_ATDOC_KEY_DEFINITIONS: AtDocKeyDefinition[] = [
 		valueType: "number",
 		description: "Playback speed multiplier (>0)",
 		example: "at.player.playbackSpeed=0.9",
+		aliases: ["speed"],
 	},
 	{
 		key: "at.player.volume",
@@ -147,42 +153,49 @@ const DEFAULT_ATDOC_KEY_DEFINITIONS: AtDocKeyDefinition[] = [
 		valueType: "string",
 		description: "Mute track indexes (comma-separated, zero-based)",
 		example: "at.player.muteTracks=1,3",
+		aliases: ["mute"],
 	},
 	{
 		key: "at.player.soloTracks",
 		valueType: "string",
 		description: "Solo track indexes (comma-separated, zero-based)",
 		example: "at.player.soloTracks=0",
+		aliases: ["solo"],
 	},
 	{
 		key: "at.player.metronomeVolume",
 		valueType: "number",
 		description: "Metronome volume in [0,1]",
 		example: "at.player.metronomeVolume=0.4",
+		aliases: ["metronome"],
 	},
 	{
 		key: "at.player.countInEnabled",
 		valueType: "boolean",
 		description: "Enable count-in before playback",
 		example: "at.player.countInEnabled=true",
+		aliases: ["countIn"],
 	},
 	{
 		key: "at.player.enableCursor",
 		valueType: "boolean",
 		description: "Enable alphaTab playback cursor rendering",
 		example: "at.player.enableCursor=true",
+		aliases: ["cursor"],
 	},
 	{
 		key: "at.player.enableElementHighlighting",
 		valueType: "boolean",
 		description: "Enable alphaTab playback element highlighting",
 		example: "at.player.enableElementHighlighting=true",
+		aliases: ["highlight"],
 	},
 	{
 		key: "at.player.enableUserInteraction",
 		valueType: "boolean",
 		description: "Enable alphaTab user interaction in preview",
 		example: "at.player.enableUserInteraction=true",
+		aliases: ["interaction"],
 	},
 	{
 		key: "at.coloring.enabled",
@@ -231,24 +244,28 @@ const DEFAULT_ATDOC_KEY_DEFINITIONS: AtDocKeyDefinition[] = [
 		valueType: "boolean",
 		description: "Show tablature in first track staff",
 		example: "at.staff.showTablature=true",
+		aliases: ["tab"],
 	},
 	{
 		key: "at.staff.showStandardNotation",
 		valueType: "boolean",
 		description: "Show standard notation in first track staff",
 		example: "at.staff.showStandardNotation=false",
+		aliases: ["notation"],
 	},
 	{
 		key: "at.staff.showSlash",
 		valueType: "boolean",
 		description: "Show slash notation in first track staff",
 		example: "at.staff.showSlash=false",
+		aliases: ["slash"],
 	},
 	{
 		key: "at.staff.showNumbered",
 		valueType: "boolean",
 		description: "Show numbered notation in first track staff",
 		example: "at.staff.showNumbered=false",
+		aliases: ["numbered"],
 	},
 	{
 		key: "at.print.zoom",
