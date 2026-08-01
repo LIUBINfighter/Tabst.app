@@ -1,0 +1,151 @@
+# ATDOC 指南（INI 分节写法）
+
+ATDOC 是 Tabst 的文档级配置：在 AlphaTex 文件的注释里声明预览、播放器、着色、谱表、打印与文件元数据，渲染前自动剥离，不影响谱面本身。
+
+## 快速上手
+
+在文件头部注释块中写配置：
+
+```alphatex
+/**
+ * [player]
+ * speed=0.92
+ * countIn=true
+ */
+```
+
+就等价于旧写法：
+
+```alphatex
+/**
+ * at.player.playbackSpeed=0.92
+ * at.player.countInEnabled=true
+ */
+```
+
+## 分节语法
+
+- 分节头：`[meta]`、`[display]`、`[player]`、`[coloring]`、`[staff]`、`[print]`；
+- 分节内每行一个 `键=值`，等价于 `at.<分节>.<键>=值`；
+- 分节作用域持续到下一个分节头或文件结尾；
+- `*` / `//` 注释前缀均可，`键 = 值` 允许空格；
+- 键入 `[` 会自动补全分节名，分节内键入键名会按当前分节补全。
+
+## 全部键与别名
+
+| 分节 | 键 | 别名 | 值 |
+| --- | --- | --- | --- |
+| `[meta]` | `title` | | 字符串（导航/搜索标题，不改文件名） |
+| | `class` / `tag` / `alias` | | 逗号分隔多值 |
+| | `status` | | `draft` / `active` / `done` / `released` |
+| | `tabist` | `author` | 打谱者名称 |
+| | `app` / `github` / `source` / `release` | | 字符串 |
+| | `license` | | CC 系列（如 `CC-BY-4.0`） |
+| `[display]` | `scale` | `zoom` | 数字 > 0 |
+| | `layoutMode` | `layout` | `Page` / `Horizontal` / `Parchment` |
+| `[player]` | `scrollMode` | | `Off` / `Continuous` / `OffScreen` / `Smooth` |
+| | `scrollSpeed` | | 数字 >= 0 |
+| | `playbackSpeed` | `speed` | 数字 > 0 |
+| | `volume` / `metronomeVolume` | `metronome` | 数字 [0,1] |
+| | `muteTracks` / `soloTracks` | `mute` / `solo` | 非负整数列表 |
+| | `countInEnabled` | `countIn` | true / false |
+| | `enableCursor` | `cursor` | true / false |
+| | `enableElementHighlighting` | `highlight` | true / false |
+| | `enableUserInteraction` | `interaction` | true / false |
+| `[coloring]` | `enabled` / `colorizeByFret` | | true / false |
+| | `barNumberColor` / `staffLineColor` / `barSeparatorColor` / `noteHeadColor` / `fretNumberColor` | | 颜色值 |
+| `[staff]` | `showTablature` | `tab` | true / false |
+| | `showStandardNotation` | `notation` | true / false |
+| | `showSlash` | `slash` | true / false |
+| | `showNumbered` | `numbered` | true / false |
+| `[print]` | `zoom` | | 数字 > 0 |
+| | `barsPerRow` | | -1 或正整数 |
+| | `stretchForce` | | 数字 >= 0 |
+
+> 别名仅在分节内生效（如 `speed` = `playbackSpeed`）；点号写法只认规范键名。
+
+## 快捷标签（#tag）
+
+注释行里的 `#标签` 会被自动收集为文件标签，与 `[meta]` 的 `tag=` 合并去重，用于侧边栏筛选和快速切换：
+
+```alphatex
+/**
+ * 这是一首 #摇滚 练习曲，重点练 #推弦 #揉弦
+ *
+ * [meta]
+ * tag="acoustic, guitar"
+ */
+```
+
+规则：标签写在 `*` 或 `//` 开头的注释行，形式为 `#名字`（字母、数字、下划线、连字符，支持中文）；ATDOC 指令行（如颜色值 `#ef4444`）和乐曲内容（如和弦 `C#m`）不会被误判。
+
+## 值类型与容错
+
+- `true` / `false` → 布尔；`0.75` → 数字；`"文字"` → 字符串；其余为裸字符串（枚举不区分大小写）；
+- 同一键多次出现：最后一条生效；
+- 未知分节、未知键、非法值：仅产生 warning，不会阻断渲染；
+- 分节外的裸 `键=值` 会被忽略。
+
+## 兼容旧写法
+
+点号写法 `at.域.键=值` 完全兼容，可与分节写法混用：
+
+```alphatex
+/**
+ * [meta]
+ * title="Flower Dance"
+ *
+ * at.player.metronomeVolume=0.35
+ * at.staff.showSlash=false
+ */
+```
+
+## 完整示例
+
+```alphatex
+/**
+ * 示例：#练习曲 #和弦
+ *
+ * [meta]
+ * title="Flower Dance"
+ * class="lesson, warmup"
+ * tag="acoustic, guitar"
+ * status=released
+ * author="JayBridge"
+ *
+ * [display]
+ * zoom=0.78
+ * layout=Page
+ *
+ * [player]
+ * scrollMode=OffScreen
+ * speed=0.92
+ * metronome=0.35
+ * countIn=true
+ * cursor=true
+ * highlight=true
+ *
+ * [coloring]
+ * enabled=true
+ * barNumberColor=#ef4444
+ * noteHeadColor=#22c55e
+ * fretNumberColor=#38bdf8
+ * colorizeByFret=true
+ *
+ * [staff]
+ * tab=true
+ * notation=false
+ *
+ * [print]
+ * zoom=1.05
+ * barsPerRow=4
+ */
+
+\title "Flower Dance"
+\tempo 96
+\track "Lead Guitar"
+\staff {score tabs}
+.
+:4 3.2 5.2 7.2 8.2 |
+:4 8.2 7.2 5.2 3.2 |
+```
