@@ -67,6 +67,7 @@ alphaTab 当前文档按用途拆为架构说明和故障排查。正式 live Pr
 | --- | --- |
 | [LSP_INTEGRATION.md](./alphatex/LSP_INTEGRATION.md) | Worker LSP、补全、Hover 和诊断实现背景；部分 roadmap 段落可能已过期 |
 | [ATDOC_HIERARCHICAL_AUTOCOMPLETE_SPEC.md](./alphatex/ATDOC_HIERARCHICAL_AUTOCOMPLETE_SPEC.md) | 已实现的分层补全设计记录 |
+| [ATDOC_INI_SYNTAX.md](./alphatex/ATDOC_INI_SYNTAX.md) | 当前实现的 INI 分节语法（`[player]` + 短键） |
 | [ATDOC_V0.md](./alphatex/ATDOC_V0.md) | ATDOC v0 语法和应用约束记录 |
 | [ATDOC_V0_1.md](./alphatex/ATDOC_V0_1.md) | completion/hover 扩展阶段设计记录 |
 | [ATDOC_NEXT_PHASE_DRAFT.md](./alphatex/ATDOC_NEXT_PHASE_DRAFT.md) | 下一阶段讨论草案 |

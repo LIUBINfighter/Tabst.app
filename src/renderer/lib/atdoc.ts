@@ -550,14 +550,22 @@ function applyDirective(
 	}
 }
 
+const ATDOC_SECTION_PATTERN = /^\[\s*([a-zA-Z][\w-]*)\s*\]$/;
+const ATDOC_BARE_KEY_PATTERN = /^([a-zA-Z][\w-]*)\s*=\s*(.+)$/;
+
+function stripCommentPrefix(line: string): string {
+	let s = line.trim();
+	if (!s) return s;
+	if (s.startsWith("*")) s = s.slice(1).trim();
+	if (s.startsWith("//")) s = s.slice(2).trim();
+	return s;
+}
+
 function extractDirectiveFromLine(
 	line: string,
 ): { key: string; value: string } | null {
-	let s = line.trim();
+	const s = stripCommentPrefix(line);
 	if (!s) return null;
-
-	if (s.startsWith("*")) s = s.slice(1).trim();
-	if (s.startsWith("//")) s = s.slice(2).trim();
 
 	if (!s.toLowerCase().startsWith("at.")) return null;
 	const eq = s.indexOf("=");
@@ -569,6 +577,36 @@ function extractDirectiveFromLine(
 
 	return { key, value };
 }
+
+function extractSectionFromLine(line: string): string | null {
+	const s = stripCommentPrefix(line);
+	if (!s) return null;
+	const match = ATDOC_SECTION_PATTERN.exec(s);
+	return match ? match[1] : null;
+}
+
+function extractBareKeyFromLine(
+	line: string,
+): { key: string; value: string } | null {
+	const s = stripCommentPrefix(line);
+	if (!s) return null;
+	const match = ATDOC_BARE_KEY_PATTERN.exec(s);
+	if (!match) return null;
+	const value = match[2].trim();
+	if (!value) return null;
+	return { key: match[1], value };
+}
+
+export function getAtDocSections(): string[] {
+	const set = new Set<string>();
+	for (const def of ATDOC_KEY_DEFINITIONS) {
+		const [, domain] = def.key.split(".");
+		if (domain) set.add(domain);
+	}
+	return [...set].sort();
+}
+
+const ATDOC_KNOWN_SECTIONS = new Set(getAtDocSections());
 
 const INLINE_TAG_PATTERN = /^#([\p{L}\p{N}_-]+)[\p{P}\p{S}]*$/u;
 
@@ -588,6 +626,8 @@ export function parseAtDoc(content: string | undefined): AtDocParseResult {
 	const warnings: AtDocWarning[] = [];
 	const config: AtDocConfig = {};
 	const inlineTags: string[] = [];
+	const keptLines: string[] = [];
+	let currentSection = "";
 
 	for (let i = 0; i < lines.length; i++) {
 		const directive = extractDirectiveFromLine(lines[i]);
@@ -595,15 +635,41 @@ export function parseAtDoc(content: string | undefined): AtDocParseResult {
 			applyDirective(directive.key, directive.value, i + 1, config, warnings);
 			continue;
 		}
+
+		const section = extractSectionFromLine(lines[i]);
+		if (section !== null) {
+			if (!ATDOC_KNOWN_SECTIONS.has(section)) {
+				warnings.push({
+					line: i + 1,
+					message: `Unknown atdoc section: [${section}]`,
+				});
+				currentSection = "";
+			} else {
+				currentSection = section;
+			}
+			continue;
+		}
+
+		if (currentSection) {
+			const bare = extractBareKeyFromLine(lines[i]);
+			if (bare) {
+				applyDirective(
+					`at.${currentSection}.${bare.key}`,
+					bare.value,
+					i + 1,
+					config,
+					warnings,
+				);
+				continue;
+			}
+		}
+
+		keptLines.push(lines[i]);
 		collectInlineTagsFromLine(lines[i], inlineTags);
 	}
 
-	const cleanContent = lines
-		.filter((line) => !extractDirectiveFromLine(line))
-		.join("\n");
-
 	return {
-		cleanContent,
+		cleanContent: keptLines.join("\n"),
 		config,
 		warnings,
 		inlineTags,

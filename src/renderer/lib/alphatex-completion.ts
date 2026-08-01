@@ -25,6 +25,7 @@ import {
 	ATDOC_SCROLL_MODE_VALUES,
 } from "./../data/atdoc-keys";
 import type { AlphaTexLSPClient } from "./alphatex-lsp";
+import { getAtDocSections } from "./atdoc";
 
 // Minimal LSP CompletionItem shape we currently use
 interface LspCompletionItem {
@@ -35,7 +36,7 @@ interface LspCompletionItem {
 }
 
 interface LayeredContext {
-	kind: "domain" | "key" | "value";
+	kind: "section" | "domain" | "key" | "value";
 	domainPrefix: string;
 	keyPrefix: string;
 	valuePrefix: string;
@@ -59,6 +60,21 @@ function getAtDocLayeredContext(
 ): LayeredContext | null {
 	const line = context.state.doc.lineAt(context.pos);
 	const before = line.text.slice(0, context.pos - line.from);
+
+	const bracketIndex = before.lastIndexOf("[");
+	if (bracketIndex >= 0) {
+		const sectionFragment = before.slice(bracketIndex + 1);
+		if (/^\s*[\w-]*$/.test(sectionFragment)) {
+			return {
+				kind: "section",
+				domainPrefix: "",
+				keyPrefix: sectionFragment.trim(),
+				valuePrefix: "",
+				replaceFrom: line.from + bracketIndex,
+				replaceTo: context.pos,
+			};
+		}
+	}
 
 	const atIndex = Math.max(before.lastIndexOf("at."), before.lastIndexOf("at"));
 	if (atIndex < 0) return null;
@@ -166,6 +182,22 @@ function buildLayeredCompletions(context: LayeredContext): CompletionResult {
 		if (domain) domainSet.add(domain);
 	}
 	const domains = [...domainSet].sort();
+
+	if (context.kind === "section") {
+		const filtered = getAtDocSections().filter((section) =>
+			section.toLowerCase().startsWith(context.keyPrefix.toLowerCase()),
+		);
+		return {
+			from: context.replaceFrom,
+			to: context.replaceTo,
+			filter: false,
+			options: filtered.map((section) => ({
+				label: `[${section}]`,
+				detail: "ATDOC section",
+				apply: `[${section}]`,
+			})),
+		};
+	}
 
 	if (context.kind === "domain") {
 		const filteredDomains = domains.filter((domain) =>
@@ -383,7 +415,8 @@ export function createAlphaTexAutocomplete(
 		const before = line.text.slice(0, pos - line.from);
 		const trimmed = before.trimStart();
 
-		const shouldTrigger = /\bat(?:\.[\w.]*)?(?:\s*=\s*[^\s]*)?$/.test(trimmed);
+		const shouldTrigger =
+			/\bat(?:\.[\w.]*)?(?:\s*=\s*[^\s]*)?$|\[\s*[\w-]*$/.test(trimmed);
 		if (!shouldTrigger) return;
 
 		if (completionStatus(update.state) !== "active") {

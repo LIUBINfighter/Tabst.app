@@ -1,5 +1,6 @@
+import * as alphaTab from "@coderline/alphatab";
 import { describe, expect, it } from "vitest";
-import { extractAtDocFileMeta, parseAtDoc } from "./atdoc";
+import { extractAtDocFileMeta, getAtDocSections, parseAtDoc } from "./atdoc";
 
 describe("parseAtDoc player volume directives", () => {
 	it("parses at.player.volume as overall player volume", () => {
@@ -134,5 +135,135 @@ describe("extractAtDocFileMeta inline #tags", () => {
 		const meta = extractAtDocFileMeta("1.1.1");
 
 		expect(meta.metaTags).toEqual([]);
+	});
+});
+
+describe("parseAtDoc INI sections", () => {
+	it("applies bare keys inside a known section", () => {
+		const result = parseAtDoc(
+			["[player]", "volume=0.5", "countInEnabled=true", "1.1.1"].join("\n"),
+		);
+
+		expect(result.config.player?.volume).toBe(0.5);
+		expect(result.config.player?.countInEnabled).toBe(true);
+		expect(result.warnings).toEqual([]);
+	});
+
+	it("maps keys to their section domains", () => {
+		const result = parseAtDoc(
+			[
+				"* [meta]",
+				'* title="Flower Dance"',
+				'* tag="acoustic, guitar"',
+				"* [print]",
+				"* barsPerRow=4",
+				"* zoom=1.1",
+				"1.1.1",
+			].join("\n"),
+		);
+
+		expect(result.config.meta?.title).toBe("Flower Dance");
+		expect(result.config.meta?.tag).toEqual(["acoustic", "guitar"]);
+		expect(result.config.print?.barsPerRow).toBe(4);
+		expect(result.config.print?.zoom).toBe(1.1);
+		expect(result.warnings).toEqual([]);
+	});
+
+	it("mixes INI sections with dotted directives", () => {
+		const result = parseAtDoc(
+			[
+				"* [display]",
+				"* scale=0.8",
+				"* at.display.layoutMode=Page",
+				"* [player]",
+				"* playbackSpeed=0.9",
+				"1.1.1",
+			].join("\n"),
+		);
+
+		expect(result.config.display?.scale).toBe(0.8);
+		expect(result.config.display?.layoutMode).toBe(alphaTab.LayoutMode.Page);
+		expect(result.config.player?.playbackSpeed).toBe(0.9);
+	});
+
+	it("warns on unknown section and ignores its keys", () => {
+		const result = parseAtDoc(
+			["[playr]", "volume=0.5", "[player]", "volume=0.7", "1.1.1"].join("\n"),
+		);
+
+		expect(result.config.player?.volume).toBe(0.7);
+		expect(result.warnings).toEqual([
+			{ line: 1, message: "Unknown atdoc section: [playr]" },
+		]);
+	});
+
+	it("warns on unknown key inside a known section", () => {
+		const result = parseAtDoc(
+			["[player]", "volume=0.5", "wobble=3", "1.1.1"].join("\n"),
+		);
+
+		expect(result.config.player?.volume).toBe(0.5);
+		expect(result.warnings).toEqual([
+			{ line: 3, message: "Unknown atdoc key: at.player.wobble" },
+		]);
+	});
+
+	it("ignores bare keys outside any section", () => {
+		const result = parseAtDoc(["volume=0.5", "1.1.1"].join("\n"));
+
+		expect(result.config.player?.volume).toBeUndefined();
+		expect(result.warnings).toEqual([]);
+	});
+
+	it("strips section headers and bare keys from cleanContent", () => {
+		const result = parseAtDoc(
+			["* [player]", "* volume=0.5", "* comment stays", "1.1.1"].join("\n"),
+		);
+
+		expect(result.cleanContent).toBe("* comment stays\n1.1.1");
+	});
+
+	it("still collects #tags from prose inside a section block", () => {
+		const result = parseAtDoc(
+			["* [meta]", "* 练习曲 #摇滚", '* tag="caged"', "1.1.1"].join("\n"),
+		);
+
+		expect(result.config.meta?.tag).toEqual(["caged"]);
+		expect(result.inlineTags).toEqual(["摇滚"]);
+	});
+
+	it("supports whitespace inside brackets and key = value spacing", () => {
+		const result = parseAtDoc(
+			["[ player ]", "scrollSpeed = 300", "1.1.1"].join("\n"),
+		);
+
+		expect(result.config.player?.scrollSpeed).toBe(300);
+		expect(result.warnings).toEqual([]);
+	});
+
+	it("applies last value when the same key appears in INI and dotted form", () => {
+		const result = parseAtDoc(
+			[
+				"[display]",
+				"scale=0.8",
+				"at.display.scale=0.9",
+				"[display]",
+				"scale=0.7",
+				"1.1.1",
+			].join("\n"),
+		);
+
+		expect(result.config.display?.scale).toBe(0.7);
+	});
+
+	it("exposes the known section names", () => {
+		expect(getAtDocSections()).toEqual([
+			"coloring",
+			"display",
+			"meta",
+			"player",
+			"print",
+			"staff",
+		]);
 	});
 });

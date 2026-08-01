@@ -72,3 +72,11 @@ Inside an editable AlphaTex line (comment or non-comment):
   when replacement range contained `at.` but option labels were short tokens (`meta`, `display`).
 - Fixed value completion trigger for spaced `=` inputs by expanding parser and trigger regex
   from strict `key=value` to tolerant `key\s*=\s*value` matching.
+
+## Section Completion (2026-08)
+
+- Typing `[` inside an editable line triggers completion of the six INI section
+  names (`[meta]`, `[display]`, `[player]`, `[coloring]`, `[staff]`, `[print]`),
+  driven by `getAtDocSections()` from `lib/atdoc.ts`.
+- The replace range includes the leading `[`, so accepting `[meta]` does not duplicate it.
+- Bare-key completion inside a section (e.g. `[player]` + `vol`) is not implemented yet.
