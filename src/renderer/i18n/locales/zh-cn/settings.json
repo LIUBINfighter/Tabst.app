@@ -214,7 +214,25 @@
 			"description": "切换轨道面板显示状态"
 		},
 		"dynamicAtdocLabel": "插入 {{key}}",
-		"dynamicAtdocDescription": "{{description}} · 示例：{{example}}"
+		"dynamicAtdocDescription": "{{description}} · 示例：{{example}}",
+		"category": {
+			"atdoc": "ATDOC",
+			"editor": "编辑器",
+			"file": "文件",
+			"playback": "播放",
+			"preview": "预览与导出",
+			"workspace": "工作区"
+		}
+	},
+	"commandAvailability": {
+		"disabledInSettings": "已在 设置 > 命令 中禁用",
+		"temporarilyUnavailable": "该工作区视图暂未开放",
+		"noActiveScoreFile": "当前没有打开的乐谱文件",
+		"musicxmlRequiresGp": "MusicXML 导出需要打开 Guitar Pro 文件",
+		"playbackNotReady": "播放尚未就绪，请先打开乐谱预览",
+		"noTemplates": "暂无模板，请先将至少一个文件标记为模板",
+		"noActiveFile": "当前没有打开的文件",
+		"templateCandidateOnly": "只有 .atex 和 .md 文件可以标记为模板"
 	},
 	"updates": "更新",
 	"updatesDesc": "版本检查与更新相关功能",

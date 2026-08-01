@@ -214,7 +214,25 @@
 			"description": "Toggle tracks panel visibility"
 		},
 		"dynamicAtdocLabel": "Insert {{key}}",
-		"dynamicAtdocDescription": "{{description}} · Example: {{example}}"
+		"dynamicAtdocDescription": "{{description}} · Example: {{example}}",
+		"category": {
+			"atdoc": "ATDOC",
+			"editor": "Editor",
+			"file": "Files",
+			"playback": "Playback",
+			"preview": "Preview & Export",
+			"workspace": "Workspace"
+		}
+	},
+	"commandAvailability": {
+		"disabledInSettings": "Disabled in Settings > Commands",
+		"temporarilyUnavailable": "This workspace view is temporarily unavailable",
+		"noActiveScoreFile": "No active score file",
+		"musicxmlRequiresGp": "MusicXML export requires an active Guitar Pro file",
+		"playbackNotReady": "Playback not ready. Open a score preview first",
+		"noTemplates": "No templates yet. Mark at least one file as template",
+		"noActiveFile": "No active file",
+		"templateCandidateOnly": "Only .atex and .md files can be marked as templates"
 	},
 	"updates": "Updates",
 	"updatesDesc": "Version check and updates",

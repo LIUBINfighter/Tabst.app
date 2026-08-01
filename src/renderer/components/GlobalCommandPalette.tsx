@@ -9,7 +9,12 @@ import {
 	Sparkles,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { CommandIcon, GlobalCommandId } from "../lib/command-registry";
+import type {
+	CommandCategory,
+	CommandIcon,
+	GlobalCommandId,
+} from "../lib/command-registry";
+import { commandCategoryLabel } from "../lib/command-registry";
 import { getCommandsWithAvailability } from "../lib/ui-command-registry";
 import { Dialog, DialogContent, DialogTitle } from "./ui/dialog";
 import { Input } from "./ui/input";
@@ -59,6 +64,26 @@ export default function GlobalCommandPalette({
 			);
 		});
 	}, [commands, query]);
+
+	const groupedRows = useMemo(() => {
+		const rows: Array<
+			| { kind: "header"; category: CommandCategory }
+			| {
+					kind: "command";
+					command: (typeof commands)[number];
+					flatIndex: number;
+			  }
+		> = [];
+		let lastCategory: CommandCategory | null = null;
+		filtered.forEach((command, flatIndex) => {
+			if (command.category !== lastCategory) {
+				rows.push({ kind: "header", category: command.category });
+				lastCategory = command.category;
+			}
+			rows.push({ kind: "command", command, flatIndex });
+		});
+		return rows;
+	}, [filtered]);
 
 	useEffect(() => {
 		setSelectedIndex((prev) =>
@@ -126,39 +151,55 @@ export default function GlobalCommandPalette({
 						</div>
 					) : (
 						<div className="space-y-1">
-							{filtered.map((command, index) => (
-								<button
-									type="button"
-									key={command.id}
-									ref={(node) => {
-										optionRefs.current[index] = node;
-									}}
-									onMouseEnter={() => setSelectedIndex(index)}
-									onClick={() => {
-										if (!command.availability.enabled) return;
-										onRunCommand(command.id);
-										onOpenChange(false);
-									}}
-									disabled={!command.availability.enabled}
-									className={`w-full rounded-md px-3 py-2 text-left transition-colors ${
-										selectedIndex === index
-											? "bg-accent text-accent-foreground"
-											: "hover:bg-accent/60"
-									}`}
-								>
-									<div className="flex items-center gap-2">
-										<Icon type={command.icon} />
-										<span className="text-sm font-medium">{command.label}</span>
-									</div>
-									<div className="mt-1 text-xs text-muted-foreground">
-										{command.description}
-										{!command.availability.enabled &&
-										command.availability.reason
-											? ` · ${command.availability.reason}`
-											: ""}
-									</div>
-								</button>
-							))}
+							{groupedRows.map((row) => {
+								if (row.kind === "header") {
+									return (
+										<div
+											key={`header-${row.category}`}
+											className="px-3 pt-2 pb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground"
+										>
+											{commandCategoryLabel(row.category)}
+										</div>
+									);
+								}
+								const command = row.command;
+								const index = row.flatIndex;
+								return (
+									<button
+										type="button"
+										key={command.id}
+										ref={(node) => {
+											optionRefs.current[index] = node;
+										}}
+										onMouseEnter={() => setSelectedIndex(index)}
+										onClick={() => {
+											if (!command.availability.enabled) return;
+											onRunCommand(command.id);
+											onOpenChange(false);
+										}}
+										disabled={!command.availability.enabled}
+										className={`w-full rounded-md px-3 py-2 text-left transition-colors ${
+											selectedIndex === index
+												? "bg-accent text-accent-foreground"
+												: "hover:bg-accent/60"
+										}`}
+									>
+										<div className="flex items-center gap-2">
+											<Icon type={command.icon} />
+											<span className="text-sm font-medium">
+												{command.label}
+											</span>
+										</div>
+										<div className="mt-1 text-xs text-muted-foreground">
+											{command.description}
+											{!command.availability.enabled &&
+											command.availability.reason
+												? ` · ${command.availability.reason}`
+												: ""}
+										</div>
+									</button>
+								);
+							})}
 						</div>
 					)}
 				</div>

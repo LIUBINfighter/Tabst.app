@@ -1,9 +1,11 @@
+import i18n from "../i18n";
 import { useAppStore } from "../store/appStore";
 import {
 	dispatchEditorCommand,
 	dispatchOpenInlineEditorCommand,
 } from "./command-palette";
 import {
+	type CommandCategory,
 	type GlobalCommandId,
 	getGlobalCommands,
 	getInlineCommands,
@@ -49,6 +51,7 @@ export interface CommandWithAvailability {
 	description: string;
 	keywords: string[];
 	icon: import("./command-registry").CommandIcon;
+	category: CommandCategory;
 	availability: UiCommandAvailability;
 }
 
@@ -58,6 +61,7 @@ export interface InlineCommandWithAvailability {
 	description: string;
 	keywords: string[];
 	icon: import("./command-registry").CommandIcon;
+	category: CommandCategory;
 	availability: UiCommandAvailability;
 }
 
@@ -112,7 +116,7 @@ export function getCommandAvailability(
 	if (disabledCommandIds.includes(commandId)) {
 		return {
 			enabled: false,
-			reason: "Disabled in Settings > Commands.",
+			reason: i18n.t("settings:commandAvailability.disabledInSettings"),
 		};
 	}
 
@@ -123,7 +127,7 @@ export function getCommandAvailability(
 	) {
 		return {
 			enabled: false,
-			reason: "This workspace view is temporarily unavailable.",
+			reason: i18n.t("settings:commandAvailability.temporarilyUnavailable"),
 		};
 	}
 
@@ -137,7 +141,7 @@ export function getCommandAvailability(
 		if (!hasActiveFile()) {
 			return {
 				enabled: false,
-				reason: "No active score file.",
+				reason: i18n.t("settings:commandAvailability.noActiveScoreFile"),
 			};
 		}
 	}
@@ -147,7 +151,7 @@ export function getCommandAvailability(
 		if (!activeFilePath || !isGpFilePath(activeFilePath)) {
 			return {
 				enabled: false,
-				reason: "MusicXML export requires an active Guitar Pro file.",
+				reason: i18n.t("settings:commandAvailability.musicxmlRequiresGp"),
 			};
 		}
 	}
@@ -162,7 +166,7 @@ export function getCommandAvailability(
 		if (!hasPlayerControls()) {
 			return {
 				enabled: false,
-				reason: "Playback not ready. Open a score preview first.",
+				reason: i18n.t("settings:commandAvailability.playbackNotReady"),
 			};
 		}
 	}
@@ -170,7 +174,7 @@ export function getCommandAvailability(
 	if (commandId === "template.new-from.open-picker" && !hasTemplateFiles()) {
 		return {
 			enabled: false,
-			reason: "No templates yet. Mark at least one file as template.",
+			reason: i18n.t("settings:commandAvailability.noTemplates"),
 		};
 	}
 
@@ -181,15 +185,15 @@ export function getCommandAvailability(
 		return {
 			enabled: false,
 			reason: !hasTemplateFiles()
-				? "No templates yet. Mark at least one file as template."
-				: "No active file.",
+				? i18n.t("settings:commandAvailability.noTemplates")
+				: i18n.t("settings:commandAvailability.noActiveFile"),
 		};
 	}
 
 	if (commandId === "template.toggle-active-file" && !hasActiveFile()) {
 		return {
 			enabled: false,
-			reason: "No active file.",
+			reason: i18n.t("settings:commandAvailability.noActiveFile"),
 		};
 	}
 
@@ -198,7 +202,7 @@ export function getCommandAvailability(
 		if (activeFilePath && !isTemplateCandidatePath(activeFilePath)) {
 			return {
 				enabled: false,
-				reason: "Only .atex and .md files can be marked as templates.",
+				reason: i18n.t("settings:commandAvailability.templateCandidateOnly"),
 			};
 		}
 	}
