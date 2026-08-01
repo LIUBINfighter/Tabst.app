@@ -184,6 +184,17 @@ export const tutorialsRegistry: TutorialMetadata[] = [
 		status: "release",
 	},
 	{
+		id: "atdoc-guide",
+		title: "ATDOC Guide",
+		titleEn: "ATDOC Guide",
+		titleZhCn: "ATDOC 指南",
+		description: "INI 分节写法、别名与 #tag 快捷标签",
+		order: 5,
+		audience: "power-user",
+		category: "ATDOC",
+		status: "release",
+	},
+	{
 		id: "vendor-alphatex-introduction",
 		title: "Introduction",
 		order: 10,

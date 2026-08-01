@@ -1,14 +1,12 @@
+import i18n from "../i18n";
 import { useAppStore } from "../store/appStore";
+import { dispatchOpenInlineEditorCommand } from "./command-palette";
 import {
-	dispatchEditorCommand,
-	dispatchOpenInlineEditorCommand,
-} from "./command-palette";
-import {
+	type CommandCategory,
 	type GlobalCommandId,
 	getGlobalCommands,
 	getInlineCommands,
 	type InlineCommandId,
-	type StaticEditorCommandId,
 } from "./command-registry";
 import { isGpFilePath } from "./gp-import";
 import {
@@ -49,6 +47,7 @@ export interface CommandWithAvailability {
 	description: string;
 	keywords: string[];
 	icon: import("./command-registry").CommandIcon;
+	category: CommandCategory;
 	availability: UiCommandAvailability;
 }
 
@@ -58,6 +57,7 @@ export interface InlineCommandWithAvailability {
 	description: string;
 	keywords: string[];
 	icon: import("./command-registry").CommandIcon;
+	category: CommandCategory;
 	availability: UiCommandAvailability;
 }
 
@@ -112,7 +112,18 @@ export function getCommandAvailability(
 	if (disabledCommandIds.includes(commandId)) {
 		return {
 			enabled: false,
-			reason: "Disabled in Settings > Commands.",
+			reason: i18n.t("settings:commandAvailability.disabledInSettings"),
+		};
+	}
+
+	// Temporarily disabled features (not open yet). Remove when re-enabling.
+	if (
+		commandId === "workspace.mode.git" ||
+		commandId === "workspace.mode.cloud"
+	) {
+		return {
+			enabled: false,
+			reason: i18n.t("settings:commandAvailability.temporarilyUnavailable"),
 		};
 	}
 
@@ -126,7 +137,7 @@ export function getCommandAvailability(
 		if (!hasActiveFile()) {
 			return {
 				enabled: false,
-				reason: "No active score file.",
+				reason: i18n.t("settings:commandAvailability.noActiveScoreFile"),
 			};
 		}
 	}
@@ -136,7 +147,7 @@ export function getCommandAvailability(
 		if (!activeFilePath || !isGpFilePath(activeFilePath)) {
 			return {
 				enabled: false,
-				reason: "MusicXML export requires an active Guitar Pro file.",
+				reason: i18n.t("settings:commandAvailability.musicxmlRequiresGp"),
 			};
 		}
 	}
@@ -151,7 +162,7 @@ export function getCommandAvailability(
 		if (!hasPlayerControls()) {
 			return {
 				enabled: false,
-				reason: "Playback not ready. Open a score preview first.",
+				reason: i18n.t("settings:commandAvailability.playbackNotReady"),
 			};
 		}
 	}
@@ -159,7 +170,7 @@ export function getCommandAvailability(
 	if (commandId === "template.new-from.open-picker" && !hasTemplateFiles()) {
 		return {
 			enabled: false,
-			reason: "No templates yet. Mark at least one file as template.",
+			reason: i18n.t("settings:commandAvailability.noTemplates"),
 		};
 	}
 
@@ -170,15 +181,15 @@ export function getCommandAvailability(
 		return {
 			enabled: false,
 			reason: !hasTemplateFiles()
-				? "No templates yet. Mark at least one file as template."
-				: "No active file.",
+				? i18n.t("settings:commandAvailability.noTemplates")
+				: i18n.t("settings:commandAvailability.noActiveFile"),
 		};
 	}
 
 	if (commandId === "template.toggle-active-file" && !hasActiveFile()) {
 		return {
 			enabled: false,
-			reason: "No active file.",
+			reason: i18n.t("settings:commandAvailability.noActiveFile"),
 		};
 	}
 
@@ -187,7 +198,7 @@ export function getCommandAvailability(
 		if (activeFilePath && !isTemplateCandidatePath(activeFilePath)) {
 			return {
 				enabled: false,
-				reason: "Only .atex and .md files can be marked as templates.",
+				reason: i18n.t("settings:commandAvailability.templateCandidateOnly"),
 			};
 		}
 	}
@@ -411,20 +422,6 @@ export function runUiCommand(commandId: UiCommandId): UiCommandRunResult {
 	if (commandId.startsWith("preview.")) {
 		dispatchPreviewCommand(commandId as PreviewCommandId);
 		return success(`Dispatch preview command: ${commandId}`);
-	}
-
-	if (
-		(
-			[
-				"insert-atdoc-block",
-				"insert-atdoc-directive",
-				"insert-atdoc-meta-preset",
-			] as StaticEditorCommandId[]
-		).includes(commandId as StaticEditorCommandId)
-	) {
-		dispatchEditorCommand(commandId as StaticEditorCommandId);
-		useAppStore.getState().setWorkspaceMode("editor");
-		return success(`Dispatch editor command: ${commandId}`);
 	}
 
 	if (commandId.startsWith("playback.")) {

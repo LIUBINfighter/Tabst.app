@@ -1,17 +1,4 @@
-import { ATDOC_KEY_DEFINITIONS } from "../data/atdoc-keys";
 import i18n from "../i18n";
-
-export const ATDOC_INLINE_KEY_COMMAND_PREFIX = "insert-atdoc-key:";
-
-export type StaticEditorCommandId =
-	| "insert-atdoc-block"
-	| "insert-atdoc-directive"
-	| "insert-atdoc-meta-preset";
-
-export type DynamicEditorCommandId =
-	`${typeof ATDOC_INLINE_KEY_COMMAND_PREFIX}${string}`;
-
-export type EditorCommandId = StaticEditorCommandId | DynamicEditorCommandId;
 
 export type GlobalOnlyCommandId =
 	| "open-quick-file"
@@ -53,8 +40,8 @@ export type GlobalOnlyCommandId =
 	| "playback.play-pause"
 	| "playback.tracks-panel.toggle";
 
-export type GlobalCommandId = GlobalOnlyCommandId | StaticEditorCommandId;
-export type InlineCommandId = EditorCommandId | GlobalCommandId;
+export type GlobalCommandId = GlobalOnlyCommandId;
+export type InlineCommandId = GlobalCommandId;
 
 export type CommandIcon =
 	| "command"
@@ -67,47 +54,40 @@ export type CommandIcon =
 	| "printer"
 	| "music";
 
+export type CommandCategory =
+	| "atdoc"
+	| "editor"
+	| "file"
+	| "playback"
+	| "preview"
+	| "workspace";
+
+export const COMMAND_CATEGORY_ORDER: CommandCategory[] = [
+	"workspace",
+	"file",
+	"editor",
+	"atdoc",
+	"playback",
+	"preview",
+];
+
+export function commandCategoryLabel(category: CommandCategory): string {
+	return i18n.t(`settings:commandRegistry.category.${category}`);
+}
+
 export interface RegisteredCommand<TId extends string> {
 	id: TId;
 	label: string;
 	description: string;
 	keywords: string[];
 	icon: CommandIcon;
+	category: CommandCategory;
 }
-
-const STATIC_EDITOR_COMMANDS: RegisteredCommand<StaticEditorCommandId>[] = [
-	{
-		id: "insert-atdoc-block",
-		label: i18n.t("settings:commandRegistry.insert_atdoc_block.label"),
-		description: i18n.t(
-			"settings:commandRegistry.insert_atdoc_block.description",
-		),
-		keywords: ["atdoc", "comment", "block", "wrapper"],
-		icon: "tree",
-	},
-	{
-		id: "insert-atdoc-directive",
-		label: i18n.t("settings:commandRegistry.insert_atdoc_directive.label"),
-		description: i18n.t(
-			"settings:commandRegistry.insert_atdoc_directive.description",
-		),
-		keywords: ["atdoc", "directive", "meta", "status"],
-		icon: "sparkles",
-	},
-	{
-		id: "insert-atdoc-meta-preset",
-		label: i18n.t("settings:commandRegistry.insert_atdoc_meta_preset.label"),
-		description: i18n.t(
-			"settings:commandRegistry.insert_atdoc_meta_preset.description",
-		),
-		keywords: ["atdoc", "meta", "preset", "alias", "title"],
-		icon: "sparkles",
-	},
-];
 
 const GLOBAL_ONLY_COMMANDS: RegisteredCommand<GlobalOnlyCommandId>[] = [
 	{
 		id: "open-quick-file",
+		category: "file",
 		label: i18n.t("settings:commandRegistry.open_quick_file.label"),
 		description: i18n.t("settings:commandRegistry.open_quick_file.description"),
 		keywords: ["file", "open", "quick", "search", "tag"],
@@ -115,6 +95,7 @@ const GLOBAL_ONLY_COMMANDS: RegisteredCommand<GlobalOnlyCommandId>[] = [
 	},
 	{
 		id: "open-editor-command-palette",
+		category: "editor",
 		label: i18n.t("settings:commandRegistry.open_editor_command_palette.label"),
 		description: i18n.t(
 			"settings:commandRegistry.open_editor_command_palette.description",
@@ -124,6 +105,7 @@ const GLOBAL_ONLY_COMMANDS: RegisteredCommand<GlobalOnlyCommandId>[] = [
 	},
 	{
 		id: "template.insert.open-picker",
+		category: "file",
 		label: i18n.t("settings:commandRegistry.template_insert_open_picker.label"),
 		description: i18n.t(
 			"settings:commandRegistry.template_insert_open_picker.description",
@@ -133,6 +115,7 @@ const GLOBAL_ONLY_COMMANDS: RegisteredCommand<GlobalOnlyCommandId>[] = [
 	},
 	{
 		id: "template.new-from.open-picker",
+		category: "file",
 		label: i18n.t(
 			"settings:commandRegistry.template_new_from_open_picker.label",
 		),
@@ -144,6 +127,7 @@ const GLOBAL_ONLY_COMMANDS: RegisteredCommand<GlobalOnlyCommandId>[] = [
 	},
 	{
 		id: "template.toggle-active-file",
+		category: "file",
 		label: i18n.t("settings:commandRegistry.template_toggle_active_file.label"),
 		description: i18n.t(
 			"settings:commandRegistry.template_toggle_active_file.description",
@@ -153,6 +137,7 @@ const GLOBAL_ONLY_COMMANDS: RegisteredCommand<GlobalOnlyCommandId>[] = [
 	},
 	{
 		id: "layout.sidebar.open",
+		category: "workspace",
 		label: i18n.t("settings:commandRegistry.layout_sidebar_open.label"),
 		description: i18n.t(
 			"settings:commandRegistry.layout_sidebar_open.description",
@@ -162,6 +147,7 @@ const GLOBAL_ONLY_COMMANDS: RegisteredCommand<GlobalOnlyCommandId>[] = [
 	},
 	{
 		id: "layout.sidebar.close",
+		category: "workspace",
 		label: i18n.t("settings:commandRegistry.layout_sidebar_close.label"),
 		description: i18n.t(
 			"settings:commandRegistry.layout_sidebar_close.description",
@@ -171,6 +157,7 @@ const GLOBAL_ONLY_COMMANDS: RegisteredCommand<GlobalOnlyCommandId>[] = [
 	},
 	{
 		id: "layout.sidebar.toggle",
+		category: "workspace",
 		label: i18n.t("settings:commandRegistry.layout_sidebar_toggle.label"),
 		description: i18n.t(
 			"settings:commandRegistry.layout_sidebar_toggle.description",
@@ -180,6 +167,7 @@ const GLOBAL_ONLY_COMMANDS: RegisteredCommand<GlobalOnlyCommandId>[] = [
 	},
 	{
 		id: "workspace.quick-switcher.open",
+		category: "file",
 		label: i18n.t(
 			"settings:commandRegistry.workspace_quick_switcher_open.label",
 		),
@@ -191,6 +179,7 @@ const GLOBAL_ONLY_COMMANDS: RegisteredCommand<GlobalOnlyCommandId>[] = [
 	},
 	{
 		id: "workspace.global-command-palette.open",
+		category: "workspace",
 		label: i18n.t(
 			"settings:commandRegistry.workspace_global_command_palette_open.label",
 		),
@@ -202,6 +191,7 @@ const GLOBAL_ONLY_COMMANDS: RegisteredCommand<GlobalOnlyCommandId>[] = [
 	},
 	{
 		id: "workspace.mode.editor",
+		category: "workspace",
 		label: i18n.t("settings:commandRegistry.workspace_mode_editor.label"),
 		description: i18n.t(
 			"settings:commandRegistry.workspace_mode_editor.description",
@@ -211,6 +201,7 @@ const GLOBAL_ONLY_COMMANDS: RegisteredCommand<GlobalOnlyCommandId>[] = [
 	},
 	{
 		id: "workspace.mode.enjoy.toggle",
+		category: "workspace",
 		label: i18n.t("settings:commandRegistry.workspace_mode_enjoy_toggle.label"),
 		description: i18n.t(
 			"settings:commandRegistry.workspace_mode_enjoy_toggle.description",
@@ -220,6 +211,7 @@ const GLOBAL_ONLY_COMMANDS: RegisteredCommand<GlobalOnlyCommandId>[] = [
 	},
 	{
 		id: "preview.export.midi",
+		category: "preview",
 		label: i18n.t("settings:commandRegistry.preview_export_midi.label"),
 		description: i18n.t(
 			"settings:commandRegistry.preview_export_midi.description",
@@ -229,6 +221,7 @@ const GLOBAL_ONLY_COMMANDS: RegisteredCommand<GlobalOnlyCommandId>[] = [
 	},
 	{
 		id: "preview.export.wav",
+		category: "preview",
 		label: i18n.t("settings:commandRegistry.preview_export_wav.label"),
 		description: i18n.t(
 			"settings:commandRegistry.preview_export_wav.description",
@@ -238,6 +231,7 @@ const GLOBAL_ONLY_COMMANDS: RegisteredCommand<GlobalOnlyCommandId>[] = [
 	},
 	{
 		id: "preview.export.gp7",
+		category: "preview",
 		label: i18n.t("settings:commandRegistry.preview_export_gp7.label"),
 		description: i18n.t(
 			"settings:commandRegistry.preview_export_gp7.description",
@@ -247,6 +241,7 @@ const GLOBAL_ONLY_COMMANDS: RegisteredCommand<GlobalOnlyCommandId>[] = [
 	},
 	{
 		id: "preview.export.musicxml",
+		category: "preview",
 		label: i18n.t("settings:commandRegistry.preview_export_musicxml.label"),
 		description: i18n.t(
 			"settings:commandRegistry.preview_export_musicxml.description",
@@ -256,6 +251,7 @@ const GLOBAL_ONLY_COMMANDS: RegisteredCommand<GlobalOnlyCommandId>[] = [
 	},
 	{
 		id: "preview.print-preview.open",
+		category: "preview",
 		label: i18n.t("settings:commandRegistry.preview_print_preview_open.label"),
 		description: i18n.t(
 			"settings:commandRegistry.preview_print_preview_open.description",
@@ -265,6 +261,7 @@ const GLOBAL_ONLY_COMMANDS: RegisteredCommand<GlobalOnlyCommandId>[] = [
 	},
 	{
 		id: "workspace.mode.tutorial",
+		category: "workspace",
 		label: i18n.t("settings:commandRegistry.workspace_mode_tutorial.label"),
 		description: i18n.t(
 			"settings:commandRegistry.workspace_mode_tutorial.description",
@@ -274,6 +271,7 @@ const GLOBAL_ONLY_COMMANDS: RegisteredCommand<GlobalOnlyCommandId>[] = [
 	},
 	{
 		id: "workspace.mode.settings",
+		category: "workspace",
 		label: i18n.t("settings:commandRegistry.workspace_mode_settings.label"),
 		description: i18n.t(
 			"settings:commandRegistry.workspace_mode_settings.description",
@@ -283,6 +281,7 @@ const GLOBAL_ONLY_COMMANDS: RegisteredCommand<GlobalOnlyCommandId>[] = [
 	},
 	{
 		id: "workspace.mode.git",
+		category: "workspace",
 		label: i18n.t("settings:commandRegistry.workspace_mode_git.label"),
 		description: i18n.t(
 			"settings:commandRegistry.workspace_mode_git.description",
@@ -292,6 +291,7 @@ const GLOBAL_ONLY_COMMANDS: RegisteredCommand<GlobalOnlyCommandId>[] = [
 	},
 	{
 		id: "workspace.mode.cloud",
+		category: "workspace",
 		label: i18n.t("settings:commandRegistry.workspace_mode_cloud.label"),
 		description: i18n.t(
 			"settings:commandRegistry.workspace_mode_cloud.description",
@@ -301,6 +301,7 @@ const GLOBAL_ONLY_COMMANDS: RegisteredCommand<GlobalOnlyCommandId>[] = [
 	},
 	{
 		id: "workspace.editor-inline-command.open",
+		category: "editor",
 		label: i18n.t(
 			"settings:commandRegistry.workspace_editor_inline_command_open.label",
 		),
@@ -312,6 +313,7 @@ const GLOBAL_ONLY_COMMANDS: RegisteredCommand<GlobalOnlyCommandId>[] = [
 	},
 	{
 		id: "settings.playback.progress-bar.toggle",
+		category: "playback",
 		label: i18n.t(
 			"settings:commandRegistry.settings_playback_progress_bar_toggle.label",
 		),
@@ -323,6 +325,7 @@ const GLOBAL_ONLY_COMMANDS: RegisteredCommand<GlobalOnlyCommandId>[] = [
 	},
 	{
 		id: "settings.playback.progress-seek.toggle",
+		category: "playback",
 		label: i18n.t(
 			"settings:commandRegistry.settings_playback_progress_seek_toggle.label",
 		),
@@ -334,6 +337,7 @@ const GLOBAL_ONLY_COMMANDS: RegisteredCommand<GlobalOnlyCommandId>[] = [
 	},
 	{
 		id: "settings.playback.sync-scroll.toggle",
+		category: "playback",
 		label: i18n.t(
 			"settings:commandRegistry.settings_playback_sync_scroll_toggle.label",
 		),
@@ -345,6 +349,7 @@ const GLOBAL_ONLY_COMMANDS: RegisteredCommand<GlobalOnlyCommandId>[] = [
 	},
 	{
 		id: "settings.playback.cursor-broadcast.toggle",
+		category: "playback",
 		label: i18n.t(
 			"settings:commandRegistry.settings_playback_cursor_broadcast_toggle.label",
 		),
@@ -356,6 +361,7 @@ const GLOBAL_ONLY_COMMANDS: RegisteredCommand<GlobalOnlyCommandId>[] = [
 	},
 	{
 		id: "settings.playback.component.staff-controls.toggle",
+		category: "playback",
 		label: i18n.t(
 			"settings:commandRegistry.settings_playback_component_staff_controls_toggle.label",
 		),
@@ -367,6 +373,7 @@ const GLOBAL_ONLY_COMMANDS: RegisteredCommand<GlobalOnlyCommandId>[] = [
 	},
 	{
 		id: "settings.playback.component.tracks-controls.toggle",
+		category: "playback",
 		label: i18n.t(
 			"settings:commandRegistry.settings_playback_component_tracks_controls_toggle.label",
 		),
@@ -378,6 +385,7 @@ const GLOBAL_ONLY_COMMANDS: RegisteredCommand<GlobalOnlyCommandId>[] = [
 	},
 	{
 		id: "settings.playback.component.zoom-controls.toggle",
+		category: "playback",
 		label: i18n.t(
 			"settings:commandRegistry.settings_playback_component_zoom_controls_toggle.label",
 		),
@@ -389,6 +397,7 @@ const GLOBAL_ONLY_COMMANDS: RegisteredCommand<GlobalOnlyCommandId>[] = [
 	},
 	{
 		id: "settings.playback.component.speed-controls.toggle",
+		category: "playback",
 		label: i18n.t(
 			"settings:commandRegistry.settings_playback_component_speed_controls_toggle.label",
 		),
@@ -400,6 +409,7 @@ const GLOBAL_ONLY_COMMANDS: RegisteredCommand<GlobalOnlyCommandId>[] = [
 	},
 	{
 		id: "settings.playback.component.progress-controls.toggle",
+		category: "playback",
 		label: i18n.t(
 			"settings:commandRegistry.settings_playback_component_progress_controls_toggle.label",
 		),
@@ -411,6 +421,7 @@ const GLOBAL_ONLY_COMMANDS: RegisteredCommand<GlobalOnlyCommandId>[] = [
 	},
 	{
 		id: "settings.playback.component.transport-controls.toggle",
+		category: "playback",
 		label: i18n.t(
 			"settings:commandRegistry.settings_playback_component_transport_controls_toggle.label",
 		),
@@ -422,6 +433,7 @@ const GLOBAL_ONLY_COMMANDS: RegisteredCommand<GlobalOnlyCommandId>[] = [
 	},
 	{
 		id: "playback.play",
+		category: "playback",
 		label: i18n.t("settings:commandRegistry.playback_play.label"),
 		description: i18n.t("settings:commandRegistry.playback_play.description"),
 		keywords: ["playback", "play", "transport"],
@@ -429,6 +441,7 @@ const GLOBAL_ONLY_COMMANDS: RegisteredCommand<GlobalOnlyCommandId>[] = [
 	},
 	{
 		id: "playback.pause",
+		category: "playback",
 		label: i18n.t("settings:commandRegistry.playback_pause.label"),
 		description: i18n.t("settings:commandRegistry.playback_pause.description"),
 		keywords: ["playback", "pause", "transport"],
@@ -436,6 +449,7 @@ const GLOBAL_ONLY_COMMANDS: RegisteredCommand<GlobalOnlyCommandId>[] = [
 	},
 	{
 		id: "playback.stop",
+		category: "playback",
 		label: i18n.t("settings:commandRegistry.playback_stop.label"),
 		description: i18n.t("settings:commandRegistry.playback_stop.description"),
 		keywords: ["playback", "stop", "transport"],
@@ -443,6 +457,7 @@ const GLOBAL_ONLY_COMMANDS: RegisteredCommand<GlobalOnlyCommandId>[] = [
 	},
 	{
 		id: "playback.refresh",
+		category: "playback",
 		label: i18n.t("settings:commandRegistry.playback_refresh.label"),
 		description: i18n.t(
 			"settings:commandRegistry.playback_refresh.description",
@@ -452,6 +467,7 @@ const GLOBAL_ONLY_COMMANDS: RegisteredCommand<GlobalOnlyCommandId>[] = [
 	},
 	{
 		id: "playback.play-pause",
+		category: "playback",
 		label: i18n.t("settings:commandRegistry.playback_play_pause.label"),
 		description: i18n.t(
 			"settings:commandRegistry.playback_play_pause.description",
@@ -461,6 +477,7 @@ const GLOBAL_ONLY_COMMANDS: RegisteredCommand<GlobalOnlyCommandId>[] = [
 	},
 	{
 		id: "playback.tracks-panel.toggle",
+		category: "playback",
 		label: i18n.t(
 			"settings:commandRegistry.playback_tracks_panel_toggle.label",
 		),
@@ -472,59 +489,10 @@ const GLOBAL_ONLY_COMMANDS: RegisteredCommand<GlobalOnlyCommandId>[] = [
 	},
 ];
 
-const STATIC_EDITOR_COMMAND_SET = new Set<string>(
-	STATIC_EDITOR_COMMANDS.map((command) => command.id),
-);
-
-export function isEditorCommandId(
-	commandId: string,
-): commandId is EditorCommandId {
-	return (
-		STATIC_EDITOR_COMMAND_SET.has(commandId) ||
-		commandId.startsWith(ATDOC_INLINE_KEY_COMMAND_PREFIX)
-	);
-}
-
 export function getGlobalCommands(): RegisteredCommand<GlobalCommandId>[] {
 	return [...GLOBAL_ONLY_COMMANDS];
 }
 
-export function getInlineEditorCommands(): RegisteredCommand<EditorCommandId>[] {
-	const dynamicAtdocCommands: RegisteredCommand<DynamicEditorCommandId>[] =
-		ATDOC_KEY_DEFINITIONS.map((definition) => ({
-			id: `${ATDOC_INLINE_KEY_COMMAND_PREFIX}${definition.key}`,
-			label: i18n.t("settings:commandRegistry.dynamicAtdocLabel", {
-				key: definition.key,
-			}),
-			description: i18n.t("settings:commandRegistry.dynamicAtdocDescription", {
-				description: definition.description,
-				example: definition.example,
-			}),
-			keywords: [
-				"atdoc",
-				"key",
-				definition.key,
-				...definition.key.split("."),
-				definition.valueType,
-			],
-			icon: "key",
-		}));
-
-	return [...STATIC_EDITOR_COMMANDS, ...dynamicAtdocCommands];
-}
-
 export function getInlineCommands(): RegisteredCommand<InlineCommandId>[] {
-	const merged = new Map<string, RegisteredCommand<InlineCommandId>>();
-
-	for (const command of getInlineEditorCommands()) {
-		merged.set(command.id, command as RegisteredCommand<InlineCommandId>);
-	}
-
-	for (const command of getGlobalCommands()) {
-		if (!merged.has(command.id)) {
-			merged.set(command.id, command as RegisteredCommand<InlineCommandId>);
-		}
-	}
-
-	return [...merged.values()];
+	return getGlobalCommands();
 }

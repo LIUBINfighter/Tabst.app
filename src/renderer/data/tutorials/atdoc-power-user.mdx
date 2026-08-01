@@ -1,70 +1,88 @@
 # ATDOC 实战（PowerUser）
 
-ATDOC 允许你在 AlphaTex 文件里写注释式配置，直接控制预览、播放器和打印行为。
+<Alert type="error">
 
-## 完整 ATDOC 抬头示例（当前最全）
+**已过时（DEPRECATED）**：本教程已被「ATDOC 指南」（atdoc-guide）取代，内容以「ATDOC 指南」为准。本文档保留作为点号写法的历史参考。
+
+</Alert>
+
+ATDOC 允许你在 AlphaTex 文件里写注释式配置，直接控制预览、播放器和打印行为。
+推荐使用 INI 分节写法（`[域]` + 短键）；点号写法 `at.域.键=值` 仍然兼容，可随时混用。
+
+## 完整 ATDOC 抬头示例（INI 分节写法）
 
 ```alphatex
 /**
- * at.meta.title="CAGED Warmup 01"
- * at.meta.class="lesson, warmup"
- * at.meta.tag="caged, pentatonic"
- * at.meta.status=released
- * at.meta.tabist="JayBridge"
- * at.meta.app="tabst.app"
- * at.meta.github="https://github.com/LIUBINfighter/Tabst.app"
- * at.meta.license=CC-BY-4.0
- * at.meta.source="https://example.com/original-tab"
- * at.meta.release="https://example.com/release-note"
- * at.meta.alias="cw1, caged-a"
+ * [meta]
+ * title="CAGED Warmup 01"
+ * class="lesson, warmup"
+ * tag="caged, pentatonic"
+ * status=released
+ * author="JayBridge"
+ * app="tabst.app"
+ * github="https://github.com/LIUBINfighter/Tabst.app"
+ * license=CC-BY-4.0
+ * source="https://example.com/original-tab"
+ * release="https://example.com/release-note"
+ * alias="cw1, caged-a"
  *
- * at.display.scale=0.78
- * at.display.layoutMode=Page
+ * [display]
+ * scale=0.78
+ * layout=Page
  *
- * at.player.scrollMode=OffScreen
- * at.player.scrollSpeed=300
- * at.player.playbackSpeed=0.92
- * at.player.metronomeVolume=0.35
- * at.player.countInEnabled=true
- * at.player.enableCursor=true
- * at.player.enableElementHighlighting=true
- * at.player.enableUserInteraction=true
+ * [player]
+ * scrollMode=OffScreen
+ * scrollSpeed=300
+ * speed=0.92
+ * metronome=0.35
+ * countIn=true
+ * cursor=true
+ * highlight=true
+ * interaction=true
  *
- * at.coloring.enabled=true
- * at.coloring.barNumberColor=#ef4444
- * at.coloring.staffLineColor=#334155
- * at.coloring.barSeparatorColor=#64748b
- * at.coloring.noteHeadColor=#22c55e
- * at.coloring.fretNumberColor=#38bdf8
- * at.coloring.colorizeByFret=true
+ * [coloring]
+ * enabled=true
+ * barNumberColor=#ef4444
+ * staffLineColor=#334155
+ * barSeparatorColor=#64748b
+ * noteHeadColor=#22c55e
+ * fretNumberColor=#38bdf8
+ * colorizeByFret=true
  *
- * at.staff.showTablature=true
- * at.staff.showStandardNotation=false
- * at.staff.showSlash=false
- * at.staff.showNumbered=false
+ * [staff]
+ * tab=true
+ * notation=false
+ * slash=false
+ * numbered=false
  *
- * at.print.zoom=1.05
- * at.print.barsPerRow=4
- * at.print.stretchForce=1.0
+ * [print]
+ * zoom=1.05
+ * barsPerRow=4
+ * stretchForce=1.0
  */
 ```
+
+> 等价点号写法示例见 `docs/dev/alphatex/examples/ATDOC_FULL_SAMPLE.atex`（兼容参考）。
 
 ## 1) 基础写法
 
 ```alphatex
 /**
- * at.display.scale=0.8
- * at.player.playbackSpeed=0.9
- * at.player.metronomeVolume=0.35
- * at.player.countInEnabled=true
+ * [display]
+ * scale=0.8
+ *
+ * [player]
+ * speed=0.9
+ * metronome=0.35
+ * countIn=true
  */
 ```
 
 规则：
 
-- 每行一个 `at.xxx=...`
-- 同 key 重复时最后一条生效
-- 非法值会 warning，但不会阻断渲染
+- 每个 `[域]` 分节下每行一个 `键=值`；
+- 同 key 重复时最后一条生效；
+- 非法值会 warning，但不会阻断渲染。
 
 ## 2) 播放器联动
 
@@ -74,42 +92,122 @@ ATDOC 会同步到底部栏关键状态（缩放、速度、节拍器、Count-In
 
 ```alphatex
 /**
- * at.meta.title="CAGED Warmup 01"
- * at.meta.class="lesson, warmup"
- * at.meta.tag="caged, pentatonic"
- * at.meta.status=released
- * at.meta.tabist="JayBridge"
- * at.meta.app="tabst.app"
- * at.meta.github="https://github.com/LIUBINfighter/Tabst.app"
- * at.meta.license=CC-BY-4.0
- * at.meta.source="https://example.com/original-tab"
- * at.meta.release="https://example.com/release-note"
- * at.meta.alias="cw1, caged-a"
+ * [meta]
+ * title="CAGED Warmup 01"
+ * class="lesson, warmup"
+ * tag="caged, pentatonic"
+ * status=released
+ * author="JayBridge"
+ * app="tabst.app"
+ * github="https://github.com/LIUBINfighter/Tabst.app"
+ * license=CC-BY-4.0
+ * source="https://example.com/original-tab"
+ * release="https://example.com/release-note"
+ * alias="cw1, caged-a"
  */
 ```
 
 说明：
 
-- `at.meta.title`：导航/搜索展示标题（不改文件名）；
-- `at.meta.class` / `at.meta.tag`：支持逗号分隔多值；
-- `at.meta.status`：仅支持 `draft | active | done | released`；
-- `at.meta.tabist`：打谱者名称；
-- `at.meta.app`：来源应用标识（例如 `tabst.app`）；
-- `at.meta.github`：项目仓库链接；
-- `at.meta.license`：版权协议（当前支持 CC 系列，如 `CC-BY-4.0`）；
-- `at.meta.source` / `at.meta.release`：可放外部参考与发布链接（当前先解析，不参与渲染控制）；
-- `at.meta.alias`：别名集合，参与快速切换搜索；
+- `title`（`at.meta.title`）：导航/搜索展示标题（不改文件名）；
+- `class` / `tag`（`at.meta.class` / `at.meta.tag`）：支持逗号分隔多值；
+- `status`（`at.meta.status`）：仅支持 `draft | active | done | released`；
+- `author`（`at.meta.tabist` 的别名）：打谱者名称；
+- `app`（`at.meta.app`）：来源应用标识（例如 `tabst.app`）；
+- `github`（`at.meta.github`）：项目仓库链接；
+- `license`（`at.meta.license`）：版权协议（当前支持 CC 系列，如 `CC-BY-4.0`）；
+- `source` / `release`（`at.meta.source` / `at.meta.release`）：可放外部参考与发布链接（当前先解析，不参与渲染控制）；
+- `alias`（`at.meta.alias`）：别名集合，参与快速切换搜索；
 - 快速切换中可用 `status:released`、`#tag`、`tag:#tag` 联合检索。
 
-## 4) 着色（v0.2 Draft）
+### 3.1) 快捷标签（#tag）
+
+不想写完整 ATDOC 头时，可以直接在注释行里用 `#标签` 标记文件，效果与 `at.meta.tag` 合并、去重：
 
 ```alphatex
 /**
- * at.coloring.enabled=true
- * at.coloring.barNumberColor=#ef4444
- * at.coloring.noteHeadColor=#22c55e
- * at.coloring.fretNumberColor=#38bdf8
- * at.coloring.colorizeByFret=true
+ * 这是一首 #摇滚 风格练习曲
+ * 重点练 #推弦 #揉弦
+ */
+```
+
+在曲谱内容区也可以：
+
+```alphatex
+\t* #练习曲 #和弦
+```
+
+规则：
+
+- 标签写在 `*` 或 `//` 开头的注释行中，形式为 `#名字`（字母、数字、下划线、连字符，支持中文）；
+- 与 `at.meta.tag` 自动合并去重（`at.meta.tag` 的值排在前面），侧边栏筛选与快速切换中用法一致；
+- ATDOC 指令行（如颜色值 `at.coloring.barNumberColor=#ef4444`）和乐曲内容（如和弦 `C#m`）不会被误判为标签。
+
+### 3.2) INI 分节写法（推荐）
+
+不想记住 `at.域.键` 的点号层级时，可以用 INI 风格分节：`[域]` 下面直接写短键，效果与 `at.域.键=值` 完全等价：
+
+```alphatex
+/**
+ * [meta]
+ * title="Flower Dance"
+ * tag="acoustic, guitar"
+ * status=released
+ *
+ * [display]
+ * scale=0.78
+ * layout=Page
+ *
+ * [player]
+ * scrollMode=OffScreen
+ * speed=0.92
+ * metronome=0.35
+ * countIn=true
+ *
+ * [staff]
+ * tab=true
+ * notation=false
+ *
+ * [print]
+ * zoom=1.05
+ * barsPerRow=4
+ */
+```
+
+规则：
+
+- 可用分节：`[meta]`、`[display]`、`[player]`、`[coloring]`、`[staff]`、`[print]`，在注释中键入 `[` 会自动补全分节名；
+- 分节内的 `键=值` 等价于 `at.<分节>.<键>=值`，值类型与校验规则完全一致；
+- 分节内输入键时会按所在分节补全键名（含别名），`键=` 之后补全枚举/布尔值；
+- 常用键提供短别名（见下表），如 `speed` 等价于 `playbackSpeed`；
+- 旧的 `at.xxx=...` 写法随时可与分节混用，互不影响（同一键后写者生效）；
+- 分节外的裸 `键=值` 会被忽略，未知分节或未知键会产生 warning。
+
+常用别名：
+
+| 分节 | 别名 | 规范键 |
+| --- | --- | --- |
+| `[meta]` | `author` | `at.meta.tabist` |
+| `[display]` | `zoom` / `layout` | `at.display.scale` / `at.display.layoutMode` |
+| `[player]` | `speed` | `at.player.playbackSpeed` |
+| `[player]` | `metronome` | `at.player.metronomeVolume` |
+| `[player]` | `countIn` | `at.player.countInEnabled` |
+| `[player]` | `cursor` | `at.player.enableCursor` |
+| `[player]` | `highlight` | `at.player.enableElementHighlighting` |
+| `[player]` | `interaction` | `at.player.enableUserInteraction` |
+| `[player]` | `mute` / `solo` | `at.player.muteTracks` / `at.player.soloTracks` |
+| `[staff]` | `tab` / `notation` / `slash` / `numbered` | `at.staff.show*` 四个键 |
+
+## 4) 着色
+
+```alphatex
+/**
+ * [coloring]
+ * enabled=true
+ * barNumberColor=#ef4444
+ * noteHeadColor=#22c55e
+ * fretNumberColor=#38bdf8
+ * colorizeByFret=true
  */
 ```
 
