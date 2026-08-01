@@ -1,5 +1,9 @@
 # ATDOC v0.1 设计与实现说明
 
+> **Status:** SUPERSEDED — 该阶段能力（completion/hover）已并入当前实现；
+> 当前规范见 [ATDOC_CURRENT.md](./ATDOC_CURRENT.md)。本文档保留作为 v0.1
+> 阶段设计记录。
+
 最后更新：2026-02-24
 
 ## 1. 目标

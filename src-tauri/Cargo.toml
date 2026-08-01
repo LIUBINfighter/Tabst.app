@@ -1,6 +1,6 @@
 [package]
 name = "tabst-tauri"
-version = "0.7.0-rc"
+version = "0.7.0-rc.1"
 description = "Tabst Tauri runtime"
 authors = ["Jay Bridge"]
 license = "MPL-2.0"
