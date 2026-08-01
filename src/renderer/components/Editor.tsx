@@ -831,14 +831,6 @@ export function Editor({
 							variant="ghost"
 							size="sm"
 							className="h-7 px-2 text-muted-foreground"
-							onClick={() => setWorkspaceMode("cloud")}
-						>
-							{t("enterCloud")}
-						</Button>
-						<Button
-							variant="ghost"
-							size="sm"
-							className="h-7 px-2 text-muted-foreground"
 							onClick={() => setWorkspaceMode("tutorial")}
 						>
 							{t("openTutorial")}

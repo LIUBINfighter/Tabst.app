@@ -116,6 +116,17 @@ export function getCommandAvailability(
 		};
 	}
 
+	// Temporarily disabled features (not open yet). Remove when re-enabling.
+	if (
+		commandId === "workspace.mode.git" ||
+		commandId === "workspace.mode.cloud"
+	) {
+		return {
+			enabled: false,
+			reason: "This workspace view is temporarily unavailable.",
+		};
+	}
+
 	if (
 		commandId === "preview.export.midi" ||
 		commandId === "preview.export.wav" ||
