@@ -11,28 +11,20 @@ import {
 	useState,
 } from "react";
 import { useTranslation } from "react-i18next";
-import { ATDOC_KEY_DEFINITIONS } from "../data/atdoc-keys";
 import { useEditorLSP } from "../hooks/useEditorLSP";
 import { useEditorTheme } from "../hooks/useEditorTheme";
 import { updateEditorPlaybackHighlight } from "../lib/alphatex-playback-sync";
 import { updateEditorSelectionHighlight } from "../lib/alphatex-selection-sync";
 import { atDocColorSwatch } from "../lib/atdoc-color-swatch";
-import {
-	EDITOR_COMMAND_EVENT,
-	EDITOR_OPEN_INLINE_COMMAND_EVENT,
-} from "../lib/command-palette";
-import {
-	ATDOC_INLINE_KEY_COMMAND_PREFIX,
-	type EditorCommandId,
-	type GlobalCommandId,
-	type InlineCommandId,
-} from "../lib/command-registry";
+import { EDITOR_OPEN_INLINE_COMMAND_EVENT } from "../lib/command-palette";
+import type { GlobalCommandId, InlineCommandId } from "../lib/command-registry";
 import {
 	createEditorAutosaveRequest,
 	type EditorAutosaveRequest,
 	planEditorAutosaveTransition,
 	rebindEditorAutosaveRequest,
 } from "../lib/editor-autosave";
+import { createEscapeBlurExtension } from "../lib/editor-extensions";
 import { isImportableScoreFilePath } from "../lib/gp-import";
 import { shouldMountPreviewTracksPanel } from "../lib/score-workspace-layout";
 import { runUiCommand } from "../lib/ui-command-registry";
@@ -337,6 +329,7 @@ export function Editor({
 
 					const extensions: Extension[] = [
 						basicSetup,
+						createEscapeBlurExtension(),
 						updateListener,
 						atDocColorSwatch(),
 						whitespaceDecoration(),
@@ -477,122 +470,10 @@ export function Editor({
 		});
 	}, [themeExtension, themeCompartment]);
 
-	const runEditorCommand = useCallback(
-		(commandId: InlineCommandId) => {
-			const view = viewRef.current;
-
-			const runGlobalFromInline = (globalCommandId: GlobalCommandId) => {
-				switch (globalCommandId) {
-					case "open-quick-file":
-						return runUiCommand("workspace.quick-switcher.open");
-					case "open-editor-command-palette":
-						return runUiCommand("workspace.editor-inline-command.open");
-					case "insert-atdoc-block":
-						return runUiCommand("insert-atdoc-block");
-					case "insert-atdoc-directive":
-						return runUiCommand("insert-atdoc-directive");
-					case "insert-atdoc-meta-preset":
-						return runUiCommand("insert-atdoc-meta-preset");
-					default:
-						return runUiCommand(globalCommandId);
-				}
-			};
-
-			const isEditorSpecificCommand =
-				commandId.startsWith(ATDOC_INLINE_KEY_COMMAND_PREFIX) ||
-				commandId === "insert-atdoc-block" ||
-				commandId === "insert-atdoc-directive" ||
-				commandId === "insert-atdoc-meta-preset";
-
-			if (!isEditorSpecificCommand) {
-				runGlobalFromInline(commandId as GlobalCommandId);
-				setInlineCommandOpen(false);
-				return;
-			}
-
-			if (readOnly) {
-				setInlineCommandOpen(false);
-				return;
-			}
-
-			if (!view) return;
-
-			const insertTextAtSelection = (insertText: string) => {
-				const state = view.state;
-				const changes = state.selection.ranges.map((range) => ({
-					from: range.from,
-					to: range.to,
-					insert: insertText,
-				}));
-				view.dispatch({ changes });
-				view.focus();
-			};
-
-			switch (commandId) {
-				case "insert-atdoc-block": {
-					insertTextAtSelection("/**\n * \n */");
-					return;
-				}
-				case "insert-atdoc-directive": {
-					insertTextAtSelection("* at.meta.status=released");
-					return;
-				}
-				case "insert-atdoc-meta-preset": {
-					insertTextAtSelection(
-						[
-							'* at.meta.title=""',
-							'* at.meta.tag=""',
-							"* at.meta.status=released",
-							'* at.meta.tabist=""',
-							'* at.meta.app="tabst.app"',
-							'* at.meta.github="https://github.com/LIUBINfighter/Tabst.app"',
-							"* at.meta.license=CC-BY-4.0",
-							'* at.meta.source=""',
-							'* at.meta.release=""',
-							'* at.meta.alias=""',
-						].join("\n"),
-					);
-					return;
-				}
-			}
-
-			if (commandId.startsWith(ATDOC_INLINE_KEY_COMMAND_PREFIX)) {
-				const atdocKey = commandId.slice(
-					ATDOC_INLINE_KEY_COMMAND_PREFIX.length,
-				);
-				const definition = ATDOC_KEY_DEFINITIONS.find(
-					(item) => item.key === atdocKey,
-				);
-				if (!definition) return;
-
-				const valueTemplate = (() => {
-					switch (definition.valueType) {
-						case "boolean":
-							return "true";
-						case "string":
-							return '""';
-						case "enum:status":
-							return "active";
-						case "enum:license":
-							return "CC-BY-4.0";
-						case "enum:layoutMode":
-							return "Page";
-						case "enum:scrollMode":
-							return "OffScreen";
-						case "color":
-							return "#22c55e";
-						default:
-							return "1";
-					}
-				})();
-
-				insertTextAtSelection(`* ${definition.key}=${valueTemplate}`);
-				return;
-			}
-			setInlineCommandOpen(false);
-		},
-		[readOnly],
-	);
+	const runEditorCommand = useCallback((commandId: InlineCommandId) => {
+		runUiCommand(commandId as GlobalCommandId);
+		setInlineCommandOpen(false);
+	}, []);
 
 	const openInlineCommandBar = useCallback(() => {
 		const view = viewRef.current;
@@ -610,16 +491,6 @@ export function Editor({
 		setInlineCommandTop(Math.max(8, Math.min(rawTop, hostRect.height - 280)));
 		setInlineCommandOpen(true);
 	}, []);
-
-	useEffect(() => {
-		const handler = (event: Event) => {
-			const customEvent = event as CustomEvent<EditorCommandId>;
-			if (!customEvent.detail) return;
-			runEditorCommand(customEvent.detail);
-		};
-		window.addEventListener(EDITOR_COMMAND_EVENT, handler);
-		return () => window.removeEventListener(EDITOR_COMMAND_EVENT, handler);
-	}, [runEditorCommand]);
 
 	useEffect(() => {
 		const handler = () => {
@@ -827,14 +698,6 @@ export function Editor({
 								{t("expandSidebar")}
 							</Button>
 						)}
-						<Button
-							variant="ghost"
-							size="sm"
-							className="h-7 px-2 text-muted-foreground"
-							onClick={() => setWorkspaceMode("cloud")}
-						>
-							{t("enterCloud")}
-						</Button>
 						<Button
 							variant="ghost"
 							size="sm"

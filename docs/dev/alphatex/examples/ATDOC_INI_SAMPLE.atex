@@ -1,0 +1,56 @@
+/**
+ * ATDOC INI section sample (current implementation)
+ * Same keys as ATDOC_FULL_SAMPLE.atex, written with [section] syntax.
+ *
+ * [meta]
+ * title="ATDOC INI Sample"
+ * class="demo, lesson"
+ * tag="acoustic, guitar"
+ * status=released
+ *
+ * [display]
+ * scale=0.78
+ * layoutMode=Page
+ *
+ * [player]
+ * scrollMode=OffScreen
+ * scrollSpeed=300
+ * playbackSpeed=0.92
+ * metronomeVolume=0.35
+ * countInEnabled=true
+ * enableCursor=true
+ * enableElementHighlighting=true
+ * enableUserInteraction=true
+ *
+ * [coloring]
+ * enabled=true
+ * barNumberColor=#ef4444
+ * staffLineColor=#334155
+ * barSeparatorColor=#64748b
+ * noteHeadColor=#22c55e
+ * fretNumberColor=#38bdf8
+ * colorizeByFret=true
+ *
+ * [staff]
+ * showTablature=true
+ * showStandardNotation=false
+ * showSlash=false
+ * showNumbered=false
+ *
+ * [print]
+ * zoom=1.05
+ * barsPerRow=4
+ * stretchForce=1.0
+ */
+
+\title "ATDOC INI Sample"
+\artist "Tabst"
+\tempo 96
+\track "Lead Guitar"
+\staff {score tabs}
+.
+
+:4 3.2 5.2 7.2 8.2 |
+:4 8.2 7.2 5.2 3.2 |
+:8 (3.2 5.3) (7.2 8.3) (10.2 8.3) (7.2 5.3) |
+:4 3.2{v} 3.2{v} 5.2{b (0 2)} 7.2 |

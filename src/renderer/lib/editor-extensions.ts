@@ -5,7 +5,7 @@
  */
 
 import type { Extension } from "@codemirror/state";
-import { EditorView } from "@codemirror/view";
+import { EditorView, keymap } from "@codemirror/view";
 import { useAppStore } from "../store/appStore";
 import { alphatexAbbreviations } from "./alphatex-abbreviations";
 import { createAlphaTexBarlinesExtension } from "./alphatex-barlines";
@@ -18,6 +18,23 @@ import {
 	createPlaybackSyncExtension,
 	createSelectionSyncExtension,
 } from "./alphatex-selection-sync";
+
+/**
+ * ESC 取消编辑器聚焦（符合"按 ESC 退出编辑状态"的心智模型）。
+ * 补全浮层的 Escape 绑定优先级更高（Prec.highest），浮层打开时先关闭浮层；
+ * 浮层未打开时 ESC 直接让编辑器失焦。
+ */
+export function createEscapeBlurExtension(): Extension {
+	return keymap.of([
+		{
+			key: "Escape",
+			run: (view) => {
+				view.contentDOM.blur();
+				return true;
+			},
+		},
+	]);
+}
 
 /**
  * Create theme extension for CodeMirror editor

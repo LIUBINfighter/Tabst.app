@@ -1309,7 +1309,10 @@ export const useAppStore = create<AppState>((set, get) => ({
 						}
 
 						set({
-							workspaceMode: meta.workspaceMode ?? "editor",
+							workspaceMode:
+								meta.workspaceMode === "git" || meta.workspaceMode === "cloud"
+									? "editor"
+									: (meta.workspaceMode ?? "editor"),
 							activeSettingsPageId: meta.activeSettingsPageId ?? null,
 							activeTutorialId: meta.activeTutorialId ?? "user-readme",
 							activeCloudObjectId: meta.activeCloudObjectId ?? null,
