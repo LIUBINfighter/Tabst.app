@@ -88,7 +88,8 @@ export function getTutorialMetadata(id: string): TutorialMetadata | undefined {
 }
 
 /**
- * 判断教程是否已发布（仅显式标注为 'release' 时视为已发布）
+ * 判断教程是否已发布（仅显式标注为 'release' 时视为已发布；
+ * 'draft' 与 'deprecated' 均不在列表中显示）
  */
 export function isReleased(t: TutorialMetadata): boolean {
 	// 缺省视为草稿（未标注不可见），只有显式标注为 'release' 才显示
