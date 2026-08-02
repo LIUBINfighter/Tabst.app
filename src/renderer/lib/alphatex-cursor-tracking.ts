@@ -52,7 +52,11 @@ export function createCursorTrackingExtension(
 				fromDocChange,
 			};
 
-			if (lastEmitted && lastEmitted.barIndex === next.barIndex) {
+			if (
+				lastEmitted &&
+				lastEmitted.barIndex === next.barIndex &&
+				lastEmitted.beatIndex === next.beatIndex
+			) {
 				return;
 			}
 
