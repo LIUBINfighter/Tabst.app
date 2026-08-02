@@ -583,9 +583,30 @@ export function createWebDesktopAPI(): DesktopAPI {
 			error: "Unsupported in web runtime",
 		}),
 
+		selectMuseScoreExecutable: async () => null,
+
 		convertGpToMxl: async () => ({
 			success: false,
 			error: "Unsupported in web runtime",
+		}),
+
+		selectSoundFontFile: async () => null,
+
+		loadExternalSoundFontSettings: async () => ({
+			success: true,
+			configured: false,
+			valid: false,
+		}),
+
+		saveExternalSoundFontPath: async () => ({
+			success: false,
+			configured: false,
+			valid: false,
+			error: "Unsupported in web runtime",
+		}),
+
+		clearExternalSoundFont: async () => ({
+			success: true,
 		}),
 
 		setKeepAwake: async () => ({

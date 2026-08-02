@@ -41,6 +41,26 @@ export interface MusicXmlExportResult {
 	error?: string;
 }
 
+export interface ExternalSoundFontSelection {
+	path: string;
+	name: string;
+	size: number;
+	format: string;
+	valid: boolean;
+	error?: string;
+}
+
+export interface ExternalSoundFontSettingsResult {
+	success: boolean;
+	configured: boolean;
+	valid: boolean;
+	path?: string;
+	name?: string;
+	size?: number;
+	format?: string;
+	error?: string;
+}
+
 export interface DesktopAPI {
 	openFile: (extensions: string[]) => Promise<FileResult | null>;
 	createFile: (
@@ -187,10 +207,17 @@ export interface DesktopAPI {
 	saveMuseScoreExecutablePath: (
 		executablePath: string | null,
 	) => Promise<MuseScoreValidationResult>;
+	selectMuseScoreExecutable: () => Promise<MuseScoreValidationResult | null>;
 	convertGpToMxl: (
 		sourcePath: string,
 		overwrite?: boolean,
 	) => Promise<MusicXmlExportResult>;
+	selectSoundFontFile: () => Promise<ExternalSoundFontSelection | null>;
+	loadExternalSoundFontSettings: () => Promise<ExternalSoundFontSettingsResult>;
+	saveExternalSoundFontPath: (
+		path: string,
+	) => Promise<ExternalSoundFontSettingsResult>;
+	clearExternalSoundFont: () => Promise<{ success: boolean; error?: string }>;
 	setKeepAwake: (enabled: boolean) => Promise<{
 		success: boolean;
 		error?: string;
