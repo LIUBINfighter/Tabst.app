@@ -13,10 +13,7 @@ import {
 	getCountInVolume,
 	resolvePreviewPlayerState,
 } from "../hooks/preview-count-in";
-import {
-	captureTrackConfigForRebuild,
-	shouldStartThemeRebuild,
-} from "../hooks/preview-session-controller";
+import { captureTrackConfigForRebuild } from "../hooks/preview-session-controller";
 import { useFileOperations } from "../hooks/useFileOperations";
 import {
 	destroyPreviewApi,
@@ -78,10 +75,7 @@ import {
 	getFirstStaffOptions,
 	toggleFirstStaffOption,
 } from "../lib/staff-config";
-import {
-	getAlphaTabColorsForTheme,
-	setupThemeObserver,
-} from "../lib/themeManager";
+import { getAlphaTabColorsForTheme } from "../lib/themeManager";
 import { useAppStore } from "../store/appStore";
 import PreviewToolbar from "./PreviewToolbar";
 import TopBar from "./TopBar";
@@ -335,7 +329,6 @@ export default function Preview({
 	const pendingBarColorRef = useRef<number | null>(null);
 	const lifecycleStateRef = useRef<PreviewLifecycleState>("idle");
 	const listenerTeardownsRef = useRef<Array<() => void>>([]);
-	const lastRebuildAtRef = useRef(0);
 	const lastAppliedPlaybackSpeedRef = useRef<number | null>(null);
 	const lastAppliedMasterVolumeRef = useRef<number | null>(null);
 	const lastAppliedMetronomeVolumeRef = useRef<number | null>(null);
@@ -1174,6 +1167,11 @@ export default function Preview({
 			if (newValue !== null) {
 				// Update state in store
 				toggleFirstStaffOptionStore(pendingStaffToggle);
+				// 同步保存到 trackConfigRef，避免后续 scoreLoaded/重建恢复旧配置（#194）
+				const current = getFirstStaffOptions(api);
+				if (current) {
+					trackConfigRef.current = current;
+				}
 			}
 
 			// Clear pending toggle
@@ -1614,6 +1612,12 @@ export default function Preview({
 						isHighlightFromEditorCursorRef.current = false;
 						lastEditorCursorSelectionRef.current = null;
 
+						// 2.5 销毁前保存当前 tracks 配置，供重建后恢复（主题重建的唯一入口）
+						const trackConfigSnapshot = captureTrackConfigForRebuild(api);
+						if (trackConfigSnapshot) {
+							trackConfigRef.current = trackConfigSnapshot;
+						}
+
 						// 3. 销毁当前 API
 						destroyPreviewApi(apiRef, emitApiChange);
 
@@ -1992,114 +1996,7 @@ export default function Preview({
 					// 4. 附加监听器
 					bindListenersForApi(apiRef.current);
 
-					// 5. 设置主题监听器（监听暗色模式变化）
-					const unsubscribeTheme = setupThemeObserver(() => {
-						// 当主题变化时，重建 API 以应用新的颜色配置
-
-						const decision = shouldStartThemeRebuild({
-							hasApi: apiRef.current !== null,
-							hasContent: Boolean(latestContentRef.current),
-							lastRebuildAt: lastRebuildAtRef.current,
-							now: Date.now(),
-						});
-						if (!decision.allowed) return;
-
-						lastRebuildAtRef.current = decision.nextLastRebuildAt;
-						increment("rebuildRequested");
-						transitionLifecycle("rebuilding", "theme-observer");
-						// 使用 void 操作符确保异步操作在后台执行（不阻塞回调）
-						void (async () => {
-							try {
-								// 保存当前的 tracks 配置
-								const trackConfigSnapshot = captureTrackConfigForRebuild(
-									apiRef.current,
-								);
-								if (trackConfigSnapshot) {
-									trackConfigRef.current = trackConfigSnapshot;
-									// Saved tracks config before rebuild
-								}
-
-								// 保存当前的乐谱内容（使用最新值，避免闭包过期）
-								const currentContent = parseAtDoc(
-									latestContentRef.current,
-								).cleanContent;
-
-								destroyCurrentApi();
-
-								// 获取新的颜色配置
-								const newColors = getAlphaTabColorsForTheme();
-
-								// 使用工具函数重新创建 API 配置
-								const newSettings = createPreviewSettings(
-									urls as ResourceUrls,
-									{
-										scale: getEffectivePreviewScale(zoomRef.current),
-										scrollElement:
-											(scrollHostRef.current as HTMLElement | null) ?? scrollEl,
-										enablePlayer: !editorHasFocusRef.current,
-										colors: newColors,
-									},
-								);
-
-								// 创建新的 API
-								apiRef.current = new alphaTab.AlphaTabApi(el, newSettings);
-								increment("apiCreated");
-								emitApiChange(apiRef.current);
-								bumpApiInstanceId();
-
-								// 🆕 新建 API 时清除选区高亮（避免旧 API 的选区残留）
-								useAppStore.getState().clearScoreSelection();
-
-								// 重新应用全局状态的播放速度与节拍器音量
-								try {
-									apiRef.current.playbackSpeed = playbackSpeedRef.current;
-									apiRef.current.masterVolume = masterVolumeRef.current;
-									apiRef.current.metronomeVolume = metronomeVolumeRef.current;
-									apiRef.current.countInVolume = getCountInVolume({
-										countInEnabled: countInEnabledRef.current,
-										metronomeVolume: metronomeVolumeRef.current,
-									});
-								} catch {
-									// Failed to reapply speed/metronome after rebuild
-								}
-
-								// 🆕 附加所有监听器（包括 scoreLoaded, error, playback 等）
-								bindListenersForApi(apiRef.current);
-
-								// 重新加载音频
-								await loadSoundFontFromUrl(apiRef.current, urls.soundFontUrl);
-
-								// 重新设置乐谱内容
-								try {
-									scheduleTexTimeout(currentContent, {
-										setErrorOnTimeout: false,
-									});
-									markLoadAsUserContent(true);
-									apiRef.current.tex(currentContent);
-									increment("rebuildCompleted");
-									transitionLifecycle("ready", "theme-rebuild-complete");
-									dumpCounters("theme-rebuild-complete");
-								} catch (syncError) {
-									console.error(
-										"[Preview] Synchronous error in theme rebuild tex():",
-										syncError,
-									);
-								}
-							} catch (e) {
-								console.error(
-									"[Preview] Failed to rebuild alphaTab after theme change:",
-									e,
-								);
-							}
-						})();
-					});
-
-					// 保存清理函数供后续使用
-					(
-						apiRef.current as unknown as Record<string, unknown>
-					).__unsubscribeTheme = unsubscribeTheme;
-
-					// 6. 加载音频字体
+					// 5. 加载音频字体
 					try {
 						await loadSoundFontFromUrl(apiRef.current, urls.soundFontUrl);
 					} catch {
