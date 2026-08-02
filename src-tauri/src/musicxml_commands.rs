@@ -200,17 +200,55 @@ fn export_failure(
     }
 }
 
+fn first_existing_candidate(candidates: &[&str]) -> Option<PathBuf> {
+    candidates
+        .iter()
+        .map(PathBuf::from)
+        .find(|path| path.is_file())
+}
+
+#[cfg(target_os = "macos")]
+fn detect_default_musescore_executable() -> Option<PathBuf> {
+    let bundle = PathBuf::from("/Applications/MuseScore 4.app");
+    if !bundle.is_dir() {
+        return None;
+    }
+    resolve_app_bundle_executable(&bundle)
+}
+
+#[cfg(target_os = "windows")]
+fn detect_default_musescore_executable() -> Option<PathBuf> {
+    const CANDIDATES: [&str; 2] = [
+        r"C:\Program Files\MuseScore 4\bin\MuseScore4.exe",
+        r"C:\Program Files\MuseScore 4\bin\MuseScore.exe",
+    ];
+    first_existing_candidate(&CANDIDATES)
+}
+
+#[cfg(all(unix, not(target_os = "macos")))]
+fn detect_default_musescore_executable() -> Option<PathBuf> {
+    const CANDIDATES: [&str; 3] = [
+        "/usr/bin/mscore",
+        "/usr/local/bin/mscore",
+        "/opt/musescore/bin/mscore",
+    ];
+    first_existing_candidate(&CANDIDATES)
+}
+
 #[tauri::command]
 pub(crate) fn load_musescore_settings() -> MuseScoreSettingsResponse {
     match configured_musescore_path() {
         Ok(executable_path) => MuseScoreSettingsResponse {
             success: true,
             executable_path,
+            default_executable_path: detect_default_musescore_executable()
+                .map(|path| path.to_string_lossy().into_owned()),
             error: None,
         },
         Err(error) => MuseScoreSettingsResponse {
             success: false,
             executable_path: None,
+            default_executable_path: None,
             error: Some(error),
         },
     }
@@ -523,5 +561,20 @@ mod tests {
 
         assert!(resolve_app_bundle_executable(&bundle).is_none());
         let _ = std::fs::remove_dir_all(&bundle);
+    }
+
+    #[test]
+    fn picks_the_first_existing_candidate() {
+        let dir = crate::test_helpers::temp_dir_for("musescore", "candidates");
+        let existing = dir.join("mscore");
+        std::fs::write(&existing, "#!/bin/sh").expect("write candidate");
+        let missing = dir.join("missing-mscore");
+
+        let found =
+            first_existing_candidate(&[missing.to_str().unwrap(), existing.to_str().unwrap()]);
+        assert_eq!(found, Some(existing));
+
+        assert!(first_existing_candidate(&[missing.to_str().unwrap()]).is_none());
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

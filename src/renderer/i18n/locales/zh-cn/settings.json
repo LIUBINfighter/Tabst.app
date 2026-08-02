@@ -244,6 +244,7 @@
 		"save": "保存",
 		"clear": "清空",
 		"notValidated": "当前路径尚未验证。",
+		"defaultFound": "在 {{path}} 找到 MuseScore。点击“保存”确认。",
 		"savedNotValidated": "已保存路径，可点击测试确认当前安装仍然可用。",
 		"notConfigured": "尚未配置 MuseScore。",
 		"valid": "MuseScore 启动验证成功。",

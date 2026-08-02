@@ -265,6 +265,8 @@ pub(crate) struct MuseScoreSettingsResponse {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) executable_path: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) default_executable_path: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) error: Option<String>,
 }
 

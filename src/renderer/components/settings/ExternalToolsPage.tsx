@@ -48,12 +48,21 @@ export function ExternalToolsPage() {
 				setStatus({ kind: "error", message: errorMessage(result.error) });
 				return;
 			}
-			setExecutablePath(result.executablePath ?? "");
+			const savedPath = result.executablePath ?? "";
+			const detectedDefault =
+				!savedPath && result.defaultExecutablePath
+					? result.defaultExecutablePath
+					: null;
+			setExecutablePath(savedPath || detectedDefault || "");
 			setStatus({
 				kind: "idle",
-				message: result.executablePath
-					? t("externalToolsSection.savedNotValidated")
-					: t("externalToolsSection.notConfigured"),
+				message: detectedDefault
+					? t("externalToolsSection.defaultFound", {
+							path: detectedDefault,
+						})
+					: savedPath
+						? t("externalToolsSection.savedNotValidated")
+						: t("externalToolsSection.notConfigured"),
 			});
 		});
 		return () => {

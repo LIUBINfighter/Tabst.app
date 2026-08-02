@@ -244,6 +244,7 @@
 		"save": "Save",
 		"clear": "Clear",
 		"notValidated": "The path has not been validated.",
+		"defaultFound": "Found MuseScore at {{path}}. Click Save to confirm.",
 		"savedNotValidated": "A path is saved. Test it to verify the current installation.",
 		"notConfigured": "MuseScore is not configured.",
 		"valid": "MuseScore started successfully.",

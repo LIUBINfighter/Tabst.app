@@ -27,6 +27,7 @@ export interface RepoFsChangedEvent {
 export interface MuseScoreSettingsResult {
 	success: boolean;
 	executablePath?: string;
+	defaultExecutablePath?: string;
 	error?: string;
 }
 
