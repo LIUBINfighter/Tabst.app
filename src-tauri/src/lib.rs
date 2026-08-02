@@ -6,6 +6,7 @@ mod musicxml_commands;
 mod power_commands;
 mod repo_commands;
 mod settings_commands;
+mod soundfont_commands;
 mod support;
 mod updater_commands;
 
@@ -22,7 +23,7 @@ use git_commands::{
 pub(crate) use models::*;
 use musicxml_commands::{
     convert_gp_to_mxl, load_musescore_settings, save_musescore_executable_path,
-    validate_musescore_executable,
+    select_musescore_executable, validate_musescore_executable,
 };
 use power_commands::set_keep_awake;
 #[cfg(test)]
@@ -32,6 +33,10 @@ use repo_commands::{
     scan_directory, start_repo_watch, stop_repo_watch,
 };
 use settings_commands::{load_global_settings, save_global_settings};
+use soundfont_commands::{
+    clear_external_soundfont, load_external_soundfont_settings, save_external_soundfont_path,
+    select_soundfont_file,
+};
 pub(crate) use support::*;
 use updater_commands::{check_for_updates, fetch_releases_feed, get_app_version, install_update};
 
@@ -80,8 +85,13 @@ pub fn run() {
             load_musescore_settings,
             validate_musescore_executable,
             save_musescore_executable_path,
+            select_musescore_executable,
             convert_gp_to_mxl,
             set_keep_awake,
+            select_soundfont_file,
+            save_external_soundfont_path,
+            load_external_soundfont_settings,
+            clear_external_soundfont,
             restart_app
         ])
         .build(tauri::generate_context!())
@@ -114,26 +124,13 @@ mod tests {
     use super::*;
     use notify::event::{CreateKind, DataChange, EventKind, ModifyKind, RemoveKind};
     use serde_json::json;
-    use std::env;
     use std::fs;
     use std::path::PathBuf;
     use std::process::Command;
     use std::sync::mpsc;
-    use std::sync::{Mutex, OnceLock};
     use std::time::{Duration, Instant};
     use tauri::test::mock_app;
-
-    fn temp_dir_for(test_name: &str) -> PathBuf {
-        let mut dir = std::env::temp_dir();
-        dir.push(format!(
-            "tabst-tauri-parity-{}-{}-{}",
-            test_name,
-            std::process::id(),
-            now_ms()
-        ));
-        fs::create_dir_all(&dir).expect("failed to create temp test directory");
-        dir
-    }
+    use test_helpers::{temp_dir_for, with_temp_home};
 
     fn init_git_repo(dir: &PathBuf) {
         let status = Command::new("git")
@@ -142,36 +139,6 @@ mod tests {
             .status()
             .expect("failed to run git init");
         assert!(status.success(), "git init should succeed in test repo");
-    }
-
-    fn env_lock() -> &'static Mutex<()> {
-        static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
-        LOCK.get_or_init(|| Mutex::new(()))
-    }
-
-    fn with_temp_home<T>(test_name: &str, run: impl FnOnce(PathBuf) -> T) -> T {
-        let _guard = env_lock().lock().expect("failed to lock env mutex");
-        let home_dir = temp_dir_for(test_name);
-        let previous_home = env::var_os("HOME");
-
-        unsafe {
-            env::set_var("HOME", &home_dir);
-        }
-
-        let result = run(home_dir.clone());
-
-        if let Some(value) = previous_home {
-            unsafe {
-                env::set_var("HOME", value);
-            }
-        } else {
-            unsafe {
-                env::remove_var("HOME");
-            }
-        }
-
-        let _ = fs::remove_dir_all(&home_dir);
-        result
     }
 
     #[test]
@@ -283,7 +250,7 @@ mod tests {
 
     #[test]
     fn repo_watcher_emits_events_for_fs_changes() {
-        let repo_dir = temp_dir_for("repo-watch");
+        let repo_dir = temp_dir_for("test", "repo-watch");
         let watched_file = repo_dir.join("watched.atex");
 
         let (tx, rx) = mpsc::channel::<RepoFsChangedEvent>();
@@ -319,7 +286,7 @@ mod tests {
 
     #[test]
     fn rename_file_rejects_names_that_escape_the_parent_directory() {
-        let repo_dir = temp_dir_for("rename-scope");
+        let repo_dir = temp_dir_for("test", "rename-scope");
         let nested_dir = repo_dir.join("nested");
         fs::create_dir_all(&nested_dir).expect("failed to create nested dir");
         let source_path = nested_dir.join("song.atex");
@@ -345,8 +312,8 @@ mod tests {
 
     #[test]
     fn move_path_rejects_cross_workspace_moves() {
-        let repo_dir = temp_dir_for("move-scope-repo");
-        let outside_dir = temp_dir_for("move-scope-outside");
+        let repo_dir = temp_dir_for("test", "move-scope-repo");
+        let outside_dir = temp_dir_for("test", "move-scope-outside");
         let source_path = repo_dir.join("song.atex");
         fs::write(&source_path, "content").expect("failed to write source file");
 
@@ -371,8 +338,8 @@ mod tests {
 
     #[test]
     fn delete_file_repo_trash_rejects_paths_outside_the_repo_root() {
-        let repo_dir = temp_dir_for("delete-scope-repo");
-        let outside_dir = temp_dir_for("delete-scope-outside");
+        let repo_dir = temp_dir_for("test", "delete-scope-repo");
+        let outside_dir = temp_dir_for("test", "delete-scope-outside");
         let outside_file = outside_dir.join("outside.atex");
         fs::write(&outside_file, "content").expect("failed to write outside file");
 
@@ -398,7 +365,7 @@ mod tests {
 
     #[test]
     fn stage_git_file_rejects_parent_directory_pathspecs() {
-        let repo_dir = temp_dir_for("git-pathspec-scope");
+        let repo_dir = temp_dir_for("test", "git-pathspec-scope");
         init_git_repo(&repo_dir);
         register_allowed_root(&repo_dir).expect("failed to register allowed repo root");
         let outside_file = repo_dir
@@ -424,9 +391,9 @@ mod tests {
 
     #[test]
     fn save_repos_preserves_temporarily_unavailable_entries() {
-        with_temp_home("save-repos-preserve-unavailable", |_home_dir| {
-            let repo_one_dir = temp_dir_for("saved-repo-one");
-            let repo_two_dir = temp_dir_for("saved-repo-two");
+        with_temp_home("test", "save-repos-preserve-unavailable", |_home_dir| {
+            let repo_one_dir = temp_dir_for("test", "saved-repo-one");
+            let repo_two_dir = temp_dir_for("test", "saved-repo-two");
             register_allowed_root(&repo_one_dir).expect("register repo one");
             register_allowed_root(&repo_two_dir).expect("register repo two");
 
@@ -475,8 +442,8 @@ mod tests {
 
     #[test]
     fn load_repos_returns_canonical_paths_for_accessible_entries() {
-        with_temp_home("load-repos-canonical-paths", |_home_dir| {
-            let repo_parent = temp_dir_for("canonical-repo-parent");
+        with_temp_home("test", "load-repos-canonical-paths", |_home_dir| {
+            let repo_parent = temp_dir_for("test", "canonical-repo-parent");
             let alias_dir = repo_parent.join("alias");
             let repo_dir = repo_parent.join("repo");
             fs::create_dir_all(&alias_dir).expect("create alias dir");
@@ -512,7 +479,7 @@ mod tests {
 
     #[test]
     fn rename_file_keeps_exact_file_registration_in_sync() {
-        let standalone_dir = temp_dir_for("exact-file-rename");
+        let standalone_dir = temp_dir_for("test", "exact-file-rename");
         let source_path = standalone_dir.join("standalone.atex");
         fs::write(&source_path, "content").expect("write standalone file");
         register_allowed_file(&source_path).expect("register standalone file");
@@ -538,8 +505,8 @@ mod tests {
 
     #[test]
     fn load_app_state_restores_standalone_files_from_previous_session() {
-        with_temp_home("load-app-state-standalone", |_home_dir| {
-            let standalone_dir = temp_dir_for("standalone-session");
+        with_temp_home("test", "load-app-state-standalone", |_home_dir| {
+            let standalone_dir = temp_dir_for("test", "standalone-session");
             let standalone_path = standalone_dir.join("standalone.atex");
             fs::write(&standalone_path, "content").expect("write standalone session file");
 
@@ -586,8 +553,8 @@ mod tests {
 
     #[test]
     fn authorize_workspace_root_re_registers_persisted_repos_after_reconnect() {
-        with_temp_home("persisted-repo-reconnect", |_home_dir| {
-            let repo_dir = temp_dir_for("reconnect-repo");
+        with_temp_home("test", "persisted-repo-reconnect", |_home_dir| {
+            let repo_dir = temp_dir_for("test", "reconnect-repo");
             fs::create_dir_all(&repo_dir).expect("create repo dir");
 
             let metadata_dir = global_metadata_dir().expect("global metadata dir");

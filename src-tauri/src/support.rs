@@ -6,6 +6,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use dirs::{document_dir, home_dir};
 use serde::{de::DeserializeOwned, Serialize};
+use serde_json::{Map, Value};
 use tauri::Manager;
 
 use crate::Repo;
@@ -524,6 +525,84 @@ pub(crate) fn global_metadata_dir() -> Result<PathBuf, String> {
     let metadata_dir = base.join(".tabst");
     fs::create_dir_all(&metadata_dir).map_err(to_error)?;
     Ok(metadata_dir)
+}
+
+pub(crate) fn settings_json_path() -> Result<PathBuf, String> {
+    Ok(global_metadata_dir()?.join("settings.json"))
+}
+
+pub(crate) fn load_settings_json() -> Result<Map<String, Value>, String> {
+    match read_json_file::<Value>(&settings_json_path()?)? {
+        Some(Value::Object(object)) => Ok(object),
+        Some(_) | None => Ok(Map::new()),
+    }
+}
+
+pub(crate) fn save_settings_json(settings: &Map<String, Value>) -> Result<(), String> {
+    write_json_file(&settings_json_path()?, &Value::Object(settings.clone()))
+}
+
+#[cfg(test)]
+pub(crate) mod test_helpers {
+    use std::env;
+    use std::fs;
+    use std::path::PathBuf;
+    use std::sync::{Mutex, OnceLock};
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    pub(crate) fn now_ms() -> u64 {
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|value| value.as_millis() as u64)
+            .unwrap_or(0)
+    }
+
+    pub(crate) fn temp_dir_for(prefix: &str, test_name: &str) -> PathBuf {
+        let mut dir = env::temp_dir();
+        dir.push(format!(
+            "tabst-tauri-{}-{}-{}-{}",
+            prefix,
+            test_name,
+            std::process::id(),
+            now_ms()
+        ));
+        fs::create_dir_all(&dir).expect("failed to create temp test directory");
+        dir
+    }
+
+    pub(crate) fn env_lock() -> &'static Mutex<()> {
+        static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+        LOCK.get_or_init(|| Mutex::new(()))
+    }
+
+    pub(crate) fn with_temp_home<T>(
+        prefix: &str,
+        test_name: &str,
+        run: impl FnOnce(PathBuf) -> T,
+    ) -> T {
+        let _guard = env_lock().lock().expect("failed to lock env mutex");
+        let home_dir = temp_dir_for(prefix, test_name);
+        let previous_home = env::var_os("HOME");
+
+        unsafe {
+            env::set_var("HOME", &home_dir);
+        }
+
+        let result = run(home_dir.clone());
+
+        if let Some(value) = previous_home {
+            unsafe {
+                env::set_var("HOME", value);
+            }
+        } else {
+            unsafe {
+                env::remove_var("HOME");
+            }
+        }
+
+        let _ = fs::remove_dir_all(&home_dir);
+        result
+    }
 }
 
 pub(crate) fn app_state_path<R: tauri::Runtime>(
