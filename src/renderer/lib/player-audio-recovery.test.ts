@@ -88,7 +88,7 @@ describe("prepareAlphaTabAudioForPlayback", () => {
 		expect(result.finalState).toBe("running");
 	});
 
-	it("still activates running audio output to refresh playback path", async () => {
+	it("does not activate a running audio output", async () => {
 		const activate = vi.fn();
 		const result = await prepareAlphaTabAudioForPlayback({
 			player: {
@@ -101,8 +101,27 @@ describe("prepareAlphaTabAudioForPlayback", () => {
 			},
 		});
 
-		expect(activate).toHaveBeenCalledTimes(1);
+		expect(activate).not.toHaveBeenCalled();
+		expect(result.didAttemptActivation).toBe(false);
 		expect(result.finalState).toBe("running");
+	});
+
+	it("reports a closed context as unrecoverable without activating", async () => {
+		const activate = vi.fn();
+		const result = await prepareAlphaTabAudioForPlayback({
+			player: {
+				output: {
+					context: {
+						state: "closed",
+					},
+					activate,
+				},
+			},
+		});
+
+		expect(activate).not.toHaveBeenCalled();
+		expect(result.didAttemptActivation).toBe(false);
+		expect(result.finalState).toBe("closed");
 	});
 
 	it("safely no-ops when no player output is available", async () => {

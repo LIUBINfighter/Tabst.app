@@ -67,10 +67,6 @@ export function primeAlphaTabAudioOnUserGesture(
 	return didAttemptActivation;
 }
 
-function isRecoverableAudioState(state: string | undefined): boolean {
-	return state === "suspended" || state === "interrupted";
-}
-
 async function tryActivateOutput(
 	output: RecoverableAudioOutputLike,
 ): Promise<boolean> {
@@ -129,32 +125,44 @@ export async function prepareAlphaTabAudioForPlayback(
 	}
 
 	const initialState = output.context?.state ?? null;
-	let didAttemptActivation = false;
 
-	if (isRecoverableAudioState(output.context?.state)) {
-		didAttemptActivation =
-			(await tryActivateOutput(output)) || didAttemptActivation;
-		didAttemptActivation =
-			(await tryResumeContext(output.context)) || didAttemptActivation;
+	// Already running: alphaTab's activate() only invokes the callback after
+	// resuming a suspended/interrupted context, so calling it here would just
+	// burn the fallback timeout for no effect.
+	if (initialState === "running") {
+		return {
+			didAttemptActivation: false,
+			initialState,
+			finalState: "running",
+		};
+	}
 
-		if (isRecoverableAudioState(output.context?.state)) {
-			didAttemptActivation =
-				(await tryActivateOutput(output)) || didAttemptActivation;
-			didAttemptActivation =
-				(await tryResumeContext(output.context)) || didAttemptActivation;
-		}
-	} else {
-		didAttemptActivation =
-			(await tryActivateOutput(output)) || didAttemptActivation;
+	// Missing context, suspended or interrupted: try to activate (this creates
+	// the context and resumes it). Fall back to a direct resume when
+	// activation is unavailable or did not transition to running.
+	if (
+		initialState === null ||
+		initialState === "suspended" ||
+		initialState === "interrupted"
+	) {
+		let didAttemptActivation = await tryActivateOutput(output);
 		if (output.context?.state !== "running") {
 			didAttemptActivation =
 				(await tryResumeContext(output.context)) || didAttemptActivation;
 		}
+
+		return {
+			didAttemptActivation,
+			initialState,
+			finalState: output.context?.state ?? null,
+		};
 	}
 
+	// closed (or any other terminal state): cannot be recovered in place.
+	// Report it as-is so the caller can rebuild the soundfont/player.
 	return {
-		didAttemptActivation,
+		didAttemptActivation: false,
 		initialState,
-		finalState: output.context?.state ?? null,
+		finalState: initialState,
 	};
 }
