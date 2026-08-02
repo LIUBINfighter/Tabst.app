@@ -634,6 +634,16 @@ export function createTauriDesktopAPI(): DesktopAPI {
 				return { success: false, error: toErrorMessage(error) };
 			}
 		},
+
+		restartApp: async (): Promise<{ success: boolean; error?: string }> => {
+			try {
+				return await invokeCommand<{ success: boolean; error?: string }>(
+					"restart_app",
+				);
+			} catch (error) {
+				return { success: false, error: toErrorMessage(error) };
+			}
+		},
 	};
 
 	return api;

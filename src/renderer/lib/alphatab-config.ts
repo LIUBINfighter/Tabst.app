@@ -124,8 +124,6 @@ export function createPreviewSettings(
 		player: {
 			playerMode: alphaTab.PlayerMode.EnabledAutomatic,
 			enablePlayer: enablePlayerSafely,
-			outputMode: alphaTab.PlayerOutputMode.WebAudioScriptProcessor,
-			soundFont: urls.soundFontUrl,
 			...(scrollElement && {
 				scrollMode: alphaTab.ScrollMode.OffScreen,
 				scrollElement,

@@ -55,7 +55,7 @@ The main owners are:
 | Shared destroy and print suspension/resume | `hooks/usePreviewApiLifecycle.ts` |
 | Parse timeout and last-valid-score recovery | `hooks/usePreviewErrorRecovery.ts` |
 | Lifecycle counters and state transitions | `hooks/usePreviewLifecycleTelemetry.ts` |
-| Theme palette lookup and class observer | `lib/themeManager.ts` |
+| Theme palette lookup | `lib/themeManager.ts` |
 | Staff display mutation | `lib/staff-config.ts` |
 | Editor-to-score synchronization | `hooks/usePreviewSelectionSync.ts` |
 | Bar-number highlighting | `hooks/usePreviewBarHighlight.ts` |
@@ -75,7 +75,6 @@ parse ATDOC and synchronize store-facing settings
     → announce the new API instance
     → apply global playback preferences
     → bind all alphaTab listeners
-    → install the theme class observer
     → load SoundFont
     → strip ATDOC and call tex(cleanContent)
     → scoreLoaded applies document/session configuration
@@ -165,31 +164,15 @@ That refresh:
 This explicit theme-system refresh is the production path for palette changes,
 including switching between two themes that use the same light/dark mode.
 
-### Class observer fallback
+### Class observer fallback (removed)
 
-`setupThemeObserver()` observes changes to the root `class` attribute. Its
-Preview callback:
-
-1. requires a live API and non-empty content;
-2. applies a 250 ms rebuild cooldown;
-3. captures the current first-staff display flags;
-4. captures the latest clean AlphaTex content;
-5. destroys the current API and listeners;
-6. creates a new API with freshly read score colors;
-7. reapplies playback preferences;
-8. rebinds listeners;
-9. reloads SoundFont;
-10. calls `tex()` with the captured content.
-
-The observer is a compatibility fallback for external root-class changes. It
-must not be treated as the sole theme notification mechanism because:
-
-- it observes `class`, not inline CSS variable changes;
-- normal theme application already calls explicit Preview Refresh;
-- the destroy helper disconnects the observer attached to the old API.
-
-If this path is refactored, choose one authoritative notification mechanism and
-keep only a clearly documented fallback.
+An earlier implementation installed a `MutationObserver` on the root `class`
+attribute (`setupThemeObserver`) as a second rebuild path. It was removed
+because it created dual ownership: palette switches (inline CSS variables only)
+never reached it, light/dark switches could rebuild twice, and a rebuilt API
+never reinstalled the observer ("works only once"). Theme changes now have a
+single authoritative path: theme-store change → `use-theme` writes variables →
+explicit Preview `refresh()`.
 
 ## Staff display contract
 
@@ -253,7 +236,7 @@ unconditionally preserved. A regression test should cover:
 | Count-in | API remains | Reapplied | Reapplied |
 | Metronome-only track muting | Reapplied after score load | Reapplied after score load | Reapplied after score load |
 | ATDOC warm/hot/mix/color | Reapplied after score load | Reapplied after score load | Reapplied after score load |
-| First-track staff display | Reapplied from ATDOC/ref; known gap after UI toggle | Observer path snapshots; explicit Refresh has known gap | Ref survives, but may be stale |
+| First-track staff display | Reapplied from ATDOC/ref | Captured before destroy, then reapplied | Ref survives; kept in sync on UI toggle |
 | Playback position | Not guaranteed across reparse | Not restored | Reset |
 | Playing/paused state | Not guaranteed across reparse | Not restored | Stopped/reset |
 | Score selection | Cleared | Cleared | Cleared |
@@ -305,6 +288,45 @@ Two errors have narrower handling:
 - a known non-guitar TAB probe failure silently rolls back the probe;
 - a numbered-notation beat rendering failure disables numbered notation,
   rerenders, and avoids surfacing a fatal parse error when rollback succeeds.
+
+## Audio output recovery
+
+Playback audio recovery is owned by `lib/preview-audio-refresh.ts`
+(`createPlaybackAudioRefreshCoordinator`). `window.focus` and
+`visibilitychange` funnel into a single-flight `refresh()` so one window
+return runs recovery exactly once.
+
+Recovery is cascading:
+
+1. `prepareAlphaTabAudioForPlayback` (`lib/player-audio-recovery.ts`) inspects
+   the AudioContext state:
+   - `running` → return immediately (alphaTab's `activate()` only invokes its
+     callback after resuming a suspended context, so calling it while running
+     just burns a timeout);
+   - `suspended`/`interrupted`/missing context → `activate()` + direct
+     `resume()`;
+   - `closed` → report unrecoverable, do not attempt in place.
+2. The soundfont is reloaded (`append=false`, per-URL in-flight dedup) only
+   when the context is `closed`, an activation attempt did not end in
+   `running`, or playback is stalled (tick position not advancing while
+   playing). Idle time alone never triggers a reload.
+3. After a reload, playback is checked again. If it is still stalled, the
+   coordinator reports `audioStalled` and Preview shows a user-facing notice
+   with a restart action.
+
+`play()` additionally runs a self-healing check: if playback started but the
+tick position does not advance within 2 seconds, the same cascade runs.
+
+### Known platform limitation
+
+After macOS display/system sleep the WKWebView audio subsystem can stop
+working even though `AudioContext.state` reports `running` and
+`api.play()` returns success. This is a WebView process-level fault that
+cannot be repaired from inside the page (page reload, API rebuild, output-mode
+switch, and soundfont reload all fail). The only working recovery is a fresh
+WebView process, i.e. restarting the app; workspace state is restored through
+the existing autosave and session-recovery mechanisms. See
+`docs/dev/reports/WKWEBVIEW_AUDIO_SLEEP_DIAGNOSIS.md` for the full diagnosis.
 
 ## Lifecycle telemetry
 

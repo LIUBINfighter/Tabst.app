@@ -65,6 +65,10 @@ import {
 	primeAlphaTabAudioOnUserGesture,
 } from "../lib/player-audio-recovery";
 import {
+	createPlaybackAudioRefreshCoordinator,
+	type PlaybackAudioRefreshCoordinator,
+} from "../lib/preview-audio-refresh";
+import {
 	PREVIEW_COMMAND_EVENT,
 	type PreviewCommandId,
 } from "../lib/preview-command-events";
@@ -111,8 +115,6 @@ type PlaybackCursorSnapshot = {
 	barIndex: number;
 	beatIndex: number;
 };
-
-const AUDIO_IDLE_REFRESH_THRESHOLD_MS = 2 * 60 * 1000;
 
 const PrintPreview = lazy(() => import("./PrintPreview"));
 
@@ -350,7 +352,6 @@ export default function Preview({
 		useRef<PlaybackFrameGate<PlaybackProgressSnapshot> | null>(null);
 	const playbackCursorGateRef =
 		useRef<PlaybackFrameGate<PlaybackCursorSnapshot> | null>(null);
-	const lastPlaybackActivityAtRef = useRef<number>(Date.now());
 
 	useEffect(() => {
 		playbackProgressGateRef.current = createPlaybackFrameGate(
@@ -775,46 +776,82 @@ export default function Preview({
 		[applyScoreTracksMuted],
 	);
 
-	const refreshPlaybackAudioPipeline = useCallback(
-		async (reason: string) => {
-			const api = apiRef.current;
-			if (!api) return;
+	// 最新的音频恢复依赖，供单一刷新协调器动态取用（避免闭包捕获旧函数实例）
+	const refreshAudioDepsRef = useRef({
+		recoverPlaybackAudio,
+		reapplyPlaybackAudioState,
+	});
+	refreshAudioDepsRef.current = {
+		recoverPlaybackAudio,
+		reapplyPlaybackAudioState,
+	};
 
-			const recovery = await recoverPlaybackAudio();
-			if (apiRef.current !== api) return;
-			const idleTooLong =
-				Date.now() - lastPlaybackActivityAtRef.current >=
-				AUDIO_IDLE_REFRESH_THRESHOLD_MS;
-			const shouldReloadSoundFont =
-				idleTooLong ||
-				recovery?.initialState === "suspended" ||
-				recovery?.initialState === "interrupted" ||
-				(recovery?.didAttemptActivation === true &&
-					recovery.finalState !== "running");
+	// 音频管线刷新协调器：focus/visibilitychange 共用同一 single-flight 入口，
+	// 同一窗口返回只执行一次恢复；级联恢复（resume → 重载 SoundFont），
+	// 播放卡死（tick 停滞）时仍无法恢复则上报 audioStalled，由 UI 提示重启。
+	const playbackAudioRefreshRef =
+		useRef<PlaybackAudioRefreshCoordinator | null>(null);
+	if (playbackAudioRefreshRef.current === null) {
+		playbackAudioRefreshRef.current = createPlaybackAudioRefreshCoordinator({
+			getApi: () => apiRef.current,
+			getRecoverPlaybackAudio: () =>
+				refreshAudioDepsRef.current.recoverPlaybackAudio,
+			reloadSoundFont: async (api) => {
+				const soundFontUrl = currentSoundFontUrlRef.current;
+				if (!soundFontUrl) return false;
+				const ok = await loadSoundFontFromUrl(api, soundFontUrl);
+				if (ok) {
+					console.info("[Preview] Reloaded soundfont for audio recovery");
+				}
+				return ok;
+			},
+			getReapplyPlaybackAudioState: () =>
+				refreshAudioDepsRef.current.reapplyPlaybackAudioState,
+			isPlaybackStalled: async () => {
+				const api = apiRef.current;
+				if (!api) return false;
+				if (!useAppStore.getState().playerIsPlaying) return false;
+				const before = useAppStore.getState().playbackPositionTick;
+				await new Promise((resolve) => window.setTimeout(resolve, 1200));
+				if (apiRef.current !== api) return false;
+				const after = useAppStore.getState().playbackPositionTick;
+				return after <= before;
+			},
+		});
+	}
+	const refreshPlaybackAudioPipeline = playbackAudioRefreshRef.current.refresh;
 
-			if (shouldReloadSoundFont && currentSoundFontUrlRef.current) {
-				await loadSoundFontFromUrl(api, currentSoundFontUrlRef.current);
-				if (apiRef.current !== api) return;
-				await recoverPlaybackAudio();
-				if (apiRef.current !== api) return;
-				console.info(
-					`[Preview] Reloaded soundfont for audio recovery (${reason})`,
-				);
+	const showAudioStalledNotice = useCallback(() => {
+		const alreadyShownAt = useAppStore.getState().audioStalledNoticeAt;
+		if (alreadyShownAt !== null && Date.now() - alreadyShownAt < 60_000) {
+			return;
+		}
+		useAppStore.getState().setAudioStalledNoticeAt(Date.now());
+	}, []);
+
+	const handleAudioRecoveryResult = useCallback(
+		(
+			result: Awaited<ReturnType<PlaybackAudioRefreshCoordinator["refresh"]>>,
+		) => {
+			if (result.audioStalled) {
+				console.warn("[Preview] Playback stalled after audio recovery");
+				showAudioStalledNotice();
 			}
-
-			reapplyPlaybackAudioState(api);
-			lastPlaybackActivityAtRef.current = Date.now();
 		},
-		[recoverPlaybackAudio, reapplyPlaybackAudioState],
+		[showAudioStalledNotice],
 	);
 
 	useEffect(() => {
 		const handleWindowFocus = () => {
-			void refreshPlaybackAudioPipeline("window-focus");
+			void refreshPlaybackAudioPipeline("window-focus").then(
+				handleAudioRecoveryResult,
+			);
 		};
 		const handleVisibilityChange = () => {
 			if (!document.hidden) {
-				void refreshPlaybackAudioPipeline("visibility-return");
+				void refreshPlaybackAudioPipeline("visibility-return").then(
+					handleAudioRecoveryResult,
+				);
 			}
 		};
 
@@ -825,7 +862,7 @@ export default function Preview({
 			window.removeEventListener("focus", handleWindowFocus);
 			document.removeEventListener("visibilitychange", handleVisibilityChange);
 		};
-	}, [refreshPlaybackAudioPipeline]);
+	}, [refreshPlaybackAudioPipeline, handleAudioRecoveryResult]);
 
 	useEffect(() => {
 		metronomeOnlyModeRef.current = metronomeOnlyMode;
@@ -1484,6 +1521,29 @@ export default function Preview({
 								console.info(
 									`[Preview] api.play() invoked ${JSON.stringify({ didPlay, isReadyForPlayback: api.isReadyForPlayback, tickPosition: api.tickPosition })}`,
 								);
+
+								// 自愈验证：播放已启动但 tick 未推进说明 webview 音频输出失效
+								// （典型场景：显示器/系统睡眠后）。先走级联恢复，仍卡死则提示重启。
+								if (didPlay && apiRef.current === api) {
+									const startTick = useAppStore.getState().playbackPositionTick;
+									await new Promise((resolve) =>
+										window.setTimeout(resolve, 2000),
+									);
+									if (
+										apiRef.current === api &&
+										useAppStore.getState().playerIsPlaying &&
+										useAppStore.getState().playbackPositionTick <= startTick
+									) {
+										console.warn(
+											"[Preview] Playback started but tick is not advancing",
+										);
+										const result =
+											await refreshPlaybackAudioPipeline("play-stall");
+										if (apiRef.current === api) {
+											handleAudioRecoveryResult(result);
+										}
+									}
+								}
 							};
 
 							useAppStore.getState().clearScoreSelection();
@@ -1548,7 +1608,6 @@ export default function Preview({
 						api.pause?.();
 					},
 					stop: () => {
-						lastPlaybackActivityAtRef.current = Date.now();
 						countInPendingRef.current = false;
 						// 1. 停止播放器
 						api.stop?.();
@@ -1592,7 +1651,6 @@ export default function Preview({
 						}
 					},
 					refresh: () => {
-						lastPlaybackActivityAtRef.current = Date.now();
 						countInPendingRef.current = false;
 						bumpEditorRefreshVersion();
 						bumpBottomBarRefreshVersion();
@@ -2094,6 +2152,7 @@ export default function Preview({
 		setPlayerCursorIfChanged,
 		setPlayerIsPlayingIfChanged,
 		refreshPlaybackAudioPipeline,
+		handleAudioRecoveryResult,
 		resourceAssetOverrides,
 	]);
 

@@ -15,6 +15,7 @@ import {
 
 const TutorialView = lazy(() => import("./components/TutorialView"));
 
+import { AudioRecoveryToast } from "./components/AudioRecoveryToast";
 import UpdateToast from "./components/UpdateToast";
 import { useFileOperations } from "./hooks/useFileOperations";
 import { getAlphaTexHighlight } from "./lib/alphatex-highlight";
@@ -664,6 +665,7 @@ function App() {
 			</div>
 
 			<UpdateToast />
+			<AudioRecoveryToast />
 			{quickSwitcherOpen && (
 				<Suspense fallback={null}>
 					<QuickFileSwitcher

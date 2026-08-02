@@ -1,3 +1,4 @@
+mod app_commands;
 mod fs_commands;
 mod git_commands;
 mod models;
@@ -8,6 +9,7 @@ mod settings_commands;
 mod support;
 mod updater_commands;
 
+use app_commands::restart_app;
 use fs_commands::{
     create_file, create_folder, load_app_state, move_path, open_external, open_file, read_asset,
     read_file, read_file_bytes, rename_file, reveal_in_folder, save_app_state, save_binary_file,
@@ -79,7 +81,8 @@ pub fn run() {
             validate_musescore_executable,
             save_musescore_executable_path,
             convert_gp_to_mxl,
-            set_keep_awake
+            set_keep_awake,
+            restart_app
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

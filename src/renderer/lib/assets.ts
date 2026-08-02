@@ -95,9 +95,14 @@ export async function loadBravuraFont(fontUrl: string): Promise<boolean> {
 	}
 }
 
+const soundFontLoadsInFlight = new Map<string, Promise<boolean>>();
+
 /**
  * 通过 URL 加载音频到 alphaTab
  * 适用于已经通过 ResourceLoaderService 生成的音频 URL
+ *
+ * 并发调用同一 URL 时复用同一个加载任务；字体以替换（非追加）方式加载，
+ * 避免 focus/visibility 并发恢复或重复恢复导致相同 SoundFont 被重复 append。
  */
 export async function loadSoundFontFromUrl(
 	api: alphaTab.AlphaTabApi | null,
@@ -108,6 +113,24 @@ export async function loadSoundFontFromUrl(
 		return false;
 	}
 
+	const inFlight = soundFontLoadsInFlight.get(soundFontUrl);
+	if (inFlight) {
+		return inFlight;
+	}
+
+	const task = loadSoundFontFromUrlInner(api, soundFontUrl);
+	soundFontLoadsInFlight.set(soundFontUrl, task);
+	try {
+		return await task;
+	} finally {
+		soundFontLoadsInFlight.delete(soundFontUrl);
+	}
+}
+
+async function loadSoundFontFromUrlInner(
+	api: alphaTab.AlphaTabApi,
+	soundFontUrl: string,
+): Promise<boolean> {
 	try {
 		if (!isDesktopShellRuntime() && !hasUserActivatedAudio()) {
 			console.info(
@@ -144,7 +167,7 @@ export async function loadSoundFontFromUrl(
 		}
 
 		try {
-			api.loadSoundFont?.(u8, true);
+			api.loadSoundFont?.(u8, false);
 		} catch (error) {
 			console.warn("[AssetLoader] alphaTab rejected soundfont payload:", error);
 			return false;
