@@ -1,4 +1,4 @@
-import { CheckCircle2, Loader2, XCircle } from "lucide-react";
+import { CheckCircle2, FolderOpen, Loader2, XCircle } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "../ui/button";
@@ -12,9 +12,9 @@ type Status =
 export function ExternalToolsPage() {
 	const { t } = useTranslation("settings");
 	const [executablePath, setExecutablePath] = useState("");
-	const [busyAction, setBusyAction] = useState<"load" | "test" | "save" | null>(
-		"load",
-	);
+	const [busyAction, setBusyAction] = useState<
+		"load" | "test" | "save" | "choose" | "reveal" | null
+	>("load");
 	const [status, setStatus] = useState<Status>({
 		kind: "idle",
 		message: t("externalToolsSection.notValidated"),
@@ -90,6 +90,36 @@ export function ExternalToolsPage() {
 		});
 	};
 
+	const handleChoose = async () => {
+		setBusyAction("choose");
+		const result = await window.desktopAPI.selectMuseScoreExecutable();
+		setBusyAction(null);
+		if (!result) return;
+		if (!result.success) {
+			setStatus({ kind: "error", message: errorMessage(result.error) });
+			return;
+		}
+		if (result.executablePath) setExecutablePath(result.executablePath);
+		setStatus({
+			kind: "success",
+			message: result.version
+				? t("externalToolsSection.validVersion", { version: result.version })
+				: t("externalToolsSection.valid"),
+		});
+	};
+
+	const handleReveal = async () => {
+		setBusyAction("reveal");
+		const result = await window.desktopAPI.revealInFolder(executablePath);
+		setBusyAction(null);
+		if (!result?.success) {
+			setStatus({
+				kind: "error",
+				message: t("externalToolsSection.revealFailed"),
+			});
+		}
+	};
+
 	const isBusy = busyAction !== null;
 
 	return (
@@ -130,6 +160,15 @@ export function ExternalToolsPage() {
 				<Button
 					type="button"
 					variant="outline"
+					onClick={() => void handleChoose()}
+					disabled={isBusy}
+				>
+					{busyAction === "choose" && <Loader2 className="animate-spin" />}
+					{t("externalToolsSection.choose")}
+				</Button>
+				<Button
+					type="button"
+					variant="outline"
 					onClick={() => void handleTest()}
 					disabled={isBusy || !executablePath.trim()}
 				>
@@ -147,6 +186,19 @@ export function ExternalToolsPage() {
 				<Button
 					type="button"
 					variant="ghost"
+					onClick={() => void handleReveal()}
+					disabled={isBusy || !executablePath.trim()}
+				>
+					{busyAction === "reveal" ? (
+						<Loader2 className="animate-spin" />
+					) : (
+						<FolderOpen />
+					)}
+					{t("externalToolsSection.reveal")}
+				</Button>
+				<Button
+					type="button"
+					variant="ghost"
 					onClick={() => {
 						setExecutablePath("");
 						setStatus({
@@ -159,6 +211,10 @@ export function ExternalToolsPage() {
 					{t("externalToolsSection.clear")}
 				</Button>
 			</div>
+
+			<p className="text-xs text-muted-foreground">
+				{t("externalToolsSection.chooseHint")}
+			</p>
 
 			<div
 				className={`flex items-start gap-2 rounded border p-3 text-xs ${
