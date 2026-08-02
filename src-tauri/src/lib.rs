@@ -249,6 +249,35 @@ mod tests {
         assert_eq!(decoded.tutorial_audience, original.tutorial_audience);
     }
 
+    /// Wait until the repo watcher delivers an event for a path ending with
+    /// `expected_suffix`, or the deadline expires.
+    fn wait_for_repo_event(
+        rx: &mpsc::Receiver<RepoFsChangedEvent>,
+        expected_suffix: &str,
+        deadline: Instant,
+    ) -> bool {
+        while Instant::now() < deadline {
+            match rx.recv_timeout(Duration::from_millis(250)) {
+                Ok(event) => {
+                    let is_expected_type =
+                        event.event_type == "rename" || event.event_type == "change";
+                    let is_expected_path = event
+                        .changed_path
+                        .as_deref()
+                        .map(|value| value.ends_with(expected_suffix))
+                        .unwrap_or(false);
+
+                    if is_expected_type && is_expected_path {
+                        return true;
+                    }
+                }
+                Err(mpsc::RecvTimeoutError::Timeout) => continue,
+                Err(mpsc::RecvTimeoutError::Disconnected) => return false,
+            }
+        }
+        false
+    }
+
     #[test]
     fn repo_watcher_emits_events_for_fs_changes() {
         let repo_dir = temp_dir_for("repo-watch");
@@ -260,31 +289,22 @@ mod tests {
         })
         .expect("failed to create watcher");
 
+        // Readiness handshake: watcher registration is asynchronous on some
+        // backends (inotify/kqueue), so a write immediately after
+        // create_repo_watcher can be lost. Write a probe file and wait for
+        // its event to prove the OS watch is active before mutating the file
+        // the test asserts on.
+        let probe_file = repo_dir.join("probe.atex");
+        fs::write(&probe_file, "probe").expect("failed to write probe file");
+        assert!(
+            wait_for_repo_event(&rx, "probe.atex", Instant::now() + Duration::from_secs(5)),
+            "expected repo watcher to become ready within the handshake window"
+        );
+
         fs::write(&watched_file, "sync").expect("failed to write watched file");
 
-        let deadline = Instant::now() + Duration::from_secs(5);
-        let mut seen = false;
-
-        while Instant::now() < deadline {
-            match rx.recv_timeout(Duration::from_millis(250)) {
-                Ok(event) => {
-                    let is_expected_type =
-                        event.event_type == "rename" || event.event_type == "change";
-                    let is_expected_path = event
-                        .changed_path
-                        .as_deref()
-                        .map(|value| value.ends_with("watched.atex"))
-                        .unwrap_or(false);
-
-                    if is_expected_type && is_expected_path {
-                        seen = true;
-                        break;
-                    }
-                }
-                Err(mpsc::RecvTimeoutError::Timeout) => continue,
-                Err(mpsc::RecvTimeoutError::Disconnected) => break,
-            }
-        }
+        let seen =
+            wait_for_repo_event(&rx, "watched.atex", Instant::now() + Duration::from_secs(5));
 
         drop(watcher);
         let _ = fs::remove_dir_all(&repo_dir);
