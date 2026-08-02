@@ -588,7 +588,10 @@ export function createWebDesktopAPI(): DesktopAPI {
 			error: "Unsupported in web runtime",
 		}),
 
-		setKeepAwake: async (_enabled: boolean) => ({ success: true }),
+		setKeepAwake: async () => ({
+			success: false,
+			error: "keep-awake-unsupported",
+		}),
 	};
 
 	return api;

@@ -575,7 +575,7 @@ export default function Preview({
 			.then((result) => {
 				if (isCancelled) return;
 				if (result.success) return;
-				if (result.error === "Unsupported in web runtime") return;
+				if (result.error === "keep-awake-unsupported") return;
 				console.warn(
 					"[Preview] Failed to update keep-awake state:",
 					result.error ?? "unknown-error",
