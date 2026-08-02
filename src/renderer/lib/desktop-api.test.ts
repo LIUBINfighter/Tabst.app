@@ -147,6 +147,25 @@ describe("tauri runtime detection", () => {
 		});
 	});
 
+	it("reports external resource pickers as desktop-only in web runtime", async () => {
+		const api = createWebDesktopAPI();
+
+		expect(await api.selectSoundFontFile()).toBeNull();
+		expect(await api.selectMuseScoreExecutable()).toBeNull();
+		expect(await api.loadExternalSoundFontSettings()).toEqual({
+			success: true,
+			configured: false,
+			valid: false,
+		});
+		expect(await api.saveExternalSoundFontPath("/tmp/audio.sf2")).toEqual({
+			success: false,
+			configured: false,
+			valid: false,
+			error: "Unsupported in web runtime",
+		});
+		expect(await api.clearExternalSoundFont()).toEqual({ success: true });
+	});
+
 	it("preserves binary gp bytes when importing through openFile", async () => {
 		const api = createWebDesktopAPI();
 		const originalBytes = Uint8Array.from([0, 255, 254, 65, 0, 66, 67]);

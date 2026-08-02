@@ -49,4 +49,12 @@ describe("normalizeTauriInvokeArgs", () => {
 	it("returns undefined when args are undefined", () => {
 		expect(normalizeTauriInvokeArgs()).toBeUndefined();
 	});
+
+	it("keeps single-segment external resource paths unchanged", () => {
+		expect(
+			normalizeTauriInvokeArgs({
+				path: "/Users/jay/External SoundFont.sf2",
+			}),
+		).toEqual({ path: "/Users/jay/External SoundFont.sf2" });
+	});
 });
