@@ -4305,7 +4305,7 @@ dependencies = [
 
 [[package]]
 name = "tabst-tauri"
-version = "0.7.0-rc"
+version = "0.7.0-rc.1"
 dependencies = [
  "dirs 5.0.1",
  "hex",

@@ -103,9 +103,11 @@ pub(crate) fn set_keep_awake(
     {
         let _ = keep_awake_manager;
         let _ = enabled;
+        // Report honestly instead of faking success: the keep-awake power
+        // assertion is currently only implemented on macOS.
         BasicResult {
-            success: true,
-            error: None,
+            success: false,
+            error: Some("keep-awake-unsupported".to_string()),
         }
     }
 }
