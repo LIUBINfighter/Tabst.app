@@ -1,0 +1,8 @@
+{
+	"recoveryToast": {
+		"title": "音频输出异常",
+		"message": "系统睡眠后 WKWebView 的音频输出可能失效，重载声音未能恢复。重启应用可恢复播放。",
+		"restart": "重启应用",
+		"dismiss": "知道了"
+	}
+}

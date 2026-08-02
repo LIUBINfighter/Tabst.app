@@ -1,0 +1,8 @@
+{
+	"recoveryToast": {
+		"title": "Audio output unavailable",
+		"message": "After system sleep the WebView audio output may stop working and reloading the soundfont did not recover it. Restarting the app restores playback.",
+		"restart": "Restart App",
+		"dismiss": "Got it"
+	}
+}

@@ -3,6 +3,7 @@ import moment from "moment";
 import { initReactI18next } from "react-i18next";
 import "moment/locale/zh-cn";
 
+import enAudio from "./locales/en/audio.json";
 import enCommon from "./locales/en/common.json";
 import enErrors from "./locales/en/errors.json";
 import enPrint from "./locales/en/print.json";
@@ -11,6 +12,7 @@ import enSidebar from "./locales/en/sidebar.json";
 import enToolbar from "./locales/en/toolbar.json";
 import enUpdates from "./locales/en/updates.json";
 
+import zhCnAudio from "./locales/zh-cn/audio.json";
 import zhCnCommon from "./locales/zh-cn/common.json";
 import zhCnErrors from "./locales/zh-cn/errors.json";
 import zhCnPrint from "./locales/zh-cn/print.json";
@@ -28,6 +30,7 @@ const resources = {
 		print: enPrint,
 		errors: enErrors,
 		updates: enUpdates,
+		audio: enAudio,
 	},
 	"zh-cn": {
 		common: zhCnCommon,
@@ -37,6 +40,7 @@ const resources = {
 		print: zhCnPrint,
 		errors: zhCnErrors,
 		updates: zhCnUpdates,
+		audio: zhCnAudio,
 	},
 };
 

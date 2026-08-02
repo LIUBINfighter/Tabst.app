@@ -195,6 +195,10 @@ export interface DesktopAPI {
 		success: boolean;
 		error?: string;
 	}>;
+	restartApp: () => Promise<{
+		success: boolean;
+		error?: string;
+	}>;
 }
 
 declare global {

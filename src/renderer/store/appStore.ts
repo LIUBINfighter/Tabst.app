@@ -688,6 +688,9 @@ interface AppState {
 	// 🆕 第一个谱表显示选项
 	firstStaffOptions: StaffDisplayOptions | null;
 
+	// 🆕 音频输出异常提示的时间戳（null 表示未提示）
+	audioStalledNoticeAt: number | null;
+
 	// 🆕 待处理的谱表选项切换
 	pendingStaffToggle: keyof StaffDisplayOptions | null;
 
@@ -806,6 +809,9 @@ interface AppState {
 
 	// 🆕 谱表选项操作
 	setFirstStaffOptions: (options: StaffDisplayOptions | null) => void;
+
+	// 🆕 设置音频输出异常提示时间戳（null 清除）
+	setAudioStalledNoticeAt: (shownAt: number | null) => void;
 	toggleFirstStaffOption: (key: keyof StaffDisplayOptions) => void;
 	requestStaffToggle: (key: keyof StaffDisplayOptions) => void;
 
@@ -2030,6 +2036,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 			gitActionError: null,
 		}),
 	firstStaffOptions: null,
+	audioStalledNoticeAt: null,
 	pendingStaffToggle: null,
 	activeTutorialId: "user-readme",
 	setActiveTutorialId: (id) => {
@@ -2667,6 +2674,11 @@ export const useAppStore = create<AppState>((set, get) => ({
 	// 🆕 设置第一个谱表选项
 	setFirstStaffOptions: (options) => {
 		set({ firstStaffOptions: options });
+	},
+
+	// 🆕 音频输出异常提示（睡眠后 webview 音频失效，需要用户重启应用）
+	setAudioStalledNoticeAt: (shownAt: number | null) => {
+		set({ audioStalledNoticeAt: shownAt });
 	},
 
 	// 🆕 切换第一个谱表选项
