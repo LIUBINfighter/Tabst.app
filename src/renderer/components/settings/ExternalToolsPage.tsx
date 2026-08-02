@@ -101,18 +101,29 @@ export function ExternalToolsPage() {
 	const handleChoose = async () => {
 		setBusyAction("choose");
 		const result = await window.desktopAPI.selectMuseScoreExecutable();
-		setBusyAction(null);
-		if (!result) return;
+		if (!result) {
+			setBusyAction(null);
+			return;
+		}
 		if (!result.success) {
+			setBusyAction(null);
 			setStatus({ kind: "error", message: errorMessage(result.error) });
 			return;
 		}
-		if (result.executablePath) setExecutablePath(result.executablePath);
+		const saved = await window.desktopAPI.saveMuseScoreExecutablePath(
+			result.executablePath ?? null,
+		);
+		setBusyAction(null);
+		if (!saved.success) {
+			setStatus({ kind: "error", message: errorMessage(saved.error) });
+			return;
+		}
+		if (saved.executablePath) setExecutablePath(saved.executablePath);
 		setStatus({
 			kind: "success",
-			message: result.version
-				? t("externalToolsSection.validVersion", { version: result.version })
-				: t("externalToolsSection.valid"),
+			message: saved.executablePath
+				? t("externalToolsSection.saved")
+				: t("externalToolsSection.cleared"),
 		});
 	};
 
