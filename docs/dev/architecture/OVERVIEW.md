@@ -399,11 +399,20 @@ The UI theme and CodeMirror theme are registered in
 `src/renderer/lib/theme-system/`. CSS variables describe application colors and
 the alphaTab score palette. The theme system writes those variables and invokes
 an explicit Preview Refresh. `src/renderer/lib/themeManager.ts` reads the
-alphaTab-specific variables and also provides a root-class observer fallback.
+alphaTab-specific variables.
 
 Runtime score assets include the Bravura music font and SoundFont resources.
 The resource catalog and loader resolve URLs appropriate for Web, Tauri, and
 print contexts, with sanitized workspace overrides where supported.
+
+External SoundFonts are user-managed machine-local files selected through
+native dialogs. They are validated (extension, RIFF/sfbk header, size limit),
+referenced by canonical path in the global settings
+(`externalTools.externalSoundFontPath`), and served to the renderer through
+the Tauri asset protocol (`asset://localhost/...`) with runtime scope
+authorization; the raw bytes never cross IPC. Missing or invalid external
+fonts fall back to the built-in catalog. External resources are never copied
+into repositories, uploaded, or bundled with releases.
 
 Large assets are treated separately from ordinary JavaScript chunks. Vite build
 logic excludes configured heavy assets from the default static bundle, so

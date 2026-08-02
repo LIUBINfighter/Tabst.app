@@ -309,7 +309,11 @@ Recovery is cascading:
 2. The soundfont is reloaded (`append=false`, per-URL in-flight dedup) only
    when the context is `closed`, an activation attempt did not end in
    `running`, or playback is stalled (tick position not advancing while
-   playing). Idle time alone never triggers a reload.
+   playing). Idle time alone never triggers a reload. The reloaded URL is the
+   effective SoundFont URL: an external font configured in global settings is
+   served through the Tauri asset protocol (`asset://localhost/...`), which
+   the coordinator and `loadSoundFontFromUrl` treat like any other URL —
+   the raw bytes never cross IPC and the file remains user-managed.
 3. After a reload, playback is checked again. If it is still stalled, the
    coordinator reports `audioStalled` and Preview shows a user-facing notice
    with a restart action.
