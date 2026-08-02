@@ -234,6 +234,8 @@
 		"museScoreHint": "Tabst 可以调用本机安装的 MuseScore 4，将 Guitar Pro 文件转换为 MusicXML（.mxl）。",
 		"executablePath": "可执行文件路径",
 		"pathPlaceholder": "C:\\Program Files\\MuseScore 4\\bin\\MuseScore4.exe",
+		"pathPlaceholderMacos": "/Applications/MuseScore 4.app/Contents/MacOS/mscore",
+		"pathPlaceholderLinux": "/usr/bin/mscore",
 		"choose": "选择 MuseScore...",
 		"chooseHint": "选择 MuseScore 应用（macOS）或可执行文件（Windows/Linux）。macOS 的 .app 会自动解析到 Contents/MacOS 下的可执行文件。",
 		"reveal": "在文件夹中显示",

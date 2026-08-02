@@ -9,6 +9,14 @@ type Status =
 	| { kind: "success"; message: string }
 	| { kind: "error"; message: string };
 
+function pathPlaceholderKey(): string {
+	if (typeof navigator === "undefined") return "pathPlaceholder";
+	const userAgent = navigator.userAgent.toLowerCase();
+	if (userAgent.includes("mac")) return "pathPlaceholderMacos";
+	if (userAgent.includes("win")) return "pathPlaceholder";
+	return "pathPlaceholderLinux";
+}
+
 export function ExternalToolsPage() {
 	const { t } = useTranslation("settings");
 	const [executablePath, setExecutablePath] = useState("");
@@ -150,7 +158,7 @@ export function ExternalToolsPage() {
 							message: t("externalToolsSection.notValidated"),
 						});
 					}}
-					placeholder={t("externalToolsSection.pathPlaceholder")}
+					placeholder={t(`externalToolsSection.${pathPlaceholderKey()}`)}
 					disabled={isBusy}
 					spellCheck={false}
 				/>
