@@ -169,4 +169,87 @@ describe("fileMetaByPath", () => {
 			"guitar",
 		]);
 	});
+
+	it("keeps the fileMetaByPath reference stable when values do not change", () => {
+		const store = useAppStore.getState();
+		store.setFileMetaByPath("/repo/song.atex", {
+			metaTags: ["guitar"],
+			metaStatus: "active",
+		});
+		const before = useAppStore.getState().fileMetaByPath;
+
+		store.setFileMetaByPath("/repo/song.atex", {
+			metaTags: ["guitar"],
+			metaStatus: "active",
+		});
+		store.setFileMetaByPath("/repo/song.atex", {
+			metaTags: ["guitar"],
+		});
+
+		expect(useAppStore.getState().fileMetaByPath).toBe(before);
+	});
+
+	it("records an empty meta entry for content without ATDOC meta", () => {
+		const store = useAppStore.getState();
+		store.setFileMetaByPath("/repo/plain.atex", {});
+
+		expect(
+			useAppStore.getState().fileMetaByPath["/repo/plain.atex"],
+		).toBeDefined();
+	});
+
+	it("keeps cached meta when addFile has no parsed meta fields", () => {
+		const store = useAppStore.getState();
+		store.setFileMetaByPath("/repo/song.atex", {
+			metaTags: ["guitar"],
+			metaStatus: "active",
+		});
+		store.addFile({
+			id: "/repo/song.atex",
+			name: "song.atex",
+			path: "/repo/song.atex",
+			content: "",
+			contentLoaded: true,
+		});
+
+		const meta = useAppStore.getState().fileMetaByPath["/repo/song.atex"];
+		expect(meta.metaTags).toEqual(["guitar"]);
+		expect(meta.metaStatus).toBe("active");
+	});
+
+	it("keeps the fileMetaByPath reference stable when updateFileContent meta is unchanged", () => {
+		const store = useAppStore.getState();
+		store.addFile({
+			id: "/repo/song.atex",
+			name: "song.atex",
+			path: "/repo/song.atex",
+			content: `${BASE_CONTENT}\nat.meta.tag="guitar"`,
+			contentLoaded: true,
+		});
+		const before = useAppStore.getState().fileMetaByPath;
+
+		store.updateFileContent(
+			"/repo/song.atex",
+			`${BASE_CONTENT}\nat.meta.tag="guitar"\n\ntabstime`,
+		);
+
+		expect(useAppStore.getState().fileMetaByPath).toBe(before);
+	});
+
+	it("clears cached meta when updateFileContent drops the ATDOC block", () => {
+		const store = useAppStore.getState();
+		store.addFile({
+			id: "/repo/song.atex",
+			name: "song.atex",
+			path: "/repo/song.atex",
+			content: `${BASE_CONTENT}\nat.meta.tag="guitar"`,
+			contentLoaded: true,
+		});
+
+		store.updateFileContent("/repo/song.atex", "\n\njust music");
+
+		const meta = useAppStore.getState().fileMetaByPath["/repo/song.atex"];
+		expect(meta.metaTags).toBeUndefined();
+		expect(meta.metaTitle).toBeUndefined();
+	});
 });

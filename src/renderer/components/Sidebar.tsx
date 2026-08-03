@@ -9,7 +9,7 @@ import {
 } from "../lib/gp-import";
 import { useTheme } from "../lib/theme-system/use-theme";
 import { useAppStore } from "../store/appStore";
-import type { DeleteBehavior, FileNode } from "../types/repo";
+import type { DeleteBehavior, FileMeta, FileNode } from "../types/repo";
 import { CloudSidebar } from "./CloudSidebar";
 import { DeleteConfirmDialog } from "./DeleteConfirmDialog";
 import { FileTree } from "./FileTree";
@@ -468,36 +468,25 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 		);
 		const pendingPaths = atexNodes
 			.map((node) => normalizePath(node.path))
-			.filter((path) => {
-				const meta = fileMetaByPath[path];
-				return (
-					!meta ||
-					(!meta.metaClass &&
-						!meta.metaTags &&
-						!meta.metaStatus &&
-						!meta.metaTabist &&
-						!meta.metaApp &&
-						!meta.metaGithub &&
-						!meta.metaLicense &&
-						!meta.metaSource &&
-						!meta.metaRelease &&
-						!meta.metaAlias &&
-						!meta.metaTitle)
-				);
-			});
+			.filter((path) => !fileMetaByPath[path]);
 
 		if (pendingPaths.length === 0) return;
 
 		let cancelled = false;
 		void (async () => {
+			// 先批量读完，再一次性写入，避免每写一条 meta 就触发 effect 重跑导致串行读盘
+			const results: Array<[string, FileMeta]> = [];
 			for (const path of pendingPaths) {
 				if (cancelled) return;
 				try {
 					const readResult = await window.desktopAPI.readFile(path);
 					if (readResult.error) continue;
-					const parsedMeta = extractAtDocFileMeta(readResult.content);
-					setFileMetaByPath(path, parsedMeta);
+					results.push([path, extractAtDocFileMeta(readResult.content)]);
 				} catch {}
+			}
+			if (cancelled) return;
+			for (const [path, parsedMeta] of results) {
+				setFileMetaByPath(path, parsedMeta);
 			}
 		})();
 
