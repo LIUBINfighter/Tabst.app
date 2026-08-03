@@ -4,6 +4,8 @@
 	"close": "关闭",
 	"loadTutorialFailed": "加载教程失败",
 	"loading": "加载中...",
+	"toc": "目录",
+	"collapse": "收起",
 	"user": "用户",
 	"powerUser": "进阶用户",
 	"developer": "开发者",

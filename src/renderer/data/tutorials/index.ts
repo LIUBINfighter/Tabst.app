@@ -197,6 +197,7 @@ export const tutorialsRegistry: TutorialMetadata[] = [
 	{
 		id: "vendor-alphatex-introduction",
 		title: "Introduction",
+		titleZhCn: "介绍",
 		order: 10,
 		audience: "developer",
 		category: "AlphaTeX (Reference)",
@@ -205,6 +206,7 @@ export const tutorialsRegistry: TutorialMetadata[] = [
 	{
 		id: "vendor-alphatex-syntax",
 		title: "Language Syntax",
+		titleZhCn: "语言语法",
 		order: 11,
 		audience: "developer",
 		category: "AlphaTeX (Reference)",
@@ -213,6 +215,7 @@ export const tutorialsRegistry: TutorialMetadata[] = [
 	{
 		id: "vendor-alphatex-document-structure",
 		title: "Document Structure",
+		titleZhCn: "文档结构",
 		order: 12,
 		audience: "developer",
 		category: "AlphaTeX (Reference)",
@@ -221,6 +224,7 @@ export const tutorialsRegistry: TutorialMetadata[] = [
 	{
 		id: "vendor-alphatex-structural-metadata",
 		title: "Structural Metadata",
+		titleZhCn: "结构元数据",
 		order: 13,
 		audience: "developer",
 		category: "AlphaTeX (Reference)",
@@ -229,6 +233,7 @@ export const tutorialsRegistry: TutorialMetadata[] = [
 	{
 		id: "vendor-alphatex-score-metadata",
 		title: "Score Metadata",
+		titleZhCn: "乐谱元数据",
 		order: 14,
 		audience: "developer",
 		category: "AlphaTeX (Reference)",
@@ -237,6 +242,7 @@ export const tutorialsRegistry: TutorialMetadata[] = [
 	{
 		id: "vendor-alphatex-staff-metadata",
 		title: "Staff Metadata",
+		titleZhCn: "谱表元数据",
 		order: 15,
 		audience: "developer",
 		category: "AlphaTeX (Reference)",
@@ -245,6 +251,7 @@ export const tutorialsRegistry: TutorialMetadata[] = [
 	{
 		id: "vendor-alphatex-bar-metadata",
 		title: "Bar Metadata",
+		titleZhCn: "小节元数据",
 		order: 16,
 		audience: "developer",
 		category: "AlphaTeX (Reference)",
@@ -253,6 +260,7 @@ export const tutorialsRegistry: TutorialMetadata[] = [
 	{
 		id: "vendor-alphatex-beat-properties",
 		title: "Beat Properties",
+		titleZhCn: "节拍属性",
 		order: 17,
 		audience: "developer",
 		category: "AlphaTeX (Reference)",
@@ -261,6 +269,7 @@ export const tutorialsRegistry: TutorialMetadata[] = [
 	{
 		id: "vendor-alphatex-note-properties",
 		title: "Note Properties",
+		titleZhCn: "音符属性",
 		order: 18,
 		audience: "developer",
 		category: "AlphaTeX (Reference)",
@@ -269,6 +278,7 @@ export const tutorialsRegistry: TutorialMetadata[] = [
 	{
 		id: "vendor-alphatex-importer",
 		title: "Importer",
+		titleZhCn: "导入器",
 		order: 19,
 		audience: "developer",
 		category: "AlphaTeX (Reference)",
@@ -277,6 +287,7 @@ export const tutorialsRegistry: TutorialMetadata[] = [
 	{
 		id: "vendor-alphatex-lsp",
 		title: "Diagnostics",
+		titleZhCn: "诊断",
 		order: 20,
 		audience: "developer",
 		category: "AlphaTeX (Reference)",
@@ -285,6 +296,7 @@ export const tutorialsRegistry: TutorialMetadata[] = [
 	{
 		id: "vendor-alphatex-monaco",
 		title: "TextMate grammar",
+		titleZhCn: "TextMate 语法",
 		order: 21,
 		audience: "developer",
 		category: "AlphaTeX (Reference)",

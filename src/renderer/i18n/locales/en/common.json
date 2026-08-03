@@ -4,6 +4,8 @@
 	"close": "Close",
 	"loadTutorialFailed": "Failed to load tutorial",
 	"loading": "Loading…",
+	"toc": "Contents",
+	"collapse": "Collapse",
 	"user": "User",
 	"powerUser": "PowerUser",
 	"developer": "Developer",

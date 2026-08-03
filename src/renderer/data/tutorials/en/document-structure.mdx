@@ -36,12 +36,12 @@ A bar is completed by a pipe `|` symbol
 
 ```alphatex
 // bar 1 metadata tags
-\\clef G2 \\ks 
+\clef G2 \ks 
     // bar 1 contents
     Cb C4 
 |  
 // bar 2 metadata tags
-\\ks A
+\ks A
     // bar 2 contents
     C4
 ```
@@ -208,12 +208,12 @@ notes are expressed as the fret and string the note is played on. The final note
 On percussion instruments, you specify the articulation which should be played as note. 
 The percussion can be a quoted string or an identifier (name without quotes).
 
-More details are described over at the [`\\articulation`](https://alphatab.net/docs/alphatex/staff-metadata#articulation) metadata docs.
+More details are described over at the [`\articulation`](https://alphatab.net/docs/alphatex/staff-metadata#articulation) metadata docs.
 
 
 ```alphatex
-\\instrument percussion
-\\articulation defaults
+\instrument percussion
+\articulation defaults
 :4
     (KickHit RideBell) 
     r 
@@ -283,15 +283,15 @@ of such new structures. See [Structural Metadata](https://alphatab.net/docs/alph
 
 
 ```alphatex
-\\track "Track 1"
-    \\staff {score} // first staff
-        \\voice // first voice 
+\track "Track 1"
+    \staff {score} // first staff
+        \voice // first voice 
             C4 D4 E4 F4 | C4 D4 E4 F4
-        \\voice // second voice
+        \voice // second voice
             C5 D5 E5 F5 | C5 D5 E5 F5
-    \\staff {tabs} // second staff
+    \staff {tabs} // second staff
         3.5 5.5 7.5 8.5 | 3.5 5.5 7.5 8.5
-\\track "Track 2"
+\track "Track 2"
      1.2 3.2 5.2 6.2
 ```
 
@@ -305,10 +305,10 @@ You only need to specify these structural tags to start a new element. A first i
     // first staff
         // first voice 
             C4 D4 E4 F4 | C4 D4 E4 F4
-        \\voice // second voice
+        \voice // second voice
             C5 D5 E5 F5 | C5 D5 E5 F5
-    \\staff {tabs} // second staff
+    \staff {tabs} // second staff
         3.5 5.5 7.5 8.5 | 3.5 5.5 7.5 8.5
-\\track "Track 2"
+\track "Track 2"
      1.2 3.2 5.2 6.2
 ```
