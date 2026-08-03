@@ -1,6 +1,7 @@
 import { Sparkles } from "lucide-react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import { collectFileNodes } from "../../lib/file-tree-utils";
 import {
 	isTemplateCandidateName,
 	normalizeTemplatePath,
@@ -13,6 +14,7 @@ import { CheckboxToggle } from "../ui/checkbox-toggle";
 export function TemplatesPage() {
 	const { t } = useTranslation("settings");
 	const files = useAppStore((s) => s.files);
+	const fileTree = useAppStore((s) => s.fileTree);
 	const activeFileId = useAppStore((s) => s.activeFileId);
 	const templateFilePaths = useAppStore((s) => s.templateFilePaths);
 	const setFileTemplate = useAppStore((s) => s.setFileTemplate);
@@ -28,8 +30,11 @@ export function TemplatesPage() {
 	);
 
 	const candidateFiles = useMemo(
-		() => files.filter((file) => isTemplateCandidateName(file.name)),
-		[files],
+		() =>
+			collectFileNodes(fileTree)
+				.filter((node) => isTemplateCandidateName(node.name))
+				.map((node) => ({ path: node.path, name: node.name })),
+		[fileTree],
 	);
 
 	const activeFileSupportsTemplate =

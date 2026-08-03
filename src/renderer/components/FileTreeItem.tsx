@@ -119,36 +119,29 @@ export function FileTreeItem({
 		useCallback(
 			(s) => {
 				if (isFolder) return EMPTY_TAGS;
-				const current = s.files.find(
-					(f) => f.id === node.id || f.path === node.path,
+				return (
+					s.fileMetaByPath[normalizePath(node.path)]?.metaTags ?? EMPTY_TAGS
 				);
-				return current?.metaTags ?? EMPTY_TAGS;
 			},
-			[isFolder, node.id, node.path],
+			[isFolder, node.path],
 		),
 	);
 	const fileMetaTitle = useAppStore(
 		useCallback(
 			(s) => {
 				if (isFolder) return undefined;
-				const current = s.files.find(
-					(f) => f.id === node.id || f.path === node.path,
-				);
-				return current?.metaTitle;
+				return s.fileMetaByPath[normalizePath(node.path)]?.metaTitle;
 			},
-			[isFolder, node.id, node.path],
+			[isFolder, node.path],
 		),
 	);
 	const fileMetaStatus = useAppStore(
 		useCallback(
 			(s) => {
 				if (isFolder) return undefined;
-				const current = s.files.find(
-					(f) => f.id === node.id || f.path === node.path,
-				);
-				return current?.metaStatus;
+				return s.fileMetaByPath[normalizePath(node.path)]?.metaStatus;
 			},
-			[isFolder, node.id, node.path],
+			[isFolder, node.path],
 		),
 	);
 	const isTemplateFile = useAppStore(

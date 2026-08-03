@@ -21,6 +21,7 @@ import { useFileOperations } from "./hooks/useFileOperations";
 import { getAlphaTexHighlight } from "./lib/alphatex-highlight";
 import { createAlphaTexLSPClient } from "./lib/alphatex-lsp";
 import { restoreAppZoomFactor } from "./lib/app-zoom";
+import { collectFileNodes } from "./lib/file-tree-utils";
 import { bindGlobalShortcutListener } from "./lib/shortcut-manager";
 import { isTemplateCandidateName } from "./lib/template-utils";
 import { runUiCommand } from "./lib/ui-command-registry";
@@ -29,7 +30,7 @@ import {
 	type UiShellCommandId,
 } from "./lib/ui-shell-events";
 import { isWebsiteMobileLayout } from "./lib/website-layout";
-import { type FileItem, useAppStore } from "./store/appStore";
+import { useAppStore } from "./store/appStore";
 
 const QuickFileSwitcher = lazy(() => import("./components/QuickFileSwitcher"));
 const GlobalCommandPalette = lazy(
@@ -90,35 +91,40 @@ function App() {
 		[templateFilePaths],
 	);
 
+	const fileMetaByPath = useAppStore((s) => s.fileMetaByPath);
+	const fileTree = useAppStore((s) => s.fileTree);
+
 	const templateItems = useMemo<TemplatePickerItem[]>(() => {
-		return files
+		return collectFileNodes(fileTree)
 			.filter(
-				(file) =>
-					templatePathSet.has(normalizePath(file.path)) &&
-					isTemplateCandidateName(file.name),
+				(node) =>
+					templatePathSet.has(normalizePath(node.path)) &&
+					isTemplateCandidateName(node.name),
 			)
-			.map((file) => ({
-				path: file.path,
-				name: file.name,
-				title: file.metaTitle,
+			.map((node) => ({
+				path: node.path,
+				name: node.name,
+				title: fileMetaByPath[normalizePath(node.path)]?.metaTitle,
 			}))
 			.sort((left, right) => left.name.localeCompare(right.name));
-	}, [files, templatePathSet]);
+	}, [fileTree, fileMetaByPath, templatePathSet]);
 
 	const filesByNormalizedPath = useMemo(
 		() => new Map(files.map((file) => [normalizePath(file.path), file])),
 		[files],
 	);
 
-	const resolveFileContent = async (file: FileItem): Promise<string | null> => {
-		if (file.contentLoaded) return file.content;
+	const resolveTemplateFileContent = async (
+		templatePath: string,
+	): Promise<string | null> => {
+		const cached = filesByNormalizedPath.get(normalizePath(templatePath));
+		if (cached?.contentLoaded) return cached.content;
 		try {
-			const result = await window.desktopAPI.readFile(file.path);
+			const result = await window.desktopAPI.readFile(templatePath);
 			if (result.error) {
 				console.error("Failed to read template file:", result.error);
 				return null;
 			}
-			updateFileContent(file.id, result.content);
 			return result.content;
 		} catch (error) {
 			console.error("Failed to resolve file content:", error);
@@ -129,14 +135,12 @@ function App() {
 	const handleInsertTemplate = async (templatePath: string) => {
 		const activeFile = files.find((file) => file.id === activeFileId);
 		if (!activeFile) return;
-
-		const templateFile = filesByNormalizedPath.get(normalizePath(templatePath));
-		if (!templateFile) return;
-		if (!isTemplateCandidateName(templateFile.name)) return;
+		if (!isTemplateCandidateName(templatePath.split(/[\\/]/).pop() ?? ""))
+			return;
 
 		const [activeContent, templateContent] = await Promise.all([
-			resolveFileContent(activeFile),
-			resolveFileContent(templateFile),
+			resolveTemplateFileContent(activeFile.path),
+			resolveTemplateFileContent(templatePath),
 		]);
 		if (activeContent == null || templateContent == null) return;
 
@@ -170,14 +174,13 @@ function App() {
 	};
 
 	const handleCreateFromTemplate = async (templatePath: string) => {
-		const templateFile = filesByNormalizedPath.get(normalizePath(templatePath));
-		if (!templateFile) return;
-		if (!isTemplateCandidateName(templateFile.name)) return;
+		if (!isTemplateCandidateName(templatePath.split(/[\\/]/).pop() ?? ""))
+			return;
 
-		const templateContent = await resolveFileContent(templateFile);
+		const templateContent = await resolveTemplateFileContent(templatePath);
 		if (templateContent == null) return;
 
-		const templateExt: ".md" | ".atex" = templateFile.name
+		const templateExt: ".md" | ".atex" = templatePath
 			.toLowerCase()
 			.endsWith(".atex")
 			? ".atex"

@@ -106,7 +106,7 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 	const expandFolder = useAppStore((s) => s.expandFolder);
 	const collapseFolder = useAppStore((s) => s.collapseFolder);
 	const refreshFileTree = useAppStore((s) => s.refreshFileTree);
-	const files = useAppStore((s) => s.files);
+	const fileMetaByPath = useAppStore((s) => s.fileMetaByPath);
 	const addFile = useAppStore((s) => s.addFile);
 	const setFileMetaByPath = useAppStore((s) => s.setFileMetaByPath);
 	const renameFile = useAppStore((s) => s.renameFile);
@@ -348,28 +348,28 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 
 	const tagsByPath = useMemo(() => {
 		const map = new Map<string, string[]>();
-		for (const file of files) {
-			map.set(normalizePath(file.path), file.metaTags ?? []);
+		for (const [path, meta] of Object.entries(fileMetaByPath)) {
+			map.set(path, meta.metaTags ?? []);
 		}
 		return map;
-	}, [files]);
+	}, [fileMetaByPath]);
 
 	const availableTags = useMemo(() => {
 		const set = new Set<string>();
-		for (const file of files) {
-			for (const tag of file.metaTags ?? []) {
+		for (const meta of Object.values(fileMetaByPath)) {
+			for (const tag of meta.metaTags ?? []) {
 				const cleaned = tag.trim();
 				if (cleaned) set.add(cleaned);
 			}
 		}
 		return Array.from(set).sort((a, b) => a.localeCompare(b));
-	}, [files]);
+	}, [fileMetaByPath]);
 
 	const availableStatuses = useMemo(() => {
 		const set = new Set<"draft" | "active" | "done" | "released">();
-		for (const file of files) {
-			if (file.metaStatus) {
-				set.add(file.metaStatus);
+		for (const meta of Object.values(fileMetaByPath)) {
+			if (meta.metaStatus) {
+				set.add(meta.metaStatus);
 			}
 		}
 		const order: Array<"draft" | "active" | "done" | "released"> = [
@@ -379,7 +379,7 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 			"released",
 		];
 		return order.filter((status) => set.has(status));
-	}, [files]);
+	}, [fileMetaByPath]);
 
 	const sidebarVisibleTree = useMemo(
 		() => filterSidebarVisibleNodes(fileTree),
@@ -418,7 +418,12 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 		const statusByPath = new Map<
 			string,
 			"draft" | "active" | "done" | "released" | undefined
-		>(files.map((file) => [normalizePath(file.path), file.metaStatus]));
+		>(
+			Object.entries(fileMetaByPath).map(([path, meta]) => [
+				path,
+				meta.metaStatus,
+			]),
+		);
 
 		const filterNodes = (nodes: FileNode[]): FileNode[] => {
 			const out: FileNode[] = [];
@@ -449,38 +454,35 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 		return filterNodes(sidebarVisibleTree);
 	}, [
 		sidebarVisibleTree,
-		files,
 		selectedStatusFilters,
 		selectedTagFilters,
 		tagsByPath,
+		fileMetaByPath,
 	]);
 
 	useEffect(() => {
 		if (workspaceMode !== "editor" || !activeRepoId) return;
 
-		const openedByPath = new Map(
-			files.map((file) => [normalizePath(file.path), file]),
-		);
 		const atexNodes = flattenNodes(fileTree).filter((node) =>
 			node.name.toLowerCase().endsWith(".atex"),
 		);
 		const pendingPaths = atexNodes
 			.map((node) => normalizePath(node.path))
 			.filter((path) => {
-				const file = openedByPath.get(path);
+				const meta = fileMetaByPath[path];
 				return (
-					!file ||
-					(!file.metaClass &&
-						!file.metaTags &&
-						!file.metaStatus &&
-						!file.metaTabist &&
-						!file.metaApp &&
-						!file.metaGithub &&
-						!file.metaLicense &&
-						!file.metaSource &&
-						!file.metaRelease &&
-						!file.metaAlias &&
-						!file.metaTitle)
+					!meta ||
+					(!meta.metaClass &&
+						!meta.metaTags &&
+						!meta.metaStatus &&
+						!meta.metaTabist &&
+						!meta.metaApp &&
+						!meta.metaGithub &&
+						!meta.metaLicense &&
+						!meta.metaSource &&
+						!meta.metaRelease &&
+						!meta.metaAlias &&
+						!meta.metaTitle)
 				);
 			});
 
@@ -494,20 +496,7 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 					const readResult = await window.desktopAPI.readFile(path);
 					if (readResult.error) continue;
 					const parsedMeta = extractAtDocFileMeta(readResult.content);
-					setFileMetaByPath(
-						path,
-						parsedMeta.metaClass,
-						parsedMeta.metaTags,
-						parsedMeta.metaStatus,
-						parsedMeta.metaTabist,
-						parsedMeta.metaApp,
-						parsedMeta.metaGithub,
-						parsedMeta.metaLicense,
-						parsedMeta.metaSource,
-						parsedMeta.metaRelease,
-						parsedMeta.metaAlias,
-						parsedMeta.metaTitle,
-					);
+					setFileMetaByPath(path, parsedMeta);
 				} catch {}
 			}
 		})();
@@ -515,7 +504,13 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 		return () => {
 			cancelled = true;
 		};
-	}, [activeRepoId, fileTree, files, setFileMetaByPath, workspaceMode]);
+	}, [
+		activeRepoId,
+		fileTree,
+		fileMetaByPath,
+		setFileMetaByPath,
+		workspaceMode,
+	]);
 
 	const getParentDirectory = (p: string): string | undefined => {
 		const normalized = normalizePath(p);

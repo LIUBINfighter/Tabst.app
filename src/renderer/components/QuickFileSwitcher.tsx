@@ -1,8 +1,8 @@
 import { FileMusic, Hash } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { extractAtDocFileMeta } from "../lib/atdoc";
+import { collectFileNodes } from "../lib/file-tree-utils";
 import { useAppStore } from "../store/appStore";
-import type { FileNode } from "../types/repo";
 import { Dialog, DialogContent, DialogTitle } from "./ui/dialog";
 import { Input } from "./ui/input";
 
@@ -33,20 +33,6 @@ interface AtexCandidate {
 	metaRelease?: string;
 	metaAlias: string[];
 	metaTitle?: string;
-}
-
-function flattenFileNodes(nodes: FileNode[]): FileNode[] {
-	const out: FileNode[] = [];
-	for (const node of nodes) {
-		if (node.type === "file") {
-			out.push(node);
-			continue;
-		}
-		if (node.children?.length) {
-			out.push(...flattenFileNodes(node.children));
-		}
-	}
-	return out;
 }
 
 function normalizePath(path: string): string {
@@ -112,10 +98,11 @@ export default function QuickFileSwitcher({
 }: QuickFileSwitcherProps) {
 	const fileTree = useAppStore((s) => s.fileTree);
 	const openedFiles = useAppStore((s) => s.files);
+	const fileMetaByPath = useAppStore((s) => s.fileMetaByPath);
 	const addFile = useAppStore((s) => s.addFile);
 	const setActiveFile = useAppStore((s) => s.setActiveFile);
 	const setWorkspaceMode = useAppStore((s) => s.setWorkspaceMode);
-	const setFileMeta = useAppStore((s) => s.setFileMeta);
+	const setFileMetaByPath = useAppStore((s) => s.setFileMetaByPath);
 
 	const [query, setQuery] = useState("");
 	const [loading, setLoading] = useState(false);
@@ -125,7 +112,7 @@ export default function QuickFileSwitcher({
 	const optionRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
 	const loadCandidates = useCallback(async () => {
-		const atexNodes = flattenFileNodes(fileTree).filter((node) =>
+		const atexNodes = collectFileNodes(fileTree).filter((node) =>
 			node.name.toLowerCase().endsWith(".atex"),
 		);
 
@@ -137,17 +124,18 @@ export default function QuickFileSwitcher({
 		for (const node of atexNodes) {
 			const normalizedPath = normalizePath(node.path);
 			const opened = byPath.get(normalizedPath);
-			let metaTags = [...(opened?.metaTags ?? [])];
-			let metaClass = [...(opened?.metaClass ?? [])];
-			let metaAlias = [...(opened?.metaAlias ?? [])];
-			let metaStatus = opened?.metaStatus;
-			let metaTabist = opened?.metaTabist;
-			let metaApp = opened?.metaApp;
-			let metaGithub = opened?.metaGithub;
-			let metaLicense = opened?.metaLicense;
-			let metaSource = opened?.metaSource;
-			let metaRelease = opened?.metaRelease;
-			let metaTitle = opened?.metaTitle;
+			const cachedMeta = fileMetaByPath[normalizedPath];
+			let metaTags = [...(cachedMeta?.metaTags ?? [])];
+			let metaClass = [...(cachedMeta?.metaClass ?? [])];
+			let metaAlias = [...(cachedMeta?.metaAlias ?? [])];
+			let metaStatus = cachedMeta?.metaStatus;
+			let metaTabist = cachedMeta?.metaTabist;
+			let metaApp = cachedMeta?.metaApp;
+			let metaGithub = cachedMeta?.metaGithub;
+			let metaLicense = cachedMeta?.metaLicense;
+			let metaSource = cachedMeta?.metaSource;
+			let metaRelease = cachedMeta?.metaRelease;
+			let metaTitle = cachedMeta?.metaTitle;
 
 			if (
 				metaTags.length === 0 &&
@@ -172,6 +160,21 @@ export default function QuickFileSwitcher({
 
 				if (typeof content === "string" && content.length > 0) {
 					const parsedMeta = extractAtDocFileMeta(content);
+					if (
+						!sameStringArray(cachedMeta?.metaClass, parsedMeta.metaClass) ||
+						!sameStringArray(cachedMeta?.metaTags, parsedMeta.metaTags) ||
+						cachedMeta?.metaStatus !== parsedMeta.metaStatus ||
+						cachedMeta?.metaTabist !== parsedMeta.metaTabist ||
+						cachedMeta?.metaApp !== parsedMeta.metaApp ||
+						cachedMeta?.metaGithub !== parsedMeta.metaGithub ||
+						cachedMeta?.metaLicense !== parsedMeta.metaLicense ||
+						cachedMeta?.metaSource !== parsedMeta.metaSource ||
+						cachedMeta?.metaRelease !== parsedMeta.metaRelease ||
+						!sameStringArray(cachedMeta?.metaAlias, parsedMeta.metaAlias) ||
+						cachedMeta?.metaTitle !== parsedMeta.metaTitle
+					) {
+						setFileMetaByPath(node.path, parsedMeta);
+					}
 					metaTags = parsedMeta.metaTags;
 					metaClass = parsedMeta.metaClass;
 					metaAlias = parsedMeta.metaAlias;
@@ -183,35 +186,6 @@ export default function QuickFileSwitcher({
 					metaSource = parsedMeta.metaSource;
 					metaRelease = parsedMeta.metaRelease;
 					metaTitle = parsedMeta.metaTitle;
-					if (
-						opened &&
-						(!sameStringArray(opened.metaClass, metaClass) ||
-							!sameStringArray(opened.metaTags, metaTags) ||
-							opened.metaStatus !== metaStatus ||
-							opened.metaTabist !== metaTabist ||
-							opened.metaApp !== metaApp ||
-							opened.metaGithub !== metaGithub ||
-							opened.metaLicense !== metaLicense ||
-							opened.metaSource !== metaSource ||
-							opened.metaRelease !== metaRelease ||
-							!sameStringArray(opened.metaAlias, metaAlias) ||
-							opened.metaTitle !== metaTitle)
-					) {
-						setFileMeta(
-							opened.id,
-							metaClass,
-							metaTags,
-							metaStatus,
-							metaTabist,
-							metaApp,
-							metaGithub,
-							metaLicense,
-							metaSource,
-							metaRelease,
-							metaAlias,
-							metaTitle,
-						);
-					}
 				}
 			}
 
@@ -235,7 +209,7 @@ export default function QuickFileSwitcher({
 
 		loaded.sort((a, b) => a.name.localeCompare(b.name));
 		setCandidates(loaded);
-	}, [fileTree, openedFiles, setFileMeta]);
+	}, [fileTree, openedFiles, fileMetaByPath, setFileMetaByPath]);
 
 	const loadCandidatesRef = useRef(loadCandidates);
 
@@ -333,17 +307,6 @@ export default function QuickFileSwitcher({
 							name: existing.name,
 							path: existing.path,
 							content: readResult.content,
-							metaClass: existing.metaClass,
-							metaTags: existing.metaTags,
-							metaAlias: existing.metaAlias,
-							metaStatus: existing.metaStatus,
-							metaTabist: existing.metaTabist,
-							metaApp: existing.metaApp,
-							metaGithub: existing.metaGithub,
-							metaLicense: existing.metaLicense,
-							metaSource: existing.metaSource,
-							metaRelease: existing.metaRelease,
-							metaTitle: existing.metaTitle,
 							contentLoaded: true,
 						});
 					}
@@ -362,17 +325,6 @@ export default function QuickFileSwitcher({
 				name: candidate.name,
 				path: candidate.path,
 				content: readResult.content,
-				metaClass: candidate.metaClass,
-				metaTags: candidate.metaTags,
-				metaAlias: candidate.metaAlias,
-				metaStatus: candidate.metaStatus,
-				metaTabist: candidate.metaTabist,
-				metaApp: candidate.metaApp,
-				metaGithub: candidate.metaGithub,
-				metaLicense: candidate.metaLicense,
-				metaSource: candidate.metaSource,
-				metaRelease: candidate.metaRelease,
-				metaTitle: candidate.metaTitle,
 				contentLoaded: true,
 			});
 			setActiveFile(candidate.path);
