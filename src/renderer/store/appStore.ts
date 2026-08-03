@@ -4,6 +4,7 @@ import i18n, { type Locale } from "../i18n";
 import { setActiveRepoContext } from "../lib/active-repo-context";
 import { extractAtDocFileMeta } from "../lib/atdoc";
 import { listCloudPublicScoresWithContent } from "../lib/cloud-public-scores";
+import { collectFileNodes } from "../lib/file-tree-utils";
 import { loadGlobalSettings, saveGlobalSettings } from "../lib/global-settings";
 import {
 	BUILT_IN_FONT_OPTIONS,
@@ -31,6 +32,7 @@ import type {
 } from "../types/git";
 import type {
 	DeleteBehavior,
+	FileMeta,
 	FileNode,
 	Repo,
 	RepoPreferences,
@@ -179,13 +181,14 @@ async function createDefaultSandboxRepo(): Promise<Repo | null> {
 async function appendCloudPublicScoresToSandboxRepo(repo: Repo): Promise<void> {
 	try {
 		const scanResult = await window.desktopAPI.scanDirectory(repo.path);
-		const existingFiles = scanResult ? flattenFileNodes(scanResult.nodes) : [];
+		const existingFiles = scanResult ? collectFileNodes(scanResult.nodes) : [];
 		const existingFilesBySourceId = new Map(
 			existingFiles
 				.map(
-					(file) => [extractCloudPublicSourceId(file.content), file] as const,
+					(node) =>
+						[extractCloudPublicSourceId(node.content ?? ""), node] as const,
 				)
-				.filter((entry): entry is readonly [string, FileItem] =>
+				.filter((entry): entry is readonly [string, FileNode] =>
 					Boolean(entry[0]),
 				),
 		);
@@ -245,31 +248,14 @@ async function appendCloudPublicScoresToSandboxRepo(repo: Repo): Promise<void> {
 }
 
 /**
- * @deprecated 使用 FileNode 替代
+ * 已打开文档（标签页语义）：addFile/removeFile 维护。
+ * 元数据不再内嵌，统一存于 `fileMetaByPath`。
  */
 export interface FileItem {
 	id: string;
 	name: string;
 	path: string;
 	content: string;
-	metaClass?: string[];
-	metaTags?: string[];
-	metaStatus?: "draft" | "active" | "done" | "released";
-	metaTabist?: string;
-	metaApp?: string;
-	metaGithub?: string;
-	metaLicense?:
-		| "CC0-1.0"
-		| "CC-BY-4.0"
-		| "CC-BY-SA-4.0"
-		| "CC-BY-NC-4.0"
-		| "CC-BY-NC-SA-4.0"
-		| "CC-BY-ND-4.0"
-		| "CC-BY-NC-ND-4.0";
-	metaSource?: string;
-	metaRelease?: string;
-	metaAlias?: string[];
-	metaTitle?: string;
 	/** Whether `content` is hydrated from disk/user input (vs empty placeholder from file tree scan). */
 	contentLoaded?: boolean;
 }
@@ -552,8 +538,10 @@ interface AppState {
 	repos: Repo[];
 	activeRepoId: string | null;
 	fileTree: FileNode[];
-	// 保留 files 以兼容现有代码，实际使用 fileTree
+	// 已打开文档（标签页语义），由 addFile/removeFile 维护
 	files: FileItem[];
+	// 树节点 ATDOC 元数据缓存（key: normalized path）
+	fileMetaByPath: Record<string, FileMeta>;
 	// 用户偏好设置
 	deleteBehavior: DeleteBehavior;
 	setDeleteBehavior: (behavior: DeleteBehavior) => void;
@@ -573,6 +561,7 @@ interface AppState {
 
 	// 当前选中的文件
 	activeFileId: string | null;
+	openFileByPath: (path: string) => Promise<boolean>;
 
 	// 🆕 音轨面板显示状态
 	isTracksPanelOpen: boolean;
@@ -740,48 +729,7 @@ interface AppState {
 	renameFile: (id: string, newName: string) => Promise<boolean>;
 	setActiveFile: (id: string | null) => void;
 	updateFileContent: (id: string, content: string) => void;
-	setFileMeta: (
-		id: string,
-		metaClass: string[],
-		metaTags: string[],
-		metaStatus?: "draft" | "active" | "done" | "released",
-		metaTabist?: string,
-		metaApp?: string,
-		metaGithub?: string,
-		metaLicense?:
-			| "CC0-1.0"
-			| "CC-BY-4.0"
-			| "CC-BY-SA-4.0"
-			| "CC-BY-NC-4.0"
-			| "CC-BY-NC-SA-4.0"
-			| "CC-BY-ND-4.0"
-			| "CC-BY-NC-ND-4.0",
-		metaSource?: string,
-		metaRelease?: string,
-		metaAlias?: string[],
-		metaTitle?: string,
-	) => void;
-	setFileMetaByPath: (
-		path: string,
-		metaClass: string[],
-		metaTags: string[],
-		metaStatus?: "draft" | "active" | "done" | "released",
-		metaTabist?: string,
-		metaApp?: string,
-		metaGithub?: string,
-		metaLicense?:
-			| "CC0-1.0"
-			| "CC-BY-4.0"
-			| "CC-BY-SA-4.0"
-			| "CC-BY-NC-4.0"
-			| "CC-BY-NC-SA-4.0"
-			| "CC-BY-ND-4.0"
-			| "CC-BY-NC-ND-4.0",
-		metaSource?: string,
-		metaRelease?: string,
-		metaAlias?: string[],
-		metaTitle?: string,
-	) => void;
+	setFileMetaByPath: (path: string, meta: FileMeta) => void;
 	getActiveFile: () => FileItem | undefined;
 
 	// 🆕 选区操作
@@ -1129,7 +1077,8 @@ export const useAppStore = create<AppState>((set, get) => ({
 						repos: newRepos,
 						activeRepoId: id,
 						fileTree: result.nodes,
-						files: flattenFileNodes(result.nodes),
+						files: [],
+						fileMetaByPath: {},
 						templateFilePaths: [],
 						commandShortcuts: {},
 						activeFileId: null,
@@ -1335,41 +1284,12 @@ export const useAppStore = create<AppState>((set, get) => ({
 						});
 
 						if (meta.activeFilePath) {
-							const normalizedPath = normalizePathForCompare(
-								meta.activeFilePath,
-							);
-							const targetFile = get().files.find(
-								(file) => normalizePathForCompare(file.path) === normalizedPath,
-							);
-
-							if (targetFile) {
-								if (!targetFile.contentLoaded) {
-									try {
-										const readResult = await window.desktopAPI.readFile(
-											targetFile.path,
-										);
-										if (!readResult.error) {
-											set((current) => ({
-												files: current.files.map((file) =>
-													file.id === targetFile.id
-														? {
-																...file,
-																content: readResult.content,
-																contentLoaded: true,
-															}
-														: file,
-												),
-											}));
-										}
-									} catch (error) {
-										console.error(
-											"Failed to hydrate active file content from workspace:",
-											error,
-										);
-									}
-								}
-
-								set({ activeFileId: targetFile.id });
+							const opened = await get().openFileByPath(meta.activeFilePath);
+							if (!opened) {
+								console.warn(
+									"Failed to restore active file:",
+									meta.activeFilePath,
+								);
 							}
 						}
 					} else {
@@ -1459,7 +1379,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
 	refreshFileTree: async () => {
 		const state = get();
-		const { activeRepoId, repos, files, activeFileId } = state;
+		const { activeRepoId, repos, files, activeFileId, fileMetaByPath } = state;
 		if (!activeRepoId) return;
 
 		const repo = repos.find((r) => r.id === activeRepoId);
@@ -1469,20 +1389,38 @@ export const useAppStore = create<AppState>((set, get) => ({
 			const result = await window.desktopAPI?.scanDirectory?.(repo.path);
 			if (result) {
 				const nextTree = result.nodes;
-				const nextFiles = reconcileFilesWithTree(nextTree, files);
+				const treePaths = new Set<string>();
+				for (const node of collectFileNodes(nextTree)) {
+					treePaths.add(normalizePathForCompare(node.path));
+				}
+
+				// 已打开文档：移除树中已不存在的条目（打开的 standalone 文件保持原行为，
+				// 与旧 reconcile 语义一致：仅保留树内文件）
+				const nextFiles = files.filter((file) =>
+					treePaths.has(normalizePathForCompare(file.path)),
+				);
+				const nextMeta: Record<string, FileMeta> = {};
+				for (const [pathKey, meta] of Object.entries(fileMetaByPath)) {
+					if (treePaths.has(pathKey)) nextMeta[pathKey] = meta;
+				}
 
 				const previousActivePath = files.find(
 					(f) => f.id === activeFileId,
 				)?.path;
-				const nextActiveFileId = resolveActiveFileId(
-					nextFiles,
-					activeFileId,
-					previousActivePath,
-				);
+				const nextActiveFileId = nextFiles.some((f) => f.id === activeFileId)
+					? activeFileId
+					: previousActivePath
+						? (nextFiles.find(
+								(f) =>
+									normalizePathForCompare(f.path) ===
+									normalizePathForCompare(previousActivePath),
+							)?.id ?? null)
+						: null;
 
 				set({
 					fileTree: nextTree,
 					files: nextFiles,
+					fileMetaByPath: nextMeta,
 					activeFileId: nextActiveFileId,
 				});
 				scheduleSaveAppState();
@@ -1498,6 +1436,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
 	// ===== 兼容旧代码 =====
 	files: [],
+	fileMetaByPath: {},
 	activeFileId: null,
 	isTracksPanelOpen: false,
 	setTracksPanelOpen: (open) => set({ isTracksPanelOpen: open }),
@@ -2261,49 +2200,74 @@ export const useAppStore = create<AppState>((set, get) => ({
 		});
 	},
 
+	openFileByPath: async (path) => {
+		const normalized = normalizePathForCompare(path);
+		const existing = get().files.find(
+			(file) => normalizePathForCompare(file.path) === normalized,
+		);
+		const targetId = existing?.id ?? path;
+
+		if (existing?.contentLoaded) {
+			set({ activeFileId: targetId });
+			scheduleSaveAppState();
+			return true;
+		}
+
+		try {
+			const readResult = await window.desktopAPI.readFile(path);
+			if (readResult.error) return false;
+			get().addFile({
+				id: targetId,
+				name: basenameFromPath(path),
+				path,
+				content: readResult.content,
+				contentLoaded: true,
+			});
+			return true;
+		} catch (error) {
+			console.error("Failed to open file by path:", error);
+			return false;
+		}
+	},
+
 	addFile: (file) => {
 		set((state) => {
 			const parsedMeta = extractAtDocFileMeta(file.content ?? "");
-			const incomingMetaClass =
-				file.metaClass ??
-				(parsedMeta.metaClass.length > 0 ? parsedMeta.metaClass : undefined);
-			const incomingMetaTags =
-				file.metaTags ??
-				(parsedMeta.metaTags.length > 0 ? parsedMeta.metaTags : undefined);
-			const incomingMetaStatus = file.metaStatus ?? parsedMeta.metaStatus;
-			const incomingMetaTabist = file.metaTabist ?? parsedMeta.metaTabist;
-			const incomingMetaApp = file.metaApp ?? parsedMeta.metaApp;
-			const incomingMetaGithub = file.metaGithub ?? parsedMeta.metaGithub;
-			const incomingMetaLicense = file.metaLicense ?? parsedMeta.metaLicense;
-			const incomingMetaSource = file.metaSource ?? parsedMeta.metaSource;
-			const incomingMetaRelease = file.metaRelease ?? parsedMeta.metaRelease;
-			const incomingMetaAlias =
-				file.metaAlias ??
-				(parsedMeta.metaAlias.length > 0 ? parsedMeta.metaAlias : undefined);
-			const incomingMetaTitle = file.metaTitle ?? parsedMeta.metaTitle;
+			const incomingMeta: FileMeta = {
+				metaClass:
+					parsedMeta.metaClass.length > 0 ? parsedMeta.metaClass : undefined,
+				metaTags:
+					parsedMeta.metaTags.length > 0 ? parsedMeta.metaTags : undefined,
+				metaStatus: parsedMeta.metaStatus,
+				metaTabist: parsedMeta.metaTabist,
+				metaApp: parsedMeta.metaApp,
+				metaGithub: parsedMeta.metaGithub,
+				metaLicense: parsedMeta.metaLicense,
+				metaSource: parsedMeta.metaSource,
+				metaRelease: parsedMeta.metaRelease,
+				metaAlias:
+					parsedMeta.metaAlias.length > 0 ? parsedMeta.metaAlias : undefined,
+				metaTitle: parsedMeta.metaTitle,
+			};
 			const existing = state.files.find((f) => f.path === file.path);
 			if (existing) {
 				const merged = {
 					...existing,
-					// Prefer latest metadata/content when provided
+					// Prefer latest content when provided
 					name: file.name || existing.name,
 					content: file.content ?? existing.content,
-					metaClass: incomingMetaClass ?? existing.metaClass,
-					metaTags: incomingMetaTags ?? existing.metaTags,
-					metaStatus: incomingMetaStatus ?? existing.metaStatus,
-					metaTabist: incomingMetaTabist ?? existing.metaTabist,
-					metaApp: incomingMetaApp ?? existing.metaApp,
-					metaGithub: incomingMetaGithub ?? existing.metaGithub,
-					metaLicense: incomingMetaLicense ?? existing.metaLicense,
-					metaSource: incomingMetaSource ?? existing.metaSource,
-					metaRelease: incomingMetaRelease ?? existing.metaRelease,
-					metaAlias: incomingMetaAlias ?? existing.metaAlias,
-					metaTitle: incomingMetaTitle ?? existing.metaTitle,
-					contentLoaded: file.contentLoaded ?? true,
+					contentLoaded: file.contentLoaded ?? existing.contentLoaded,
 				};
 				return {
 					...state,
 					files: state.files.map((f) => (f.id === existing.id ? merged : f)),
+					fileMetaByPath: {
+						...state.fileMetaByPath,
+						[normalizePathForCompare(file.path)]: {
+							...state.fileMetaByPath[normalizePathForCompare(file.path)],
+							...incomingMeta,
+						},
+					},
 					activeFileId: existing.id,
 				};
 			}
@@ -2313,20 +2277,16 @@ export const useAppStore = create<AppState>((set, get) => ({
 					...state.files,
 					{
 						...file,
-						metaClass: incomingMetaClass,
-						metaTags: incomingMetaTags,
-						metaStatus: incomingMetaStatus,
-						metaTabist: incomingMetaTabist,
-						metaApp: incomingMetaApp,
-						metaGithub: incomingMetaGithub,
-						metaLicense: incomingMetaLicense,
-						metaSource: incomingMetaSource,
-						metaRelease: incomingMetaRelease,
-						metaAlias: incomingMetaAlias,
-						metaTitle: incomingMetaTitle,
 						contentLoaded: file.contentLoaded ?? true,
 					},
 				],
+				fileMetaByPath: {
+					...state.fileMetaByPath,
+					[normalizePathForCompare(file.path)]: {
+						...state.fileMetaByPath[normalizePathForCompare(file.path)],
+						...incomingMeta,
+					},
+				},
 				activeFileId: file.id,
 			};
 		});
@@ -2358,8 +2318,14 @@ export const useAppStore = create<AppState>((set, get) => ({
 				});
 			}
 
+			const nextMeta = { ...state.fileMetaByPath };
+			if (removedPath) {
+				delete nextMeta[removedPath];
+			}
+
 			return {
 				files: newFiles,
+				fileMetaByPath: nextMeta,
 				activeFileId: newActiveId,
 				templateFilePaths: nextTemplatePaths,
 			};
@@ -2433,10 +2399,18 @@ export const useAppStore = create<AppState>((set, get) => ({
 					});
 				}
 
+				const nextMeta = { ...state.fileMetaByPath };
+				const oldMeta = nextMeta[normalizePathForCompare(oldPath)];
+				delete nextMeta[normalizePathForCompare(oldPath)];
+				if (oldMeta) {
+					nextMeta[normalizePathForCompare(newPath)] = oldMeta;
+				}
+
 				return {
 					files: newFiles,
 					activeFileId: newActiveFileId,
 					fileTree: newTree,
+					fileMetaByPath: nextMeta,
 					templateFilePaths: templatePathsChanged
 						? nextTemplatePaths
 						: state.templateFilePaths,
@@ -2457,12 +2431,12 @@ export const useAppStore = create<AppState>((set, get) => ({
 
 	updateFileContent: (id, content) => {
 		const parsedMeta = extractAtDocFileMeta(content);
-		set((state) => ({
-			files: state.files.map((f) =>
-				f.id === id
-					? {
-							...f,
-							content,
+		set((state) => {
+			const target = state.files.find((f) => f.id === id);
+			const nextMeta = target
+				? {
+						...state.fileMetaByPath,
+						[normalizePathForCompare(target.path)]: {
 							metaClass:
 								parsedMeta.metaClass.length > 0
 									? parsedMeta.metaClass
@@ -2483,142 +2457,42 @@ export const useAppStore = create<AppState>((set, get) => ({
 									? parsedMeta.metaAlias
 									: undefined,
 							metaTitle: parsedMeta.metaTitle,
-							contentLoaded: true,
-						}
-					: f,
-			),
-		}));
-	},
-
-	setFileMeta: (
-		id,
-		metaClass,
-		metaTags,
-		metaStatus,
-		metaTabist,
-		metaApp,
-		metaGithub,
-		metaLicense,
-		metaSource,
-		metaRelease,
-		metaAlias,
-		metaTitle,
-	) => {
-		set((state) => {
-			let changed = false;
-			const nextFiles = state.files.map((f) => {
-				if (f.id !== id) return f;
-				const nextClass = metaClass.length > 0 ? [...metaClass] : undefined;
-				const nextTags = metaTags.length > 0 ? [...metaTags] : undefined;
-				const nextStatus = metaStatus;
-				const nextTabist = metaTabist;
-				const nextApp = metaApp;
-				const nextGithub = metaGithub;
-				const nextLicense = metaLicense;
-				const nextSource = metaSource;
-				const nextRelease = metaRelease;
-				const nextAlias =
-					metaAlias && metaAlias.length > 0 ? [...metaAlias] : undefined;
-				const nextTitle = metaTitle;
-				if (
-					isSameStringList(f.metaClass, nextClass) &&
-					isSameStringList(f.metaTags, nextTags) &&
-					f.metaStatus === nextStatus &&
-					f.metaTabist === nextTabist &&
-					f.metaApp === nextApp &&
-					f.metaGithub === nextGithub &&
-					f.metaLicense === nextLicense &&
-					f.metaSource === nextSource &&
-					f.metaRelease === nextRelease &&
-					isSameStringList(f.metaAlias, nextAlias) &&
-					f.metaTitle === nextTitle
-				) {
-					return f;
-				}
-				changed = true;
-				return {
-					...f,
-					metaClass: nextClass,
-					metaTags: nextTags,
-					metaStatus: nextStatus,
-					metaTabist: nextTabist,
-					metaApp: nextApp,
-					metaGithub: nextGithub,
-					metaLicense: nextLicense,
-					metaSource: nextSource,
-					metaRelease: nextRelease,
-					metaAlias: nextAlias,
-					metaTitle: nextTitle,
-				};
-			});
-			if (!changed) return state;
-			return { ...state, files: nextFiles };
+						},
+					}
+				: state.fileMetaByPath;
+			return {
+				files: state.files.map((f) =>
+					f.id === id ? { ...f, content, contentLoaded: true } : f,
+				),
+				fileMetaByPath: nextMeta,
+			};
 		});
 	},
 
-	setFileMetaByPath: (
-		path,
-		metaClass,
-		metaTags,
-		metaStatus,
-		metaTabist,
-		metaApp,
-		metaGithub,
-		metaLicense,
-		metaSource,
-		metaRelease,
-		metaAlias,
-		metaTitle,
-	) => {
+	setFileMetaByPath: (path, meta) => {
 		set((state) => {
-			let changed = false;
-			const nextFiles = state.files.map((f) => {
-				if (f.path !== path) return f;
-				const nextClass = metaClass.length > 0 ? [...metaClass] : undefined;
-				const nextTags = metaTags.length > 0 ? [...metaTags] : undefined;
-				const nextStatus = metaStatus;
-				const nextTabist = metaTabist;
-				const nextApp = metaApp;
-				const nextGithub = metaGithub;
-				const nextLicense = metaLicense;
-				const nextSource = metaSource;
-				const nextRelease = metaRelease;
-				const nextAlias =
-					metaAlias && metaAlias.length > 0 ? [...metaAlias] : undefined;
-				const nextTitle = metaTitle;
-				if (
-					isSameStringList(f.metaClass, nextClass) &&
-					isSameStringList(f.metaTags, nextTags) &&
-					f.metaStatus === nextStatus &&
-					f.metaTabist === nextTabist &&
-					f.metaApp === nextApp &&
-					f.metaGithub === nextGithub &&
-					f.metaLicense === nextLicense &&
-					f.metaSource === nextSource &&
-					f.metaRelease === nextRelease &&
-					isSameStringList(f.metaAlias, nextAlias) &&
-					f.metaTitle === nextTitle
-				) {
-					return f;
-				}
-				changed = true;
-				return {
-					...f,
-					metaClass: nextClass,
-					metaTags: nextTags,
-					metaStatus: nextStatus,
-					metaTabist: nextTabist,
-					metaApp: nextApp,
-					metaGithub: nextGithub,
-					metaLicense: nextLicense,
-					metaSource: nextSource,
-					metaRelease: nextRelease,
-					metaAlias: nextAlias,
-					metaTitle: nextTitle,
-				};
-			});
-			if (!changed) return state;
-			return { ...state, files: nextFiles };
+			const key = normalizePathForCompare(path);
+			const existing = state.fileMetaByPath[key];
+			const merged: FileMeta = {
+				metaClass: meta.metaClass?.length
+					? [...meta.metaClass]
+					: existing?.metaClass,
+				metaTags: meta.metaTags?.length
+					? [...meta.metaTags]
+					: existing?.metaTags,
+				metaStatus: meta.metaStatus ?? existing?.metaStatus,
+				metaTabist: meta.metaTabist ?? existing?.metaTabist,
+				metaApp: meta.metaApp ?? existing?.metaApp,
+				metaGithub: meta.metaGithub ?? existing?.metaGithub,
+				metaLicense: meta.metaLicense ?? existing?.metaLicense,
+				metaSource: meta.metaSource ?? existing?.metaSource,
+				metaRelease: meta.metaRelease ?? existing?.metaRelease,
+				metaAlias: meta.metaAlias?.length
+					? [...meta.metaAlias]
+					: existing?.metaAlias,
+				metaTitle: meta.metaTitle ?? existing?.metaTitle,
+			};
+			return { fileMetaByPath: { ...state.fileMetaByPath, [key]: merged } };
 		});
 	},
 
@@ -2798,37 +2672,12 @@ export const useAppStore = create<AppState>((set, get) => ({
 			) {
 				const existingWorkspace = await loadWorkspaceMetadata(targetRepo.path);
 				if (!existingWorkspace?.activeFilePath) {
-					const normalizedPath = normalizePathForCompare(legacyActiveFilePath);
-					const targetFile = get().files.find(
-						(file) => normalizePathForCompare(file.path) === normalizedPath,
-					);
-
-					if (targetFile) {
-						if (!targetFile.contentLoaded) {
-							try {
-								const readResult = await window.desktopAPI.readFile(
-									targetFile.path,
-								);
-								if (!readResult.error) {
-									set((current) => ({
-										files: current.files.map((file) =>
-											file.id === targetFile.id
-												? {
-														...file,
-														content: readResult.content,
-														contentLoaded: true,
-													}
-												: file,
-										),
-									}));
-								}
-							} catch (error) {
-								console.error("legacy active file migration failed:", error);
-							}
-						}
-
-						set({ activeFileId: targetFile.id });
-						scheduleSaveAppState();
+					const opened = await get().openFileByPath(legacyActiveFilePath);
+					if (!opened) {
+						console.warn(
+							"Failed to restore legacy active file:",
+							legacyActiveFilePath,
+						);
 					}
 				}
 			}
@@ -2865,83 +2714,8 @@ void (async () => {
 	}
 })();
 
-// 辅助函数：将 FileNode 树扁平化为 FileItem 数组
-function flattenFileNodes(nodes: FileNode[]): FileItem[] {
-	const result: FileItem[] = [];
-	for (const node of nodes) {
-		if (node.type === "file") {
-			result.push({
-				id: node.id,
-				name: node.name,
-				path: node.path,
-				content: node.content || "",
-				contentLoaded: typeof node.content === "string",
-			});
-		} else if (node.children) {
-			result.push(...flattenFileNodes(node.children));
-		}
-	}
-	return result;
-}
-
 function normalizePathForCompare(p: string): string {
 	return p.replace(/\\/g, "/");
-}
-
-function reconcileFilesWithTree(
-	nodes: FileNode[],
-	currentFiles: FileItem[],
-): FileItem[] {
-	const scanned = flattenFileNodes(nodes);
-	const byPath = new Map(
-		currentFiles.map((f) => [normalizePathForCompare(f.path), f]),
-	);
-
-	return scanned.map((next) => {
-		const existing = byPath.get(normalizePathForCompare(next.path));
-		if (!existing) return next;
-
-		return {
-			...next,
-			id: existing.id ?? next.id,
-			content: existing.content ?? next.content,
-			metaClass: existing.metaClass,
-			metaTags: existing.metaTags,
-			metaStatus: existing.metaStatus,
-			metaTabist: existing.metaTabist,
-			metaApp: existing.metaApp,
-			metaGithub: existing.metaGithub,
-			metaLicense: existing.metaLicense,
-			metaSource: existing.metaSource,
-			metaRelease: existing.metaRelease,
-			metaAlias: existing.metaAlias,
-			metaTitle: existing.metaTitle,
-			contentLoaded: existing.contentLoaded ?? next.contentLoaded,
-		};
-	});
-}
-
-function resolveActiveFileId(
-	nextFiles: FileItem[],
-	currentActiveId: string | null,
-	previousActivePath?: string,
-): string | null {
-	if (!currentActiveId) return null;
-
-	if (nextFiles.some((f) => f.id === currentActiveId)) {
-		return currentActiveId;
-	}
-
-	if (previousActivePath) {
-		const byPath = nextFiles.find(
-			(f) =>
-				normalizePathForCompare(f.path) ===
-				normalizePathForCompare(previousActivePath),
-		);
-		if (byPath) return byPath.id;
-	}
-
-	return null;
 }
 
 function basenameFromPath(p: string): string {
