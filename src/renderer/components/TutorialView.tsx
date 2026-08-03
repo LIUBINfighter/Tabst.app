@@ -1,6 +1,6 @@
 import { ChevronLeft, ChevronRight, FileText, X } from "lucide-react";
 import type { MDXModule } from "mdx/types";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
 	getNextTutorial,
@@ -14,6 +14,7 @@ import { useAppStore } from "../store/appStore";
 import TopBar from "./TopBar";
 import { MDXRenderer } from "./tutorial/MDXRenderer";
 import { TutorialRenderer } from "./tutorial/TutorialRenderer";
+import { TutorialToc } from "./tutorial/TutorialToc";
 import IconButton from "./ui/icon-button";
 import {
 	Tooltip,
@@ -44,6 +45,9 @@ export default function TutorialView({
 	const [content, setContent] = useState<string>("");
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
+
+	const scrollRef = useRef<HTMLDivElement>(null);
+	const contentRef = useRef<HTMLDivElement>(null);
 
 	const metadata = activeTutorialId
 		? getTutorialMetadata(activeTutorialId)
@@ -202,42 +206,50 @@ export default function TutorialView({
 					title={t("tutorial")}
 				/>
 
-				<div className="flex-1 p-4 overflow-auto">
-					{/* Content container: center with a generous max width to avoid right overflow */}
-					<div className="mx-auto w-full max-w-[900px]">
-						{loading && (
-							<div className="flex items-center justify-center h-full">
-								<p className="text-sm text-muted-foreground">
-									{t("common:loading")}
-								</p>
-							</div>
-						)}
+				<div className="relative flex-1 min-h-0">
+					<div ref={scrollRef} className="absolute inset-0 overflow-auto p-4">
+						{/* Content container: center with a generous max width to avoid right overflow */}
+						<div ref={contentRef} className="mx-auto w-full max-w-[900px]">
+							{loading && (
+								<div className="flex items-center justify-center h-full">
+									<p className="text-sm text-muted-foreground">
+										{t("common:loading")}
+									</p>
+								</div>
+							)}
 
-						{error && (
-							<div className="bg-destructive/10 border border-destructive rounded p-4">
-								<p className="text-sm text-destructive">{error}</p>
-							</div>
-						)}
+							{error && (
+								<div className="bg-destructive/10 border border-destructive rounded p-4">
+									<p className="text-sm text-destructive">{error}</p>
+								</div>
+							)}
 
-						{/* 如果加载了 MDX 模块，使用 MDX 渲染器 */}
-						{!loading && !error && mdxModule && (
-							<MDXRenderer module={mdxModule} />
-						)}
+							{/* 如果加载了 MDX 模块，使用 MDX 渲染器 */}
+							{!loading && !error && mdxModule && (
+								<MDXRenderer module={mdxModule} />
+							)}
 
-						{/* 否则使用 Markdown 渲染器 */}
-						{!loading && !error && !mdxModule && content && (
-							<TutorialRenderer content={content} />
-						)}
+							{/* 否则使用 Markdown 渲染器 */}
+							{!loading && !error && !mdxModule && content && (
+								<TutorialRenderer content={content} />
+							)}
 
-						{!loading && !error && !mdxModule && !content && metadata && (
-							<div>
-								<h2 className="text-lg font-semibold mb-2">
-									{getTutorialDisplayTitle(metadata)}
-								</h2>
-								<p className="text-sm text-muted-foreground">教程内容为空</p>
-							</div>
-						)}
+							{!loading && !error && !mdxModule && !content && metadata && (
+								<div>
+									<h2 className="text-lg font-semibold mb-2">
+										{getTutorialDisplayTitle(metadata)}
+									</h2>
+									<p className="text-sm text-muted-foreground">教程内容为空</p>
+								</div>
+							)}
+						</div>
 					</div>
+
+					<TutorialToc
+						key={activeTutorialId ?? "tutorial"}
+						scrollContainerRef={scrollRef}
+						contentRef={contentRef}
+					/>
 				</div>
 			</div>
 		</TooltipProvider>

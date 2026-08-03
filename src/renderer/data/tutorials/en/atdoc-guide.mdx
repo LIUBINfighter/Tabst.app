@@ -1,0 +1,151 @@
+# ATDOC Guide (INI Sections)
+
+ATDOC is Tabst's document-level configuration: declare preview, player, coloring, staff, print, and file metadata inside AlphaTex comments. It is stripped before rendering, so it never affects the score itself.
+
+## Quick Start
+
+Put configuration in a comment block at the top of the file:
+
+```alphatex
+/**
+ * [player]
+ * speed=0.92
+ * countIn=true
+ */
+```
+
+This is equivalent to the legacy dotted syntax:
+
+```alphatex
+/**
+ * at.player.playbackSpeed=0.92
+ * at.player.countInEnabled=true
+ */
+```
+
+## Section Syntax
+
+- Section headers: `[meta]`, `[display]`, `[player]`, `[coloring]`, `[staff]`, `[print]`;
+- Each line inside a section is one `key=value` pair, equivalent to `at.<section>.<key>=value`;
+- A section's scope lasts until the next section header or the end of the file;
+- Both `*` and `//` comment prefixes work; `key = value` allows spaces around `=`;
+- Typing `[` auto-completes section names; typing a key inside a section completes against that section.
+
+## All Keys and Aliases
+
+| Section | Key | Alias | Value |
+| --- | --- | --- | --- |
+| `[meta]` | `title` | | String (navigation/search title, does not rename the file) |
+| | `class` / `tag` / `alias` | | Comma-separated multi-values |
+| | `status` | | `draft` / `active` / `done` / `released` |
+| | `tabist` | `author` | Transcriber name |
+| | `app` / `github` / `source` / `release` | | String |
+| | `license` | | CC family (e.g. `CC-BY-4.0`) |
+| `[display]` | `scale` | `zoom` | Number > 0 |
+| | `layoutMode` | `layout` | `Page` / `Horizontal` / `Parchment` |
+| `[player]` | `scrollMode` | | `Off` / `Continuous` / `OffScreen` / `Smooth` |
+| | `scrollSpeed` | | Number >= 0 |
+| | `playbackSpeed` | `speed` | Number > 0 |
+| | `volume` / `metronomeVolume` | `metronome` | Number in [0,1] |
+| | `muteTracks` / `soloTracks` | `mute` / `solo` | List of non-negative integers |
+| | `countInEnabled` | `countIn` | true / false |
+| | `enableCursor` | `cursor` | true / false |
+| | `enableElementHighlighting` | `highlight` | true / false |
+| | `enableUserInteraction` | `interaction` | true / false |
+| `[coloring]` | `enabled` / `colorizeByFret` | | true / false |
+| | `barNumberColor` / `staffLineColor` / `barSeparatorColor` / `noteHeadColor` / `fretNumberColor` | | Color values |
+| `[staff]` | `showTablature` | `tab` | true / false |
+| | `showStandardNotation` | `notation` | true / false |
+| | `showSlash` | `slash` | true / false |
+| | `showNumbered` | `numbered` | true / false |
+| `[print]` | `zoom` | | Number > 0 |
+| | `barsPerRow` | | -1 or positive integer |
+| | `stretchForce` | | Number >= 0 |
+
+> Aliases only work inside their section (e.g. `speed` = `playbackSpeed`); the dotted notation only accepts canonical key names.
+
+## Quick Tags (#tag)
+
+`#tag` words inside comment lines are collected automatically as file tags, merged and deduplicated with `tag=` from `[meta]`, and used for sidebar filters and quick switching:
+
+```alphatex
+/**
+ * A #rock study piece, focus on #bends #vibrato
+ *
+ * [meta]
+ * tag="acoustic, guitar"
+ */
+```
+
+Rules: tags are written on comment lines starting with `*` or `//`, in the form `#name` (letters, digits, underscores, hyphens; Chinese characters are supported); ATDOC directive lines (such as color values `#ef4444`) and score content (such as the chord `C#m`) are not misdetected.
+
+## Value Types and Tolerance
+
+- `true` / `false` → boolean; `0.75` → number; `"text"` → string; anything else is a bare string (enums are case-insensitive);
+- Repeated keys: the last occurrence wins;
+- Unknown sections, unknown keys, or invalid values only produce warnings and never block rendering;
+- Bare `key=value` lines outside any section are ignored.
+
+## Backward Compatibility
+
+The dotted syntax `at.domain.key=value` remains fully supported and can be mixed with sections:
+
+```alphatex
+/**
+ * [meta]
+ * title="Flower Dance"
+ *
+ * at.player.metronomeVolume=0.35
+ * at.staff.showSlash=false
+ */
+```
+
+## Complete Example
+
+```alphatex
+/**
+ * Example: #study #chords
+ *
+ * [meta]
+ * title="Flower Dance"
+ * class="lesson, warmup"
+ * tag="acoustic, guitar"
+ * status=released
+ * author="JayBridge"
+ *
+ * [display]
+ * zoom=0.78
+ * layout=Page
+ *
+ * [player]
+ * scrollMode=OffScreen
+ * speed=0.92
+ * metronome=0.35
+ * countIn=true
+ * cursor=true
+ * highlight=true
+ *
+ * [coloring]
+ * enabled=true
+ * barNumberColor=#ef4444
+ * noteHeadColor=#22c55e
+ * fretNumberColor=#38bdf8
+ * colorizeByFret=true
+ *
+ * [staff]
+ * tab=true
+ * notation=false
+ *
+ * [print]
+ * zoom=1.05
+ * barsPerRow=4
+ */
+
+\title "Flower Dance"
+\tempo 96
+\track "Lead Guitar"
+\staff {score tabs}
+.
+:4 3.2 5.2 7.2 8.2 |
+:4 8.2 7.2 5.2 3.2 |
+```
