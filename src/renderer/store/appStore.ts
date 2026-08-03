@@ -60,6 +60,24 @@ function isSameStringList(a: string[] | undefined, b: string[] | undefined) {
 	return true;
 }
 
+function sameFileMeta(a: FileMeta | undefined, b: FileMeta | undefined) {
+	if (!a && !b) return true;
+	if (!a || !b) return false;
+	return (
+		isSameStringList(a.metaClass, b.metaClass) &&
+		isSameStringList(a.metaTags, b.metaTags) &&
+		a.metaStatus === b.metaStatus &&
+		a.metaTabist === b.metaTabist &&
+		a.metaApp === b.metaApp &&
+		a.metaGithub === b.metaGithub &&
+		a.metaLicense === b.metaLicense &&
+		a.metaSource === b.metaSource &&
+		a.metaRelease === b.metaRelease &&
+		isSameStringList(a.metaAlias, b.metaAlias) &&
+		a.metaTitle === b.metaTitle
+	);
+}
+
 const DEFAULT_SANDBOX_REPO_NAME = "Sandbox";
 
 let gitStatusRefreshInFlight: {
@@ -2233,22 +2251,40 @@ export const useAppStore = create<AppState>((set, get) => ({
 	addFile: (file) => {
 		set((state) => {
 			const parsedMeta = extractAtDocFileMeta(file.content ?? "");
-			const incomingMeta: FileMeta = {
-				metaClass:
-					parsedMeta.metaClass.length > 0 ? parsedMeta.metaClass : undefined,
-				metaTags:
-					parsedMeta.metaTags.length > 0 ? parsedMeta.metaTags : undefined,
-				metaStatus: parsedMeta.metaStatus,
-				metaTabist: parsedMeta.metaTabist,
-				metaApp: parsedMeta.metaApp,
-				metaGithub: parsedMeta.metaGithub,
-				metaLicense: parsedMeta.metaLicense,
-				metaSource: parsedMeta.metaSource,
-				metaRelease: parsedMeta.metaRelease,
-				metaAlias:
-					parsedMeta.metaAlias.length > 0 ? parsedMeta.metaAlias : undefined,
-				metaTitle: parsedMeta.metaTitle,
-			};
+			const incomingMeta: FileMeta = {};
+			if (parsedMeta.metaClass.length > 0) {
+				incomingMeta.metaClass = parsedMeta.metaClass;
+			}
+			if (parsedMeta.metaTags.length > 0) {
+				incomingMeta.metaTags = parsedMeta.metaTags;
+			}
+			if (parsedMeta.metaStatus !== undefined) {
+				incomingMeta.metaStatus = parsedMeta.metaStatus;
+			}
+			if (parsedMeta.metaTabist !== undefined) {
+				incomingMeta.metaTabist = parsedMeta.metaTabist;
+			}
+			if (parsedMeta.metaApp !== undefined) {
+				incomingMeta.metaApp = parsedMeta.metaApp;
+			}
+			if (parsedMeta.metaGithub !== undefined) {
+				incomingMeta.metaGithub = parsedMeta.metaGithub;
+			}
+			if (parsedMeta.metaLicense !== undefined) {
+				incomingMeta.metaLicense = parsedMeta.metaLicense;
+			}
+			if (parsedMeta.metaSource !== undefined) {
+				incomingMeta.metaSource = parsedMeta.metaSource;
+			}
+			if (parsedMeta.metaRelease !== undefined) {
+				incomingMeta.metaRelease = parsedMeta.metaRelease;
+			}
+			if (parsedMeta.metaAlias.length > 0) {
+				incomingMeta.metaAlias = parsedMeta.metaAlias;
+			}
+			if (parsedMeta.metaTitle !== undefined) {
+				incomingMeta.metaTitle = parsedMeta.metaTitle;
+			}
 			const existing = state.files.find((f) => f.path === file.path);
 			if (existing) {
 				const merged = {
@@ -2433,33 +2469,30 @@ export const useAppStore = create<AppState>((set, get) => ({
 		const parsedMeta = extractAtDocFileMeta(content);
 		set((state) => {
 			const target = state.files.find((f) => f.id === id);
-			const nextMeta = target
-				? {
-						...state.fileMetaByPath,
-						[normalizePathForCompare(target.path)]: {
-							metaClass:
-								parsedMeta.metaClass.length > 0
-									? parsedMeta.metaClass
-									: undefined,
-							metaTags:
-								parsedMeta.metaTags.length > 0
-									? parsedMeta.metaTags
-									: undefined,
-							metaStatus: parsedMeta.metaStatus,
-							metaTabist: parsedMeta.metaTabist,
-							metaApp: parsedMeta.metaApp,
-							metaGithub: parsedMeta.metaGithub,
-							metaLicense: parsedMeta.metaLicense,
-							metaSource: parsedMeta.metaSource,
-							metaRelease: parsedMeta.metaRelease,
-							metaAlias:
-								parsedMeta.metaAlias.length > 0
-									? parsedMeta.metaAlias
-									: undefined,
-							metaTitle: parsedMeta.metaTitle,
-						},
-					}
-				: state.fileMetaByPath;
+			let nextMeta = state.fileMetaByPath;
+			if (target) {
+				const key = normalizePathForCompare(target.path);
+				const parsed: FileMeta = {
+					metaClass:
+						parsedMeta.metaClass.length > 0 ? parsedMeta.metaClass : undefined,
+					metaTags:
+						parsedMeta.metaTags.length > 0 ? parsedMeta.metaTags : undefined,
+					metaStatus: parsedMeta.metaStatus,
+					metaTabist: parsedMeta.metaTabist,
+					metaApp: parsedMeta.metaApp,
+					metaGithub: parsedMeta.metaGithub,
+					metaLicense: parsedMeta.metaLicense,
+					metaSource: parsedMeta.metaSource,
+					metaRelease: parsedMeta.metaRelease,
+					metaAlias:
+						parsedMeta.metaAlias.length > 0 ? parsedMeta.metaAlias : undefined,
+					metaTitle: parsedMeta.metaTitle,
+				};
+				// 内容未变时复用同一引用，避免重复触发 meta 消费者
+				if (!sameFileMeta(state.fileMetaByPath[key], parsed)) {
+					nextMeta = { ...state.fileMetaByPath, [key]: parsed };
+				}
+			}
 			return {
 				files: state.files.map((f) =>
 					f.id === id ? { ...f, content, contentLoaded: true } : f,
@@ -2492,6 +2525,8 @@ export const useAppStore = create<AppState>((set, get) => ({
 					: existing?.metaAlias,
 				metaTitle: meta.metaTitle ?? existing?.metaTitle,
 			};
+			// 内容未变化时返回原 state，避免无意义的订阅重渲染和依赖重跑
+			if (existing && sameFileMeta(existing, merged)) return state;
 			return { fileMetaByPath: { ...state.fileMetaByPath, [key]: merged } };
 		});
 	},
