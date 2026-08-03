@@ -95,6 +95,31 @@ export interface FileNode {
 }
 
 /**
+ * 树节点的 ATDOC 元数据缓存（从文件内容解析，独立于打开的文档集合）。
+ * key 为 normalized path。
+ */
+export interface FileMeta {
+	metaClass?: string[];
+	metaTags?: string[];
+	metaStatus?: "draft" | "active" | "done" | "released";
+	metaTabist?: string;
+	metaApp?: string;
+	metaGithub?: string;
+	metaLicense?:
+		| "CC0-1.0"
+		| "CC-BY-4.0"
+		| "CC-BY-SA-4.0"
+		| "CC-BY-NC-4.0"
+		| "CC-BY-NC-SA-4.0"
+		| "CC-BY-ND-4.0"
+		| "CC-BY-NC-ND-4.0";
+	metaSource?: string;
+	metaRelease?: string;
+	metaAlias?: string[];
+	metaTitle?: string;
+}
+
+/**
  * 用户删除偏好设置
  */
 export type DeleteBehavior = "system-trash" | "repo-trash" | "ask-every-time";
