@@ -35,12 +35,12 @@ alphaTex 文件简单来说就是一个小节列表，每个小节都有元数�
 
 ```alphatex
 // 小节 1 元数据标签
-\\clef G2 \\ks 
+\clef G2 \ks 
     // 小节 1 内容
     Cb C4 
 |  
 // 小节 2 元数据标签
-\\ks A
+\ks A
     // 小节 2 内容
     C4
 ```
@@ -207,12 +207,12 @@ AlphaTab 尝试根据第一个音符检测你正在编写哪种谱表。
 在打击乐器上，你将发音指定为要演奏的音符。
 打击乐可以是带引号的字符串或标识符（不带引号的名称）。
 
-更多详细信息在 [`\\articulation`](https://alphatab.net/docs/alphatex/staff-metadata#articulation) 元数据文档中描述。
+更多详细信息在 [`\articulation`](https://alphatab.net/docs/alphatex/staff-metadata#articulation) 元数据文档中描述。
 
 
 ```alphatex
-\\instrument percussion
-\\articulation defaults
+\instrument percussion
+\articulation defaults
 :4
     (KickHit RideBell) 
     r 
@@ -282,15 +282,15 @@ Dx5
 
 
 ```alphatex
-\\track "Track 1"
-    \\staff {score} // 第一谱表
-        \\voice // 第一声部 
+\track "Track 1"
+    \staff {score} // 第一谱表
+        \voice // 第一声部 
             C4 D4 E4 F4 | C4 D4 E4 F4
-        \\voice // 第二声部
+        \voice // 第二声部
             C5 D5 E5 F5 | C5 D5 E5 F5
-    \\staff {tabs} // 第二谱表
+    \staff {tabs} // 第二谱表
         3.5 5.5 7.5 8.5 | 3.5 5.5 7.5 8.5
-\\track "Track 2"
+\track "Track 2"
      1.2 3.2 5.2 6.2
 ```
 
@@ -304,10 +304,10 @@ Dx5
     // 第一谱表
         // 第一声部 
             C4 D4 E4 F4 | C4 D4 E4 F4
-        \\voice // 第二声部
+        \voice // 第二声部
             C5 D5 E5 F5 | C5 D5 E5 F5
-    \\staff {tabs} // 第二谱表
+    \staff {tabs} // 第二谱表
         3.5 5.5 7.5 8.5 | 3.5 5.5 7.5 8.5
-\\track "Track 2"
+\track "Track 2"
      1.2 3.2 5.2 6.2
 ```
