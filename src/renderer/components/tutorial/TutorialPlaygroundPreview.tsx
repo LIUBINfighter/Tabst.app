@@ -4,7 +4,10 @@ import { createPreviewSettings } from "@/renderer/lib/alphatab-config";
 import { formatFullError } from "@/renderer/lib/alphatab-error";
 import { parseAtDoc } from "@/renderer/lib/atdoc";
 import { applyAtDocColoring } from "@/renderer/lib/atdoc-coloring";
-import { getResourceUrls } from "@/renderer/lib/resourceLoaderService";
+import {
+	getResourceUrls,
+	resolveResourceOverrides,
+} from "@/renderer/lib/resourceLoaderService";
 import {
 	getAlphaTabColorsForTheme,
 	updateAlphaTabColorsForTheme,
@@ -39,6 +42,7 @@ export function TutorialPlaygroundPreview({
 	const [error, setError] = useState<string | null>(null);
 	const [loading, setLoading] = useState(true);
 	const resourceAssetOverrides = useAppStore((s) => s.resourceAssetOverrides);
+	const externalSoundFont = useAppStore((s) => s.externalSoundFont);
 
 	useEffect(() => {
 		let destroyed = false;
@@ -71,7 +75,9 @@ export function TutorialPlaygroundPreview({
 			setError(null);
 			onRenderStatusChange?.({ state: "loading", content });
 
-			const urls = await getResourceUrls(resourceAssetOverrides);
+			const urls = await getResourceUrls(
+				resolveResourceOverrides(resourceAssetOverrides, externalSoundFont),
+			);
 			if (destroyed || !containerRef.current) return;
 			const colors = getAlphaTabColorsForTheme();
 			const settings = createPreviewSettings(urls, {
@@ -126,7 +132,13 @@ export function TutorialPlaygroundPreview({
 			apiRef.current = null;
 			onApiChange?.(null);
 		};
-	}, [content, onApiChange, onRenderStatusChange, resourceAssetOverrides]);
+	}, [
+		content,
+		onApiChange,
+		onRenderStatusChange,
+		resourceAssetOverrides,
+		externalSoundFont,
+	]);
 
 	useEffect(() => {
 		const api = apiRef.current;

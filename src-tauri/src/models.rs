@@ -265,6 +265,8 @@ pub(crate) struct MuseScoreSettingsResponse {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) executable_path: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) default_executable_path: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) error: Option<String>,
 }
 
@@ -288,6 +290,36 @@ pub(crate) struct MusicXmlExportResponse {
     pub(crate) output_path: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) exit_code: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) error: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ExternalSoundFontSelection {
+    pub(crate) path: String,
+    pub(crate) name: String,
+    pub(crate) size: u64,
+    pub(crate) format: String,
+    pub(crate) valid: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) error: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ExternalSoundFontSettingsResponse {
+    pub(crate) success: bool,
+    pub(crate) configured: bool,
+    pub(crate) valid: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) path: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) size: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) format: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) error: Option<String>,
 }

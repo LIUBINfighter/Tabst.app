@@ -1,3 +1,6 @@
+import type { ExternalSoundFontSettingsResult } from "../types/desktop";
+import { toAssetProtocolUrl } from "./assets";
+
 export interface ResourceUrls {
 	workerUrl: string;
 	bravuraFontUrl: string;
@@ -8,6 +11,23 @@ export interface ResourceUrls {
 export interface ResourceUrlOverrides {
 	bravuraFontUrl?: string;
 	soundFontUrl?: string;
+}
+
+/**
+ * 合并外部 SoundFont 覆盖：外部配置有效时优先于内置/工作区覆盖。
+ * 外部文件不复制、不入 Git、不随仓库同步，仅以 asset:// 本地 URL 引用。
+ */
+export function resolveResourceOverrides(
+	overrides: ResourceUrlOverrides,
+	externalSoundFont: ExternalSoundFontSettingsResult | null,
+): ResourceUrlOverrides {
+	if (!externalSoundFont?.valid || !externalSoundFont.path) {
+		return overrides;
+	}
+	return {
+		bravuraFontUrl: overrides.bravuraFontUrl,
+		soundFontUrl: toAssetProtocolUrl(externalSoundFont.path),
+	};
 }
 
 const DOCUMENT_PATH_EXTENSIONS = new Set([

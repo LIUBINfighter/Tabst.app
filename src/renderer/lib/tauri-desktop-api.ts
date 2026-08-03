@@ -609,6 +609,16 @@ export function createTauriDesktopAPI(): DesktopAPI {
 			}
 		},
 
+		selectMuseScoreExecutable: async () => {
+			try {
+				return await invokeCommand<
+					Awaited<ReturnType<DesktopAPI["selectMuseScoreExecutable"]>>
+				>("select_musescore_executable");
+			} catch (error) {
+				return { success: false, error: toErrorMessage(error) };
+			}
+		},
+
 		convertGpToMxl: async (sourcePath: string, overwrite = false) => {
 			try {
 				return await invokeCommand<
@@ -629,6 +639,63 @@ export function createTauriDesktopAPI(): DesktopAPI {
 				return await invokeCommand<{ success: boolean; error?: string }>(
 					"set_keep_awake",
 					{ enabled },
+				);
+			} catch (error) {
+				return { success: false, error: toErrorMessage(error) };
+			}
+		},
+
+		selectSoundFontFile: async () => {
+			try {
+				return await invokeCommand<
+					Awaited<ReturnType<DesktopAPI["selectSoundFontFile"]>>
+				>("select_soundfont_file");
+			} catch (error) {
+				return {
+					path: "",
+					name: "",
+					size: 0,
+					format: "",
+					valid: false,
+					error: toErrorMessage(error),
+				};
+			}
+		},
+
+		loadExternalSoundFontSettings: async () => {
+			try {
+				return await invokeCommand<
+					Awaited<ReturnType<DesktopAPI["loadExternalSoundFontSettings"]>>
+				>("load_external_soundfont_settings");
+			} catch (error) {
+				return {
+					success: false,
+					configured: false,
+					valid: false,
+					error: toErrorMessage(error),
+				};
+			}
+		},
+
+		saveExternalSoundFontPath: async (path: string) => {
+			try {
+				return await invokeCommand<
+					Awaited<ReturnType<DesktopAPI["saveExternalSoundFontPath"]>>
+				>("save_external_soundfont_path", { path });
+			} catch (error) {
+				return {
+					success: false,
+					configured: false,
+					valid: false,
+					error: toErrorMessage(error),
+				};
+			}
+		},
+
+		clearExternalSoundFont: async () => {
+			try {
+				return await invokeCommand<{ success: boolean; error?: string }>(
+					"clear_external_soundfont",
 				);
 			} catch (error) {
 				return { success: false, error: toErrorMessage(error) };

@@ -28,7 +28,10 @@ import {
 	writePrintWindowPayload,
 } from "../lib/print-window";
 import type { ResourceUrls } from "../lib/resourceLoaderService";
-import { getResourceUrls } from "../lib/resourceLoaderService";
+import {
+	getResourceUrls,
+	resolveResourceOverrides,
+} from "../lib/resourceLoaderService";
 import { useAppStore } from "../store/appStore";
 import { PrintTracksPanel } from "./PrintTracksPanel";
 import TopBar from "./TopBar";
@@ -66,6 +69,7 @@ export default function PrintPreview({
 	const { t } = useTranslation("print");
 	const fileName = fileNameProp ?? t("defaultFileName");
 	const resourceAssetOverrides = useAppStore((s) => s.resourceAssetOverrides);
+	const externalSoundFont = useAppStore((s) => s.externalSoundFont);
 
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
@@ -227,7 +231,9 @@ export default function PrintPreview({
 			setIsLoading(true);
 			setError(null);
 
-			const urls = await getResourceUrls(resourceAssetOverrides);
+			const urls = await getResourceUrls(
+				resolveResourceOverrides(resourceAssetOverrides, externalSoundFont),
+			);
 
 			// Use stable font URL (no longer using timestamp) and concise print font name
 			const fontUrl = urls.bravuraFontUrl;
@@ -323,7 +329,13 @@ export default function PrintPreview({
 			setError(err instanceof Error ? err.message : "Initialization failed");
 			setIsLoading(false);
 		}
-	}, [cleanContent, contentWidthPx, handlePaginate, resourceAssetOverrides]);
+	}, [
+		cleanContent,
+		contentWidthPx,
+		handlePaginate,
+		resourceAssetOverrides,
+		externalSoundFont,
+	]);
 
 	/**
 	 * Handle print/export PDF

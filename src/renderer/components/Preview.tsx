@@ -73,7 +73,10 @@ import {
 	type PreviewCommandId,
 } from "../lib/preview-command-events";
 import type { ResourceUrls } from "../lib/resourceLoaderService";
-import { getResourceUrls } from "../lib/resourceLoaderService";
+import {
+	getResourceUrls,
+	resolveResourceOverrides,
+} from "../lib/resourceLoaderService";
 import {
 	applyStaffConfig,
 	getFirstStaffOptions,
@@ -303,6 +306,7 @@ export default function Preview({
 	);
 	const editorHasFocus = useAppStore((s) => s.editorHasFocus);
 	const resourceAssetOverrides = useAppStore((s) => s.resourceAssetOverrides);
+	const externalSoundFont = useAppStore((s) => s.externalSoundFont);
 	const _scoreVersion = useAppStore((s) => s.scoreVersion);
 	const bumpApiInstanceId = useAppStore((s) => s.bumpApiInstanceId);
 	const bumpScoreVersion = useAppStore((s) => s.bumpScoreVersion);
@@ -2001,7 +2005,9 @@ export default function Preview({
 				}
 
 				// 1. 获取所有资源 URL（自动适配 dev 和打包环境）
-				const urls = await getResourceUrls(resourceAssetOverrides);
+				const urls = await getResourceUrls(
+					resolveResourceOverrides(resourceAssetOverrides, externalSoundFont),
+				);
 				currentSoundFontUrlRef.current = urls.soundFontUrl;
 				const el = containerRef.current as HTMLElement;
 				// 实际滚动容器：优先使用 scrollHostRef（overflow-auto），
@@ -2154,6 +2160,7 @@ export default function Preview({
 		refreshPlaybackAudioPipeline,
 		handleAudioRecoveryResult,
 		resourceAssetOverrides,
+		externalSoundFont,
 	]);
 
 	// 内容更新：仅调用 tex，不销毁 API，避免闪烁

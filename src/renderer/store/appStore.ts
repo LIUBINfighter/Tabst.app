@@ -23,6 +23,7 @@ import {
 	updateWorkspaceMetadata,
 } from "../lib/workspace-metadata-store";
 import type { CloudPublicScore } from "../types/cloud";
+import type { ExternalSoundFontSettingsResult } from "../types/desktop";
 import type {
 	GitDiffResult,
 	GitSelectedChange,
@@ -643,6 +644,14 @@ interface AppState {
 		overrides: Partial<ResourceAssetOverrides>,
 	) => void;
 	resetResourceAssetOverrides: () => void;
+
+	// 外部 SoundFont（机器本地全局设置；null = 尚未加载）
+	externalSoundFont: ExternalSoundFontSettingsResult | null;
+	setExternalSoundFont: (
+		result: ExternalSoundFontSettingsResult | null,
+	) => void;
+	loadExternalSoundFontSettings: () => Promise<void>;
+	clearExternalSoundFont: () => Promise<void>;
 
 	// 🆕 自定义播放器配置
 	customPlayerConfig: CustomPlayerConfig;
@@ -1592,6 +1601,20 @@ export const useAppStore = create<AppState>((set, get) => ({
 		const next = DEFAULT_RESOURCE_ASSET_OVERRIDES;
 		set({ resourceAssetOverrides: next });
 		void mergeAndSaveWorkspacePreferences({ resourceAssetOverrides: next });
+	},
+	externalSoundFont: null,
+	setExternalSoundFont: (result) => {
+		set({ externalSoundFont: result });
+	},
+	loadExternalSoundFontSettings: async () => {
+		const result = await window.desktopAPI.loadExternalSoundFontSettings();
+		set({ externalSoundFont: result });
+	},
+	clearExternalSoundFont: async () => {
+		const result = await window.desktopAPI.clearExternalSoundFont();
+		if (result.success) {
+			set({ externalSoundFont: null });
+		}
 	},
 
 	customPlayerConfig: createDefaultCustomPlayerConfig(),
@@ -2702,16 +2725,23 @@ export const useAppStore = create<AppState>((set, get) => ({
 		try {
 			isRestoringAppState = true;
 			setActiveRepoContext(null);
-			const [loadedRepos, legacyAppState, appVersion, globalSettings] =
-				await Promise.all([
-					window.desktopAPI?.loadRepos?.(),
-					window.desktopAPI?.loadAppState?.(),
-					window.desktopAPI?.getAppVersion?.(),
-					loadGlobalSettings(),
-				]);
+			const [
+				loadedRepos,
+				legacyAppState,
+				appVersion,
+				globalSettings,
+				externalSoundFont,
+			] = await Promise.all([
+				window.desktopAPI?.loadRepos?.(),
+				window.desktopAPI?.loadAppState?.(),
+				window.desktopAPI?.getAppVersion?.(),
+				loadGlobalSettings(),
+				window.desktopAPI?.loadExternalSoundFontSettings?.(),
+			]);
 
 			set({
 				showButtonTooltips: globalSettings.showButtonTooltips ?? true,
+				externalSoundFont: externalSoundFont ?? null,
 			});
 
 			if (!loadedRepos) return;

@@ -1,5 +1,22 @@
 import type * as alphaTab from "@coderline/alphatab";
 
+const ASSET_PROTOCOL_CHUNK_SIZE = 100;
+
+/**
+ * 构造 Tauri asset protocol URL（asset://localhost/<encoded absolute path>）
+ * 用于在 CSP 允许的 connect-src 范围内 fetch 外部本地文件。
+ * 分段 percent-encode 避免 WKWebView 对超长 URL 的 chunk 限制。
+ */
+export function toAssetProtocolUrl(filePath: string): string {
+	const encoded = filePath
+		.split("")
+		.map((char, index) =>
+			index % ASSET_PROTOCOL_CHUNK_SIZE === 0 ? encodeURIComponent(char) : char,
+		)
+		.join("");
+	return `asset://localhost/${encoded}`;
+}
+
 function toAscii(bytes: Uint8Array, start: number, length: number): string {
 	return String.fromCharCode(...bytes.slice(start, start + length));
 }

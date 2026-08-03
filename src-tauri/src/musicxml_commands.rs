@@ -2,17 +2,17 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+use rfd::FileDialog;
 use serde_json::{Map, Value};
 use tokio::process::Command;
 use tokio::time::{sleep, timeout};
 
 use crate::{
-    authorize_existing_workspace_path, authorize_target_path_in_scope, global_metadata_dir,
-    normalize_non_empty_path, read_json_file, write_json_file, MuseScoreSettingsResponse,
+    authorize_existing_workspace_path, authorize_target_path_in_scope, load_settings_json,
+    normalize_non_empty_path, save_settings_json, MuseScoreSettingsResponse,
     MuseScoreValidationResponse, MusicXmlExportResponse,
 };
 
-const SETTINGS_FILE_NAME: &str = "settings.json";
 const EXTERNAL_TOOLS_KEY: &str = "externalTools";
 const MUSESCORE_PATH_KEY: &str = "museScoreExecutablePath";
 const VALIDATION_TIMEOUT: Duration = Duration::from_secs(15);
@@ -20,20 +20,8 @@ const CONVERSION_TIMEOUT: Duration = Duration::from_secs(120);
 const OUTPUT_APPEAR_TIMEOUT: Duration = Duration::from_secs(30);
 const GP_EXTENSIONS: [&str; 5] = ["gp", "gp3", "gp4", "gp5", "gpx"];
 
-fn settings_path() -> Result<PathBuf, String> {
-    Ok(global_metadata_dir()?.join(SETTINGS_FILE_NAME))
-}
-
-fn load_settings_object() -> Result<Map<String, Value>, String> {
-    let path = settings_path()?;
-    match read_json_file::<Value>(&path)? {
-        Some(Value::Object(object)) => Ok(object),
-        Some(_) | None => Ok(Map::new()),
-    }
-}
-
 fn configured_musescore_path() -> Result<Option<String>, String> {
-    let settings = load_settings_object()?;
+    let settings = load_settings_json()?;
     Ok(settings
         .get(EXTERNAL_TOOLS_KEY)
         .and_then(Value::as_object)
@@ -45,7 +33,7 @@ fn configured_musescore_path() -> Result<Option<String>, String> {
 }
 
 fn save_configured_musescore_path(path: Option<&str>) -> Result<(), String> {
-    let mut settings = load_settings_object()?;
+    let mut settings = load_settings_json()?;
     let tools = settings
         .entry(EXTERNAL_TOOLS_KEY.to_string())
         .or_insert_with(|| Value::Object(Map::new()));
@@ -68,7 +56,7 @@ fn save_configured_musescore_path(path: Option<&str>) -> Result<(), String> {
         }
     }
 
-    write_json_file(&settings_path()?, &Value::Object(settings))
+    save_settings_json(&settings)
 }
 
 fn validate_executable_file(executable_path: &str) -> Result<PathBuf, String> {
@@ -212,17 +200,55 @@ fn export_failure(
     }
 }
 
+fn first_existing_candidate(candidates: &[&str]) -> Option<PathBuf> {
+    candidates
+        .iter()
+        .map(PathBuf::from)
+        .find(|path| path.is_file())
+}
+
+#[cfg(target_os = "macos")]
+fn detect_default_musescore_executable() -> Option<PathBuf> {
+    let bundle = PathBuf::from("/Applications/MuseScore 4.app");
+    if !bundle.is_dir() {
+        return None;
+    }
+    resolve_app_bundle_executable(&bundle)
+}
+
+#[cfg(target_os = "windows")]
+fn detect_default_musescore_executable() -> Option<PathBuf> {
+    const CANDIDATES: [&str; 2] = [
+        r"C:\Program Files\MuseScore 4\bin\MuseScore4.exe",
+        r"C:\Program Files\MuseScore 4\bin\MuseScore.exe",
+    ];
+    first_existing_candidate(&CANDIDATES)
+}
+
+#[cfg(all(unix, not(target_os = "macos")))]
+fn detect_default_musescore_executable() -> Option<PathBuf> {
+    const CANDIDATES: [&str; 3] = [
+        "/usr/bin/mscore",
+        "/usr/local/bin/mscore",
+        "/opt/musescore/bin/mscore",
+    ];
+    first_existing_candidate(&CANDIDATES)
+}
+
 #[tauri::command]
 pub(crate) fn load_musescore_settings() -> MuseScoreSettingsResponse {
     match configured_musescore_path() {
         Ok(executable_path) => MuseScoreSettingsResponse {
             success: true,
             executable_path,
+            default_executable_path: detect_default_musescore_executable()
+                .map(|path| path.to_string_lossy().into_owned()),
             error: None,
         },
         Err(error) => MuseScoreSettingsResponse {
             success: false,
             executable_path: None,
+            default_executable_path: None,
             error: Some(error),
         },
     }
@@ -292,6 +318,73 @@ pub(crate) async fn save_musescore_executable_path(
     }
 
     validation
+}
+
+#[cfg(target_os = "macos")]
+fn resolve_app_bundle_executable(app_bundle: &Path) -> Option<PathBuf> {
+    let macos_dir = app_bundle.join("Contents/MacOS");
+    if !macos_dir.is_dir() {
+        return None;
+    }
+
+    const CANDIDATES: [&str; 5] = [
+        "mscore",
+        "MuseScore",
+        "MuseScore4",
+        "MuseScore 4",
+        "MuseScore-4",
+    ];
+    for name in CANDIDATES {
+        let candidate = macos_dir.join(name);
+        if candidate.is_file() {
+            return Some(candidate);
+        }
+    }
+
+    let mut entries = fs::read_dir(&macos_dir).ok()?.collect::<Vec<_>>();
+    entries.sort_by_key(|entry| {
+        entry
+            .as_ref()
+            .map(|value| value.file_name())
+            .unwrap_or_default()
+    });
+    for entry in entries {
+        if let Ok(entry) = entry {
+            let candidate = entry.path();
+            if candidate.is_file() {
+                return Some(candidate);
+            }
+        }
+    }
+    None
+}
+
+#[cfg(target_os = "macos")]
+fn pick_musescore_executable() -> Option<PathBuf> {
+    let selected = FileDialog::new()
+        .add_filter("MuseScore Application", &["app"])
+        .pick_file()?;
+    resolve_app_bundle_executable(&selected)
+}
+
+#[cfg(target_os = "windows")]
+fn pick_musescore_executable() -> Option<PathBuf> {
+    FileDialog::new()
+        .add_filter("Executable", &["exe"])
+        .pick_file()
+}
+
+#[cfg(all(unix, not(target_os = "macos")))]
+fn pick_musescore_executable() -> Option<PathBuf> {
+    FileDialog::new()
+        .add_filter("Executable", &["AppImage"])
+        .pick_file()
+}
+
+#[tauri::command]
+pub(crate) async fn select_musescore_executable() -> Option<MuseScoreValidationResponse> {
+    let selected = pick_musescore_executable()?;
+    Some(validate_musescore_executable(selected.to_string_lossy().into_owned()).await)
 }
 
 #[tauri::command]
@@ -389,6 +482,9 @@ pub(crate) async fn convert_gp_to_mxl(
 mod tests {
     use super::*;
 
+    #[cfg(target_os = "macos")]
+    use std::os::unix::fs::PermissionsExt;
+
     #[test]
     fn recognizes_supported_gp_extensions_case_insensitively() {
         assert!(is_supported_gp_path(Path::new("song.gp")));
@@ -429,5 +525,56 @@ mod tests {
             external_process_path(Path::new(r"\\?\UNC\server\share\song.gp")),
             PathBuf::from(r"\\server\share\song.gp")
         );
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn resolves_executable_from_app_bundle() {
+        let mut bundle = std::env::temp_dir();
+        bundle.push(format!(
+            "tabst-musescore-bundle-{}-{}",
+            std::process::id(),
+            crate::now_ms()
+        ));
+        let macos_dir = bundle.join("Contents/MacOS");
+        std::fs::create_dir_all(&macos_dir).expect("create bundle MacOS dir");
+        let executable = macos_dir.join("mscore");
+        std::fs::write(&executable, "#!/bin/sh").expect("write fake executable");
+        std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o755))
+            .expect("set executable permissions");
+
+        let resolved = resolve_app_bundle_executable(&bundle).expect("resolve bundle");
+        assert_eq!(resolved, executable);
+        let _ = std::fs::remove_dir_all(&bundle);
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn app_bundle_without_executables_is_not_resolvable() {
+        let mut bundle = std::env::temp_dir();
+        bundle.push(format!(
+            "tabst-musescore-empty-{}-{}",
+            std::process::id(),
+            crate::now_ms()
+        ));
+        std::fs::create_dir_all(&bundle.join("Contents/Resources")).expect("create bundle dirs");
+
+        assert!(resolve_app_bundle_executable(&bundle).is_none());
+        let _ = std::fs::remove_dir_all(&bundle);
+    }
+
+    #[test]
+    fn picks_the_first_existing_candidate() {
+        let dir = crate::test_helpers::temp_dir_for("musescore", "candidates");
+        let existing = dir.join("mscore");
+        std::fs::write(&existing, "#!/bin/sh").expect("write candidate");
+        let missing = dir.join("missing-mscore");
+
+        let found =
+            first_existing_candidate(&[missing.to_str().unwrap(), existing.to_str().unwrap()]);
+        assert_eq!(found, Some(existing));
+
+        assert!(first_existing_candidate(&[missing.to_str().unwrap()]).is_none());
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

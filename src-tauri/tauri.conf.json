@@ -20,6 +20,10 @@
 			}
 		],
 		"security": {
+			"assetProtocol": {
+				"enable": true,
+				"scope": []
+			},
 			"csp": {
 				"default-src": "'self' customprotocol: asset: tauri: https://tauri.localhost",
 				"base-uri": "'self'",
@@ -27,7 +31,7 @@
 				"frame-ancestors": "'none'",
 				"script-src": "'self' 'wasm-unsafe-eval' tauri: https://tauri.localhost",
 				"style-src": "'self' 'unsafe-inline' tauri: https://tauri.localhost",
-				"connect-src": "'self' ipc: http://ipc.localhost https://fkasoumnkzrtqwqicbkg.supabase.co tauri: https://tauri.localhost",
+				"connect-src": "'self' ipc: http://ipc.localhost https://fkasoumnkzrtqwqicbkg.supabase.co tauri: https://tauri.localhost asset: http://asset.localhost",
 				"img-src": "'self' asset: http://asset.localhost data: blob: tauri: https://tauri.localhost",
 				"font-src": "'self' asset: http://asset.localhost data: blob: tauri: https://tauri.localhost",
 				"media-src": "'self' asset: http://asset.localhost data: blob: tauri: https://tauri.localhost",
@@ -40,7 +44,7 @@
 				"frame-ancestors": "'none'",
 				"script-src": "'self' 'unsafe-eval' 'wasm-unsafe-eval' http://127.0.0.1:1420",
 				"style-src": "'self' 'unsafe-inline' http://127.0.0.1:1420",
-				"connect-src": "'self' ipc: http://ipc.localhost http://127.0.0.1:1420 ws://127.0.0.1:1420 https://fkasoumnkzrtqwqicbkg.supabase.co",
+				"connect-src": "'self' ipc: http://ipc.localhost http://127.0.0.1:1420 ws://127.0.0.1:1420 https://fkasoumnkzrtqwqicbkg.supabase.co asset: http://asset.localhost",
 				"img-src": "'self' asset: http://asset.localhost data: blob: http://127.0.0.1:1420",
 				"font-src": "'self' asset: http://asset.localhost data: blob: http://127.0.0.1:1420",
 				"media-src": "'self' asset: http://asset.localhost data: blob: http://127.0.0.1:1420",
