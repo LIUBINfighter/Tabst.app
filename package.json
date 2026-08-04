@@ -49,7 +49,7 @@
 		"@codemirror/autocomplete": "^6.20.2",
 		"@codemirror/lang-markdown": "^6.5.0",
 		"@codemirror/language": "^6.12.3",
-		"@codemirror/lint": "^6.9.5",
+		"@codemirror/lint": "^6.9.7",
 		"@codemirror/state": "^6.6.0",
 		"@codemirror/stream-parser": "^0.19.9",
 		"@codemirror/view": "^6.39.12",
