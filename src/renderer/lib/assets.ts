@@ -164,17 +164,22 @@ async function loadSoundFontFromUrlInner(
 			return false;
 		}
 
+		const buffer = await response.arrayBuffer();
+		const u8 = new Uint8Array(buffer);
+
+		// Tauri 的嵌入资源协议（tauri:// 与 asset://）对 mime_guess 无法识别的
+		// 扩展名（如 .sf2/.sf3）会回退为 text/html。这里以内容魔数（RIFF/sfbk）
+		// 为准：只有"既不是 HTML 页面、也不是合法 soundfont"的响应才拒绝。
 		const contentType =
 			response.headers.get("content-type")?.toLowerCase() ?? "";
-		if (contentType.includes("text/html")) {
+		if (contentType.includes("text/html") && !isLikelySoundFont(u8)) {
+			const preview = toAscii(u8, 0, Math.min(64, u8.length));
 			console.warn(
-				`[AssetLoader] Soundfont URL returned HTML content: ${soundFontUrl}`,
+				`[AssetLoader] Soundfont URL returned non-soundfont HTML content: ${soundFontUrl}; header="${preview}"`,
 			);
 			return false;
 		}
 
-		const buffer = await response.arrayBuffer();
-		const u8 = new Uint8Array(buffer);
 		if (!isLikelySoundFont(u8)) {
 			const preview = toAscii(u8, 0, Math.min(16, u8.length));
 			console.warn(
