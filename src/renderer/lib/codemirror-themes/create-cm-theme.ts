@@ -2,6 +2,7 @@ import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import type { Extension } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { tags } from "@lezer/highlight";
+import { buildAtDocHighlightSpecs } from "../atdoc-highlight-tags";
 import { getEditorThemeForUi } from "../theme-system/editor-theme-adapter";
 import type { EditorTheme } from "../theme-system/types";
 
@@ -64,6 +65,7 @@ export function createCMThemeFromEditorTheme(
 		},
 		{ tag: tags.meta, color: colors.keyword },
 		{ tag: tags.punctuation, color: colors.bracket },
+		...buildAtDocHighlightSpecs(colors),
 	]);
 
 	const themeStyles: Record<
