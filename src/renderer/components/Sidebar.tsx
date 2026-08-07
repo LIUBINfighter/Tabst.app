@@ -876,7 +876,7 @@ export function Sidebar({ onCollapse }: SidebarProps) {
 												: "border-border bg-muted/70 text-muted-foreground hover:bg-muted"
 										}`}
 									>
-										#{tag}
+										{tag}
 									</button>
 								);
 							})}
