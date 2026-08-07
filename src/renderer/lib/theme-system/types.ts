@@ -98,6 +98,13 @@ export interface EditorHighlightColors {
 	quote?: string;
 	list?: string;
 	emphasis?: string;
+	// ATDOC 分层注释（TSDoc/JSDoc 风格，未配置时回退到 comment 颜色）
+	atdocSection?: string;
+	atdocKey?: string;
+	atdocValue?: string;
+	atdocString?: string;
+	atdocColor?: string;
+	atdocTag?: string;
 	// 背景/修饰
 	atomBackground?: string;
 	matchBackground?: string;

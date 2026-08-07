@@ -14,6 +14,12 @@ function getLightModeTokenOverrides(
 			function: "#0f766e",
 			tag: "#c2185b",
 			attribute: "#0f766e",
+			atdocSection: "#c2185b",
+			atdocKey: "#00695c",
+			atdocValue: "#8b5e00",
+			atdocString: "#8b5e00",
+			atdocColor: "#b45309",
+			atdocTag: "#0f766e",
 		};
 	}
 

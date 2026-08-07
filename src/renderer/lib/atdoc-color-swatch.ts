@@ -8,8 +8,8 @@ import {
 	WidgetType,
 } from "@codemirror/view";
 
-const ATDOC_COLOR_LINE_REGEX =
-	/^[ \t]*\*[ \t]*at\.[^\n]*?(#[0-9a-fA-F]{6})\b/gm;
+const ATDOC_COMMENT_LINE_REGEX = /^[ \t]*(?:\*[ \t]*|\/\/[ \t]*)/;
+const ATDOC_COLOR_VALUE_PATTERN = /=\s*"?#([0-9a-fA-F]{6})\b/g;
 const HEX_COLOR_REGEX = /^#[0-9a-fA-F]{6}$/;
 
 function normalizeHexColor(hex: string): string {
@@ -107,26 +107,35 @@ class AtDocColorSwatchWidget extends WidgetType {
 function buildAtDocColorSwatches(view: EditorView): DecorationSet {
 	const builder = new RangeSetBuilder<Decoration>();
 	const text = view.state.doc.toString();
+	const lines = text.split(/\r?\n/);
 
-	for (const match of text.matchAll(ATDOC_COLOR_LINE_REGEX)) {
-		const matched = match[0];
-		const color = match[1];
-		const lineStart = match.index;
-		if (lineStart === undefined || !isHexColor(color)) continue;
+	let lineStart = 0;
+	for (const line of lines) {
+		if (ATDOC_COMMENT_LINE_REGEX.test(line)) {
+			for (const match of line.matchAll(ATDOC_COLOR_VALUE_PATTERN)) {
+				const color = match[1];
+				if (!isHexColor(color)) continue;
 
-		const colorOffset = matched.lastIndexOf(color);
-		if (colorOffset < 0) continue;
+				const colorOffset = match[0].lastIndexOf("#");
+				if (colorOffset < 0) continue;
 
-		const from = lineStart + colorOffset;
-		const to = from + color.length;
-		builder.add(
-			from,
-			from,
-			Decoration.widget({
-				widget: new AtDocColorSwatchWidget(normalizeHexColor(color), from, to),
-				side: -1,
-			}),
-		);
+				const from = lineStart + match.index + colorOffset;
+				const to = from + color.length;
+				builder.add(
+					from,
+					from,
+					Decoration.widget({
+						widget: new AtDocColorSwatchWidget(
+							normalizeHexColor(color),
+							from,
+							to,
+						),
+						side: -1,
+					}),
+				);
+			}
+		}
+		lineStart += line.length + 1;
 	}
 
 	return builder.finish();

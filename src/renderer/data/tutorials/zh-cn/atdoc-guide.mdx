@@ -100,6 +100,20 @@ ATDOC 是 Tabst 的文档级配置：在 AlphaTex 文件的注释里声明预览
  */
 ```
 
+## 编辑器高亮
+
+编辑器中 ATDOC 注释采用 TSDoc/JSDoc 风格的分层高亮（未配置对应颜色的层级自动回退到普通注释色）：
+
+- `[meta]` 分节头 — 加粗，主题 `atdocSection` 颜色；
+- `at.域.键` / 节内裸键 — 主题 `atdocKey` 颜色；
+- `=` — 普通注释颜色；
+- 值（数字/枚举/布尔/列表）— 主题 `atdocValue` 颜色；
+- 引号字符串 — 主题 `atdocString` 颜色；
+- `#ef4444` 十六进制颜色 — 主题 `atdocColor` 颜色（`[coloring]` 的颜色值带可点击取色器）；
+- `#tag` 词 — 主题 `atdocTag` 颜色。
+
+词法分析与 `parseAtDoc` 语义一致：分节仅在已知的 `[分节]` 头之后生效，未知分节头会重置当前分节，单词内部的 `#`（如 `C#m`）不会被当作标签。如需自定义颜色，可在 `src/renderer/lib/theme-system/theme-registry.ts` 的编辑器主题上补充可选的 `atdocSection` / `atdocKey` / `atdocValue` / `atdocString` / `atdocColor` / `atdocTag` 槽位。
+
 ## 完整示例
 
 ```alphatex

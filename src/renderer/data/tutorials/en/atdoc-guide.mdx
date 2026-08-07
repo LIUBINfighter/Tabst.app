@@ -100,6 +100,20 @@ The dotted syntax `at.domain.key=value` remains fully supported and can be mixed
  */
 ```
 
+## Editor Highlighting
+
+In the editor, ATDOC comments are highlighted with a layered, TSDoc/JSDoc-style token model (each level falls back to the plain comment color when the theme does not define it):
+
+- `[meta]` section headers — bold, themed `atdocSection` color;
+- `at.domain.key` / bare `key` — themed `atdocKey` color;
+- `=` — plain comment color;
+- values (numbers / enums / booleans / lists) — themed `atdocValue` color;
+- quoted strings — themed `atdocString` color;
+- `#ef4444` hex colors — themed `atdocColor` color (with a clickable color swatch for `[coloring]` values);
+- `#tag` words — themed `atdocTag` color.
+
+The parser mirrors `parseAtDoc` semantics: sections only take effect after a known `[section]` header, unknown headers reset the section, and `#` inside words (e.g. `C#m`) is never treated as a tag. To customize the colors, add the optional `atdocSection` / `atdocKey` / `atdocValue` / `atdocString` / `atdocColor` / `atdocTag` slots to an editor theme in `src/renderer/lib/theme-system/theme-registry.ts`.
+
 ## Complete Example
 
 ```alphatex

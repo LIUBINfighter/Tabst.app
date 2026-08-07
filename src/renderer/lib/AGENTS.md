@@ -15,6 +15,8 @@
 |------|----------|-------|
 | Beat/selection position mapping | `alphatex-parse-positions.ts`, `alphatex-selection-sync.ts` | AST-first + fallback parser |
 | Completion and layered ATDOC | `alphatex-completion.ts` | domain/key/value completion logic |
+| ATDOC layered highlighting | `alphatex-highlight.ts`, `atdoc-highlight-tags.ts` | comment tokenizer + theme color slots |
+| Color swatch widgets | `atdoc-color-swatch.ts` | picker widgets for `[coloring]` values |
 | Worker-facing command data | `../workers/alphatex.worker.ts`, `../data/alphatex-commands.json` | local-first fallback model |
 | Command dispatch and availability | `command-registry.ts`, `ui-command-registry.ts` | global + inline command paths |
 | Theme registry and hooks | `theme-system/*` | UI/editor theme catalogs and mapping |

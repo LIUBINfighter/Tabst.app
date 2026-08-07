@@ -9,7 +9,6 @@ import {
 	Folder,
 	FolderOpen,
 	FolderPlus,
-	Hash,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -487,7 +486,6 @@ export function FileTreeItem({
 													: "border-border bg-muted/70 text-muted-foreground"
 										}`}
 									>
-										<Hash className="h-2.5 w-2.5" />
 										{tag}
 									</button>
 								))}
