@@ -567,7 +567,12 @@ pub(crate) mod test_helpers {
             now_ms()
         ));
         fs::create_dir_all(&dir).expect("failed to create temp test directory");
-        dir
+        // Resolve symlinks and macOS firmlinks (e.g. /var -> /private/var)
+        // once, up front. Later fs::canonicalize calls on freshly created files
+        // inside this directory then run against the already-resolved path,
+        // avoiding intermittent ENOENT from realpath racing the firmlink
+        // boundary during path-authorization checks.
+        fs::canonicalize(&dir).unwrap_or(dir)
     }
 
     pub(crate) fn env_lock() -> &'static Mutex<()> {
