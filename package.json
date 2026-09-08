@@ -47,7 +47,7 @@
 	"packageManager": "pnpm@11.5.2",
 	"dependencies": {
 		"@codemirror/autocomplete": "^6.20.2",
-		"@codemirror/lang-markdown": "^6.5.0",
+		"@codemirror/lang-markdown": "^6.5.2",
 		"@codemirror/language": "^6.12.3",
 		"@codemirror/lint": "^6.9.7",
 		"@codemirror/state": "^6.7.1",
