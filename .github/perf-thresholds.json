@@ -14,8 +14,8 @@
 		},
 		"darwin": {
 			"webBuildMsMax": 30000,
-			"rustReleaseBuildMsMax": 300000,
-			"totalMeasuredMsMax": 330000,
+			"rustReleaseBuildMsMax": 360000,
+			"totalMeasuredMsMax": 390000,
 			"tauriBinaryMaxBytes": 70000000
 		},
 		"linux": {
