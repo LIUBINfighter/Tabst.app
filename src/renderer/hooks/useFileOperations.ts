@@ -272,7 +272,7 @@ export function useFileOperations() {
 
 	const handleRenameSubmit = useCallback(
 		async (id: string, nextName?: string) => {
-			if (!nextName || !nextName.trim()) return;
+			if (!nextName?.trim()) return;
 			const ok = await renameFile(id, nextName.trim());
 			if (!ok) {
 				console.error("failed to rename file");

@@ -297,7 +297,7 @@ function safeDispatch(
 	effect: StateEffect<CodeRange | null>,
 ): void {
 	// 检查 view 是否有效
-	if (!view || !view.dom || !document.contains(view.dom)) {
+	if (!view?.dom || !document.contains(view.dom)) {
 		return;
 	}
 
@@ -306,7 +306,7 @@ function safeDispatch(
 	// setTimeout(0) 会在当前事件循环结束后执行，更安全
 	setTimeout(() => {
 		// 再次检查
-		if (!view || !view.dom || !document.contains(view.dom)) {
+		if (!view?.dom || !document.contains(view.dom)) {
 			return;
 		}
 		try {

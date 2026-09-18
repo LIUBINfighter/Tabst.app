@@ -225,13 +225,13 @@ export function createAlphaTexBarlinesExtension(
 							const view = this.view;
 							// If the view was destroyed or detached before the LSP responded,
 							// avoid dispatching to prevent internal view errors.
-							if (!view || !view.dom || !document.contains(view.dom)) return;
+							if (!view?.dom || !document.contains(view.dom)) return;
 
 							// 🆕 使用 setTimeout(0) 代替 requestAnimationFrame
 							// requestAnimationFrame 可能在滚动事件处理期间执行导致冲突
 							setTimeout(() => {
 								// 再次检查 view 状态
-								if (!view || !view.dom || !document.contains(view.dom)) return;
+								if (!view?.dom || !document.contains(view.dom)) return;
 								if (sentId !== this.requestId) return;
 								try {
 									view.dispatch({ effects: setBarlinesEffect.of(barlines) });

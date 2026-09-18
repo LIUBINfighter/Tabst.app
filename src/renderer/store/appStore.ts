@@ -2386,7 +2386,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 				file.path,
 				finalName,
 			);
-			if (!result || !result.success) {
+			if (!result?.success) {
 				console.error("renameFile failed:", result?.error);
 				return false;
 			}

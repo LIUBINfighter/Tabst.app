@@ -63,7 +63,7 @@ export function applyColorsToApi(
 	api: alphaTab.AlphaTabApi | null,
 	colors: AlphaTabColors,
 ): void {
-	if (!api || !api.settings.display) {
+	if (!api?.settings.display) {
 		console.warn("[ThemeManager] Cannot apply colors: API not ready");
 		return;
 	}
