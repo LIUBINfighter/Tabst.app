@@ -97,7 +97,7 @@ export function useAlphaTab(options: UseAlphaTabOptions): UseAlphaTabReturn {
 		setZoomState(pct);
 
 		const api = apiRef.current;
-		if (!api || !api.settings) return;
+		if (!api?.settings) return;
 
 		try {
 			const disp = api.settings.display as unknown as { scale?: number };

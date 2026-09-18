@@ -323,12 +323,12 @@ function safeDispatch(
 	view: EditorView,
 	effect: StateEffect<CodeRange | null>,
 ): void {
-	if (!view || !view.dom || !document.contains(view.dom)) {
+	if (!view?.dom || !document.contains(view.dom)) {
 		return;
 	}
 
 	scheduleViewTask(view, "dispatch-playback-highlight", () => {
-		if (!view || !view.dom || !document.contains(view.dom)) {
+		if (!view?.dom || !document.contains(view.dom)) {
 			return;
 		}
 		try {
@@ -346,12 +346,12 @@ function safeDispatchBarHighlight(
 	view: EditorView,
 	value: { ranges: CodeRange[] } | null,
 ): void {
-	if (!view || !view.dom || !document.contains(view.dom)) {
+	if (!view?.dom || !document.contains(view.dom)) {
 		return;
 	}
 
 	scheduleViewTask(view, "dispatch-playback-bar", () => {
-		if (!view || !view.dom || !document.contains(view.dom)) {
+		if (!view?.dom || !document.contains(view.dom)) {
 			return;
 		}
 		try {
@@ -374,7 +374,7 @@ function scrollToPlaybackHighlight(
 	view: EditorView,
 	codeRange: CodeRange,
 ): void {
-	if (!view || !view.dom || !document.contains(view.dom)) {
+	if (!view?.dom || !document.contains(view.dom)) {
 		return;
 	}
 	if (!shouldRunScrollTask(view, "playback", 48)) {
@@ -382,7 +382,7 @@ function scrollToPlaybackHighlight(
 	}
 
 	scheduleViewTask(view, "scroll-playback-highlight", () => {
-		if (!view || !view.dom || !document.contains(view.dom)) {
+		if (!view?.dom || !document.contains(view.dom)) {
 			return;
 		}
 
@@ -438,7 +438,7 @@ function scrollToPlaybackHighlight(
  * @param codeRange Highlighted code range
  */
 function scrollToBarHighlight(view: EditorView, codeRange: CodeRange): void {
-	if (!view || !view.dom || !document.contains(view.dom)) {
+	if (!view?.dom || !document.contains(view.dom)) {
 		return;
 	}
 	if (!shouldRunScrollTask(view, "bar", 64)) {
@@ -446,7 +446,7 @@ function scrollToBarHighlight(view: EditorView, codeRange: CodeRange): void {
 	}
 
 	scheduleViewTask(view, "scroll-bar-highlight", () => {
-		if (!view || !view.dom || !document.contains(view.dom)) {
+		if (!view?.dom || !document.contains(view.dom)) {
 			return;
 		}
 

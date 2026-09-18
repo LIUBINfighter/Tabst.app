@@ -540,7 +540,7 @@ export default function Preview({
 			if (!selection) return;
 
 			const activeFile = useAppStore.getState().getActiveFile();
-			if (!activeFile || !activeFile.path.endsWith(".atex")) return;
+			if (!activeFile?.path.endsWith(".atex")) return;
 
 			const source = latestContentRef.current ?? activeFile.content ?? "";
 			const range = mapSelectionToCodeRange(source, selection);
@@ -718,7 +718,7 @@ export default function Preview({
 			}
 			zoomRef.current = pct;
 			const api = apiRef.current;
-			if (!api || !api.settings) return;
+			if (!api?.settings) return;
 			try {
 				const disp = api.settings.display as unknown as { scale?: number };
 				disp.scale = getEffectivePreviewScale(pct);

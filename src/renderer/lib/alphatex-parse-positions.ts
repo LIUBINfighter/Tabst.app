@@ -52,7 +52,7 @@ export function parseBeatPositionsAST(text: string): ParseResult {
 		parser.mode = alphaTab.importer.alphaTex.AlphaTexParseMode.Full;
 		const scoreNode = parser.read();
 
-		if (!scoreNode || !scoreNode.bars) {
+		if (!scoreNode?.bars) {
 			return { beats, contentStart };
 		}
 

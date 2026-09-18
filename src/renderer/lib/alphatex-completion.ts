@@ -376,7 +376,7 @@ export function createAlphaTexCompletionSource(lspClient: AlphaTexLSPClient) {
 
 			const respObj = response as { items?: LspCompletionItem[] } | null;
 
-			if (!respObj || !respObj.items) {
+			if (!respObj?.items) {
 				return null;
 			}
 
