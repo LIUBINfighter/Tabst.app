@@ -13,17 +13,40 @@
  *    `audioStalled` so the caller can surface a user-facing restart hint —
  *    the WKWebView audio subsystem is process-level broken after macOS
  *    display/system sleep and cannot be fixed from inside the page.
+ *
+ * Stall detection is measured against a baseline captured *before* any
+ * recovery work. This matters because `loadSoundFont()` internally pauses the
+ * player: checking "is the player still playing?" after a reload always
+ * answered "no", which silently suppressed the `audioStalled` report (and with
+ * it the restart toast) for exactly the failure it was meant to detect.
  */
 
 import type { AudioRecoveryResult } from "./player-audio-recovery";
+
+/**
+ * Snapshot of the playback position taken before recovery starts.
+ *
+ * `wasPlaying` decides whether a stall can be reported at all: when the user
+ * was not playing, a frozen tick is expected and must not raise a notice.
+ */
+export interface PlaybackStallBaseline {
+	wasPlaying: boolean;
+	tick: number;
+}
 
 export interface PlaybackAudioRefreshDependencies<TApi> {
 	getApi: () => TApi | null;
 	getRecoverPlaybackAudio: () => () => Promise<AudioRecoveryResult | null>;
 	reloadSoundFont: (api: TApi) => Promise<boolean>;
 	getReapplyPlaybackAudioState: () => (api: TApi) => void;
-	/** True while playback is running but the tick position is not advancing. */
-	isPlaybackStalled: () => Promise<boolean>;
+	/** Snapshot the playback state before recovery touches the player. */
+	capturePlaybackBaseline: () => PlaybackStallBaseline | null;
+	/**
+	 * Observe playback for a short window and report whether the tick failed to
+	 * advance past `baseline.tick`. Implementations must NOT require the player
+	 * to still be in the playing state: recovery itself may have paused it.
+	 */
+	isPlaybackStalledSince: (baseline: PlaybackStallBaseline) => Promise<boolean>;
 }
 
 export interface PlaybackAudioRefreshResult {
@@ -65,6 +88,11 @@ export function createPlaybackAudioRefreshCoordinator<TApi>(
 			return { audioStalled: false };
 		}
 
+		// Capture before recovery: reloading the soundfont pauses the player, so
+		// the playing state must not be re-read afterwards.
+		const baseline = deps.capturePlaybackBaseline();
+		const canReportStall = baseline?.wasPlaying === true;
+
 		const recovery = await deps.getRecoverPlaybackAudio()();
 		if (deps.getApi() !== api) {
 			return { audioStalled: false };
@@ -76,8 +104,8 @@ export function createPlaybackAudioRefreshCoordinator<TApi>(
 		let needsSoundFontReload =
 			finalState === "closed" || attemptedButNotRunning;
 
-		if (!needsSoundFontReload) {
-			needsSoundFontReload = await deps.isPlaybackStalled();
+		if (!needsSoundFontReload && canReportStall && baseline) {
+			needsSoundFontReload = await deps.isPlaybackStalledSince(baseline);
 			if (deps.getApi() !== api) {
 				return { audioStalled: false };
 			}
@@ -102,7 +130,10 @@ export function createPlaybackAudioRefreshCoordinator<TApi>(
 
 		deps.getReapplyPlaybackAudioState()(api);
 
-		const stillStalled = await deps.isPlaybackStalled();
+		const stillStalled =
+			canReportStall && baseline
+				? await deps.isPlaybackStalledSince(baseline)
+				: false;
 		if (deps.getApi() !== api) {
 			return { audioStalled: false };
 		}

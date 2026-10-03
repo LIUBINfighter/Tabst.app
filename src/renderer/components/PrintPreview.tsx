@@ -131,8 +131,8 @@ export default function PrintPreview({
 		() =>
 			pages
 				.map(
-					(pageContent, index) => `
-						<div class="print-page" ${index < pages.length - 1 ? 'style="page-break-after: always;"' : ""}>
+					(pageContent) => `
+						<div class="print-page">
 							${pageContent}
 						</div>
 					`,

@@ -1,15 +1,20 @@
 import { describe, expect, it, vi } from "vitest";
 import type { AudioRecoveryResult } from "./player-audio-recovery";
-import { createPlaybackAudioRefreshCoordinator } from "./preview-audio-refresh";
+import {
+	createPlaybackAudioRefreshCoordinator,
+	type PlaybackStallBaseline,
+} from "./preview-audio-refresh";
 
 function createCoordinator({
 	recovery,
 	reloadOk = true,
+	baseline = { wasPlaying: true, tick: 100 },
 	stalled = false,
 	stillStalled,
 }: {
 	recovery: AudioRecoveryResult;
 	reloadOk?: boolean;
+	baseline?: PlaybackStallBaseline | null;
 	stalled?: boolean;
 	stillStalled?: boolean;
 }) {
@@ -18,7 +23,7 @@ function createCoordinator({
 	const reloadSoundFont = vi.fn(async () => reloadOk);
 	const reapplyPlaybackAudioState = vi.fn();
 	let stallCalls = 0;
-	const isPlaybackStalled = vi.fn(async () => {
+	const isPlaybackStalledSince = vi.fn(async () => {
 		stallCalls += 1;
 		if (stallCalls === 1) return stalled;
 		return stillStalled === undefined ? stalled : stillStalled;
@@ -30,7 +35,8 @@ function createCoordinator({
 		getRecoverPlaybackAudio: () => depsRef.recover,
 		reloadSoundFont,
 		getReapplyPlaybackAudioState: () => depsRef.reapplyPlaybackAudioState,
-		isPlaybackStalled,
+		capturePlaybackBaseline: () => baseline,
+		isPlaybackStalledSince,
 	});
 
 	return {
@@ -38,7 +44,7 @@ function createCoordinator({
 		recover,
 		reloadSoundFont,
 		reapplyPlaybackAudioState,
-		isPlaybackStalled,
+		isPlaybackStalledSince,
 	};
 }
 
@@ -122,7 +128,7 @@ describe("createPlaybackAudioRefreshCoordinator", () => {
 	});
 
 	it("reloads the soundfont when playback is stalled while running", async () => {
-		const { coordinator, reloadSoundFont, isPlaybackStalled } =
+		const { coordinator, reloadSoundFont, isPlaybackStalledSince } =
 			createCoordinator({
 				recovery: {
 					didAttemptActivation: false,
@@ -136,7 +142,7 @@ describe("createPlaybackAudioRefreshCoordinator", () => {
 		const result = await coordinator.refresh("window-focus");
 
 		expect(reloadSoundFont).toHaveBeenCalledTimes(1);
-		expect(isPlaybackStalled).toHaveBeenCalled();
+		expect(isPlaybackStalledSince).toHaveBeenCalled();
 		expect(result.audioStalled).toBe(false);
 	});
 
@@ -157,6 +163,36 @@ describe("createPlaybackAudioRefreshCoordinator", () => {
 		expect(result.audioStalled).toBe(true);
 	});
 
+	it("reports audioStalled when the soundfont reload itself paused the player", async () => {
+		// Regression: alphaTab's loadSoundFont() pauses the player, so the old
+		// "is the player still playing?" guard answered false after the reload and
+		// silently suppressed the restart notice. Stall detection is now measured
+		// against the pre-recovery baseline tick instead of the playing state.
+		const baseline = { wasPlaying: true, tick: 100 };
+		const api = {};
+		const recover = vi.fn(async () => ({
+			didAttemptActivation: false,
+			initialState: "running",
+			finalState: "running",
+		}));
+		const reloadSoundFont = vi.fn(async () => true);
+		const isPlaybackStalledSince = vi.fn(async () => true);
+
+		const coordinator = createPlaybackAudioRefreshCoordinator({
+			getApi: () => api,
+			getRecoverPlaybackAudio: () => recover,
+			reloadSoundFont,
+			getReapplyPlaybackAudioState: () => () => {},
+			capturePlaybackBaseline: () => baseline,
+			isPlaybackStalledSince,
+		});
+
+		const result = await coordinator.refresh("play-stall");
+
+		expect(reloadSoundFont).toHaveBeenCalledTimes(1);
+		expect(result.audioStalled).toBe(true);
+	});
+
 	it("does not reload when playback is not stalled", async () => {
 		const { coordinator, reloadSoundFont } = createCoordinator({
 			recovery: {
@@ -169,6 +205,26 @@ describe("createPlaybackAudioRefreshCoordinator", () => {
 		await coordinator.refresh("window-focus");
 
 		expect(reloadSoundFont).not.toHaveBeenCalled();
+	});
+
+	it("never probes for a stall when the user was not playing", async () => {
+		const { coordinator, reloadSoundFont, isPlaybackStalledSince } =
+			createCoordinator({
+				recovery: {
+					didAttemptActivation: false,
+					initialState: "running",
+					finalState: "running",
+				},
+				baseline: { wasPlaying: false, tick: 0 },
+				stalled: true,
+				stillStalled: true,
+			});
+
+		const result = await coordinator.refresh("window-focus");
+
+		expect(isPlaybackStalledSince).not.toHaveBeenCalled();
+		expect(reloadSoundFont).not.toHaveBeenCalled();
+		expect(result.audioStalled).toBe(false);
 	});
 
 	it("reapplies playback state after a recovery", async () => {

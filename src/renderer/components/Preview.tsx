@@ -811,15 +811,23 @@ export default function Preview({
 			},
 			getReapplyPlaybackAudioState: () =>
 				refreshAudioDepsRef.current.reapplyPlaybackAudioState,
-			isPlaybackStalled: async () => {
+			capturePlaybackBaseline: () => {
+				if (!apiRef.current) return null;
+				const state = useAppStore.getState();
+				return {
+					wasPlaying: state.playerIsPlaying,
+					tick: state.playbackPositionTick,
+				};
+			},
+			isPlaybackStalledSince: async (baseline) => {
 				const api = apiRef.current;
 				if (!api) return false;
-				if (!useAppStore.getState().playerIsPlaying) return false;
-				const before = useAppStore.getState().playbackPositionTick;
+				// Deliberately does not re-check `playerIsPlaying`: reloading the
+				// soundfont pauses the player, so requiring it to still be playing
+				// made this always answer "not stalled" and hid the restart notice.
 				await new Promise((resolve) => window.setTimeout(resolve, 1200));
 				if (apiRef.current !== api) return false;
-				const after = useAppStore.getState().playbackPositionTick;
-				return after <= before;
+				return useAppStore.getState().playbackPositionTick <= baseline.tick;
 			},
 		});
 	}
