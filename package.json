@@ -71,7 +71,7 @@
 		"clsx": "^2.1.1",
 		"codemirror": "^6.0.2",
 		"dompurify": "^3.4.0",
-		"effect": "^3.21.2",
+		"effect": "^3.22.2",
 		"i18next": "^25.8.18",
 		"lucide-react": "^1.46.0",
 		"moment": "^2.30.1",
