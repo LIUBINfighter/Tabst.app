@@ -1,8 +1,8 @@
 # WKWebView 音频在显示器/系统睡眠后失效诊断报告
 
-> **Status:** Active — 2026-08-02 诊断结论，与当前 `dev` 分支实现（
-> `fix/audio-focus-stutter` 之后）一致。结论与数据来自真实运行实例的实测，
-> 不是推测。
+> **Status:** Active — 2026-08-02 诊断结论（`fix/audio-focus-stutter` 之后），
+> 2026-10-03 补齐 WebKit 层预防（`backgroundThrottling`）与卡死检测修复。结论与
+> 数据来自真实运行实例的实测，不是推测。
 
 ## 背景
 
@@ -97,7 +97,6 @@ tick 停止推进。**
 无声回归只是因为旧补丁本就没治本。
 
 ## 已实施修复（`fix/audio-focus-stutter`）
-
 1. 删除 `outputMode: WebAudioScriptProcessor` 强制，恢复 alphaTab 默认
    worklet 优先、自动降级。
 2. `prepareAlphaTabAudioForPlayback`：`running` 直接返回（不调用 activate、
@@ -108,7 +107,50 @@ tick 停止推进。**
 4. `loadSoundFontFromUrl`：`append=false`（替换而非堆积）+ per-URL in-flight
    去重。
 
-## 后续修复方向（睡眠场景）
+## 后续修复（2026-10-03）
+
+上述"检测 + 提示重启"方案上线后无声问题仍会复现，复查发现两处缺口：
+
+### 1. 缺少 WebKit 层的预防（根因所在层）
+
+之前所有修复都只在页面 JS 层尝试恢复，但真正需要动的是 **WKWebView 的非活跃
+调度策略**：
+
+- WKWebView 的 `WKInactiveSchedulingPolicy` 默认是 `suspend`——当 view 不在可见
+  窗口中（显示器睡眠 / 最小化 / 遮挡）约 5 分钟后，WebKit 会整体挂起 WebProcess
+  并拆掉其音频会话，唤醒后 `AudioContext.state` 仍是 `running` 但不再出声。
+- Tauri 2 暴露了对应开关 `app.windows[].backgroundThrottling`
+  （`disabled` / `suspend` / `throttle`），链路为
+  `tauri.conf.json` → `WindowConfig` → `WebviewAttributes::from`
+  （`tauri-runtime/src/webview.rs`）→ `wry.with_background_throttling`
+  → `_preference.setValue_forKey("inactiveSchedulingPolicy")`
+  （`wry/src/wkwebview/mod.rs`），macOS 14+ 生效。
+- 之前 `tauri.conf.json` 未设置该字段，于是走默认 `suspend`。
+  现已设置 `"backgroundThrottling": "disabled"`。
+- 注意：现有 `caffeinate -d -w <pid>` 常亮只在**播放中**开启
+  （`Preview.tsx` 的 `playerIsPlaying && enableKeepAwakeDuringPlayback`），
+  而故障发生在**空闲**时，所以常亮开关无法覆盖该场景。
+
+### 2. 卡死检测被自身副作用抑制
+
+`preview-audio-refresh.ts` 在重载 SoundFont 之后再次调用 `isPlaybackStalled()`，
+而 `Preview.tsx` 的实现第一行是 `if (!playerIsPlaying) return false`。
+但 `api.loadSoundFont()` 内部会先 `AlphaSynthBase.pause()`（worker →
+`alphaSynth.playerStateChanged` → store `playerIsPlaying=false`），于是
+"重载后是否仍卡死"的检测会直接短路为 `false` → `audioStalled:false` →
+`AudioRecoveryToast` 不弹。旧单测因为 mock 的 `isPlaybackStalled` 没有
+"被 pause"这个副作用而照不出来。
+
+修复：协调器改为在恢复开始前 `capturePlaybackBaseline()`（记录 `wasPlaying`
+和 `tick`），之后用 `isPlaybackStalledSince(baseline)` 只比较 tick 是否推进，
+**不再重新读取播放状态**；未在播放时不做任何停滞判定。回归测试见
+`preview-audio-refresh.test.ts` 的 "reports audioStalled when the soundfont
+reload itself paused the player"。
+
+## 兜底方案设计（检测 + 提示重启）
+
+以下设计已在 #218 实现，并由上面的 2026-10-03 后续修复补齐（检测不再被
+SoundFont 重载的 pause 副作用抑制，并在 WebKit 层增加了预防）。
 
 页面内无法恢复 webview 音频，方案为"检测 + 提示 + 手动重启"：
 
