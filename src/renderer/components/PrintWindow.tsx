@@ -205,7 +205,7 @@ export default function PrintWindow() {
 			}
 			@page {
 				size: ${payload.pageWidthMm}mm ${payload.pageHeightMm}mm;
-				margin: ${payload.marginMm}mm;
+				margin: 0;
 			}
 			@media (max-width: 900px) {
 				.print-toolbar {
@@ -228,9 +228,26 @@ export default function PrintWindow() {
 					background: white !important;
 					-webkit-print-color-adjust: exact;
 					print-color-adjust: exact;
+					margin: 0 !important;
+					padding: 0 !important;
+					min-height: 0 !important;
+					height: auto !important;
 				}
-				@page {
-					margin: 0;
+				/*
+				 * 分页契约：一个 .print-page 正好等于一张物理纸。
+				 * WKWebView 对 flex 容器的跨页分片不可靠，而 min-height: 100vh 和
+				 * 容器 padding 都会增加文档流高度，把第一张纸顶过物理页边界，从而
+				 * 多出一张空白页。因此打印态改成纯 block 布局，并把页边距放进纸张
+				 * 自身的 padding，避免任何高度叠加。
+				 */
+				.print-window-root {
+					display: block !important;
+					min-height: 0 !important;
+				}
+				.print-shell {
+					display: block !important;
+					flex: none !important;
+					padding: 0 !important;
 				}
 				.print-window-root,
 				.print-shell,
@@ -243,22 +260,33 @@ export default function PrintWindow() {
 				.print-toolbar {
 					display: none !important;
 				}
-				.print-shell {
-					padding: ${payload.marginMm}mm;
-				}
 				.print-stack {
-					width: auto;
-					max-width: none;
-					margin: 0;
+					display: block !important;
+					width: auto !important;
+					max-width: none !important;
+					margin: 0 !important;
 				}
 				.print-page {
-					margin: 0;
+					width: ${payload.pageWidthMm}mm !important;
+					/* 少留 0.2mm，避免亚像素舍入把一张纸挤到第二张物理页上。 */
+					height: calc(${payload.pageHeightMm}mm - 0.2mm) !important;
+					padding: ${payload.marginMm}mm !important;
+					box-sizing: border-box !important;
+					margin: 0 !important;
 					background: white !important;
 					border: 0 !important;
 					border-radius: 0 !important;
 					box-shadow: none !important;
 					outline: 0 !important;
-					page-break-inside: avoid;
+					overflow: hidden !important;
+					break-after: page;
+					page-break-after: always;
+					break-inside: auto;
+					page-break-inside: auto;
+				}
+				.print-page:last-child {
+					break-after: auto;
+					page-break-after: auto;
 				}
 			}
 		`;
