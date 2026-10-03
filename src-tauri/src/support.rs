@@ -451,11 +451,90 @@ pub(crate) fn sanitize_name(name: &str) -> String {
         .collect()
 }
 
+// Thread-local stand-in for `$HOME`, installed by `test_helpers::with_temp_home`.
+//
+// Tests cannot replace `HOME` privately: the harness runs tests concurrently, and
+// `with_temp_home` has to write the process-global variable because Tauri resolves
+// its own app-data directory straight from it. Without this override a test that
+// resolved a home directory while another test's temporary `HOME` was installed
+// would build paths inside that temporary directory and then race the cleanup that
+// deletes it -- surfacing as a bogus `No such file or directory (os error 2)` from
+// whichever unrelated assertion happened to run next. Resolving through this
+// override keeps each test's artificial home private to the thread that set it.
+#[cfg(test)]
+std::thread_local! {
+    static TEST_HOME_OVERRIDE: std::cell::RefCell<Option<PathBuf>> =
+        const { std::cell::RefCell::new(None) };
+}
+
+/// The home directory installed by `with_test_home` on this thread, if any.
+#[cfg(test)]
+fn test_home_override() -> Option<PathBuf> {
+    TEST_HOME_OVERRIDE.with(|slot| slot.borrow().clone())
+}
+
+/// The real home directory of the test process, captured before any test installs a
+/// temporary one.
+///
+/// `with_temp_home` writes the process-global `HOME` variable, so a test that does
+/// not install an override must not read that variable itself. Capturing it lazily is
+/// safe because a test only replaces `HOME` after calling this function, and the
+/// first caller wins the `OnceLock` before any replacement can have happened.
+#[cfg(test)]
+fn pristine_home() -> Option<PathBuf> {
+    static CAPTURED: OnceLock<Option<PathBuf>> = OnceLock::new();
+
+    CAPTURED
+        .get_or_init(|| std::env::var_os("HOME").map(PathBuf::from))
+        .clone()
+}
+
+/// The home directory paths should resolve against, fake homes included.
+///
+/// In production this is a no-op so that `home_dir()` and `document_dir()` stay the
+/// single source of truth.
+#[cfg(test)]
+fn test_resolved_home() -> Option<PathBuf> {
+    test_home_override().or_else(pristine_home)
+}
+
+#[cfg(not(test))]
+fn test_resolved_home() -> Option<PathBuf> {
+    None
+}
+
+/// Run `run` with `home` installed as the home directory of the current thread.
+#[cfg(test)]
+pub(crate) fn with_test_home<T>(home: &Path, run: impl FnOnce() -> T) -> T {
+    struct ClearOverride;
+
+    impl Drop for ClearOverride {
+        fn drop(&mut self) {
+            TEST_HOME_OVERRIDE.with(|slot| *slot.borrow_mut() = None);
+        }
+    }
+
+    TEST_HOME_OVERRIDE.with(|slot| *slot.borrow_mut() = Some(home.to_path_buf()));
+    let _clear_override = ClearOverride;
+    run()
+}
+
 pub(crate) fn default_save_dir() -> PathBuf {
-    let base = document_dir()
+    home_base_dir().join("tabst")
+}
+
+/// The directory holding the user's home directory.
+fn home_base_dir() -> PathBuf {
+    if let Some(home) = test_resolved_home() {
+        // `document_dir()` resolves to `<home>/Documents`; mirror that against the
+        // resolved home so a test keeps the same layout without reading the
+        // process-global variable another test may currently own.
+        return home.join("Documents");
+    }
+
+    document_dir()
         .or_else(home_dir)
-        .unwrap_or_else(|| PathBuf::from("."));
-    base.join("tabst")
+        .unwrap_or_else(|| PathBuf::from("."))
 }
 
 pub(crate) fn ensure_parent(path: &Path) -> Result<(), String> {
@@ -520,8 +599,16 @@ pub(crate) fn read_json_file<T: DeserializeOwned>(path: &Path) -> Result<Option<
     Ok(Some(parsed))
 }
 
+fn resolved_home_dir() -> Option<PathBuf> {
+    if let Some(home) = test_resolved_home() {
+        return Some(home);
+    }
+
+    home_dir()
+}
+
 pub(crate) fn global_metadata_dir() -> Result<PathBuf, String> {
-    let base = home_dir().unwrap_or_else(|| PathBuf::from("."));
+    let base = resolved_home_dir().unwrap_or_else(|| PathBuf::from("."));
     let metadata_dir = base.join(".tabst");
     fs::create_dir_all(&metadata_dir).map_err(to_error)?;
     Ok(metadata_dir)
@@ -580,20 +667,36 @@ pub(crate) mod test_helpers {
         LOCK.get_or_init(|| Mutex::new(()))
     }
 
+    /// Serialize access to the process-global `HOME` variable.
+    ///
+    /// Poisoning is deliberately ignored: a test that panicked while holding the
+    /// lock must not turn every later test into a secondary failure.
+    pub(crate) fn lock_home_env() -> std::sync::MutexGuard<'static, ()> {
+        env_lock()
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+    }
+
     pub(crate) fn with_temp_home<T>(
         prefix: &str,
         test_name: &str,
         run: impl FnOnce(PathBuf) -> T,
     ) -> T {
-        let _guard = env_lock().lock().expect("failed to lock env mutex");
+        // Held until the temporary home has been removed, so two tests can never
+        // interleave their replacement of `HOME`.
+        let _guard = lock_home_env();
         let home_dir = temp_dir_for(prefix, test_name);
+
+        // Capture the real home before replacing it, so tests that do not install an
+        // override never observe the temporary value. See `TEST_HOME_OVERRIDE`.
+        let _ = super::pristine_home();
         let previous_home = env::var_os("HOME");
 
         unsafe {
             env::set_var("HOME", &home_dir);
         }
 
-        let result = run(home_dir.clone());
+        let result = super::with_test_home(&home_dir, || run(home_dir.clone()));
 
         if let Some(value) = previous_home {
             unsafe {
@@ -655,5 +758,66 @@ pub(crate) fn rename_path(source_path: &Path, target_path: &Path) -> Result<(), 
             }
             Err(to_error(error))
         }
+    }
+}
+
+#[cfg(test)]
+mod home_resolution_tests {
+    use std::env;
+    use std::ffi::OsString;
+
+    use super::{
+        default_save_dir, global_metadata_dir, pristine_home, test_helpers::lock_home_env,
+        test_resolved_home,
+    };
+
+    /// Restores `HOME` even when the test panics inside the replaced window.
+    struct RestoreHome(Option<OsString>);
+
+    impl Drop for RestoreHome {
+        fn drop(&mut self) {
+            unsafe {
+                match &self.0 {
+                    Some(value) => env::set_var("HOME", value),
+                    None => env::remove_var("HOME"),
+                }
+            }
+        }
+    }
+
+    /// A test that does not install a home override must keep resolving the real home
+    /// even while another test has `HOME` pointed at a temporary directory.
+    ///
+    /// Regression test for the intermittent `No such file or directory (os error 2)`
+    /// reported by `delete_file_repo_trash_rejects_paths_outside_the_repo_root`:
+    /// resolving the default workspace root under a temporary home made the test race
+    /// the cleanup that deletes that home.
+    #[test]
+    fn a_replaced_home_does_not_leak_into_path_resolution() {
+        let _guard = lock_home_env();
+        let real_home = pristine_home().expect("test process should have a home directory");
+        let previous_home = env::var_os("HOME");
+        let foreign_home = env::temp_dir().join("tabst-tauri-test-foreign-home");
+
+        unsafe {
+            env::set_var("HOME", &foreign_home);
+        }
+        let _restore = RestoreHome(previous_home);
+
+        assert_eq!(
+            test_resolved_home(),
+            Some(real_home),
+            "path resolution must ignore the temporary HOME another test installed"
+        );
+        assert!(
+            !default_save_dir().starts_with(&foreign_home),
+            "default save dir must not be rooted in another test's temporary home"
+        );
+        assert!(
+            !global_metadata_dir()
+                .expect("global metadata dir")
+                .starts_with(&foreign_home),
+            "global metadata dir must not be rooted in another test's temporary home"
+        );
     }
 }
