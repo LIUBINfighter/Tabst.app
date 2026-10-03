@@ -546,9 +546,10 @@ pub(crate) fn save_settings_json(settings: &Map<String, Value>) -> Result<(), St
 pub(crate) mod test_helpers {
     use std::env;
     use std::fs;
-    use std::path::PathBuf;
+    use std::path::{Path, PathBuf};
     use std::sync::{Mutex, OnceLock};
-    use std::time::{SystemTime, UNIX_EPOCH};
+    use std::thread;
+    use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
     pub(crate) fn now_ms() -> u64 {
         SystemTime::now()
@@ -572,7 +573,31 @@ pub(crate) mod test_helpers {
         // inside this directory then run against the already-resolved path,
         // avoiding intermittent ENOENT from realpath racing the firmlink
         // boundary during path-authorization checks.
-        fs::canonicalize(&dir).unwrap_or(dir)
+        canonicalize_temp_path(&dir)
+    }
+
+    /// Canonicalize a freshly created temporary path, retrying briefly on failure.
+    ///
+    /// Falling back to the unresolved path is not an option: it silently
+    /// reintroduces the firmlink race this exists to remove, and the failure then
+    /// surfaces much later as a bogus `No such file or directory (os error 2)`
+    /// from an unrelated path-authorization assertion.
+    fn canonicalize_temp_path(path: &Path) -> PathBuf {
+        let deadline = Instant::now() + Duration::from_secs(10);
+        loop {
+            match fs::canonicalize(path) {
+                Ok(resolved) => return resolved,
+                Err(error) => {
+                    if Instant::now() >= deadline {
+                        panic!(
+                            "failed to canonicalize temp test directory {}: {error}",
+                            path.display()
+                        );
+                    }
+                    thread::sleep(Duration::from_millis(25));
+                }
+            }
+        }
     }
 
     pub(crate) fn env_lock() -> &'static Mutex<()> {
